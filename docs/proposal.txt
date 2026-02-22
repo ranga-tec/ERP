@@ -1,0 +1,393 @@
+BUSINESS PROPOSAL
+Complete ERP & Service Management Solution
+
+PREPARED FOR
+
+PREPARED BY
+
+Chief Executive Officer
+
+NeuralsEdge (Pvt) Ltd.
+
+C-Com Equipment (Pvt) Ltd.
+
+Ranga Nanayakkara
+
+No: 64/10, Nawala Road, Nugegoda
+
+Project Manager
+
+Tel: +94 11 2812994
+
+Mobile: +94 71 5884499
+
+Mobile: +94 74 0864037
+
+Email: ranga@neuralsedge.com
+
+Email: dhanushka@c-com.lk
+
+Web: www.neuralsedge.com
+
+CC: Dhanushka Gunawardena, Senior Sales Executive Date: October 8, 2025
+
+Executive Summary
+NeuralsEdge is pleased to present this proposal for a comprehensive, custom-built ERP and
+Service Management System tailored specifically for C-Com Equipment (Pvt) Ltd. As a leading
+distributor of Bobcat, Dynapac, Case Construction, and Fiori equipment, your business
+requires a robust, integrated solution to manage complex inventory, procurement, sales, and
+service operations.
+Currently, managing these critical operations through Excel spreadsheets and manual
+processes creates inefficiencies, increases error rates, and limits your ability to scale. Our
+proposed solution will transform your operations, providing real-time visibility, automated
+workflows, and enhanced operational efficiency.
+
+Current Challenges & Pain Points
+Based on typical operations in the equipment distribution and service industry, we understand
+that C-Com Equipment likely faces these challenges:
+
+❌ Manual Data Entry
+
+❌ Limited Visibility
+
+Time-consuming Excel management leading
+
+Difficulty tracking inventory levels, service
+
+to errors and duplicate work across
+
+jobs, and customer orders in real-time
+
+departments
+
+❌ Inefficient Workflows
+
+❌ Poor Integration
+
+Paper-based processes for purchase orders,
+
+Disconnected data between sales, service,
+
+service tickets, and invoicing
+
+inventory, and accounting
+
+❌ Serial/Batch Tracking
+
+❌ Reporting Gaps
+
+Difficulty tracking equipment and parts by
+
+Time-consuming manual report preparation;
+
+serial numbers for warranty and service
+
+delayed business insights
+
+Proposed Solution
+A complete, custom-developed ERP system that integrates all aspects of your business
+operations into a single, unified platform.
+
+Core Modules
+
+✓ Master Data Management (Items,
+
+✓ Complete Procurement Cycle (RFQ, PO,
+
+Customers, Suppliers, Brands)
+
+GRN, Supplier Returns)
+
+✓ Inventory Operations (Stock Adjustments,
+
+✓ Sales & Dispatch Management
+
+✓ Service Job Management (Job Cards, Work
+
+✓ Spare Parts Management (Direct Sales,
+
+Orders, QC)
+
+Material Requisitions)
+
+✓ Serial & Batch Tracking (Full traceability for
+
+✓ Accounts Integration (AR/AP, Payments,
+
+equipment/parts)
+
+Credit/Debit Notes)
+
+✓ Advanced Reporting & Analytics (Real-time
+
+✓ Multi-warehouse Support (Branch
+
+dashboards)
+
+operations)
+
+✓ Mobile-responsive Design (Access
+
+✓ Role-based Security (User permissions &
+
+anywhere)
+
+audit trails)
+
+Transfers, Reorder Planning)
+
+(Quotations, Orders, Invoicing)
+
+Key Benefits & Business Impact
+Operational Improvements
+Benefit Area
+
+Current State
+
+With ERP System
+
+5+ hours/day on manual data
+
+Automated workflows, reduce
+
+entry & reconciliation
+
+to 1 hour/day (80% reduction)
+
+Inventory
+
+15-20% excess stock,
+
+Real-time tracking, reorder
+
+Optimization
+
+frequent stockouts
+
+alerts, optimal stock levels
+
+Manual errors in orders,
+
+Automated validation & checks,
+
+invoicing, stock records
+
+95%+ accuracy
+
+Service
+
+Average 5-7 days service
+
+Improved to 3-4 days (40%
+
+Turnaround
+
+completion time
+
+faster), higher satisfaction
+
+Cash Flow
+
+Delayed invoicing, manual
+
+Automated reminders, faster
+
+Management
+
+payment follow-ups
+
+collections, improved DSO
+
+Time Efficiency
+
+Data Accuracy
+
+Business Transformation Summary
+One-Time Investment: LKR 350,000
+
+✓ 80% reduction in manual data entry time
+✓ 40% faster service turnaround time
+✓ Real-time visibility across all operations
+✓ Complete traceability of parts & equipment
+✓ Scalable foundation for business growth
+✓ Improved customer satisfaction through faster service
+
+Technology Stack
+Built with enterprise-grade, modern technologies for performance, security, and scalability:
+
+🔷
+
+🅰️
+
+💾
+
+🖥️
+
+C# .NET Core
+
+Angular
+
+MS SQL Server
+
+On-Premise
+
+Backend API
+
+Frontend UI
+
+Database
+
+Your Server
+
+Why This Stack?
+
+High Performance
+
+Scalable
+
+.NET Core provides blazing-fast response
+
+Grows with your business - supports multiple
+
+times even with large datasets
+
+warehouses and unlimited users
+
+Secure
+
+Modern UI/UX
+
+Enterprise-level security, hosted on your own
+
+Angular delivers a responsive, intuitive user
+
+infrastructure
+
+experience
+
+Implementation Timeline
+Week 1: Requirements & Design
+5 working days
+
+Detailed requirements gathering, database design, UI/UX mockups, project kickoff
+meeting
+
+Week 2-3: Core Development
+10 working days
+
+Master data modules, inventory operations, procurement cycle development, database
+setup
+
+Week 4-5: Advanced Features
+10 working days
+
+Service management, sales cycle, reporting dashboards, serial/batch tracking
+Week 6: Testing & Deployment
+5 working days
+
+User acceptance testing, bug fixes, data migration, training, go-live support
+
+What's Included
+✓ Complete source code ownership
+
+✓ Database design & setup
+
+✓ Installation on your server
+
+✓ 2 days on-site training
+
+✓ User manuals & documentation
+
+✓ 3 months free support & bug fixes
+
+✓ Data migration from Excel
+
+✓ Barcode/QR code integration
+
+✓ Email & SMS notifications
+
+✓ PDF export for all documents
+
+✓ Role-based access control
+
+✓ Audit trail for all transactions
+
+Why NeuralsEdge?
+🏆 Proven Expertise
+
+⚡ Rapid Development
+
+Specialized in custom ERP solutions for
+
+Agile methodology ensures quick delivery
+
+service and distribution businesses
+
+without compromising quality
+
+💼 Industry Knowledge
+
+🤝 Local Support
+
+Deep understanding of equipment
+
+Based in Sri Lanka, providing immediate
+
+distribution and service operations
+
+support and training
+
+Investment Breakdown
+Component
+
+Details
+
+Amount (LKR)
+
+System Development
+
+Complete ERP with all modules
+
+300,000
+
+Training & Documentation
+
+On-site training & user guides
+
+25,000
+
+Data Migration
+
+Excel to database migration
+
+15,000
+
+Deployment & Setup
+
+Server installation & configuration
+
+10,000
+
+TOTAL INVESTMENT
+Payment Terms:
+50% advance upon project commencement (LKR 175,000)
+50% upon successful deployment and user acceptance (LKR 175,000)
+
+350,000
+
+Ready to Transform Your Business?
+Let's schedule a meeting to discuss your specific requirements and demonstrate
+how our ERP solution can streamline your operations.
+Ranga Nanayakkara
+
+📱 +94 71 5884499
+📧 ranga@neuralsedge.com
+🌐 www.neuralsedge.com
+We look forward to partnering with C-Com Equipment to drive
+operational excellence.
+
+NeuralsEdge (Pvt) Ltd. | Innovative Software Solutions
+This proposal is valid for 30 days from the date of submission.
+© 2025 NeuralsEdge. All rights reserved.
+
+

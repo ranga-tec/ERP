@@ -1,0 +1,6 @@
+@ISS.Api_HostAddress = http://localhost:5257
+
+GET {{ISS.Api_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

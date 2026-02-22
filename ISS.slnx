@@ -1,0 +1,13 @@
+<Solution>
+  <Folder Name="/backend/" />
+  <Folder Name="/backend/src/">
+    <Project Path="backend/src/ISS.Api/ISS.Api.csproj" />
+    <Project Path="backend/src/ISS.Application/ISS.Application.csproj" />
+    <Project Path="backend/src/ISS.Domain/ISS.Domain.csproj" />
+    <Project Path="backend/src/ISS.Infrastructure/ISS.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/backend/tests/">
+    <Project Path="backend/tests/ISS.IntegrationTests/ISS.IntegrationTests.csproj" />
+    <Project Path="backend/tests/ISS.UnitTests/ISS.UnitTests.csproj" />
+  </Folder>
+</Solution>
