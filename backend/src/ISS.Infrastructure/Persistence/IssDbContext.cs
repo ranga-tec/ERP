@@ -26,7 +26,11 @@ public sealed class IssDbContext(
     public DbContext DbContext => this;
 
     public DbSet<Brand> Brands => Set<Brand>();
+    public DbSet<UnitOfMeasure> UnitOfMeasures => Set<UnitOfMeasure>();
+    public DbSet<ItemCategory> ItemCategories => Set<ItemCategory>();
+    public DbSet<ItemSubcategory> ItemSubcategories => Set<ItemSubcategory>();
     public DbSet<Item> Items => Set<Item>();
+    public DbSet<ItemAttachment> ItemAttachments => Set<ItemAttachment>();
     public DbSet<Customer> Customers => Set<Customer>();
     public DbSet<Supplier> Suppliers => Set<Supplier>();
     public DbSet<Warehouse> Warehouses => Set<Warehouse>();
@@ -37,6 +41,7 @@ public sealed class IssDbContext(
     public DbSet<StockTransfer> StockTransfers => Set<StockTransfer>();
 
     public DbSet<RequestForQuote> RequestForQuotes => Set<RequestForQuote>();
+    public DbSet<PurchaseRequisition> PurchaseRequisitions => Set<PurchaseRequisition>();
     public DbSet<PurchaseOrder> PurchaseOrders => Set<PurchaseOrder>();
     public DbSet<GoodsReceipt> GoodsReceipts => Set<GoodsReceipt>();
     public DbSet<SupplierReturn> SupplierReturns => Set<SupplierReturn>();
@@ -73,6 +78,28 @@ public sealed class IssDbContext(
             entity.Property(x => x.Name).HasMaxLength(256);
         });
 
+        builder.Entity<UnitOfMeasure>(entity =>
+        {
+            entity.HasIndex(x => x.Code).IsUnique();
+            entity.Property(x => x.Code).HasMaxLength(16);
+            entity.Property(x => x.Name).HasMaxLength(64);
+        });
+
+        builder.Entity<ItemCategory>(entity =>
+        {
+            entity.HasIndex(x => x.Code).IsUnique();
+            entity.Property(x => x.Code).HasMaxLength(32);
+            entity.Property(x => x.Name).HasMaxLength(128);
+        });
+
+        builder.Entity<ItemSubcategory>(entity =>
+        {
+            entity.HasIndex(x => new { x.CategoryId, x.Code }).IsUnique();
+            entity.Property(x => x.Code).HasMaxLength(32);
+            entity.Property(x => x.Name).HasMaxLength(128);
+            entity.HasOne(x => x.Category).WithMany().HasForeignKey(x => x.CategoryId);
+        });
+
         builder.Entity<Customer>(entity =>
         {
             entity.HasIndex(x => x.Code).IsUnique();
@@ -98,11 +125,26 @@ public sealed class IssDbContext(
         {
             entity.HasIndex(x => x.Sku).IsUnique();
             entity.HasIndex(x => x.Barcode).IsUnique();
+            entity.HasIndex(x => x.CategoryId);
+            entity.HasIndex(x => x.SubcategoryId);
             entity.Property(x => x.Sku).HasMaxLength(64);
             entity.Property(x => x.Name).HasMaxLength(256);
             entity.Property(x => x.UnitOfMeasure).HasMaxLength(32);
             entity.Property(x => x.Barcode).HasMaxLength(128);
             entity.HasOne(x => x.Brand).WithMany().HasForeignKey(x => x.BrandId);
+            entity.HasOne(x => x.Category).WithMany().HasForeignKey(x => x.CategoryId);
+            entity.HasOne(x => x.Subcategory).WithMany().HasForeignKey(x => x.SubcategoryId);
+        });
+
+        builder.Entity<ItemAttachment>(entity =>
+        {
+            entity.Property(x => x.FileName).HasMaxLength(256);
+            entity.Property(x => x.Url).HasMaxLength(2000);
+            entity.Property(x => x.ContentType).HasMaxLength(128);
+            entity.Property(x => x.Notes).HasMaxLength(1000);
+            entity.Property(x => x.StoragePath).HasMaxLength(2000);
+            entity.HasIndex(x => new { x.ItemId, x.CreatedAt });
+            entity.HasOne(x => x.Item).WithMany().HasForeignKey(x => x.ItemId).OnDelete(DeleteBehavior.Cascade);
         });
 
         builder.Entity<ReorderSetting>(entity =>
@@ -176,6 +218,19 @@ public sealed class IssDbContext(
         builder.Entity<RequestForQuoteLine>(entity =>
         {
             entity.Property(x => x.Quantity).HasPrecision(18, 4);
+        });
+
+        builder.Entity<PurchaseRequisition>(entity =>
+        {
+            entity.HasIndex(x => x.Number).IsUnique();
+            entity.Property(x => x.Number).HasMaxLength(32);
+            entity.Property(x => x.Notes).HasMaxLength(2000);
+            entity.HasMany(x => x.Lines).WithOne().HasForeignKey(x => x.PurchaseRequisitionId).OnDelete(DeleteBehavior.Cascade);
+        });
+        builder.Entity<PurchaseRequisitionLine>(entity =>
+        {
+            entity.Property(x => x.Quantity).HasPrecision(18, 4);
+            entity.Property(x => x.Notes).HasMaxLength(2000);
         });
 
         builder.Entity<PurchaseOrder>(entity =>

@@ -43,6 +43,114 @@ public sealed class ProcurementService(
         await dbContext.SaveChangesAsync(cancellationToken);
     }
 
+    public async Task<Guid> CreatePurchaseRequisitionAsync(string? notes, CancellationToken cancellationToken = default)
+    {
+        var number = await documentNumberService.NextAsync("PR", "PR", cancellationToken);
+        var pr = new PurchaseRequisition(number, clock.UtcNow, notes);
+        await dbContext.PurchaseRequisitions.AddAsync(pr, cancellationToken);
+        await dbContext.SaveChangesAsync(cancellationToken);
+        return pr.Id;
+    }
+
+    public async Task AddPurchaseRequisitionLineAsync(Guid purchaseRequisitionId, Guid itemId, decimal quantity, string? notes, CancellationToken cancellationToken = default)
+    {
+        var pr = await dbContext.PurchaseRequisitions.Include(x => x.Lines).FirstOrDefaultAsync(x => x.Id == purchaseRequisitionId, cancellationToken)
+                 ?? throw new NotFoundException("Purchase requisition not found.");
+
+        var line = pr.AddLine(itemId, quantity, notes);
+        dbContext.DbContext.Add(line);
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task SubmitPurchaseRequisitionAsync(Guid purchaseRequisitionId, CancellationToken cancellationToken = default)
+    {
+        var pr = await dbContext.PurchaseRequisitions.Include(x => x.Lines).FirstOrDefaultAsync(x => x.Id == purchaseRequisitionId, cancellationToken)
+                 ?? throw new NotFoundException("Purchase requisition not found.");
+
+        pr.Submit();
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task ApprovePurchaseRequisitionAsync(Guid purchaseRequisitionId, CancellationToken cancellationToken = default)
+    {
+        var pr = await dbContext.PurchaseRequisitions.FirstOrDefaultAsync(x => x.Id == purchaseRequisitionId, cancellationToken)
+                 ?? throw new NotFoundException("Purchase requisition not found.");
+
+        pr.Approve();
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task RejectPurchaseRequisitionAsync(Guid purchaseRequisitionId, CancellationToken cancellationToken = default)
+    {
+        var pr = await dbContext.PurchaseRequisitions.FirstOrDefaultAsync(x => x.Id == purchaseRequisitionId, cancellationToken)
+                 ?? throw new NotFoundException("Purchase requisition not found.");
+
+        pr.Reject();
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task CancelPurchaseRequisitionAsync(Guid purchaseRequisitionId, CancellationToken cancellationToken = default)
+    {
+        var pr = await dbContext.PurchaseRequisitions.FirstOrDefaultAsync(x => x.Id == purchaseRequisitionId, cancellationToken)
+                 ?? throw new NotFoundException("Purchase requisition not found.");
+
+        pr.Cancel();
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task<Guid> CreatePurchaseOrderFromPurchaseRequisitionAsync(
+        Guid purchaseRequisitionId,
+        Guid supplierId,
+        CancellationToken cancellationToken = default)
+    {
+        var pr = await dbContext.PurchaseRequisitions
+            .Include(x => x.Lines)
+            .FirstOrDefaultAsync(x => x.Id == purchaseRequisitionId, cancellationToken)
+            ?? throw new NotFoundException("Purchase requisition not found.");
+
+        if (pr.Status != PurchaseRequisitionStatus.Approved)
+        {
+            throw new DomainValidationException("Only approved purchase requisitions can be converted to PO.");
+        }
+
+        if (pr.Lines.Count == 0)
+        {
+            throw new DomainValidationException("Purchase requisition must have at least one line.");
+        }
+
+        var supplierExists = await dbContext.Suppliers.AsNoTracking().AnyAsync(x => x.Id == supplierId, cancellationToken);
+        if (!supplierExists)
+        {
+            throw new NotFoundException("Supplier not found.");
+        }
+
+        var lineItemIds = pr.Lines.Select(x => x.ItemId).Distinct().ToList();
+        var itemCosts = await dbContext.Items.AsNoTracking()
+            .Where(x => lineItemIds.Contains(x.Id))
+            .Select(x => new { x.Id, x.DefaultUnitCost })
+            .ToListAsync(cancellationToken);
+        var itemCostById = itemCosts.ToDictionary(x => x.Id, x => x.DefaultUnitCost);
+
+        var missingItemId = lineItemIds.FirstOrDefault(x => !itemCostById.ContainsKey(x));
+        if (missingItemId != Guid.Empty)
+        {
+            throw new DomainValidationException($"Invalid item on purchase requisition: {missingItemId}");
+        }
+
+        var number = await documentNumberService.NextAsync("PO", "PO", cancellationToken);
+        var po = new PurchaseOrder(number, supplierId, clock.UtcNow);
+        await dbContext.PurchaseOrders.AddAsync(po, cancellationToken);
+
+        foreach (var line in pr.Lines)
+        {
+            var poLine = po.AddLine(line.ItemId, line.Quantity, itemCostById[line.ItemId]);
+            dbContext.DbContext.Add(poLine);
+        }
+
+        await dbContext.SaveChangesAsync(cancellationToken);
+        return po.Id;
+    }
+
     public async Task<Guid> CreatePurchaseOrderAsync(Guid supplierId, CancellationToken cancellationToken = default)
     {
         var number = await documentNumberService.NextAsync("PO", "PO", cancellationToken);

@@ -12,6 +12,8 @@ const sections: NavSection[] = [
     title: "Master Data",
     items: [
       { href: "/master-data/brands", label: "Brands" },
+      { href: "/master-data/uoms", label: "UoMs" },
+      { href: "/master-data/item-categories", label: "Item Categories" },
       { href: "/master-data/items", label: "Items" },
       { href: "/master-data/customers", label: "Customers" },
       { href: "/master-data/suppliers", label: "Suppliers" },
@@ -22,6 +24,7 @@ const sections: NavSection[] = [
   {
     title: "Procurement",
     items: [
+      { href: "/procurement/purchase-requisitions", label: "Purchase Reqs" },
       { href: "/procurement/rfqs", label: "RFQs" },
       { href: "/procurement/purchase-orders", label: "Purchase Orders" },
       { href: "/procurement/goods-receipts", label: "Goods Receipts" },

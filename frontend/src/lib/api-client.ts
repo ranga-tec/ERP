@@ -25,6 +25,16 @@ export async function apiPost<T>(path: string, body: unknown): Promise<T> {
   return (await resp.json()) as T;
 }
 
+export async function apiPostForm<T>(path: string, body: FormData): Promise<T> {
+  const resp = await ensureOk(
+    await fetch(backendUrl(path), {
+      method: "POST",
+      body,
+    }),
+  );
+  return (await resp.json()) as T;
+}
+
 export async function apiPostNoContent(path: string, body: unknown): Promise<void> {
   await ensureOk(
     await fetch(backendUrl(path), {
@@ -46,3 +56,10 @@ export async function apiPut<T>(path: string, body: unknown): Promise<T> {
   return (await resp.json()) as T;
 }
 
+export async function apiDeleteNoContent(path: string): Promise<void> {
+  await ensureOk(
+    await fetch(backendUrl(path), {
+      method: "DELETE",
+    }),
+  );
+}

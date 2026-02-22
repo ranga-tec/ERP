@@ -14,7 +14,11 @@ namespace ISS.Application.Persistence;
 public interface IIssDbContext
 {
     DbSet<Brand> Brands { get; }
+    DbSet<UnitOfMeasure> UnitOfMeasures { get; }
+    DbSet<ItemCategory> ItemCategories { get; }
+    DbSet<ItemSubcategory> ItemSubcategories { get; }
     DbSet<Item> Items { get; }
+    DbSet<ItemAttachment> ItemAttachments { get; }
     DbSet<Customer> Customers { get; }
     DbSet<Supplier> Suppliers { get; }
     DbSet<Warehouse> Warehouses { get; }
@@ -25,6 +29,7 @@ public interface IIssDbContext
     DbSet<StockTransfer> StockTransfers { get; }
 
     DbSet<RequestForQuote> RequestForQuotes { get; }
+    DbSet<PurchaseRequisition> PurchaseRequisitions { get; }
     DbSet<PurchaseOrder> PurchaseOrders { get; }
     DbSet<GoodsReceipt> GoodsReceipts { get; }
     DbSet<SupplierReturn> SupplierReturns { get; }

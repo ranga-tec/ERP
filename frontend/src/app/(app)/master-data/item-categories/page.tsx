@@ -1,0 +1,142 @@
+import { backendFetchJson } from "@/lib/backend.server";
+import { Card, Table } from "@/components/ui";
+import { ItemCategoryCreateForm } from "./ItemCategoryCreateForm";
+import { ItemSubcategoryCreateForm } from "./ItemSubcategoryCreateForm";
+
+type CategoryDto = { id: string; code: string; name: string; isActive: boolean };
+type SubcategoryDto = {
+  id: string;
+  categoryId: string;
+  categoryCode?: string | null;
+  categoryName?: string | null;
+  code: string;
+  name: string;
+  isActive: boolean;
+};
+
+export default async function ItemCategoriesPage() {
+  const [categories, subcategories] = await Promise.all([
+    backendFetchJson<CategoryDto[]>("/item-categories"),
+    backendFetchJson<SubcategoryDto[]>("/item-subcategories"),
+  ]);
+
+  const subcategoriesByCategory = new Map<string, SubcategoryDto[]>();
+  for (const sub of subcategories) {
+    const list = subcategoriesByCategory.get(sub.categoryId) ?? [];
+    list.push(sub);
+    subcategoriesByCategory.set(sub.categoryId, list);
+  }
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-2xl font-semibold">Item Categories</h1>
+        <p className="mt-1 text-sm text-zinc-500">
+          Category and subcategory masters used to classify items.
+        </p>
+      </div>
+
+      <Card>
+        <div className="mb-3 text-sm font-semibold">Create Category</div>
+        <ItemCategoryCreateForm />
+      </Card>
+
+      <Card>
+        <div className="mb-3 text-sm font-semibold">Create Subcategory</div>
+        <ItemSubcategoryCreateForm
+          categories={categories.map((c) => ({ id: c.id, code: c.code, name: c.name }))}
+        />
+      </Card>
+
+      <Card>
+        <div className="mb-3 text-sm font-semibold">Categories</div>
+        <div className="overflow-auto">
+          <Table>
+            <thead>
+              <tr className="border-b border-zinc-200 text-left text-xs uppercase tracking-wide text-zinc-500 dark:border-zinc-800">
+                <th className="py-2 pr-3">Category</th>
+                <th className="py-2 pr-3">Name</th>
+                <th className="py-2 pr-3">Subcategories</th>
+                <th className="py-2 pr-3">Active</th>
+              </tr>
+            </thead>
+            <tbody>
+              {categories.map((category) => {
+                const subs = (subcategoriesByCategory.get(category.id) ?? [])
+                  .slice()
+                  .sort((a, b) => a.code.localeCompare(b.code));
+                return (
+                  <tr key={category.id} className="border-b border-zinc-100 align-top dark:border-zinc-900">
+                    <td className="py-2 pr-3 font-mono text-xs">{category.code}</td>
+                    <td className="py-2 pr-3">{category.name}</td>
+                    <td className="py-2 pr-3">
+                      {subs.length > 0 ? (
+                        <div className="space-y-1">
+                          {subs.map((sub) => (
+                            <div key={sub.id} className="text-sm">
+                              <span className="font-mono text-xs">{sub.code}</span>{" "}
+                              <span className="text-zinc-500">{sub.name}</span>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <span className="text-zinc-500">None</span>
+                      )}
+                    </td>
+                    <td className="py-2 pr-3">{category.isActive ? "Yes" : "No"}</td>
+                  </tr>
+                );
+              })}
+              {categories.length === 0 ? (
+                <tr>
+                  <td className="py-6 text-sm text-zinc-500" colSpan={4}>
+                    No categories yet.
+                  </td>
+                </tr>
+              ) : null}
+            </tbody>
+          </Table>
+        </div>
+      </Card>
+
+      <Card>
+        <div className="mb-3 text-sm font-semibold">Subcategory List</div>
+        <div className="overflow-auto">
+          <Table>
+            <thead>
+              <tr className="border-b border-zinc-200 text-left text-xs uppercase tracking-wide text-zinc-500 dark:border-zinc-800">
+                <th className="py-2 pr-3">Category</th>
+                <th className="py-2 pr-3">Subcategory</th>
+                <th className="py-2 pr-3">Name</th>
+                <th className="py-2 pr-3">Active</th>
+              </tr>
+            </thead>
+            <tbody>
+              {subcategories
+                .slice()
+                .sort((a, b) =>
+                  (a.categoryCode ?? "").localeCompare(b.categoryCode ?? "") ||
+                  a.code.localeCompare(b.code),
+                )
+                .map((sub) => (
+                  <tr key={sub.id} className="border-b border-zinc-100 dark:border-zinc-900">
+                    <td className="py-2 pr-3 font-mono text-xs">{sub.categoryCode ?? "-"}</td>
+                    <td className="py-2 pr-3 font-mono text-xs">{sub.code}</td>
+                    <td className="py-2 pr-3">{sub.name}</td>
+                    <td className="py-2 pr-3">{sub.isActive ? "Yes" : "No"}</td>
+                  </tr>
+                ))}
+              {subcategories.length === 0 ? (
+                <tr>
+                  <td className="py-6 text-sm text-zinc-500" colSpan={4}>
+                    No subcategories yet.
+                  </td>
+                </tr>
+              ) : null}
+            </tbody>
+          </Table>
+        </div>
+      </Card>
+    </div>
+  );
+}

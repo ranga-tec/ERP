@@ -6,6 +6,17 @@ import { apiPost } from "@/lib/api-client";
 import { Button, Input, Select } from "@/components/ui";
 
 type BrandRef = { id: string; code: string; name: string };
+type UomRef = { id: string; code: string; name: string; isActive: boolean };
+type CategoryRef = { id: string; code: string; name: string; isActive: boolean };
+type SubcategoryRef = {
+  id: string;
+  categoryId: string;
+  categoryCode?: string | null;
+  categoryName?: string | null;
+  code: string;
+  name: string;
+  isActive: boolean;
+};
 
 type ItemDto = {
   id: string;
@@ -15,6 +26,12 @@ type ItemDto = {
   trackingType: number;
   unitOfMeasure: string;
   brandId?: string | null;
+  categoryId?: string | null;
+  categoryCode?: string | null;
+  categoryName?: string | null;
+  subcategoryId?: string | null;
+  subcategoryCode?: string | null;
+  subcategoryName?: string | null;
   barcode?: string | null;
   defaultUnitCost: number;
   isActive: boolean;
@@ -32,15 +49,27 @@ const trackingTypes = [
   { value: 2, label: "Batch" },
 ];
 
-export function ItemCreateForm({ brands }: { brands: BrandRef[] }) {
+export function ItemCreateForm({
+  brands,
+  uoms,
+  categories,
+  subcategories,
+}: {
+  brands: BrandRef[];
+  uoms: UomRef[];
+  categories: CategoryRef[];
+  subcategories: SubcategoryRef[];
+}) {
   const router = useRouter();
 
   const [sku, setSku] = useState("");
   const [name, setName] = useState("");
   const [type, setType] = useState<number>(2);
   const [trackingType, setTrackingType] = useState<number>(0);
-  const [unitOfMeasure, setUnitOfMeasure] = useState("PCS");
+  const [unitOfMeasure, setUnitOfMeasure] = useState(uoms.find((u) => u.isActive)?.code ?? "PCS");
   const [brandId, setBrandId] = useState<string>("");
+  const [categoryId, setCategoryId] = useState<string>("");
+  const [subcategoryId, setSubcategoryId] = useState<string>("");
   const [barcode, setBarcode] = useState("");
   const [defaultUnitCost, setDefaultUnitCost] = useState("0");
 
@@ -51,6 +80,21 @@ export function ItemCreateForm({ brands }: { brands: BrandRef[] }) {
     () => brands.slice().sort((a, b) => a.code.localeCompare(b.code)),
     [brands],
   );
+  const uomOptions = useMemo(
+    () => uoms.slice().sort((a, b) => a.code.localeCompare(b.code)),
+    [uoms],
+  );
+  const categoryOptions = useMemo(
+    () => categories.slice().sort((a, b) => a.code.localeCompare(b.code)),
+    [categories],
+  );
+  const filteredSubcategoryOptions = useMemo(() => {
+    const base = categoryId ? subcategories.filter((s) => s.categoryId === categoryId) : subcategories;
+    return base
+      .filter((s) => s.isActive)
+      .slice()
+      .sort((a, b) => a.code.localeCompare(b.code));
+  }, [categoryId, subcategories]);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -69,12 +113,15 @@ export function ItemCreateForm({ brands }: { brands: BrandRef[] }) {
         trackingType,
         unitOfMeasure,
         brandId: brandId || null,
+        categoryId: categoryId || null,
+        subcategoryId: subcategoryId || null,
         barcode: barcode || null,
         defaultUnitCost: cost,
       });
 
       setSku("");
       setName("");
+      setSubcategoryId("");
       setBarcode("");
       setDefaultUnitCost("0");
       router.refresh();
@@ -124,22 +171,73 @@ export function ItemCreateForm({ brands }: { brands: BrandRef[] }) {
         </div>
         <div>
           <label className="mb-1 block text-sm font-medium">UoM</label>
-          <Input
-            value={unitOfMeasure}
-            onChange={(e) => setUnitOfMeasure(e.target.value)}
-            required
-          />
+          {uomOptions.length > 0 ? (
+            <Select value={unitOfMeasure} onChange={(e) => setUnitOfMeasure(e.target.value)} required>
+              {uomOptions.map((u) => (
+                <option key={u.id} value={u.code}>
+                  {u.code} - {u.name}
+                </option>
+              ))}
+            </Select>
+          ) : (
+            <Input
+              value={unitOfMeasure}
+              onChange={(e) => setUnitOfMeasure(e.target.value)}
+              required
+            />
+          )}
         </div>
       </div>
 
-      <div className="grid gap-3 sm:grid-cols-3">
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <div>
           <label className="mb-1 block text-sm font-medium">Brand</label>
           <Select value={brandId} onChange={(e) => setBrandId(e.target.value)}>
             <option value="">(None)</option>
             {brandOptions.map((b) => (
               <option key={b.id} value={b.id}>
-                {b.code} — {b.name}
+                {b.code} - {b.name}
+              </option>
+            ))}
+          </Select>
+        </div>
+        <div>
+          <label className="mb-1 block text-sm font-medium">Category</label>
+          <Select
+            value={categoryId}
+            onChange={(e) => {
+              const nextCategoryId = e.target.value;
+              setCategoryId(nextCategoryId);
+              if (!nextCategoryId) {
+                setSubcategoryId("");
+                return;
+              }
+
+              const selectedSub = subcategories.find((s) => s.id === subcategoryId);
+              if (selectedSub && selectedSub.categoryId !== nextCategoryId) {
+                setSubcategoryId("");
+              }
+            }}
+          >
+            <option value="">(None)</option>
+            {categoryOptions.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.code} - {c.name}
+              </option>
+            ))}
+          </Select>
+        </div>
+        <div>
+          <label className="mb-1 block text-sm font-medium">Subcategory</label>
+          <Select
+            value={subcategoryId}
+            onChange={(e) => setSubcategoryId(e.target.value)}
+            disabled={filteredSubcategoryOptions.length === 0}
+          >
+            <option value="">(None)</option>
+            {filteredSubcategoryOptions.map((s) => (
+              <option key={s.id} value={s.id}>
+                {s.code} - {s.name}
               </option>
             ))}
           </Select>
@@ -148,6 +246,9 @@ export function ItemCreateForm({ brands }: { brands: BrandRef[] }) {
           <label className="mb-1 block text-sm font-medium">Barcode</label>
           <Input value={barcode} onChange={(e) => setBarcode(e.target.value)} />
         </div>
+      </div>
+
+      <div className="grid gap-3 sm:grid-cols-2">
         <div>
           <label className="mb-1 block text-sm font-medium">Default Unit Cost</label>
           <Input
@@ -165,9 +266,8 @@ export function ItemCreateForm({ brands }: { brands: BrandRef[] }) {
       ) : null}
 
       <Button type="submit" disabled={busy}>
-        {busy ? "Creating…" : "Create Item"}
+        {busy ? "Creating..." : "Create Item"}
       </Button>
     </form>
   );
 }
-
