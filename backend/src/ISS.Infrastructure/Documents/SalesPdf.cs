@@ -255,4 +255,140 @@ public sealed partial class DocumentPdfService
             qrPayload: $"ISS:INV:{invoice.Id}",
             barcodePayload: invoice.Number);
     }
+
+    private async Task<PdfDocument> RenderDirectDispatchAsync(Guid id, CancellationToken cancellationToken)
+    {
+        var dispatch = await _dbContext.DirectDispatches.AsNoTracking()
+                           .Include(x => x.Lines)
+                           .ThenInclude(l => l.Serials)
+                           .FirstOrDefaultAsync(x => x.Id == id, cancellationToken)
+                       ?? throw new NotFoundException("Direct dispatch not found.");
+
+        var customer = dispatch.CustomerId is null
+            ? null
+            : await _dbContext.Customers.AsNoTracking().FirstOrDefaultAsync(x => x.Id == dispatch.CustomerId.Value, cancellationToken);
+        var serviceJob = dispatch.ServiceJobId is null
+            ? null
+            : await _dbContext.ServiceJobs.AsNoTracking().FirstOrDefaultAsync(x => x.Id == dispatch.ServiceJobId.Value, cancellationToken);
+        var warehouse = await _dbContext.Warehouses.AsNoTracking().FirstOrDefaultAsync(x => x.Id == dispatch.WarehouseId, cancellationToken);
+        var itemById = await LoadItemMapAsync(dispatch.Lines.Select(l => l.ItemId), cancellationToken);
+
+        var meta = new List<(string Label, string Value)>
+        {
+            ("Customer", dispatch.CustomerId is null ? "" : CustomerLabel(customer, dispatch.CustomerId.Value)),
+            ("Service Job", serviceJob?.Number ?? dispatch.ServiceJobId?.ToString() ?? ""),
+            ("Warehouse", WarehouseLabel(warehouse, dispatch.WarehouseId)),
+            ("Dispatched at", dispatch.DispatchedAt.ToString("u")),
+            ("Status", dispatch.Status.ToString()),
+            ("Reason", dispatch.Reason ?? "")
+        };
+
+        return BuildPdf(
+            title: "Direct Dispatch",
+            referenceNumber: dispatch.Number,
+            meta: meta,
+            content: column =>
+            {
+                column.Item().Text("Lines").SemiBold();
+                column.Item().Table(table =>
+                {
+                    table.ColumnsDefinition(cols =>
+                    {
+                        cols.RelativeColumn(4);
+                        cols.RelativeColumn(2);
+                        cols.RelativeColumn(2);
+                        cols.RelativeColumn(4);
+                    });
+
+                    table.Header(h =>
+                    {
+                        h.Cell().Element(CellHeader).Text("Item");
+                        h.Cell().Element(CellHeader).AlignRight().Text("Qty");
+                        h.Cell().Element(CellHeader).Text("Batch");
+                        h.Cell().Element(CellHeader).Text("Serials");
+                    });
+
+                    foreach (var line in dispatch.Lines)
+                    {
+                        var item = itemById.GetValueOrDefault(line.ItemId);
+                        table.Cell().Element(CellBody).Text(ItemLabel(item, line.ItemId));
+                        table.Cell().Element(CellBody).AlignRight().Text(FormatQty(line.Quantity));
+                        table.Cell().Element(CellBody).Text(line.BatchNumber ?? "");
+                        table.Cell().Element(CellBody).Text(string.Join(", ", line.Serials.Select(s => s.SerialNumber)));
+                    }
+                });
+            },
+            fileName: $"DDN-{dispatch.Number}.pdf",
+            qrPayload: $"ISS:DDN:{dispatch.Id}",
+            barcodePayload: dispatch.Number);
+    }
+
+    private async Task<PdfDocument> RenderCustomerReturnAsync(Guid id, CancellationToken cancellationToken)
+    {
+        var cr = await _dbContext.CustomerReturns.AsNoTracking()
+                     .Include(x => x.Lines)
+                     .ThenInclude(l => l.Serials)
+                     .FirstOrDefaultAsync(x => x.Id == id, cancellationToken)
+                 ?? throw new NotFoundException("Customer return not found.");
+
+        var customer = await _dbContext.Customers.AsNoTracking().FirstOrDefaultAsync(x => x.Id == cr.CustomerId, cancellationToken);
+        var warehouse = await _dbContext.Warehouses.AsNoTracking().FirstOrDefaultAsync(x => x.Id == cr.WarehouseId, cancellationToken);
+        var invoice = cr.SalesInvoiceId is null
+            ? null
+            : await _dbContext.SalesInvoices.AsNoTracking().FirstOrDefaultAsync(x => x.Id == cr.SalesInvoiceId.Value, cancellationToken);
+        var dispatch = cr.DispatchNoteId is null
+            ? null
+            : await _dbContext.DispatchNotes.AsNoTracking().FirstOrDefaultAsync(x => x.Id == cr.DispatchNoteId.Value, cancellationToken);
+        var itemById = await LoadItemMapAsync(cr.Lines.Select(l => l.ItemId), cancellationToken);
+
+        var meta = new List<(string Label, string Value)>
+        {
+            ("Customer", CustomerLabel(customer, cr.CustomerId)),
+            ("Warehouse", WarehouseLabel(warehouse, cr.WarehouseId)),
+            ("Invoice", invoice?.Number ?? cr.SalesInvoiceId?.ToString() ?? ""),
+            ("Dispatch", dispatch?.Number ?? cr.DispatchNoteId?.ToString() ?? ""),
+            ("Return date", cr.ReturnDate.ToString("u")),
+            ("Status", cr.Status.ToString()),
+            ("Reason", cr.Reason ?? "")
+        };
+
+        return BuildPdf(
+            title: "Customer Return",
+            referenceNumber: cr.Number,
+            meta: meta,
+            content: column =>
+            {
+                column.Item().Text("Lines").SemiBold();
+                column.Item().Table(table =>
+                {
+                    table.ColumnsDefinition(cols =>
+                    {
+                        cols.RelativeColumn(4);
+                        cols.RelativeColumn(2);
+                        cols.RelativeColumn(2);
+                        cols.RelativeColumn(4);
+                    });
+
+                    table.Header(h =>
+                    {
+                        h.Cell().Element(CellHeader).Text("Item");
+                        h.Cell().Element(CellHeader).AlignRight().Text("Qty");
+                        h.Cell().Element(CellHeader).Text("Batch");
+                        h.Cell().Element(CellHeader).Text("Serials");
+                    });
+
+                    foreach (var line in cr.Lines)
+                    {
+                        var item = itemById.GetValueOrDefault(line.ItemId);
+                        table.Cell().Element(CellBody).Text(ItemLabel(item, line.ItemId));
+                        table.Cell().Element(CellBody).AlignRight().Text(FormatQty(line.Quantity));
+                        table.Cell().Element(CellBody).Text(line.BatchNumber ?? "");
+                        table.Cell().Element(CellBody).Text(string.Join(", ", line.Serials.Select(s => s.SerialNumber)));
+                    }
+                });
+            },
+            fileName: $"CRT-{cr.Number}.pdf",
+            qrPayload: $"ISS:CRTN:{cr.Id}",
+            barcodePayload: cr.Number);
+    }
 }

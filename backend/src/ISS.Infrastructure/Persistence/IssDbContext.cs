@@ -51,7 +51,9 @@ public sealed class IssDbContext(
     public DbSet<SalesQuote> SalesQuotes => Set<SalesQuote>();
     public DbSet<SalesOrder> SalesOrders => Set<SalesOrder>();
     public DbSet<DispatchNote> DispatchNotes => Set<DispatchNote>();
+    public DbSet<DirectDispatch> DirectDispatches => Set<DirectDispatch>();
     public DbSet<SalesInvoice> SalesInvoices => Set<SalesInvoice>();
+    public DbSet<CustomerReturn> CustomerReturns => Set<CustomerReturn>();
 
     public DbSet<EquipmentUnit> EquipmentUnits => Set<EquipmentUnit>();
     public DbSet<ServiceJob> ServiceJobs => Set<ServiceJob>();
@@ -363,6 +365,25 @@ public sealed class IssDbContext(
             entity.HasIndex(x => x.SerialNumber).IsUnique();
         });
 
+        builder.Entity<DirectDispatch>(entity =>
+        {
+            entity.HasIndex(x => x.Number).IsUnique();
+            entity.Property(x => x.Number).HasMaxLength(32);
+            entity.Property(x => x.Reason).HasMaxLength(2000);
+            entity.HasMany(x => x.Lines).WithOne().HasForeignKey(x => x.DirectDispatchId).OnDelete(DeleteBehavior.Cascade);
+        });
+        builder.Entity<DirectDispatchLine>(entity =>
+        {
+            entity.Property(x => x.Quantity).HasPrecision(18, 4);
+            entity.Property(x => x.BatchNumber).HasMaxLength(128);
+            entity.HasMany(x => x.Serials).WithOne().HasForeignKey(x => x.DirectDispatchLineId).OnDelete(DeleteBehavior.Cascade);
+        });
+        builder.Entity<DirectDispatchLineSerial>(entity =>
+        {
+            entity.Property(x => x.SerialNumber).HasMaxLength(128);
+            entity.HasIndex(x => x.SerialNumber).IsUnique();
+        });
+
         builder.Entity<SalesInvoice>(entity =>
         {
             entity.HasIndex(x => x.Number).IsUnique();
@@ -375,6 +396,26 @@ public sealed class IssDbContext(
             entity.Property(x => x.UnitPrice).HasPrecision(18, 4);
             entity.Property(x => x.DiscountPercent).HasPrecision(18, 4);
             entity.Property(x => x.TaxPercent).HasPrecision(18, 4);
+        });
+
+        builder.Entity<CustomerReturn>(entity =>
+        {
+            entity.HasIndex(x => x.Number).IsUnique();
+            entity.Property(x => x.Number).HasMaxLength(32);
+            entity.Property(x => x.Reason).HasMaxLength(2000);
+            entity.HasMany(x => x.Lines).WithOne().HasForeignKey(x => x.CustomerReturnId).OnDelete(DeleteBehavior.Cascade);
+        });
+        builder.Entity<CustomerReturnLine>(entity =>
+        {
+            entity.Property(x => x.Quantity).HasPrecision(18, 4);
+            entity.Property(x => x.UnitPrice).HasPrecision(18, 4);
+            entity.Property(x => x.BatchNumber).HasMaxLength(128);
+            entity.HasMany(x => x.Serials).WithOne().HasForeignKey(x => x.CustomerReturnLineId).OnDelete(DeleteBehavior.Cascade);
+        });
+        builder.Entity<CustomerReturnLineSerial>(entity =>
+        {
+            entity.Property(x => x.SerialNumber).HasMaxLength(128);
+            entity.HasIndex(x => x.SerialNumber).IsUnique();
         });
 
         builder.Entity<EquipmentUnit>(entity =>

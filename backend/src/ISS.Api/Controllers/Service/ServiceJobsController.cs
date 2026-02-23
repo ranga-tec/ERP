@@ -11,7 +11,7 @@ namespace ISS.Api.Controllers.Service;
 
 [ApiController]
 [Route("api/service/jobs")]
-[Authorize(Roles = $"{Roles.Admin},{Roles.Service}")]
+[Authorize(Roles = $"{Roles.Admin},{Roles.Service},{Roles.Sales}")]
 public sealed class ServiceJobsController(IIssDbContext dbContext, ServiceManagementService serviceManagementService, IDocumentPdfService pdfService) : ControllerBase
 {
     public sealed record ServiceJobDto(Guid Id, string Number, Guid EquipmentUnitId, Guid CustomerId, DateTimeOffset OpenedAt, string ProblemDescription, ServiceJobStatus Status, DateTimeOffset? CompletedAt);

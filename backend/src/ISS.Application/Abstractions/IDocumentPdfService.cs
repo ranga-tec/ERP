@@ -21,7 +21,9 @@ public enum PdfDocumentType
     DebitNote = 17,
     ItemLabel = 18,
     DirectPurchase = 19,
-    SupplierInvoice = 20
+    SupplierInvoice = 20,
+    DirectDispatch = 21,
+    CustomerReturn = 22
 }
 
 public sealed record PdfDocument(string FileName, byte[] Content, string ContentType = "application/pdf");

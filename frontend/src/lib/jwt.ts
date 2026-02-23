@@ -7,6 +7,12 @@ export type IssSession = {
 function base64UrlDecode(input: string): string {
   const base64 = input.replace(/-/g, "+").replace(/_/g, "/");
   const padded = base64.padEnd(base64.length + ((4 - (base64.length % 4)) % 4), "=");
+  if (typeof atob === "function") {
+    const binary = atob(padded);
+    const bytes = Uint8Array.from(binary, (ch) => ch.charCodeAt(0));
+    return new TextDecoder().decode(bytes);
+  }
+
   return Buffer.from(padded, "base64").toString("utf8");
 }
 
@@ -56,3 +62,18 @@ export function sessionFromToken(token: string): IssSession | null {
   return { userId, email, roles };
 }
 
+export function jwtExpUnix(token: string): number | null {
+  const payload = decodeJwtPayload(token);
+  if (!payload || typeof payload !== "object") return null;
+
+  const record = payload as Record<string, unknown>;
+  const exp = record.exp;
+  return typeof exp === "number" && Number.isFinite(exp) ? exp : null;
+}
+
+export function isJwtExpired(token: string, skewSeconds = 30): boolean {
+  const exp = jwtExpUnix(token);
+  if (exp == null) return true;
+  const now = Math.floor(Date.now() / 1000);
+  return exp <= now + skewSeconds;
+}

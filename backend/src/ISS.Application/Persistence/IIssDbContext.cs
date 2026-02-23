@@ -39,7 +39,9 @@ public interface IIssDbContext
     DbSet<SalesQuote> SalesQuotes { get; }
     DbSet<SalesOrder> SalesOrders { get; }
     DbSet<DispatchNote> DispatchNotes { get; }
+    DbSet<DirectDispatch> DirectDispatches { get; }
     DbSet<SalesInvoice> SalesInvoices { get; }
+    DbSet<CustomerReturn> CustomerReturns { get; }
 
     DbSet<EquipmentUnit> EquipmentUnits { get; }
     DbSet<ServiceJob> ServiceJobs { get; }

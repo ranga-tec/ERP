@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { ISS_TOKEN_COOKIE } from "@/lib/env";
+import { isJwtExpired } from "@/lib/jwt";
 
 const PUBLIC_FILE = /\.(.*)$/;
 
@@ -17,11 +18,15 @@ export function proxy(req: NextRequest) {
   }
 
   const token = req.cookies.get(ISS_TOKEN_COOKIE)?.value;
-  if (!token) {
+  if (!token || isJwtExpired(token)) {
     const url = req.nextUrl.clone();
     url.pathname = "/login";
     url.searchParams.set("next", pathname);
-    return NextResponse.redirect(url);
+    const response = NextResponse.redirect(url);
+    if (token) {
+      response.cookies.delete(ISS_TOKEN_COOKIE);
+    }
+    return response;
   }
 
   return NextResponse.next();

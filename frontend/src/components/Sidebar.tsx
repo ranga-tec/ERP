@@ -39,7 +39,9 @@ const sections: NavSection[] = [
       { href: "/sales/quotes", label: "Quotes" },
       { href: "/sales/orders", label: "Orders" },
       { href: "/sales/dispatches", label: "Dispatches" },
+      { href: "/sales/direct-dispatches", label: "Direct Dispatches" },
       { href: "/sales/invoices", label: "Invoices" },
+      { href: "/sales/customer-returns", label: "Customer Returns" },
     ],
   },
   {
