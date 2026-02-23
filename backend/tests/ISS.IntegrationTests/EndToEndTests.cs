@@ -359,6 +359,66 @@ public sealed class EndToEndTests(IssApiFixture fixture) : IClassFixture<IssApiF
     }
 
     [Fact]
+    public async Task Procurement_SupplierInvoice_Post_Twice_Returns_BadRequest()
+    {
+        var warehouse = await Post<WarehouseDto>("/api/warehouses", new { code = Code("WH"), name = "Main", address = (string?)null });
+        var supplier = await Post<SupplierDto>("/api/suppliers", new { code = Code("SUP"), name = "Supplier", phone = "123", email = (string?)null, address = (string?)null });
+        var item = await Post<ItemDto>("/api/items", new
+        {
+            sku = Code("SKU"),
+            name = "Coupling",
+            type = ItemType.SparePart,
+            trackingType = TrackingType.None,
+            unitOfMeasure = "PCS",
+            brandId = (Guid?)null,
+            barcode = (string?)null,
+            defaultUnitCost = 10m
+        });
+
+        var dp = await Post<DirectPurchaseApiDto>("/api/procurement/direct-purchases", new
+        {
+            supplierId = supplier.Id,
+            warehouseId = warehouse.Id,
+            purchasedAt = (DateTimeOffset?)null,
+            remarks = "Duplicate post test"
+        });
+        await PostNoContent($"/api/procurement/direct-purchases/{dp.Id}/lines", new
+        {
+            itemId = item.Id,
+            quantity = 2m,
+            unitPrice = 10m,
+            taxPercent = 0m,
+            batchNumber = (string?)null,
+            serials = (string[]?)null
+        });
+        await PostNoContent($"/api/procurement/direct-purchases/{dp.Id}/post", new { });
+
+        var supplierInvoice = await Post<SupplierInvoiceApiDto>("/api/procurement/supplier-invoices", new
+        {
+            supplierId = supplier.Id,
+            invoiceNumber = $"BILL-{Guid.NewGuid():N}"[..16],
+            invoiceDate = DateTimeOffset.UtcNow,
+            dueDate = (DateTimeOffset?)null,
+            purchaseOrderId = (Guid?)null,
+            goodsReceiptId = (Guid?)null,
+            directPurchaseId = dp.Id,
+            subtotal = 20m,
+            discountAmount = 0m,
+            taxAmount = 0m,
+            freightAmount = 0m,
+            roundingAmount = 0m,
+            notes = "Duplicate post test"
+        });
+        await PostNoContent($"/api/procurement/supplier-invoices/{supplierInvoice.Id}/post", new { });
+
+        var resp = await _client.PostAsJsonAsync($"/api/procurement/supplier-invoices/{supplierInvoice.Id}/post", new { });
+        var body = await resp.Content.ReadAsStringAsync();
+
+        Assert.Equal(System.Net.HttpStatusCode.BadRequest, resp.StatusCode);
+        Assert.Contains("draft", body, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
     public async Task Procurement_DirectPurchase_Post_Twice_Returns_BadRequest()
     {
         var warehouse = await Post<WarehouseDto>("/api/warehouses", new { code = Code("WH"), name = "Main", address = (string?)null });
@@ -934,6 +994,70 @@ public sealed class EndToEndTests(IssApiFixture fixture) : IClassFixture<IssApiF
     }
 
     [Fact]
+    public async Task Sales_CustomerReturn_Post_Twice_Returns_BadRequest()
+    {
+        var warehouse = await Post<WarehouseDto>("/api/warehouses", new { code = Code("WH"), name = "Main", address = (string?)null });
+        var customer = await Post<CustomerDto>("/api/customers", new { code = Code("CUS"), name = "Customer A", phone = "555", email = (string?)null, address = (string?)null });
+        var item = await Post<ItemDto>("/api/items", new
+        {
+            sku = Code("SKU"),
+            name = "Pressure Switch",
+            type = ItemType.SparePart,
+            trackingType = TrackingType.None,
+            unitOfMeasure = "PCS",
+            brandId = (Guid?)null,
+            barcode = (string?)null,
+            defaultUnitCost = 5m
+        });
+
+        var adj = await Post<StockAdjustmentDto>("/api/inventory/stock-adjustments", new { warehouseId = warehouse.Id, reason = "Seed stock" });
+        await PostNoContent($"/api/inventory/stock-adjustments/{adj.Id}/lines", new
+        {
+            itemId = item.Id,
+            quantityDelta = 5m,
+            unitCost = 5m,
+            batchNumber = (string?)null,
+            serials = (string[]?)null
+        });
+        await PostNoContent($"/api/inventory/stock-adjustments/{adj.Id}/post", new { });
+
+        var invoice = await Post<InvoiceDto>("/api/sales/invoices", new { customerId = customer.Id, dueDate = (DateTimeOffset?)null });
+        await PostNoContent($"/api/sales/invoices/{invoice.Id}/lines", new
+        {
+            itemId = item.Id,
+            quantity = 3m,
+            unitPrice = 10m,
+            discountPercent = 0m,
+            taxPercent = 0m
+        });
+        await PostNoContent($"/api/sales/invoices/{invoice.Id}/post", new { });
+
+        var customerReturn = await Post<CustomerReturnApiDto>("/api/sales/customer-returns", new
+        {
+            customerId = customer.Id,
+            warehouseId = warehouse.Id,
+            salesInvoiceId = invoice.Id,
+            dispatchNoteId = (Guid?)null,
+            reason = "Duplicate post test"
+        });
+        await PostNoContent($"/api/sales/customer-returns/{customerReturn.Id}/lines", new
+        {
+            itemId = item.Id,
+            quantity = 1m,
+            unitPrice = 10m,
+            batchNumber = (string?)null,
+            serials = (string[]?)null
+        });
+        await PostNoContent($"/api/sales/customer-returns/{customerReturn.Id}/post", new { });
+
+        var resp = await _client.PostAsJsonAsync($"/api/sales/customer-returns/{customerReturn.Id}/post", new { });
+        var body = await resp.Content.ReadAsStringAsync();
+
+        Assert.Equal(System.Net.HttpStatusCode.BadRequest, resp.StatusCode);
+        Assert.Contains("draft", body, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
     public async Task Service_MaterialRequisition_Consumes_Stock()
     {
         var warehouse = await Post<WarehouseDto>("/api/warehouses", new { code = Code("WH"), name = "Main", address = (string?)null });
@@ -1381,6 +1505,16 @@ public sealed class EndToEndTests(IssApiFixture fixture) : IClassFixture<IssApiF
         await Delete($"/api/documents/SE/{estimate.Id}/comments/{comment.Id}");
         var commentsAfterDelete = await Get<List<DocumentCommentApiDto>>($"/api/documents/SE/{estimate.Id}/comments");
         Assert.DoesNotContain(commentsAfterDelete, x => x.Id == comment.Id);
+    }
+
+    [Fact]
+    public async Task Document_Collaboration_Invalid_ReferenceType_Returns_BadRequest()
+    {
+        var resp = await _client.PostAsJsonAsync($"/api/documents/bad.type/{Guid.NewGuid()}/comments", new { text = "invalid ref type" });
+        var body = await resp.Content.ReadAsStringAsync();
+
+        Assert.Equal(System.Net.HttpStatusCode.BadRequest, resp.StatusCode);
+        Assert.Contains("ReferenceType", body, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]

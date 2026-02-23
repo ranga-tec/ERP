@@ -102,6 +102,30 @@ Environment variables:
   - `App_Data/document-attachments`
 - Include both the PostgreSQL database and `App_Data/` in backups (same retention policy window).
 
+### Backup / Restore examples (PowerShell)
+
+Database backup:
+
+```powershell
+pg_dump --format=custom --file .\backup\iss-$(Get-Date -Format yyyyMMdd-HHmmss).dump `
+  --host localhost --port 5432 --username pward --dbname iss
+```
+
+Database restore (to a recreated/empty target DB):
+
+```powershell
+pg_restore --clean --if-exists --no-owner --no-privileges `
+  --host localhost --port 5432 --username pward --dbname iss `
+  .\backup\iss-YYYYMMDD-HHMMSS.dump
+```
+
+File storage backup:
+
+```powershell
+Compress-Archive -Path .\backend\src\ISS.Api\App_Data\* `
+  -DestinationPath .\backup\iss-app-data-$(Get-Date -Format yyyyMMdd-HHmmss).zip
+```
+
 ## Rollout / Rollback Checklist
 
 ### Rollout (recommended)
