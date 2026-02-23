@@ -27,9 +27,13 @@ dotnet run --project backend/src/ISS.Api/ISS.Api.csproj
 
 Notes:
 
-- On startup, the API runs `EnsureCreated()` to create tables if the database is empty.
+- Startup DB initialization is controlled by `Database__InitializationMode`:
+  - `EnsureCreated` (default in Development)
+  - `Migrate` (recommended in Production once EF migrations are added)
+  - `None` (default in non-Development)
 - Roles are seeded on startup.
 - The first registered user becomes `Admin`.
+- Health endpoint: `GET /health`
 
 ### Required environment variables
 
@@ -39,6 +43,7 @@ Notes:
 Optional:
 
 - `Jwt__Issuer`, `Jwt__Audience`
+- `Database__InitializationMode` (`EnsureCreated` | `Migrate` | `None`)
 - `Notifications__Enabled`, `Notifications__EmailEnabled`, `Notifications__SmsEnabled`
 - `Notifications__Dispatcher__Enabled` (enables background outbox dispatcher)
 - `Notifications__Email__Smtp__Host` / `Port` / `User` / `Password` / `FromEmail` / `FromName`
@@ -61,4 +66,3 @@ Environment variables:
 
 - Put the API behind HTTPS (reverse proxy like Nginx/IIS) and set a strong `Jwt__Key`.
 - Run the notification dispatcher only when SMTP/Twilio are configured and `Notifications__Dispatcher__Enabled=true`.
-

@@ -4,6 +4,7 @@ using ISS.Application.Options;
 using ISS.Infrastructure;
 using ISS.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.OpenApi.Models;
 using Microsoft.IdentityModel.Tokens;
@@ -51,6 +52,7 @@ builder.Services.AddScoped<ISS.Api.Services.JwtTokenService>();
 builder.Services.AddHostedService<ISS.Api.Services.NotificationDispatcherHostedService>();
 
 builder.Services.AddControllers();
+builder.Services.AddHealthChecks();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(options =>
 {
@@ -84,10 +86,34 @@ builder.Services.AddSwaggerGen(options =>
 
 var app = builder.Build();
 
+var dbInitMode = (builder.Configuration["Database:InitializationMode"] ??
+                  (app.Environment.IsDevelopment() ? "EnsureCreated" : "None"))
+    .Trim();
+
 await using (var scope = app.Services.CreateAsyncScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<IssDbContext>();
-    await db.Database.EnsureCreatedAsync();
+    switch (dbInitMode.ToLowerInvariant())
+    {
+        case "ensurecreated":
+        case "ensure-created":
+            app.Logger.LogInformation("Database initialization mode: EnsureCreated");
+            await db.Database.EnsureCreatedAsync();
+            break;
+
+        case "migrate":
+            app.Logger.LogInformation("Database initialization mode: Migrate");
+            await db.Database.MigrateAsync();
+            break;
+
+        case "none":
+            app.Logger.LogInformation("Database initialization mode: None (skipping automatic schema init)");
+            break;
+
+        default:
+            throw new InvalidOperationException(
+                $"Unsupported Database:InitializationMode '{dbInitMode}'. Expected EnsureCreated, Migrate, or None.");
+    }
 
     var roleManager = scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole<Guid>>>();
     foreach (var role in ISS.Api.Security.Roles.All)
@@ -110,6 +136,7 @@ if (app.Environment.IsDevelopment())
 
 if (!app.Environment.IsDevelopment())
 {
+    app.UseHsts();
     app.UseHttpsRedirection();
 }
 
@@ -117,6 +144,7 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
+app.MapHealthChecks("/health", new HealthCheckOptions());
 
 app.Run();
 
