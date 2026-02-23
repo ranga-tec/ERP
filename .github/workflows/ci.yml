@@ -136,14 +136,12 @@ jobs:
           }
           trap cleanup EXIT
 
-          for i in {1..30}; do
-            if curl -fsS "http://127.0.0.1:5080/health" >/dev/null; then
-              echo "Health check passed"
-              exit 0
-            fi
-            sleep 2
-          done
-
-          echo "Health check failed; API log follows:"
-          cat api.log
-          exit 1
+          if ! pwsh ./scripts/ops/smoke-api.ps1 \
+            -ApiBaseUrl "http://127.0.0.1:5080" \
+            -SkipAuth \
+            -Retries 30 \
+            -DelaySeconds 2; then
+            echo "Health/smoke check failed; API log follows:"
+            cat api.log
+            exit 1
+          fi

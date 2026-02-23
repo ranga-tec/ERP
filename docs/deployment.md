@@ -69,7 +69,7 @@ If you already created a database using `EnsureCreated`, recreate it (recommende
 ### Required environment variables
 
 - `ConnectionStrings__Default`
-- `Jwt__Key` (set a strong value in production)
+- `Jwt__Key` (required in non-Development, minimum 32 chars, and must not use the built-in dev default)
 
 Optional:
 
@@ -101,6 +101,27 @@ Environment variables:
   - `App_Data/item-attachments`
   - `App_Data/document-attachments`
 - Include both the PostgreSQL database and `App_Data/` in backups (same retention policy window).
+
+### Deployment smoke script
+
+This repo now includes `scripts/ops/smoke-api.ps1` for post-deploy API smoke checks.
+
+Health-only smoke (useful in CI):
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\ops\smoke-api.ps1 `
+  -ApiBaseUrl "https://erp.example.com" `
+  -SkipAuth
+```
+
+Authenticated smoke (admin user):
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\ops\smoke-api.ps1 `
+  -ApiBaseUrl "https://erp.example.com" `
+  -Email "admin@example.com" `
+  -Password "<admin-password>"
+```
 
 ### Backup / Restore examples (PowerShell)
 
@@ -135,8 +156,9 @@ Compress-Archive -Path .\backend\src\ISS.Api\App_Data\* `
 3. Apply EF migrations (`dotnet ef database update`) or start API with `Database__InitializationMode=Migrate`.
 4. Verify `GET /health` returns HTTP `200` (`Healthy`).
 5. Run smoke checks:
-   - Login
-   - Open dashboard
+   - `scripts/ops/smoke-api.ps1` (health-only or authenticated)
+   - Login (UI)
+   - Open dashboard (UI)
    - Create/read one document (e.g. service estimate)
    - Generate one PDF
 

@@ -1,4 +1,5 @@
 using ISS.Application;
+using ISS.Application.Common;
 using ISS.Application.Abstractions;
 using ISS.Application.Options;
 using ISS.Infrastructure;
@@ -86,6 +87,14 @@ builder.Services.AddSwaggerGen(options =>
 });
 
 var app = builder.Build();
+
+var configuredJwtKey = builder.Configuration["Jwt:Key"];
+JwtConfigurationValidator.ValidateSigningKeyOrThrow(configuredJwtKey, app.Environment.IsDevelopment());
+if (app.Environment.IsDevelopment() && JwtConfigurationValidator.UsesBuiltInDevelopmentFallback(configuredJwtKey))
+{
+    app.Logger.LogWarning(
+        "Jwt:Key is not configured. Using the built-in development signing key. Set Jwt:Key for shared/dev deployments.");
+}
 
 var dbInitMode = (builder.Configuration["Database:InitializationMode"] ??
                   (app.Environment.IsDevelopment() ? "EnsureCreated" : "None"))
