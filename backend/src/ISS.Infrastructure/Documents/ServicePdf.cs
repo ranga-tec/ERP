@@ -165,4 +165,145 @@ public sealed partial class DocumentPdfService
             qrPayload: $"ISS:QC:{qc.Id}",
             barcodePayload: qc.Id.ToString("N")[..12].ToUpperInvariant());
     }
+
+    private async Task<PdfDocument> RenderServiceEstimateAsync(Guid id, CancellationToken cancellationToken)
+    {
+        var estimate = await _dbContext.ServiceEstimates.AsNoTracking()
+                           .Include(x => x.Lines)
+                           .FirstOrDefaultAsync(x => x.Id == id, cancellationToken)
+                       ?? throw new NotFoundException("Service estimate not found.");
+
+        var job = await _dbContext.ServiceJobs.AsNoTracking().FirstOrDefaultAsync(x => x.Id == estimate.ServiceJobId, cancellationToken);
+        var customer = job is null
+            ? null
+            : await _dbContext.Customers.AsNoTracking().FirstOrDefaultAsync(x => x.Id == job.CustomerId, cancellationToken);
+        var itemById = await LoadItemMapAsync(
+            estimate.Lines.Where(l => l.ItemId.HasValue).Select(l => l.ItemId!.Value),
+            cancellationToken);
+
+        var meta = new List<(string Label, string Value)>
+        {
+            ("Service job", job?.Number ?? estimate.ServiceJobId.ToString()),
+            ("Customer", job is null ? "" : CustomerLabel(customer, job.CustomerId)),
+            ("Issued at", estimate.IssuedAt.ToString("u")),
+            ("Valid until", estimate.ValidUntil?.ToString("u") ?? ""),
+            ("Status", estimate.Status.ToString())
+        };
+
+        return BuildPdf(
+            title: "Service Estimate",
+            referenceNumber: estimate.Number,
+            meta: meta,
+            content: column =>
+            {
+                column.Item().Text("Lines").SemiBold();
+                column.Item().Table(table =>
+                {
+                    table.ColumnsDefinition(cols =>
+                    {
+                        cols.RelativeColumn(2);
+                        cols.RelativeColumn(4);
+                        cols.RelativeColumn(1.5f);
+                        cols.RelativeColumn(1.8f);
+                        cols.RelativeColumn(1.5f);
+                        cols.RelativeColumn(2);
+                    });
+
+                    table.Header(h =>
+                    {
+                        h.Cell().Element(CellHeader).Text("Kind");
+                        h.Cell().Element(CellHeader).Text("Description");
+                        h.Cell().Element(CellHeader).AlignRight().Text("Qty");
+                        h.Cell().Element(CellHeader).AlignRight().Text("Unit");
+                        h.Cell().Element(CellHeader).AlignRight().Text("Tax%");
+                        h.Cell().Element(CellHeader).AlignRight().Text("Line Total");
+                    });
+
+                    foreach (var line in estimate.Lines)
+                    {
+                        var item = line.ItemId.HasValue ? itemById.GetValueOrDefault(line.ItemId.Value) : null;
+                        var description = line.Kind == ServiceEstimateLineKind.Part
+                            ? (item is null ? line.Description : $"{ItemLabel(item, line.ItemId ?? Guid.Empty)} ({line.Description})")
+                            : line.Description;
+
+                        table.Cell().Element(CellBody).Text(line.Kind.ToString());
+                        table.Cell().Element(CellBody).Text(description);
+                        table.Cell().Element(CellBody).AlignRight().Text(FormatQty(line.Quantity));
+                        table.Cell().Element(CellBody).AlignRight().Text(FormatMoney(line.UnitPrice));
+                        table.Cell().Element(CellBody).AlignRight().Text(FormatPercent(line.TaxPercent));
+                        table.Cell().Element(CellBody).AlignRight().Text(FormatMoney(line.LineTotal));
+                    }
+                });
+
+                if (!string.IsNullOrWhiteSpace(estimate.Terms))
+                {
+                    column.Item().PaddingTop(8).Text("Terms").SemiBold();
+                    column.Item().Text(estimate.Terms);
+                }
+
+                column.Item().PaddingTop(8).AlignRight().Text($"Subtotal: {FormatMoney(estimate.Subtotal)}");
+                column.Item().AlignRight().Text($"Tax: {FormatMoney(estimate.TaxTotal)}");
+                column.Item().AlignRight().Text($"Total: {FormatMoney(estimate.Total)}").SemiBold();
+            },
+            fileName: $"SE-{estimate.Number}.pdf",
+            qrPayload: $"ISS:SE:{estimate.Id}",
+            barcodePayload: estimate.Number);
+    }
+
+    private async Task<PdfDocument> RenderServiceHandoverAsync(Guid id, CancellationToken cancellationToken)
+    {
+        var handover = await _dbContext.ServiceHandovers.AsNoTracking()
+                           .FirstOrDefaultAsync(x => x.Id == id, cancellationToken)
+                       ?? throw new NotFoundException("Service handover not found.");
+
+        var job = await _dbContext.ServiceJobs.AsNoTracking().FirstOrDefaultAsync(x => x.Id == handover.ServiceJobId, cancellationToken);
+        var customer = job is null
+            ? null
+            : await _dbContext.Customers.AsNoTracking().FirstOrDefaultAsync(x => x.Id == job.CustomerId, cancellationToken);
+        var equipment = job is null
+            ? null
+            : await _dbContext.EquipmentUnits.AsNoTracking().FirstOrDefaultAsync(x => x.Id == job.EquipmentUnitId, cancellationToken);
+        var equipmentItem = equipment is null
+            ? null
+            : await _dbContext.Items.AsNoTracking().FirstOrDefaultAsync(x => x.Id == equipment.ItemId, cancellationToken);
+
+        var meta = new List<(string Label, string Value)>
+        {
+            ("Service job", job?.Number ?? handover.ServiceJobId.ToString()),
+            ("Customer", job is null ? "" : CustomerLabel(customer, job.CustomerId)),
+            ("Handover date", handover.HandoverDate.ToString("u")),
+            ("Status", handover.Status.ToString()),
+            ("Post-service warranty", handover.PostServiceWarrantyMonths is int m ? $"{m} month(s)" : "")
+        };
+
+        if (equipment is not null)
+        {
+            meta.Add(("Equipment", $"{ItemLabel(equipmentItem, equipment.ItemId)} / SN: {equipment.SerialNumber}"));
+        }
+
+        return BuildPdf(
+            title: "Service Handover",
+            referenceNumber: handover.Number,
+            meta: meta,
+            content: column =>
+            {
+                column.Item().Text("Items returned to customer").SemiBold();
+                column.Item().Text(handover.ItemsReturned);
+
+                if (!string.IsNullOrWhiteSpace(handover.CustomerAcknowledgement))
+                {
+                    column.Item().PaddingTop(8).Text("Customer acknowledgement").SemiBold();
+                    column.Item().Text(handover.CustomerAcknowledgement);
+                }
+
+                if (!string.IsNullOrWhiteSpace(handover.Notes))
+                {
+                    column.Item().PaddingTop(8).Text("Notes").SemiBold();
+                    column.Item().Text(handover.Notes);
+                }
+            },
+            fileName: $"SH-{handover.Number}.pdf",
+            qrPayload: $"ISS:SH:{handover.Id}",
+            barcodePayload: handover.Number);
+    }
 }

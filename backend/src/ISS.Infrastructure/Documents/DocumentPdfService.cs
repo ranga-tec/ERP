@@ -46,6 +46,8 @@ public sealed partial class DocumentPdfService(IIssDbContext dbContext) : IDocum
             PdfDocumentType.SupplierInvoice => await RenderSupplierInvoiceAsync(id, cancellationToken),
             PdfDocumentType.DirectDispatch => await RenderDirectDispatchAsync(id, cancellationToken),
             PdfDocumentType.CustomerReturn => await RenderCustomerReturnAsync(id, cancellationToken),
+            PdfDocumentType.ServiceEstimate => await RenderServiceEstimateAsync(id, cancellationToken),
+            PdfDocumentType.ServiceHandover => await RenderServiceHandoverAsync(id, cancellationToken),
             _ => throw new DomainValidationException("Unsupported PDF document type.")
         };
     }

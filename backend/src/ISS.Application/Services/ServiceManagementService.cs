@@ -63,6 +63,119 @@ public sealed class ServiceManagementService(
         await dbContext.SaveChangesAsync(cancellationToken);
     }
 
+    public async Task<Guid> CreateServiceEstimateAsync(
+        Guid serviceJobId,
+        DateTimeOffset? validUntil,
+        string? terms,
+        CancellationToken cancellationToken = default)
+    {
+        var jobExists = await dbContext.ServiceJobs.AsNoTracking().AnyAsync(x => x.Id == serviceJobId, cancellationToken);
+        if (!jobExists)
+        {
+            throw new NotFoundException("Service job not found.");
+        }
+
+        var number = await documentNumberService.NextAsync("SE", "SE", cancellationToken);
+        var estimate = new ServiceEstimate(number, serviceJobId, clock.UtcNow, validUntil, terms);
+        await dbContext.ServiceEstimates.AddAsync(estimate, cancellationToken);
+        await dbContext.SaveChangesAsync(cancellationToken);
+        return estimate.Id;
+    }
+
+    public async Task AddServiceEstimateLineAsync(
+        Guid serviceEstimateId,
+        ServiceEstimateLineKind kind,
+        Guid? itemId,
+        string description,
+        decimal quantity,
+        decimal unitPrice,
+        decimal taxPercent,
+        CancellationToken cancellationToken = default)
+    {
+        var estimate = await dbContext.ServiceEstimates.Include(x => x.Lines)
+            .FirstOrDefaultAsync(x => x.Id == serviceEstimateId, cancellationToken)
+            ?? throw new NotFoundException("Service estimate not found.");
+
+        if (kind == ServiceEstimateLineKind.Part && itemId is not null)
+        {
+            var itemExists = await dbContext.Items.AsNoTracking().AnyAsync(x => x.Id == itemId.Value, cancellationToken);
+            if (!itemExists)
+            {
+                throw new NotFoundException("Item not found.");
+            }
+        }
+
+        var line = estimate.AddLine(kind, itemId, description, quantity, unitPrice, taxPercent);
+        dbContext.DbContext.Add(line);
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task ApproveServiceEstimateAsync(Guid serviceEstimateId, CancellationToken cancellationToken = default)
+    {
+        var estimate = await dbContext.ServiceEstimates.Include(x => x.Lines)
+            .FirstOrDefaultAsync(x => x.Id == serviceEstimateId, cancellationToken)
+            ?? throw new NotFoundException("Service estimate not found.");
+
+        estimate.Approve();
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task RejectServiceEstimateAsync(Guid serviceEstimateId, CancellationToken cancellationToken = default)
+    {
+        var estimate = await dbContext.ServiceEstimates.FirstOrDefaultAsync(x => x.Id == serviceEstimateId, cancellationToken)
+            ?? throw new NotFoundException("Service estimate not found.");
+
+        estimate.Reject();
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task<Guid> CreateServiceHandoverAsync(
+        Guid serviceJobId,
+        string itemsReturned,
+        int? postServiceWarrantyMonths,
+        string? customerAcknowledgement,
+        string? notes,
+        CancellationToken cancellationToken = default)
+    {
+        var jobExists = await dbContext.ServiceJobs.AsNoTracking().AnyAsync(x => x.Id == serviceJobId, cancellationToken);
+        if (!jobExists)
+        {
+            throw new NotFoundException("Service job not found.");
+        }
+
+        var number = await documentNumberService.NextAsync("SH", "SH", cancellationToken);
+        var handover = new ServiceHandover(
+            number,
+            serviceJobId,
+            clock.UtcNow,
+            itemsReturned,
+            postServiceWarrantyMonths,
+            customerAcknowledgement,
+            notes);
+
+        await dbContext.ServiceHandovers.AddAsync(handover, cancellationToken);
+        await dbContext.SaveChangesAsync(cancellationToken);
+        return handover.Id;
+    }
+
+    public async Task CompleteServiceHandoverAsync(Guid serviceHandoverId, CancellationToken cancellationToken = default)
+    {
+        var handover = await dbContext.ServiceHandovers.FirstOrDefaultAsync(x => x.Id == serviceHandoverId, cancellationToken)
+            ?? throw new NotFoundException("Service handover not found.");
+
+        handover.Complete();
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task CancelServiceHandoverAsync(Guid serviceHandoverId, CancellationToken cancellationToken = default)
+    {
+        var handover = await dbContext.ServiceHandovers.FirstOrDefaultAsync(x => x.Id == serviceHandoverId, cancellationToken)
+            ?? throw new NotFoundException("Service handover not found.");
+
+        handover.Cancel();
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
     public async Task<Guid> CreateWorkOrderAsync(Guid serviceJobId, string description, Guid? assignedToUserId, CancellationToken cancellationToken = default)
     {
         var workOrder = new WorkOrder(serviceJobId, description, assignedToUserId);

@@ -49,9 +49,11 @@ const sections: NavSection[] = [
     items: [
       { href: "/service/equipment-units", label: "Equipment Units" },
       { href: "/service/jobs", label: "Jobs" },
+      { href: "/service/estimates", label: "Estimates" },
       { href: "/service/work-orders", label: "Work Orders" },
       { href: "/service/material-requisitions", label: "Material Reqs" },
       { href: "/service/quality-checks", label: "Quality Checks" },
+      { href: "/service/handovers", label: "Handovers" },
     ],
   },
   {

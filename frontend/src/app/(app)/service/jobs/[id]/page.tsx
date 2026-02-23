@@ -86,8 +86,11 @@ export default async function ServiceJobDetailPage({ params }: { params: Promise
 
       <Card>
         <div className="text-sm text-zinc-500">
-          Track work via <Link className="underline" href="/service/work-orders">Work Orders</Link> and{" "}
-          <Link className="underline" href="/service/material-requisitions">Material Reqs</Link>.
+          Track the service flow via <Link className="underline" href="/service/estimates">Estimates</Link>,{" "}
+          <Link className="underline" href="/service/work-orders">Work Orders</Link>,{" "}
+          <Link className="underline" href="/service/material-requisitions">Material Reqs</Link>,{" "}
+          <Link className="underline" href="/service/quality-checks">Quality Checks</Link>, and{" "}
+          <Link className="underline" href="/service/handovers">Handovers</Link>.
         </div>
       </Card>
     </div>

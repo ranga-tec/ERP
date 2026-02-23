@@ -57,6 +57,8 @@ public sealed class IssDbContext(
 
     public DbSet<EquipmentUnit> EquipmentUnits => Set<EquipmentUnit>();
     public DbSet<ServiceJob> ServiceJobs => Set<ServiceJob>();
+    public DbSet<ServiceEstimate> ServiceEstimates => Set<ServiceEstimate>();
+    public DbSet<ServiceHandover> ServiceHandovers => Set<ServiceHandover>();
     public DbSet<WorkOrder> WorkOrders => Set<WorkOrder>();
     public DbSet<MaterialRequisition> MaterialRequisitions => Set<MaterialRequisition>();
     public DbSet<QualityCheck> QualityChecks => Set<QualityCheck>();
@@ -429,6 +431,30 @@ public sealed class IssDbContext(
             entity.HasIndex(x => x.Number).IsUnique();
             entity.Property(x => x.Number).HasMaxLength(32);
             entity.Property(x => x.ProblemDescription).HasMaxLength(2000);
+        });
+
+        builder.Entity<ServiceEstimate>(entity =>
+        {
+            entity.HasIndex(x => x.Number).IsUnique();
+            entity.Property(x => x.Number).HasMaxLength(32);
+            entity.Property(x => x.Terms).HasMaxLength(2000);
+            entity.HasMany(x => x.Lines).WithOne().HasForeignKey(x => x.ServiceEstimateId).OnDelete(DeleteBehavior.Cascade);
+        });
+        builder.Entity<ServiceEstimateLine>(entity =>
+        {
+            entity.Property(x => x.Description).HasMaxLength(512);
+            entity.Property(x => x.Quantity).HasPrecision(18, 4);
+            entity.Property(x => x.UnitPrice).HasPrecision(18, 4);
+            entity.Property(x => x.TaxPercent).HasPrecision(18, 4);
+        });
+
+        builder.Entity<ServiceHandover>(entity =>
+        {
+            entity.HasIndex(x => x.Number).IsUnique();
+            entity.Property(x => x.Number).HasMaxLength(32);
+            entity.Property(x => x.ItemsReturned).HasMaxLength(2000);
+            entity.Property(x => x.CustomerAcknowledgement).HasMaxLength(512);
+            entity.Property(x => x.Notes).HasMaxLength(2000);
         });
 
         builder.Entity<WorkOrder>(entity =>
