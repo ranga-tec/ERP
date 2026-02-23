@@ -225,6 +225,140 @@ public sealed class EndToEndTests(IssApiFixture fixture) : IClassFixture<IssApiF
     }
 
     [Fact]
+    public async Task Procurement_SupplierInvoice_Create_With_Mixed_DirectPurchase_And_PoRefs_Returns_BadRequest()
+    {
+        var supplier = await Post<SupplierDto>("/api/suppliers", new { code = Code("SUP"), name = "Supplier", phone = "123", email = (string?)null, address = (string?)null });
+
+        var resp = await _client.PostAsJsonAsync("/api/procurement/supplier-invoices", new
+        {
+            supplierId = supplier.Id,
+            invoiceNumber = $"BILL-{Guid.NewGuid():N}"[..16],
+            invoiceDate = DateTimeOffset.UtcNow,
+            dueDate = (DateTimeOffset?)null,
+            purchaseOrderId = Guid.NewGuid(),
+            goodsReceiptId = (Guid?)null,
+            directPurchaseId = Guid.NewGuid(),
+            subtotal = 100m,
+            discountAmount = 0m,
+            taxAmount = 0m,
+            freightAmount = 0m,
+            roundingAmount = 0m,
+            notes = "Invalid mixed refs"
+        });
+        var body = await resp.Content.ReadAsStringAsync();
+
+        Assert.Equal(System.Net.HttpStatusCode.BadRequest, resp.StatusCode);
+        Assert.Contains("cannot combine direct purchase and PO/GRN references", body, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task Procurement_SupplierInvoice_Post_With_Unposted_DirectPurchase_Returns_BadRequest()
+    {
+        var warehouse = await Post<WarehouseDto>("/api/warehouses", new { code = Code("WH"), name = "Main", address = (string?)null });
+        var supplier = await Post<SupplierDto>("/api/suppliers", new { code = Code("SUP"), name = "Supplier", phone = "123", email = (string?)null, address = (string?)null });
+        var item = await Post<ItemDto>("/api/items", new
+        {
+            sku = Code("SKU"),
+            name = "Filter Mesh",
+            type = ItemType.SparePart,
+            trackingType = TrackingType.None,
+            unitOfMeasure = "PCS",
+            brandId = (Guid?)null,
+            barcode = (string?)null,
+            defaultUnitCost = 10m
+        });
+
+        var dp = await Post<DirectPurchaseApiDto>("/api/procurement/direct-purchases", new
+        {
+            supplierId = supplier.Id,
+            warehouseId = warehouse.Id,
+            purchasedAt = (DateTimeOffset?)null,
+            remarks = "Draft DP"
+        });
+        await PostNoContent($"/api/procurement/direct-purchases/{dp.Id}/lines", new
+        {
+            itemId = item.Id,
+            quantity = 2m,
+            unitPrice = 10m,
+            taxPercent = 0m,
+            batchNumber = (string?)null,
+            serials = (string[]?)null
+        });
+
+        var supplierInvoice = await Post<SupplierInvoiceApiDto>("/api/procurement/supplier-invoices", new
+        {
+            supplierId = supplier.Id,
+            invoiceNumber = $"BILL-{Guid.NewGuid():N}"[..16],
+            invoiceDate = DateTimeOffset.UtcNow,
+            dueDate = (DateTimeOffset?)null,
+            purchaseOrderId = (Guid?)null,
+            goodsReceiptId = (Guid?)null,
+            directPurchaseId = dp.Id,
+            subtotal = 20m,
+            discountAmount = 0m,
+            taxAmount = 0m,
+            freightAmount = 0m,
+            roundingAmount = 0m,
+            notes = "Should fail until DP posted"
+        });
+
+        var resp = await _client.PostAsJsonAsync($"/api/procurement/supplier-invoices/{supplierInvoice.Id}/post", new { });
+        var body = await resp.Content.ReadAsStringAsync();
+
+        Assert.Equal(System.Net.HttpStatusCode.BadRequest, resp.StatusCode);
+        Assert.Contains("direct purchase must be posted", body, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task Procurement_SupplierInvoice_Post_With_Grn_Ap_Variance_Returns_BadRequest()
+    {
+        var warehouse = await Post<WarehouseDto>("/api/warehouses", new { code = Code("WH"), name = "Main", address = (string?)null });
+        var supplier = await Post<SupplierDto>("/api/suppliers", new { code = Code("SUP"), name = "Supplier", phone = "123", email = (string?)null, address = (string?)null });
+        var item = await Post<ItemDto>("/api/items", new
+        {
+            sku = Code("SKU"),
+            name = "Pump",
+            type = ItemType.SparePart,
+            trackingType = TrackingType.None,
+            unitOfMeasure = "PCS",
+            brandId = (Guid?)null,
+            barcode = (string?)null,
+            defaultUnitCost = 10m
+        });
+
+        var po = await Post<PurchaseOrderDto>("/api/procurement/purchase-orders", new { supplierId = supplier.Id });
+        await PostNoContent($"/api/procurement/purchase-orders/{po.Id}/lines", new { itemId = item.Id, quantity = 5m, unitPrice = 10m });
+        await PostNoContent($"/api/procurement/purchase-orders/{po.Id}/approve", new { });
+
+        var grn = await Post<GoodsReceiptDto>("/api/procurement/goods-receipts", new { purchaseOrderId = po.Id, warehouseId = warehouse.Id });
+        await PostNoContent($"/api/procurement/goods-receipts/{grn.Id}/lines", new { itemId = item.Id, quantity = 5m, unitCost = 10m, batchNumber = (string?)null, serials = (string[]?)null });
+        await PostNoContent($"/api/procurement/goods-receipts/{grn.Id}/post", new { });
+
+        var supplierInvoice = await Post<SupplierInvoiceApiDto>("/api/procurement/supplier-invoices", new
+        {
+            supplierId = supplier.Id,
+            invoiceNumber = $"BILL-{Guid.NewGuid():N}"[..16],
+            invoiceDate = DateTimeOffset.UtcNow,
+            dueDate = (DateTimeOffset?)null,
+            purchaseOrderId = po.Id,
+            goodsReceiptId = grn.Id,
+            directPurchaseId = (Guid?)null,
+            subtotal = 55m,
+            discountAmount = 0m,
+            taxAmount = 0m,
+            freightAmount = 0m,
+            roundingAmount = 0m,
+            notes = "GRN AP variance test"
+        });
+
+        var resp = await _client.PostAsJsonAsync($"/api/procurement/supplier-invoices/{supplierInvoice.Id}/post", new { });
+        var body = await resp.Content.ReadAsStringAsync();
+
+        Assert.Equal(System.Net.HttpStatusCode.BadRequest, resp.StatusCode);
+        Assert.Contains("Use debit/credit notes", body, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
     public async Task Procurement_DirectPurchase_Post_Twice_Returns_BadRequest()
     {
         var warehouse = await Post<WarehouseDto>("/api/warehouses", new { code = Code("WH"), name = "Main", address = (string?)null });
@@ -1370,6 +1504,16 @@ public sealed class EndToEndTests(IssApiFixture fixture) : IClassFixture<IssApiF
 
         var logs = await Get<List<AuditLogDto>>("/api/audit-logs?take=20");
         Assert.NotNull(logs);
+    }
+
+    [Fact]
+    public async Task Health_Endpoint_Returns_Healthy()
+    {
+        var resp = await _client.GetAsync("/health");
+        var body = await resp.Content.ReadAsStringAsync();
+
+        Assert.Equal(System.Net.HttpStatusCode.OK, resp.StatusCode);
+        Assert.Contains("Healthy", body, StringComparison.OrdinalIgnoreCase);
     }
 
     private sealed record PurchaseOrderDto(Guid Id, string Number, Guid SupplierId, DateTimeOffset OrderDate, PurchaseOrderStatus Status, decimal Total);

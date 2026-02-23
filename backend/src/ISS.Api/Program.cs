@@ -52,7 +52,8 @@ builder.Services.AddScoped<ISS.Api.Services.JwtTokenService>();
 builder.Services.AddHostedService<ISS.Api.Services.NotificationDispatcherHostedService>();
 
 builder.Services.AddControllers();
-builder.Services.AddHealthChecks();
+builder.Services.AddHealthChecks()
+    .AddCheck<ISS.Api.Health.DatabaseConnectivityHealthCheck>("database");
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(options =>
 {

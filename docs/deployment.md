@@ -33,7 +33,7 @@ Notes:
   - `None` (default in non-Development)
 - Roles are seeded on startup.
 - The first registered user becomes `Admin`.
-- Health endpoint: `GET /health`
+- Health endpoint: `GET /health` (now includes a DB connectivity check, not just process liveness)
 
 ### EF migrations (production-ready schema deployment)
 
@@ -109,7 +109,7 @@ Environment variables:
 1. Backup database and `App_Data/`.
 2. Deploy new application build.
 3. Apply EF migrations (`dotnet ef database update`) or start API with `Database__InitializationMode=Migrate`.
-4. Verify `GET /health`.
+4. Verify `GET /health` returns HTTP `200` (`Healthy`).
 5. Run smoke checks:
    - Login
    - Open dashboard
