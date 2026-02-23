@@ -3,6 +3,7 @@ import { backendFetchJson } from "@/lib/backend.server";
 import { Card, SecondaryLink, Table } from "@/components/ui";
 import { GoodsReceiptActions } from "../GoodsReceiptActions";
 import { GoodsReceiptLineAddForm } from "../GoodsReceiptLineAddForm";
+import { DocumentCollaborationPanel } from "@/components/DocumentCollaborationPanel";
 
 type GoodsReceiptDto = {
   id: string;
@@ -119,6 +120,8 @@ export default async function GoodsReceiptDetailPage({ params }: { params: Promi
           </Table>
         </div>
       </Card>
+
+      <DocumentCollaborationPanel referenceType="GRN" referenceId={id} />
     </div>
   );
 }

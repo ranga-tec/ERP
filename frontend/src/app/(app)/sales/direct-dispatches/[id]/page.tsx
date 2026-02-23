@@ -3,6 +3,7 @@ import { backendFetchJson } from "@/lib/backend.server";
 import { Card, SecondaryLink, Table } from "@/components/ui";
 import { DirectDispatchActions } from "../DirectDispatchActions";
 import { DirectDispatchLineAddForm } from "../DirectDispatchLineAddForm";
+import { DocumentCollaborationPanel } from "@/components/DocumentCollaborationPanel";
 
 type DirectDispatchDto = {
   id: string;
@@ -113,6 +114,8 @@ export default async function DirectDispatchDetailPage({ params }: { params: Pro
           </Table>
         </div>
       </Card>
+
+      <DocumentCollaborationPanel referenceType="DDN" referenceId={id} />
     </div>
   );
 }

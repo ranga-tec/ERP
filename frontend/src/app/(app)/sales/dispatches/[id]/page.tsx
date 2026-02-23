@@ -3,6 +3,7 @@ import { backendFetchJson } from "@/lib/backend.server";
 import { Card, SecondaryLink, Table } from "@/components/ui";
 import { DispatchActions } from "../DispatchActions";
 import { DispatchLineAddForm } from "../DispatchLineAddForm";
+import { DocumentCollaborationPanel } from "@/components/DocumentCollaborationPanel";
 
 type DispatchDto = {
   id: string;
@@ -117,6 +118,8 @@ export default async function DispatchDetailPage({ params }: { params: Promise<{
           </Table>
         </div>
       </Card>
+
+      <DocumentCollaborationPanel referenceType="DN" referenceId={id} />
     </div>
   );
 }

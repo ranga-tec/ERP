@@ -3,6 +3,7 @@ import { backendFetchJson } from "@/lib/backend.server";
 import { Card, SecondaryLink, Table } from "@/components/ui";
 import { QuoteActions } from "../QuoteActions";
 import { QuoteLineAddForm } from "../QuoteLineAddForm";
+import { DocumentCollaborationPanel } from "@/components/DocumentCollaborationPanel";
 
 type SalesQuoteDto = {
   id: string;
@@ -117,6 +118,8 @@ export default async function QuoteDetailPage({ params }: { params: Promise<{ id
           </Table>
         </div>
       </Card>
+
+      <DocumentCollaborationPanel referenceType="SQ" referenceId={id} />
     </div>
   );
 }

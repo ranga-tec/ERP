@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { backendFetchJson } from "@/lib/backend.server";
 import { Card, SecondaryLink } from "@/components/ui";
+import { DocumentCollaborationPanel } from "@/components/DocumentCollaborationPanel";
 
 type WorkOrderDto = {
   id: string;
@@ -64,6 +65,8 @@ export default async function WorkOrderDetailPage({ params }: { params: Promise<
         <div className="mb-2 text-sm font-semibold">Description</div>
         <div className="whitespace-pre-wrap text-sm text-zinc-700 dark:text-zinc-200">{wo.description}</div>
       </Card>
+
+      <DocumentCollaborationPanel referenceType="WO" referenceId={id} />
     </div>
   );
 }

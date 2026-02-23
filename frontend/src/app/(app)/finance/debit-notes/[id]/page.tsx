@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { backendFetchJson } from "@/lib/backend.server";
 import { Card, SecondaryLink } from "@/components/ui";
+import { DocumentCollaborationPanel } from "@/components/DocumentCollaborationPanel";
 
 type DebitNoteDto = {
   id: string;
@@ -75,7 +76,8 @@ export default async function DebitNoteDetailPage({ params }: { params: Promise<
         </div>
         <div className="text-sm text-zinc-500">Debit notes create AR/AP charges automatically.</div>
       </Card>
+
+      <DocumentCollaborationPanel referenceType="DBN" referenceId={id} />
     </div>
   );
 }
-

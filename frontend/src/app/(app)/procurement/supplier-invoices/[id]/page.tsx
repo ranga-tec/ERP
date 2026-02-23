@@ -2,6 +2,7 @@ import Link from "next/link";
 import { backendFetchJson } from "@/lib/backend.server";
 import { Card, SecondaryLink } from "@/components/ui";
 import { SupplierInvoiceActions } from "../SupplierInvoiceActions";
+import { DocumentCollaborationPanel } from "@/components/DocumentCollaborationPanel";
 
 type SupplierInvoiceDto = {
   id: string;
@@ -105,6 +106,8 @@ export default async function SupplierInvoiceDetailPage({ params }: { params: Pr
         </div>
         <SupplierInvoiceActions supplierInvoiceId={invoice.id} canPost={isDraft} />
       </Card>
+
+      <DocumentCollaborationPanel referenceType="SINV" referenceId={id} />
     </div>
   );
 }

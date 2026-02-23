@@ -2,6 +2,7 @@ import Link from "next/link";
 import { backendFetchJson } from "@/lib/backend.server";
 import { Card, SecondaryLink, Table } from "@/components/ui";
 import { CreditNoteActions } from "../CreditNoteActions";
+import { DocumentCollaborationPanel } from "@/components/DocumentCollaborationPanel";
 
 type CreditNoteDto = {
   id: string;
@@ -162,7 +163,8 @@ export default async function CreditNoteDetailPage({ params }: { params: Promise
           </Table>
         </div>
       </Card>
+
+      <DocumentCollaborationPanel referenceType="CN" referenceId={id} />
     </div>
   );
 }
-

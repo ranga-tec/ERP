@@ -3,6 +3,7 @@ import { backendFetchJson } from "@/lib/backend.server";
 import { Card, SecondaryLink, Table } from "@/components/ui";
 import { SalesOrderActions } from "../SalesOrderActions";
 import { SalesOrderLineAddForm } from "../SalesOrderLineAddForm";
+import { DocumentCollaborationPanel } from "@/components/DocumentCollaborationPanel";
 
 type SalesOrderDto = {
   id: string;
@@ -114,6 +115,8 @@ export default async function SalesOrderDetailPage({ params }: { params: Promise
           </Table>
         </div>
       </Card>
+
+      <DocumentCollaborationPanel referenceType="SO" referenceId={id} />
     </div>
   );
 }

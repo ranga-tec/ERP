@@ -3,6 +3,7 @@ import { backendFetchJson } from "@/lib/backend.server";
 import { Card, SecondaryLink, Table } from "@/components/ui";
 import { CustomerReturnActions } from "../CustomerReturnActions";
 import { CustomerReturnLineAddForm } from "../CustomerReturnLineAddForm";
+import { DocumentCollaborationPanel } from "@/components/DocumentCollaborationPanel";
 
 type CustomerReturnDto = {
   id: string;
@@ -122,6 +123,8 @@ export default async function CustomerReturnDetailPage({ params }: { params: Pro
           </Table>
         </div>
       </Card>
+
+      <DocumentCollaborationPanel referenceType="CRTN" referenceId={id} />
     </div>
   );
 }

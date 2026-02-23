@@ -3,6 +3,7 @@ import { backendFetchJson } from "@/lib/backend.server";
 import { Card, SecondaryLink, Table } from "@/components/ui";
 import { MaterialRequisitionActions } from "../MaterialRequisitionActions";
 import { MaterialRequisitionLineAddForm } from "../MaterialRequisitionLineAddForm";
+import { DocumentCollaborationPanel } from "@/components/DocumentCollaborationPanel";
 
 type MaterialRequisitionDto = {
   id: string;
@@ -114,6 +115,8 @@ export default async function MaterialRequisitionDetailPage({ params }: { params
           </Table>
         </div>
       </Card>
+
+      <DocumentCollaborationPanel referenceType="MR" referenceId={id} />
     </div>
   );
 }

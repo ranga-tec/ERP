@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { backendFetchJson } from "@/lib/backend.server";
 import { Card } from "@/components/ui";
+import { DocumentCollaborationPanel } from "@/components/DocumentCollaborationPanel";
 
 type EquipmentUnitDto = {
   id: string;
@@ -49,7 +50,8 @@ export default async function EquipmentUnitDetailPage({ params }: { params: Prom
           Create a service job from <Link className="underline" href="/service/jobs">Service Jobs</Link>.
         </div>
       </Card>
+
+      <DocumentCollaborationPanel referenceType="EUNIT" referenceId={id} />
     </div>
   );
 }
-

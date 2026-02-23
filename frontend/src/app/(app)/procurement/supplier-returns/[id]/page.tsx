@@ -3,6 +3,7 @@ import { backendFetchJson } from "@/lib/backend.server";
 import { Card, SecondaryLink, Table } from "@/components/ui";
 import { SupplierReturnActions } from "../SupplierReturnActions";
 import { SupplierReturnLineAddForm } from "../SupplierReturnLineAddForm";
+import { DocumentCollaborationPanel } from "@/components/DocumentCollaborationPanel";
 
 type SupplierReturnDto = {
   id: string;
@@ -121,6 +122,8 @@ export default async function SupplierReturnDetailPage({ params }: { params: Pro
           </Table>
         </div>
       </Card>
+
+      <DocumentCollaborationPanel referenceType="SR" referenceId={id} />
     </div>
   );
 }

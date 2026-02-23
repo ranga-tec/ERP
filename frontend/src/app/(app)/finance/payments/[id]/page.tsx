@@ -2,6 +2,7 @@ import Link from "next/link";
 import { backendFetchJson } from "@/lib/backend.server";
 import { Card, SecondaryLink, Table } from "@/components/ui";
 import { PaymentAllocateForm } from "../PaymentAllocateForm";
+import { DocumentCollaborationPanel } from "@/components/DocumentCollaborationPanel";
 
 type PaymentAllocationDto = { id: string; accountsReceivableEntryId?: string | null; accountsPayableEntryId?: string | null; amount: number };
 
@@ -170,6 +171,8 @@ export default async function PaymentDetailPage({ params }: { params: Promise<{ 
           )}
         </Card>
       ) : null}
+
+      <DocumentCollaborationPanel referenceType="PAY" referenceId={id} />
     </div>
   );
 }

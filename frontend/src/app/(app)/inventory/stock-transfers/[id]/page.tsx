@@ -3,6 +3,7 @@ import { backendFetchJson } from "@/lib/backend.server";
 import { Card, SecondaryLink, Table } from "@/components/ui";
 import { StockTransferActions } from "../StockTransferActions";
 import { StockTransferLineAddForm } from "../StockTransferLineAddForm";
+import { DocumentCollaborationPanel } from "@/components/DocumentCollaborationPanel";
 
 type StockTransferDto = {
   id: string;
@@ -113,6 +114,8 @@ export default async function StockTransferDetailPage({ params }: { params: Prom
           </Table>
         </div>
       </Card>
+
+      <DocumentCollaborationPanel referenceType="TRF" referenceId={id} />
     </div>
   );
 }

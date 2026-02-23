@@ -3,6 +3,7 @@ import { backendFetchJson } from "@/lib/backend.server";
 import { Card, SecondaryLink, Table } from "@/components/ui";
 import { RfqActions } from "../RfqActions";
 import { RfqLineAddForm } from "../RfqLineAddForm";
+import { DocumentCollaborationPanel } from "@/components/DocumentCollaborationPanel";
 
 type RfqDto = {
   id: string;
@@ -111,6 +112,8 @@ export default async function RfqDetailPage({ params }: { params: Promise<{ id: 
           </Table>
         </div>
       </Card>
+
+      <DocumentCollaborationPanel referenceType="RFQ" referenceId={id} />
     </div>
   );
 }

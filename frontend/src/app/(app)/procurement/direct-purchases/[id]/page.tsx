@@ -3,6 +3,7 @@ import { backendFetchJson } from "@/lib/backend.server";
 import { Card, SecondaryLink, Table } from "@/components/ui";
 import { DirectPurchaseActions } from "../DirectPurchaseActions";
 import { DirectPurchaseLineAddForm } from "../DirectPurchaseLineAddForm";
+import { DocumentCollaborationPanel } from "@/components/DocumentCollaborationPanel";
 
 type DirectPurchaseDto = {
   id: string;
@@ -135,6 +136,8 @@ export default async function DirectPurchaseDetailPage({ params }: { params: Pro
           </Table>
         </div>
       </Card>
+
+      <DocumentCollaborationPanel referenceType="DPR" referenceId={id} />
     </div>
   );
 }

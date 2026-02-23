@@ -3,6 +3,7 @@ import { backendFetchJson } from "@/lib/backend.server";
 import { Card, SecondaryLink, Table } from "@/components/ui";
 import { StockAdjustmentActions } from "../StockAdjustmentActions";
 import { StockAdjustmentLineAddForm } from "../StockAdjustmentLineAddForm";
+import { DocumentCollaborationPanel } from "@/components/DocumentCollaborationPanel";
 
 type StockAdjustmentDto = {
   id: string;
@@ -111,6 +112,8 @@ export default async function StockAdjustmentDetailPage({ params }: { params: Pr
           </Table>
         </div>
       </Card>
+
+      <DocumentCollaborationPanel referenceType="ADJ" referenceId={id} />
     </div>
   );
 }

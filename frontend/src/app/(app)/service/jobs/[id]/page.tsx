@@ -2,6 +2,7 @@ import Link from "next/link";
 import { backendFetchJson } from "@/lib/backend.server";
 import { Card, SecondaryLink } from "@/components/ui";
 import { ServiceJobActions } from "../ServiceJobActions";
+import { DocumentCollaborationPanel } from "@/components/DocumentCollaborationPanel";
 
 type ServiceJobDto = {
   id: string;
@@ -93,6 +94,8 @@ export default async function ServiceJobDetailPage({ params }: { params: Promise
           <Link className="underline" href="/service/handovers">Handovers</Link>.
         </div>
       </Card>
+
+      <DocumentCollaborationPanel referenceType="SJ" referenceId={id} />
     </div>
   );
 }

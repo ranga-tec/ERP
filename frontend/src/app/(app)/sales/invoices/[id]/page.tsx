@@ -3,6 +3,7 @@ import { backendFetchJson } from "@/lib/backend.server";
 import { Card, SecondaryLink, Table } from "@/components/ui";
 import { InvoiceActions } from "../InvoiceActions";
 import { InvoiceLineAddForm } from "../InvoiceLineAddForm";
+import { DocumentCollaborationPanel } from "@/components/DocumentCollaborationPanel";
 
 type InvoiceDto = {
   id: string;
@@ -132,6 +133,8 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
           </Table>
         </div>
       </Card>
+
+      <DocumentCollaborationPanel referenceType="INV" referenceId={id} />
     </div>
   );
 }

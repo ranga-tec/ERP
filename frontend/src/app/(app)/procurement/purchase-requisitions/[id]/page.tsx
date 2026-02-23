@@ -4,6 +4,7 @@ import { Card, Table } from "@/components/ui";
 import { PurchaseRequisitionActions } from "../PurchaseRequisitionActions";
 import { PurchaseRequisitionConvertToPoForm } from "../PurchaseRequisitionConvertToPoForm";
 import { PurchaseRequisitionLineAddForm } from "../PurchaseRequisitionLineAddForm";
+import { DocumentCollaborationPanel } from "@/components/DocumentCollaborationPanel";
 
 type PurchaseRequisitionDto = {
   id: string;
@@ -120,6 +121,8 @@ export default async function PurchaseRequisitionDetailPage({
           </Table>
         </div>
       </Card>
+
+      <DocumentCollaborationPanel referenceType="PR" referenceId={id} />
     </div>
   );
 }

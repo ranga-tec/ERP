@@ -3,6 +3,7 @@ import { backendFetchJson } from "@/lib/backend.server";
 import { Card, SecondaryLink, Table } from "@/components/ui";
 import { PurchaseOrderActions } from "../PurchaseOrderActions";
 import { PurchaseOrderLineAddForm } from "../PurchaseOrderLineAddForm";
+import { DocumentCollaborationPanel } from "@/components/DocumentCollaborationPanel";
 
 type PurchaseOrderDto = {
   id: string;
@@ -123,6 +124,8 @@ export default async function PurchaseOrderDetailPage({ params }: { params: Prom
           </Table>
         </div>
       </Card>
+
+      <DocumentCollaborationPanel referenceType="PO" referenceId={id} />
     </div>
   );
 }

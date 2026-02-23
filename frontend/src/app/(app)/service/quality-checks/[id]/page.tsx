@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { backendFetchJson } from "@/lib/backend.server";
 import { Card, SecondaryLink } from "@/components/ui";
+import { DocumentCollaborationPanel } from "@/components/DocumentCollaborationPanel";
 
 type QualityCheckDto = {
   id: string;
@@ -58,6 +59,8 @@ export default async function QualityCheckDetailPage({ params }: { params: Promi
         <div className="mb-2 text-sm font-semibold">Notes</div>
         <div className="whitespace-pre-wrap text-sm text-zinc-700 dark:text-zinc-200">{qc.notes ?? "—"}</div>
       </Card>
+
+      <DocumentCollaborationPanel referenceType="QC" referenceId={id} />
     </div>
   );
 }
