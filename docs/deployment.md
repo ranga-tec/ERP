@@ -29,11 +29,42 @@ Notes:
 
 - Startup DB initialization is controlled by `Database__InitializationMode`:
   - `EnsureCreated` (default in Development)
-  - `Migrate` (recommended in Production once EF migrations are added)
+  - `Migrate` (recommended for new environments / controlled deployments)
   - `None` (default in non-Development)
 - Roles are seeded on startup.
 - The first registered user becomes `Admin`.
 - Health endpoint: `GET /health`
+
+### EF migrations (production-ready schema deployment)
+
+Baseline migration is now included under `backend/src/ISS.Infrastructure/Persistence/Migrations`.
+
+Generate future migrations:
+
+```powershell
+dotnet ef migrations add <Name> `
+  --project backend/src/ISS.Infrastructure/ISS.Infrastructure.csproj `
+  --startup-project backend/src/ISS.Api/ISS.Api.csproj `
+  --output-dir Persistence/Migrations
+```
+
+Apply migrations:
+
+```powershell
+$env:ConnectionStrings__Default="Host=localhost;Database=iss;Username=pward;Password=vesper"
+dotnet ef database update `
+  --project backend/src/ISS.Infrastructure/ISS.Infrastructure.csproj `
+  --startup-project backend/src/ISS.Api/ISS.Api.csproj
+```
+
+Or let the API apply them on startup:
+
+```powershell
+$env:Database__InitializationMode="Migrate"
+dotnet run --project backend/src/ISS.Api/ISS.Api.csproj
+```
+
+If you already created a database using `EnsureCreated`, recreate it (recommended for non-production) before switching to migrations, or align it manually before inserting migration history.
 
 ### Required environment variables
 
