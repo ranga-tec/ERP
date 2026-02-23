@@ -2,7 +2,9 @@ namespace ISS.Application.Common;
 
 public static class ReferenceTypes
 {
+    public const string DirectPurchase = "DPR";
     public const string GoodsReceipt = "GRN";
+    public const string SupplierInvoice = "SINV";
     public const string SupplierReturn = "SR";
     public const string DispatchNote = "DN";
     public const string SalesInvoice = "INV";

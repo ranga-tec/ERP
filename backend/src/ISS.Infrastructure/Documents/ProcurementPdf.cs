@@ -257,4 +257,78 @@ public sealed partial class DocumentPdfService
             qrPayload: $"ISS:SR:{sr.Id}",
             barcodePayload: sr.Number);
     }
+
+    private async Task<PdfDocument> RenderDirectPurchaseAsync(Guid id, CancellationToken cancellationToken)
+    {
+        var dp = await _dbContext.DirectPurchases.AsNoTracking()
+                     .Include(x => x.Lines)
+                     .ThenInclude(l => l.Serials)
+                     .FirstOrDefaultAsync(x => x.Id == id, cancellationToken)
+                 ?? throw new NotFoundException("Direct purchase not found.");
+
+        var supplier = await _dbContext.Suppliers.AsNoTracking().FirstOrDefaultAsync(x => x.Id == dp.SupplierId, cancellationToken);
+        var warehouse = await _dbContext.Warehouses.AsNoTracking().FirstOrDefaultAsync(x => x.Id == dp.WarehouseId, cancellationToken);
+        var itemById = await LoadItemMapAsync(dp.Lines.Select(l => l.ItemId), cancellationToken);
+
+        var subtotal = dp.Lines.Sum(l => l.LineSubTotal);
+        var tax = dp.Lines.Sum(l => l.LineTax);
+        var total = dp.Lines.Sum(l => l.LineTotal);
+
+        var meta = new List<(string Label, string Value)>
+        {
+            ("Supplier", SupplierLabel(supplier, dp.SupplierId)),
+            ("Warehouse", WarehouseLabel(warehouse, dp.WarehouseId)),
+            ("Date", dp.PurchasedAt.ToString("u")),
+            ("Status", dp.Status.ToString()),
+            ("Subtotal", FormatMoney(subtotal)),
+            ("Tax", FormatMoney(tax)),
+            ("Total", FormatMoney(total)),
+            ("Remarks", dp.Remarks ?? "")
+        };
+
+        return BuildPdf(
+            title: "Direct Purchase",
+            referenceNumber: dp.Number,
+            meta: meta,
+            content: column =>
+            {
+                column.Item().Text("Lines").SemiBold();
+                column.Item().Table(table =>
+                {
+                    table.ColumnsDefinition(cols =>
+                    {
+                        cols.RelativeColumn(4);
+                        cols.RelativeColumn(2);
+                        cols.RelativeColumn(2);
+                        cols.RelativeColumn(2);
+                        cols.RelativeColumn(2);
+                        cols.RelativeColumn(4);
+                    });
+
+                    table.Header(h =>
+                    {
+                        h.Cell().Element(CellHeader).Text("Item");
+                        h.Cell().Element(CellHeader).AlignRight().Text("Qty");
+                        h.Cell().Element(CellHeader).AlignRight().Text("Unit Price");
+                        h.Cell().Element(CellHeader).AlignRight().Text("Tax %");
+                        h.Cell().Element(CellHeader).Text("Batch");
+                        h.Cell().Element(CellHeader).Text("Serials");
+                    });
+
+                    foreach (var line in dp.Lines)
+                    {
+                        var item = itemById.GetValueOrDefault(line.ItemId);
+                        table.Cell().Element(CellBody).Text(ItemLabel(item, line.ItemId));
+                        table.Cell().Element(CellBody).AlignRight().Text(FormatQty(line.Quantity));
+                        table.Cell().Element(CellBody).AlignRight().Text(FormatMoney(line.UnitPrice));
+                        table.Cell().Element(CellBody).AlignRight().Text(FormatPercent(line.TaxPercent));
+                        table.Cell().Element(CellBody).Text(line.BatchNumber ?? "");
+                        table.Cell().Element(CellBody).Text(string.Join(", ", line.Serials.Select(s => s.SerialNumber)));
+                    }
+                });
+            },
+            fileName: $"DP-{dp.Number}.pdf",
+            qrPayload: $"ISS:DP:{dp.Id}",
+            barcodePayload: dp.Number);
+    }
 }

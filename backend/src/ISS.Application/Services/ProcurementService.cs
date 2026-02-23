@@ -212,6 +212,83 @@ public sealed class ProcurementService(
         return grn.Id;
     }
 
+    public async Task<Guid> CreateDirectPurchaseAsync(
+        Guid supplierId,
+        Guid warehouseId,
+        DateTimeOffset? purchasedAt,
+        string? remarks,
+        CancellationToken cancellationToken = default)
+    {
+        var number = await documentNumberService.NextAsync(ReferenceTypes.DirectPurchase, "DP", cancellationToken);
+        var dp = new DirectPurchase(number, supplierId, warehouseId, purchasedAt ?? clock.UtcNow, remarks);
+        await dbContext.DirectPurchases.AddAsync(dp, cancellationToken);
+        await dbContext.SaveChangesAsync(cancellationToken);
+        return dp.Id;
+    }
+
+    public async Task AddDirectPurchaseLineAsync(
+        Guid directPurchaseId,
+        Guid itemId,
+        decimal quantity,
+        decimal unitPrice,
+        decimal taxPercent,
+        string? batchNumber,
+        IReadOnlyCollection<string>? serialNumbers,
+        CancellationToken cancellationToken = default)
+    {
+        var dp = await dbContext.DirectPurchases.Include(x => x.Lines).ThenInclude(x => x.Serials)
+                     .FirstOrDefaultAsync(x => x.Id == directPurchaseId, cancellationToken)
+                 ?? throw new NotFoundException("Direct purchase not found.");
+
+        var line = dp.AddLine(itemId, quantity, unitPrice, taxPercent, batchNumber);
+        if (serialNumbers is { Count: > 0 })
+        {
+            foreach (var serial in serialNumbers)
+            {
+                line.AddSerial(serial);
+            }
+        }
+
+        dbContext.DbContext.Add(line);
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task PostDirectPurchaseAsync(Guid directPurchaseId, CancellationToken cancellationToken = default)
+    {
+        var dp = await dbContext.DirectPurchases.Include(x => x.Lines).ThenInclude(x => x.Serials)
+                     .FirstOrDefaultAsync(x => x.Id == directPurchaseId, cancellationToken)
+                 ?? throw new NotFoundException("Direct purchase not found.");
+
+        var itemIds = dp.Lines.Select(l => l.ItemId).Distinct().ToList();
+        var items = await dbContext.Items.Where(i => itemIds.Contains(i.Id)).ToListAsync(cancellationToken);
+        var itemById = items.ToDictionary(i => i.Id, i => i);
+
+        dp.Post();
+
+        foreach (var line in dp.Lines)
+        {
+            if (!itemById.TryGetValue(line.ItemId, out var item))
+            {
+                throw new DomainValidationException("Invalid item on direct purchase.");
+            }
+
+            await inventoryService.RecordReceiptAsync(
+                dp.PurchasedAt,
+                dp.WarehouseId,
+                item,
+                line.Quantity,
+                line.UnitPrice,
+                ReferenceTypes.DirectPurchase,
+                dp.Id,
+                line.Id,
+                line.BatchNumber,
+                line.Serials.Select(s => s.SerialNumber).ToList(),
+                cancellationToken);
+        }
+
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
     public async Task AddGoodsReceiptLineAsync(
         Guid goodsReceiptId,
         Guid itemId,
@@ -286,6 +363,95 @@ public sealed class ProcurementService(
             new ISS.Domain.Finance.AccountsPayableEntry(po.SupplierId, ReferenceTypes.GoodsReceipt, grn.Id, amount, clock.UtcNow),
             cancellationToken);
 
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task<Guid> CreateSupplierInvoiceAsync(
+        Guid supplierId,
+        string invoiceNumber,
+        DateTimeOffset invoiceDate,
+        DateTimeOffset? dueDate,
+        Guid? purchaseOrderId,
+        Guid? goodsReceiptId,
+        Guid? directPurchaseId,
+        decimal subtotal,
+        decimal discountAmount,
+        decimal taxAmount,
+        decimal freightAmount,
+        decimal roundingAmount,
+        string? notes,
+        CancellationToken cancellationToken = default)
+    {
+        await ValidateSupplierInvoiceLinksAsync(
+            supplierId,
+            purchaseOrderId,
+            goodsReceiptId,
+            directPurchaseId,
+            cancellationToken);
+
+        var number = await documentNumberService.NextAsync(ReferenceTypes.SupplierInvoice, "SINV", cancellationToken);
+        var invoice = new SupplierInvoice(
+            number,
+            supplierId,
+            invoiceNumber,
+            invoiceDate,
+            dueDate,
+            purchaseOrderId,
+            goodsReceiptId,
+            directPurchaseId,
+            subtotal,
+            discountAmount,
+            taxAmount,
+            freightAmount,
+            roundingAmount,
+            notes);
+
+        await dbContext.SupplierInvoices.AddAsync(invoice, cancellationToken);
+        await dbContext.SaveChangesAsync(cancellationToken);
+        return invoice.Id;
+    }
+
+    public async Task PostSupplierInvoiceAsync(Guid supplierInvoiceId, CancellationToken cancellationToken = default)
+    {
+        var invoice = await dbContext.SupplierInvoices.FirstOrDefaultAsync(x => x.Id == supplierInvoiceId, cancellationToken)
+                      ?? throw new NotFoundException("Supplier invoice not found.");
+
+        await ValidateSupplierInvoiceLinksAsync(
+            invoice.SupplierId,
+            invoice.PurchaseOrderId,
+            invoice.GoodsReceiptId,
+            invoice.DirectPurchaseId,
+            cancellationToken,
+            requirePostedLinkedDocuments: true);
+
+        Guid? apEntryId = null;
+
+        if (invoice.GoodsReceiptId is { } grnId)
+        {
+            var grnAp = await dbContext.AccountsPayableEntries
+                .FirstOrDefaultAsync(x => x.ReferenceType == ReferenceTypes.GoodsReceipt && x.ReferenceId == grnId, cancellationToken);
+
+            if (grnAp is not null)
+            {
+                if (Math.Abs(grnAp.Amount - invoice.GrandTotal) > 0.01m)
+                {
+                    throw new DomainValidationException(
+                        $"Linked GRN already created AP amount {grnAp.Amount:0.00}, but invoice total is {invoice.GrandTotal:0.00}. " +
+                        "Use debit/credit notes to record the variance in the current workflow.");
+                }
+
+                apEntryId = grnAp.Id;
+            }
+        }
+
+        if (apEntryId is null)
+        {
+            var ap = new AccountsPayableEntry(invoice.SupplierId, ReferenceTypes.SupplierInvoice, invoice.Id, invoice.GrandTotal, clock.UtcNow);
+            await dbContext.AccountsPayableEntries.AddAsync(ap, cancellationToken);
+            apEntryId = ap.Id;
+        }
+
+        invoice.Post(apEntryId, clock.UtcNow);
         await dbContext.SaveChangesAsync(cancellationToken);
     }
 
@@ -391,5 +557,83 @@ public sealed class ProcurementService(
         }
 
         await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    private async Task ValidateSupplierInvoiceLinksAsync(
+        Guid supplierId,
+        Guid? purchaseOrderId,
+        Guid? goodsReceiptId,
+        Guid? directPurchaseId,
+        CancellationToken cancellationToken,
+        bool requirePostedLinkedDocuments = false)
+    {
+        if (directPurchaseId is not null && (purchaseOrderId is not null || goodsReceiptId is not null))
+        {
+            throw new DomainValidationException("Supplier invoice cannot combine direct purchase and PO/GRN references.");
+        }
+
+        var supplierExists = await dbContext.Suppliers.AsNoTracking().AnyAsync(x => x.Id == supplierId, cancellationToken);
+        if (!supplierExists)
+        {
+            throw new NotFoundException("Supplier not found.");
+        }
+
+        PurchaseOrder? po = null;
+
+        if (purchaseOrderId is { } poId)
+        {
+            po = await dbContext.PurchaseOrders.AsNoTracking().FirstOrDefaultAsync(x => x.Id == poId, cancellationToken)
+                 ?? throw new NotFoundException("Purchase order not found.");
+
+            if (po.SupplierId != supplierId)
+            {
+                throw new DomainValidationException("Purchase order supplier does not match supplier invoice.");
+            }
+
+            if (requirePostedLinkedDocuments && po.Status == PurchaseOrderStatus.Draft)
+            {
+                throw new DomainValidationException("Linked purchase order must be approved before posting supplier invoice.");
+            }
+        }
+
+        if (goodsReceiptId is { } grnId)
+        {
+            var grn = await dbContext.GoodsReceipts.AsNoTracking().FirstOrDefaultAsync(x => x.Id == grnId, cancellationToken)
+                      ?? throw new NotFoundException("Goods receipt not found.");
+
+            if (requirePostedLinkedDocuments && grn.Status != GoodsReceiptStatus.Posted)
+            {
+                throw new DomainValidationException("Linked goods receipt must be posted before posting supplier invoice.");
+            }
+
+            po ??= await dbContext.PurchaseOrders.AsNoTracking().FirstOrDefaultAsync(x => x.Id == grn.PurchaseOrderId, cancellationToken)
+                   ?? throw new NotFoundException("Purchase order linked to goods receipt not found.");
+
+            if (purchaseOrderId is not null && grn.PurchaseOrderId != purchaseOrderId.Value)
+            {
+                throw new DomainValidationException("Linked goods receipt does not belong to the selected purchase order.");
+            }
+
+            if (po.SupplierId != supplierId)
+            {
+                throw new DomainValidationException("Linked goods receipt supplier does not match supplier invoice.");
+            }
+        }
+
+        if (directPurchaseId is { } dpId)
+        {
+            var dp = await dbContext.DirectPurchases.AsNoTracking().FirstOrDefaultAsync(x => x.Id == dpId, cancellationToken)
+                     ?? throw new NotFoundException("Direct purchase not found.");
+
+            if (dp.SupplierId != supplierId)
+            {
+                throw new DomainValidationException("Linked direct purchase supplier does not match supplier invoice.");
+            }
+
+            if (requirePostedLinkedDocuments && dp.Status != DirectPurchaseStatus.Posted)
+            {
+                throw new DomainValidationException("Linked direct purchase must be posted before posting supplier invoice.");
+            }
+        }
     }
 }

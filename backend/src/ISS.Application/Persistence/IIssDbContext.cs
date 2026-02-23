@@ -32,6 +32,8 @@ public interface IIssDbContext
     DbSet<PurchaseRequisition> PurchaseRequisitions { get; }
     DbSet<PurchaseOrder> PurchaseOrders { get; }
     DbSet<GoodsReceipt> GoodsReceipts { get; }
+    DbSet<DirectPurchase> DirectPurchases { get; }
+    DbSet<SupplierInvoice> SupplierInvoices { get; }
     DbSet<SupplierReturn> SupplierReturns { get; }
 
     DbSet<SalesQuote> SalesQuotes { get; }

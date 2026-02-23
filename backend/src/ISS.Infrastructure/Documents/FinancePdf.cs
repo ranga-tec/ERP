@@ -196,4 +196,59 @@ public sealed partial class DocumentPdfService
             qrPayload: $"ISS:DBN:{note.Id}",
             barcodePayload: note.ReferenceNumber);
     }
+
+    private async Task<PdfDocument> RenderSupplierInvoiceAsync(Guid id, CancellationToken cancellationToken)
+    {
+        var invoice = await _dbContext.SupplierInvoices.AsNoTracking()
+                          .FirstOrDefaultAsync(x => x.Id == id, cancellationToken)
+                      ?? throw new NotFoundException("Supplier invoice not found.");
+
+        var supplier = await _dbContext.Suppliers.AsNoTracking().FirstOrDefaultAsync(x => x.Id == invoice.SupplierId, cancellationToken);
+
+        string links = "";
+        if (invoice.PurchaseOrderId is { } poId)
+        {
+            var po = await _dbContext.PurchaseOrders.AsNoTracking().FirstOrDefaultAsync(x => x.Id == poId, cancellationToken);
+            links += $"PO:{po?.Number ?? poId.ToString()} ";
+        }
+
+        if (invoice.GoodsReceiptId is { } grnId)
+        {
+            var grn = await _dbContext.GoodsReceipts.AsNoTracking().FirstOrDefaultAsync(x => x.Id == grnId, cancellationToken);
+            links += $"GRN:{grn?.Number ?? grnId.ToString()} ";
+        }
+
+        if (invoice.DirectPurchaseId is { } dpId)
+        {
+            var dp = await _dbContext.DirectPurchases.AsNoTracking().FirstOrDefaultAsync(x => x.Id == dpId, cancellationToken);
+            links += $"DP:{dp?.Number ?? dpId.ToString()}";
+        }
+
+        var meta = new List<(string Label, string Value)>
+        {
+            ("Supplier", SupplierLabel(supplier, invoice.SupplierId)),
+            ("Doc No", invoice.Number),
+            ("Supplier Invoice No", invoice.InvoiceNumber),
+            ("Invoice date", invoice.InvoiceDate.ToString("u")),
+            ("Due date", invoice.DueDate?.ToString("u") ?? ""),
+            ("Status", invoice.Status.ToString()),
+            ("Links", links.Trim()),
+            ("Subtotal", FormatMoney(invoice.Subtotal)),
+            ("Discount", FormatMoney(invoice.DiscountAmount)),
+            ("Tax", FormatMoney(invoice.TaxAmount)),
+            ("Freight", FormatMoney(invoice.FreightAmount)),
+            ("Rounding", FormatMoney(invoice.RoundingAmount)),
+            ("Grand total", FormatMoney(invoice.GrandTotal)),
+            ("Notes", invoice.Notes ?? "")
+        };
+
+        return BuildPdf(
+            title: "Supplier Invoice",
+            referenceNumber: invoice.Number,
+            meta: meta,
+            content: _ => { },
+            fileName: $"SINV-{invoice.Number}.pdf",
+            qrPayload: $"ISS:SINV:{invoice.Id}",
+            barcodePayload: invoice.Number);
+    }
 }

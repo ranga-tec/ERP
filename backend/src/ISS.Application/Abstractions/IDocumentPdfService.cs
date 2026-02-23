@@ -19,7 +19,9 @@ public enum PdfDocumentType
     Payment = 15,
     CreditNote = 16,
     DebitNote = 17,
-    ItemLabel = 18
+    ItemLabel = 18,
+    DirectPurchase = 19,
+    SupplierInvoice = 20
 }
 
 public sealed record PdfDocument(string FileName, byte[] Content, string ContentType = "application/pdf");
@@ -28,4 +30,3 @@ public interface IDocumentPdfService
 {
     Task<PdfDocument> RenderAsync(PdfDocumentType documentType, Guid id, CancellationToken cancellationToken = default);
 }
-

@@ -28,6 +28,8 @@ const sections: NavSection[] = [
       { href: "/procurement/rfqs", label: "RFQs" },
       { href: "/procurement/purchase-orders", label: "Purchase Orders" },
       { href: "/procurement/goods-receipts", label: "Goods Receipts" },
+      { href: "/procurement/direct-purchases", label: "Direct Purchases" },
+      { href: "/procurement/supplier-invoices", label: "Supplier Invoices" },
       { href: "/procurement/supplier-returns", label: "Supplier Returns" },
     ],
   },

@@ -44,6 +44,8 @@ public sealed class IssDbContext(
     public DbSet<PurchaseRequisition> PurchaseRequisitions => Set<PurchaseRequisition>();
     public DbSet<PurchaseOrder> PurchaseOrders => Set<PurchaseOrder>();
     public DbSet<GoodsReceipt> GoodsReceipts => Set<GoodsReceipt>();
+    public DbSet<DirectPurchase> DirectPurchases => Set<DirectPurchase>();
+    public DbSet<SupplierInvoice> SupplierInvoices => Set<SupplierInvoice>();
     public DbSet<SupplierReturn> SupplierReturns => Set<SupplierReturn>();
 
     public DbSet<SalesQuote> SalesQuotes => Set<SalesQuote>();
@@ -263,6 +265,41 @@ public sealed class IssDbContext(
         {
             entity.Property(x => x.SerialNumber).HasMaxLength(128);
             entity.HasIndex(x => x.SerialNumber).IsUnique();
+        });
+
+        builder.Entity<DirectPurchase>(entity =>
+        {
+            entity.HasIndex(x => x.Number).IsUnique();
+            entity.Property(x => x.Number).HasMaxLength(32);
+            entity.Property(x => x.Remarks).HasMaxLength(2000);
+            entity.HasMany(x => x.Lines).WithOne().HasForeignKey(x => x.DirectPurchaseId).OnDelete(DeleteBehavior.Cascade);
+        });
+        builder.Entity<DirectPurchaseLine>(entity =>
+        {
+            entity.Property(x => x.Quantity).HasPrecision(18, 4);
+            entity.Property(x => x.UnitPrice).HasPrecision(18, 4);
+            entity.Property(x => x.TaxPercent).HasPrecision(18, 4);
+            entity.Property(x => x.BatchNumber).HasMaxLength(128);
+            entity.HasMany(x => x.Serials).WithOne().HasForeignKey(x => x.DirectPurchaseLineId).OnDelete(DeleteBehavior.Cascade);
+        });
+        builder.Entity<DirectPurchaseLineSerial>(entity =>
+        {
+            entity.Property(x => x.SerialNumber).HasMaxLength(128);
+            entity.HasIndex(x => x.SerialNumber).IsUnique();
+        });
+
+        builder.Entity<SupplierInvoice>(entity =>
+        {
+            entity.HasIndex(x => x.Number).IsUnique();
+            entity.HasIndex(x => new { x.SupplierId, x.InvoiceNumber }).IsUnique();
+            entity.Property(x => x.Number).HasMaxLength(32);
+            entity.Property(x => x.InvoiceNumber).HasMaxLength(64);
+            entity.Property(x => x.Notes).HasMaxLength(2000);
+            entity.Property(x => x.Subtotal).HasPrecision(18, 4);
+            entity.Property(x => x.DiscountAmount).HasPrecision(18, 4);
+            entity.Property(x => x.TaxAmount).HasPrecision(18, 4);
+            entity.Property(x => x.FreightAmount).HasPrecision(18, 4);
+            entity.Property(x => x.RoundingAmount).HasPrecision(18, 4);
         });
 
         builder.Entity<SupplierReturn>(entity =>
