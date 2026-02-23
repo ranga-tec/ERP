@@ -225,6 +225,48 @@ public sealed class EndToEndTests(IssApiFixture fixture) : IClassFixture<IssApiF
     }
 
     [Fact]
+    public async Task Procurement_DirectPurchase_Post_Twice_Returns_BadRequest()
+    {
+        var warehouse = await Post<WarehouseDto>("/api/warehouses", new { code = Code("WH"), name = "Main", address = (string?)null });
+        var supplier = await Post<SupplierDto>("/api/suppliers", new { code = Code("SUP"), name = "Supplier", phone = "123", email = (string?)null, address = (string?)null });
+        var item = await Post<ItemDto>("/api/items", new
+        {
+            sku = Code("SKU"),
+            name = "Seal Kit",
+            type = ItemType.SparePart,
+            trackingType = TrackingType.None,
+            unitOfMeasure = "PCS",
+            brandId = (Guid?)null,
+            barcode = (string?)null,
+            defaultUnitCost = 10m
+        });
+
+        var dp = await Post<DirectPurchaseApiDto>("/api/procurement/direct-purchases", new
+        {
+            supplierId = supplier.Id,
+            warehouseId = warehouse.Id,
+            purchasedAt = (DateTimeOffset?)null,
+            remarks = "Retry post test"
+        });
+        await PostNoContent($"/api/procurement/direct-purchases/{dp.Id}/lines", new
+        {
+            itemId = item.Id,
+            quantity = 1m,
+            unitPrice = 10m,
+            taxPercent = 0m,
+            batchNumber = (string?)null,
+            serials = (string[]?)null
+        });
+        await PostNoContent($"/api/procurement/direct-purchases/{dp.Id}/post", new { });
+
+        var resp = await _client.PostAsJsonAsync($"/api/procurement/direct-purchases/{dp.Id}/post", new { });
+        var body = await resp.Content.ReadAsStringAsync();
+
+        Assert.Equal(System.Net.HttpStatusCode.BadRequest, resp.StatusCode);
+        Assert.Contains("draft", body, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
     public async Task Pdf_Export_Endpoints_Return_Pdf_Content()
     {
         var warehouse = await Post<WarehouseDto>("/api/warehouses", new { code = Code("WH"), name = "Main", address = (string?)null });
@@ -704,6 +746,57 @@ public sealed class EndToEndTests(IssApiFixture fixture) : IClassFixture<IssApiF
 
         await AssertPdfOkAsync($"/api/sales/direct-dispatches/{directDispatch.Id}/pdf");
         await AssertPdfOkAsync($"/api/sales/customer-returns/{customerReturn.Id}/pdf");
+    }
+
+    [Fact]
+    public async Task Sales_DirectDispatch_Post_Twice_Returns_BadRequest()
+    {
+        var warehouse = await Post<WarehouseDto>("/api/warehouses", new { code = Code("WH"), name = "Main", address = (string?)null });
+        var customer = await Post<CustomerDto>("/api/customers", new { code = Code("CUS"), name = "Customer A", phone = "555", email = (string?)null, address = (string?)null });
+        var item = await Post<ItemDto>("/api/items", new
+        {
+            sku = Code("SKU"),
+            name = "Return Hose",
+            type = ItemType.SparePart,
+            trackingType = TrackingType.None,
+            unitOfMeasure = "PCS",
+            brandId = (Guid?)null,
+            barcode = (string?)null,
+            defaultUnitCost = 5m
+        });
+
+        var adj = await Post<StockAdjustmentDto>("/api/inventory/stock-adjustments", new { warehouseId = warehouse.Id, reason = "Seed stock" });
+        await PostNoContent($"/api/inventory/stock-adjustments/{adj.Id}/lines", new
+        {
+            itemId = item.Id,
+            quantityDelta = 2m,
+            unitCost = 5m,
+            batchNumber = (string?)null,
+            serials = (string[]?)null
+        });
+        await PostNoContent($"/api/inventory/stock-adjustments/{adj.Id}/post", new { });
+
+        var directDispatch = await Post<DirectDispatchApiDto>("/api/sales/direct-dispatches", new
+        {
+            warehouseId = warehouse.Id,
+            customerId = customer.Id,
+            serviceJobId = (Guid?)null,
+            reason = "Retry post test"
+        });
+        await PostNoContent($"/api/sales/direct-dispatches/{directDispatch.Id}/lines", new
+        {
+            itemId = item.Id,
+            quantity = 1m,
+            batchNumber = (string?)null,
+            serials = (string[]?)null
+        });
+        await PostNoContent($"/api/sales/direct-dispatches/{directDispatch.Id}/post", new { });
+
+        var resp = await _client.PostAsJsonAsync($"/api/sales/direct-dispatches/{directDispatch.Id}/post", new { });
+        var body = await resp.Content.ReadAsStringAsync();
+
+        Assert.Equal(System.Net.HttpStatusCode.BadRequest, resp.StatusCode);
+        Assert.Contains("draft", body, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
