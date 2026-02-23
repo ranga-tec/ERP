@@ -21,6 +21,7 @@ backend/.vs/
 # Frontend - Node.js
 frontend/node_modules/
 frontend/.next/
+frontend/.nuget/
 frontend/out/
 frontend/.env
 frontend/.env.local

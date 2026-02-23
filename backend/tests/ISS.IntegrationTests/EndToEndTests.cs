@@ -1006,6 +1006,79 @@ public sealed class EndToEndTests(IssApiFixture fixture) : IClassFixture<IssApiF
         Assert.Equal(customer.Id, invoice.CustomerId);
         Assert.Equal(2, invoice.Lines.Count);
         Assert.Equal(110m, invoice.Total);
+
+        var convertAgain = await Post<ConvertToSalesInvoiceResponseDto>($"/api/service/handovers/{handover.Id}/convert-to-sales-invoice", new
+        {
+            serviceEstimateId = estimate.Id,
+            laborItemId = laborItem.Id,
+            dueDate = (DateTimeOffset?)null
+        });
+        Assert.Equal(convert.SalesInvoiceId, convertAgain.SalesInvoiceId);
+    }
+
+    [Fact]
+    public async Task Service_Handover_ConvertToInvoice_WithLaborLines_WithoutLaborItem_Returns_BadRequest()
+    {
+        var customer = await Post<CustomerDto>("/api/customers", new { code = Code("CUS"), name = "Customer A", phone = "+15550124", email = "svc-fail@example.test", address = (string?)null });
+        var equipment = await Post<ItemDto>("/api/items", new
+        {
+            sku = Code("EQ"),
+            name = "Hydraulic Pump",
+            type = ItemType.Equipment,
+            trackingType = TrackingType.Serial,
+            unitOfMeasure = "UNIT",
+            brandId = (Guid?)null,
+            barcode = (string?)null,
+            defaultUnitCost = 0m
+        });
+
+        var unit = await Post<EquipmentUnitDto>("/api/service/equipment-units", new
+        {
+            itemId = equipment.Id,
+            serialNumber = $"SN-{Guid.NewGuid():N}"[..20],
+            customerId = customer.Id,
+            purchasedAt = (DateTimeOffset?)null,
+            warrantyUntil = (DateTimeOffset?)null
+        });
+        var job = await Post<ServiceJobDto>("/api/service/jobs", new { equipmentUnitId = unit.Id, customerId = customer.Id, problemDescription = "Overheating" });
+
+        var estimate = await Post<ServiceEstimateApiDto>("/api/service/estimates", new
+        {
+            serviceJobId = job.Id,
+            validUntil = (DateTimeOffset?)null,
+            terms = (string?)null
+        });
+        await PostNoContent($"/api/service/estimates/{estimate.Id}/lines", new
+        {
+            kind = ServiceEstimateLineKind.Labor,
+            itemId = (Guid?)null,
+            description = "Inspection labor",
+            quantity = 1m,
+            unitPrice = 40m,
+            taxPercent = 0m
+        });
+        await PostNoContent($"/api/service/estimates/{estimate.Id}/approve", new { });
+
+        var handover = await Post<ServiceHandoverApiDto>("/api/service/handovers", new
+        {
+            serviceJobId = job.Id,
+            itemsReturned = "Pump unit",
+            postServiceWarrantyMonths = (int?)null,
+            customerAcknowledgement = (string?)null,
+            notes = (string?)null
+        });
+        await PostNoContent($"/api/service/handovers/{handover.Id}/complete", new { });
+
+        var resp = await _client.PostAsJsonAsync($"/api/service/handovers/{handover.Id}/convert-to-sales-invoice", new
+        {
+            serviceEstimateId = estimate.Id,
+            laborItemId = (Guid?)null,
+            dueDate = (DateTimeOffset?)null
+        });
+
+        Assert.Equal(400, (int)resp.StatusCode);
+        var body = await resp.Content.ReadAsStringAsync();
+        Assert.Contains("Labor item is required", body);
     }
 
     [Fact]

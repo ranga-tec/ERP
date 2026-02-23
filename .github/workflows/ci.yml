@@ -1,0 +1,149 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  DOTNET_NOLOGO: true
+  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+
+jobs:
+  backend-tests:
+    name: Backend Build + Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Restore
+        run: dotnet restore ISS.slnx
+
+      - name: Build
+        run: dotnet build ISS.slnx -c Release --no-restore --nologo
+
+      - name: Unit tests
+        run: dotnet test backend/tests/ISS.UnitTests/ISS.UnitTests.csproj -c Release --no-build --nologo
+
+      - name: Integration tests
+        run: dotnet test backend/tests/ISS.IntegrationTests/ISS.IntegrationTests.csproj -c Release --no-build --nologo
+
+  frontend-build:
+    name: Frontend Build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Production build
+        working-directory: frontend
+        run: npm run build
+
+  migrations-health-smoke:
+    name: Migrations + Health Smoke
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    needs:
+      - backend-tests
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: iss_ci
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d iss_ci"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      ConnectionStrings__Default: Host=127.0.0.1;Port=5432;Database=iss_ci;Username=postgres;Password=postgres
+      Database__InitializationMode: None
+      Jwt__Issuer: ISS
+      Jwt__Audience: ISS
+      Jwt__Key: ci-only-jwt-key-please-change-32chars-min
+      ASPNETCORE_URLS: http://127.0.0.1:5080
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Install dotnet-ef
+        run: |
+          dotnet tool install --global dotnet-ef --version 8.*
+          echo "$HOME/.dotnet/tools" >> "$GITHUB_PATH"
+
+      - name: Restore
+        run: dotnet restore ISS.slnx
+
+      - name: Apply EF migrations
+        run: |
+          dotnet ef database update \
+            --project backend/src/ISS.Infrastructure/ISS.Infrastructure.csproj \
+            --startup-project backend/src/ISS.Api/ISS.Api.csproj
+
+      - name: Build API
+        run: dotnet build backend/src/ISS.Api/ISS.Api.csproj -c Release --no-restore --nologo
+
+      - name: Health check smoke test
+        shell: bash
+        run: |
+          set -euo pipefail
+          dotnet run --project backend/src/ISS.Api/ISS.Api.csproj --no-build --no-launch-profile > api.log 2>&1 &
+          API_PID=$!
+          cleanup() {
+            kill "$API_PID" 2>/dev/null || true
+          }
+          trap cleanup EXIT
+
+          for i in {1..30}; do
+            if curl -fsS "http://127.0.0.1:5080/health" >/dev/null; then
+              echo "Health check passed"
+              exit 0
+            fi
+            sleep 2
+          done
+
+          echo "Health check failed; API log follows:"
+          cat api.log
+          exit 1
