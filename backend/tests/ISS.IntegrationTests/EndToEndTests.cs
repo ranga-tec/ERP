@@ -1082,6 +1082,81 @@ public sealed class EndToEndTests(IssApiFixture fixture) : IClassFixture<IssApiF
     }
 
     [Fact]
+    public async Task Document_Collaboration_Comments_And_Attachments_Work_For_ServiceEstimate()
+    {
+        var customer = await Post<CustomerDto>("/api/customers", new { code = Code("CUS"), name = "Customer A", phone = "555", email = (string?)null, address = (string?)null });
+        var equipment = await Post<ItemDto>("/api/items", new
+        {
+            sku = Code("EQ"),
+            name = "Alternator",
+            type = ItemType.Equipment,
+            trackingType = TrackingType.Serial,
+            unitOfMeasure = "UNIT",
+            brandId = (Guid?)null,
+            barcode = (string?)null,
+            defaultUnitCost = 0m
+        });
+        var unit = await Post<EquipmentUnitDto>("/api/service/equipment-units", new
+        {
+            itemId = equipment.Id,
+            serialNumber = $"SN-{Guid.NewGuid():N}"[..20],
+            customerId = customer.Id,
+            purchasedAt = (DateTimeOffset?)null,
+            warrantyUntil = (DateTimeOffset?)null
+        });
+        var job = await Post<ServiceJobDto>("/api/service/jobs", new { equipmentUnitId = unit.Id, customerId = customer.Id, problemDescription = "No output" });
+        var estimate = await Post<ServiceEstimateApiDto>("/api/service/estimates", new
+        {
+            serviceJobId = job.Id,
+            validUntil = (DateTimeOffset?)null,
+            terms = "Check notes"
+        });
+
+        var comment = await Post<DocumentCommentApiDto>($"/api/documents/SE/{estimate.Id}/comments", new { text = "Customer called and approved verbal estimate." });
+        Assert.Equal("SE", comment.ReferenceType);
+        Assert.Equal(estimate.Id, comment.ReferenceId);
+
+        var comments = await Get<List<DocumentCommentApiDto>>($"/api/documents/SE/{estimate.Id}/comments");
+        Assert.Contains(comments, x => x.Id == comment.Id && x.Text.Contains("approved verbal"));
+
+        using (var multipart = new MultipartFormDataContent())
+        {
+            var bytes = Encoding.UTF8.GetBytes("sample attachment");
+            var fileContent = new ByteArrayContent(bytes);
+            fileContent.Headers.ContentType = new MediaTypeHeaderValue("text/plain");
+            multipart.Add(fileContent, "file", "note.txt");
+            multipart.Add(new StringContent("Photo from technician"), "notes");
+
+            var uploadResp = await _client.PostAsync($"/api/documents/SE/{estimate.Id}/attachments/upload", multipart);
+            if (!uploadResp.IsSuccessStatusCode)
+            {
+                var text = await uploadResp.Content.ReadAsStringAsync();
+                throw new InvalidOperationException($"POST attachment failed: {(int)uploadResp.StatusCode} {uploadResp.ReasonPhrase}. Body: {text}");
+            }
+
+            var attachment = (await uploadResp.Content.ReadFromJsonAsync<DocumentAttachmentApiDto>())!;
+            Assert.Equal("SE", attachment.ReferenceType);
+            Assert.Equal(estimate.Id, attachment.ReferenceId);
+            Assert.Equal("note.txt", attachment.FileName);
+
+            var attachments = await Get<List<DocumentAttachmentApiDto>>($"/api/documents/SE/{estimate.Id}/attachments");
+            var savedAttachment = Assert.Single(attachments, a => a.Id == attachment.Id);
+            Assert.Equal("Photo from technician", savedAttachment.Notes);
+
+            var contentResp = await _client.GetAsync(savedAttachment.Url);
+            contentResp.EnsureSuccessStatusCode();
+            var downloaded = await contentResp.Content.ReadAsByteArrayAsync();
+            Assert.Equal(bytes, downloaded);
+
+            await Delete($"/api/documents/SE/{estimate.Id}/attachments/{savedAttachment.Id}");
+        }
+
+        await Delete($"/api/documents/SE/{estimate.Id}/comments/{comment.Id}");
+        var commentsAfterDelete = await Get<List<DocumentCommentApiDto>>($"/api/documents/SE/{estimate.Id}/comments");
+        Assert.DoesNotContain(commentsAfterDelete, x => x.Id == comment.Id);
+    }
+
+    [Fact]
     public async Task Inventory_ReorderAlerts_Returns_Items_Below_ReorderPoint()
     {
         var warehouse = await Post<WarehouseDto>("/api/warehouses", new { code = Code("WH"), name = "Main", address = (string?)null });
@@ -1242,6 +1317,8 @@ public sealed class EndToEndTests(IssApiFixture fixture) : IClassFixture<IssApiF
     private sealed record ServiceEstimateApiDto(Guid Id, string Number, Guid ServiceJobId, DateTimeOffset IssuedAt, DateTimeOffset? ValidUntil, string? Terms, ServiceEstimateStatus Status, decimal Subtotal, decimal TaxTotal, decimal Total, IReadOnlyList<ServiceEstimateLineApiDto> Lines);
     private sealed record ServiceHandoverApiDto(Guid Id, string Number, Guid ServiceJobId, DateTimeOffset HandoverDate, string ItemsReturned, int? PostServiceWarrantyMonths, string? CustomerAcknowledgement, string? Notes, ServiceHandoverStatus Status, Guid? SalesInvoiceId = null, DateTimeOffset? ConvertedToInvoiceAt = null);
     private sealed record ConvertToSalesInvoiceResponseDto(Guid SalesInvoiceId);
+    private sealed record DocumentCommentApiDto(Guid Id, string ReferenceType, Guid ReferenceId, string Text, DateTimeOffset CreatedAt, Guid? CreatedBy, DateTimeOffset? LastModifiedAt, Guid? LastModifiedBy);
+    private sealed record DocumentAttachmentApiDto(Guid Id, string ReferenceType, Guid ReferenceId, string FileName, string Url, bool IsImage, string? ContentType, long? SizeBytes, string? Notes, DateTimeOffset CreatedAt, Guid? CreatedBy);
     private sealed record MaterialRequisitionDto(Guid Id, string Number, Guid ServiceJobId, Guid WarehouseId, DateTimeOffset RequestedAt, MaterialRequisitionStatus Status);
 
     private sealed record WorkOrderDto(Guid Id, Guid ServiceJobId, string Description, Guid? AssignedToUserId, WorkOrderStatus Status);
@@ -1287,6 +1364,16 @@ public sealed class EndToEndTests(IssApiFixture fixture) : IClassFixture<IssApiF
             throw new InvalidOperationException($"GET {url} failed: {(int)resp.StatusCode} {resp.ReasonPhrase}. Body: {text}");
         }
         return (await resp.Content.ReadFromJsonAsync<T>())!;
+    }
+
+    private async Task Delete(string url)
+    {
+        var resp = await _client.DeleteAsync(url);
+        if (!resp.IsSuccessStatusCode)
+        {
+            var text = await resp.Content.ReadAsStringAsync();
+            throw new InvalidOperationException($"DELETE {url} failed: {(int)resp.StatusCode} {resp.ReasonPhrase}. Body: {text}");
+        }
     }
 
     private async Task AssertPdfOkAsync(string url)

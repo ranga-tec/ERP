@@ -97,3 +97,27 @@ Environment variables:
 
 - Put the API behind HTTPS (reverse proxy like Nginx/IIS) and set a strong `Jwt__Key`.
 - Run the notification dispatcher only when SMTP/Twilio are configured and `Notifications__Dispatcher__Enabled=true`.
+- Persist backend file storage (`App_Data/`) across deployments. This now includes:
+  - `App_Data/item-attachments`
+  - `App_Data/document-attachments`
+- Include both the PostgreSQL database and `App_Data/` in backups (same retention policy window).
+
+## Rollout / Rollback Checklist
+
+### Rollout (recommended)
+
+1. Backup database and `App_Data/`.
+2. Deploy new application build.
+3. Apply EF migrations (`dotnet ef database update`) or start API with `Database__InitializationMode=Migrate`.
+4. Verify `GET /health`.
+5. Run smoke checks:
+   - Login
+   - Open dashboard
+   - Create/read one document (e.g. service estimate)
+   - Generate one PDF
+
+### Rollback (application only)
+
+1. Stop new app version.
+2. Re-deploy previous app build.
+3. If schema changes were applied and rollback is not backward compatible, restore DB backup (and matching `App_Data/`) instead of only rolling back binaries.

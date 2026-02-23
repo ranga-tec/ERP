@@ -1,4 +1,5 @@
 using ISS.Domain.Audit;
+using ISS.Domain.Documents;
 using ISS.Domain.Finance;
 using ISS.Domain.Inventory;
 using ISS.Domain.MasterData;
@@ -56,6 +57,8 @@ public interface IIssDbContext
     DbSet<Payment> Payments { get; }
     DbSet<CreditNote> CreditNotes { get; }
     DbSet<DebitNote> DebitNotes { get; }
+    DbSet<DocumentComment> DocumentComments { get; }
+    DbSet<DocumentAttachment> DocumentAttachments { get; }
     DbSet<NotificationOutboxItem> NotificationOutboxItems { get; }
 
     DbSet<AuditLog> AuditLogs { get; }

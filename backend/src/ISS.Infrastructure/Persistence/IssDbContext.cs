@@ -2,6 +2,7 @@ using ISS.Application.Abstractions;
 using ISS.Application.Persistence;
 using ISS.Domain.Audit;
 using ISS.Domain.Common;
+using ISS.Domain.Documents;
 using ISS.Domain.Finance;
 using ISS.Domain.Inventory;
 using ISS.Domain.MasterData;
@@ -68,6 +69,8 @@ public sealed class IssDbContext(
     public DbSet<Payment> Payments => Set<Payment>();
     public DbSet<CreditNote> CreditNotes => Set<CreditNote>();
     public DbSet<DebitNote> DebitNotes => Set<DebitNote>();
+    public DbSet<DocumentComment> DocumentComments => Set<DocumentComment>();
+    public DbSet<DocumentAttachment> DocumentAttachments => Set<DocumentAttachment>();
     public DbSet<NotificationOutboxItem> NotificationOutboxItems => Set<NotificationOutboxItem>();
 
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
@@ -525,6 +528,24 @@ public sealed class IssDbContext(
             entity.Property(x => x.ReferenceNumber).HasMaxLength(64);
             entity.Property(x => x.SourceReferenceType).HasMaxLength(64);
             entity.Property(x => x.Amount).HasPrecision(18, 4);
+        });
+
+        builder.Entity<DocumentComment>(entity =>
+        {
+            entity.Property(x => x.ReferenceType).HasMaxLength(64);
+            entity.Property(x => x.Text).HasMaxLength(4000);
+            entity.HasIndex(x => new { x.ReferenceType, x.ReferenceId, x.CreatedAt });
+        });
+
+        builder.Entity<DocumentAttachment>(entity =>
+        {
+            entity.Property(x => x.ReferenceType).HasMaxLength(64);
+            entity.Property(x => x.FileName).HasMaxLength(256);
+            entity.Property(x => x.Url).HasMaxLength(2000);
+            entity.Property(x => x.ContentType).HasMaxLength(128);
+            entity.Property(x => x.Notes).HasMaxLength(1000);
+            entity.Property(x => x.StoragePath).HasMaxLength(2000);
+            entity.HasIndex(x => new { x.ReferenceType, x.ReferenceId, x.CreatedAt });
         });
 
         builder.Entity<NotificationOutboxItem>(entity =>

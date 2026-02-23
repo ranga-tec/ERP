@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { backendFetchJson } from "@/lib/backend.server";
 import { Card, SecondaryLink } from "@/components/ui";
+import { DocumentCollaborationPanel } from "@/components/DocumentCollaborationPanel";
 import { ServiceHandoverActions } from "../ServiceHandoverActions";
 import { ServiceHandoverConvertInvoiceForm } from "../ServiceHandoverConvertInvoiceForm";
 
@@ -142,6 +143,12 @@ export default async function ServiceHandoverDetailPage({ params }: { params: Pr
           </div>
         </div>
       </Card>
+
+      <DocumentCollaborationPanel
+        referenceType="SH"
+        referenceId={handover.id}
+        title="Handover Comments & Attachments"
+      />
     </div>
   );
 }

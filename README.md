@@ -27,7 +27,13 @@ dotnet run --project backend/src/ISS.Api/ISS.Api.csproj
 
 - API base URL (launch profile): `http://localhost:5257`
 - Auth: the **first registered user becomes Admin**
-- On startup: tables are created via EF Core `EnsureCreated()` if the DB is empty
+- Startup DB initialization is controlled by `Database__InitializationMode`:
+  - `EnsureCreated` (default in Development)
+  - `Migrate` (recommended for controlled environments)
+  - `None` (default in non-Development)
+- Health endpoint: `GET /health`
+
+For production deployment steps (migrations, env vars, health checks), see `docs/deployment.md`.
 
 ## Frontend (Web)
 

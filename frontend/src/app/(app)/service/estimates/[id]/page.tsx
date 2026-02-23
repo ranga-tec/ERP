@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { backendFetchJson } from "@/lib/backend.server";
 import { Card, SecondaryLink, Table } from "@/components/ui";
+import { DocumentCollaborationPanel } from "@/components/DocumentCollaborationPanel";
 import { ServiceEstimateActions } from "../ServiceEstimateActions";
 import { ServiceEstimateLineAddForm } from "../ServiceEstimateLineAddForm";
 
@@ -153,6 +154,12 @@ export default async function ServiceEstimateDetailPage({ params }: { params: Pr
           </Table>
         </div>
       </Card>
+
+      <DocumentCollaborationPanel
+        referenceType="SE"
+        referenceId={estimate.id}
+        title="Estimate Comments & Attachments"
+      />
     </div>
   );
 }
