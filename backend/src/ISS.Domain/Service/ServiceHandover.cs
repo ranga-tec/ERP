@@ -45,6 +45,8 @@ public sealed class ServiceHandover : AuditableEntity
     public string? CustomerAcknowledgement { get; private set; }
     public string? Notes { get; private set; }
     public ServiceHandoverStatus Status { get; private set; }
+    public Guid? SalesInvoiceId { get; private set; }
+    public DateTimeOffset? ConvertedToInvoiceAt { get; private set; }
 
     public void Complete()
     {
@@ -64,5 +66,21 @@ public sealed class ServiceHandover : AuditableEntity
         }
 
         Status = ServiceHandoverStatus.Cancelled;
+    }
+
+    public void LinkSalesInvoice(Guid salesInvoiceId, DateTimeOffset convertedAt)
+    {
+        if (Status != ServiceHandoverStatus.Completed)
+        {
+            throw new DomainValidationException("Only completed handovers can be converted to invoice.");
+        }
+
+        if (SalesInvoiceId is not null)
+        {
+            throw new DomainValidationException("Service handover is already linked to a sales invoice.");
+        }
+
+        SalesInvoiceId = salesInvoiceId;
+        ConvertedToInvoiceAt = convertedAt;
     }
 }

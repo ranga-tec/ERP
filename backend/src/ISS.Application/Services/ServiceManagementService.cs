@@ -2,6 +2,7 @@ using ISS.Application.Abstractions;
 using ISS.Application.Common;
 using ISS.Application.Persistence;
 using ISS.Domain.Common;
+using ISS.Domain.Sales;
 using ISS.Domain.Service;
 using Microsoft.EntityFrameworkCore;
 
@@ -11,7 +12,8 @@ public sealed class ServiceManagementService(
     IIssDbContext dbContext,
     IDocumentNumberService documentNumberService,
     IClock clock,
-    InventoryService inventoryService)
+    InventoryService inventoryService,
+    NotificationService notificationService)
 {
     public async Task<Guid> CreateEquipmentUnitAsync(
         Guid itemId,
@@ -120,6 +122,65 @@ public sealed class ServiceManagementService(
         await dbContext.SaveChangesAsync(cancellationToken);
     }
 
+    public async Task SendServiceEstimateToCustomerAsync(Guid serviceEstimateId, string? appBaseUrl = null, CancellationToken cancellationToken = default)
+    {
+        var estimate = await dbContext.ServiceEstimates.AsNoTracking()
+            .Include(x => x.Lines)
+            .FirstOrDefaultAsync(x => x.Id == serviceEstimateId, cancellationToken)
+            ?? throw new NotFoundException("Service estimate not found.");
+
+        if (estimate.Status == ServiceEstimateStatus.Rejected)
+        {
+            throw new DomainValidationException("Rejected estimates cannot be sent to customer.");
+        }
+
+        if (estimate.Lines.Count == 0)
+        {
+            throw new DomainValidationException("Estimate must have at least one line before sending.");
+        }
+
+        var job = await dbContext.ServiceJobs.AsNoTracking().FirstOrDefaultAsync(x => x.Id == estimate.ServiceJobId, cancellationToken)
+                  ?? throw new NotFoundException("Service job not found.");
+        var customer = await dbContext.Customers.AsNoTracking().FirstOrDefaultAsync(x => x.Id == job.CustomerId, cancellationToken)
+                       ?? throw new NotFoundException("Customer not found.");
+
+        if (string.IsNullOrWhiteSpace(customer.Email) && string.IsNullOrWhiteSpace(customer.Phone))
+        {
+            throw new DomainValidationException("Customer does not have email or phone for sending estimate.");
+        }
+
+        var baseUrl = string.IsNullOrWhiteSpace(appBaseUrl) ? null : appBaseUrl.TrimEnd('/');
+        var estimateLink = baseUrl is null ? $"/service/estimates/{estimate.Id}" : $"{baseUrl}/service/estimates/{estimate.Id}";
+        var pdfLink = baseUrl is null
+            ? $"/api/backend/service/estimates/{estimate.Id}/pdf"
+            : $"{baseUrl}/api/backend/service/estimates/{estimate.Id}/pdf";
+
+        var statusText = estimate.Status == ServiceEstimateStatus.Approved ? "Approved" : "Draft";
+        var body = $"Service estimate {estimate.Number} for job {job.Number}. Total {estimate.Total:0.00}. Status: {statusText}. " +
+                   $"View: {estimateLink} PDF: {pdfLink}";
+
+        if (!string.IsNullOrWhiteSpace(customer.Email))
+        {
+            notificationService.EnqueueEmail(
+                customer.Email!,
+                subject: $"Service estimate {estimate.Number}",
+                body: body,
+                referenceType: ReferenceTypes.ServiceEstimate,
+                referenceId: estimate.Id);
+        }
+
+        if (!string.IsNullOrWhiteSpace(customer.Phone))
+        {
+            notificationService.EnqueueSms(
+                customer.Phone!,
+                body: $"Estimate {estimate.Number} for job {job.Number}: {estimate.Total:0.00}. {estimateLink}",
+                referenceType: ReferenceTypes.ServiceEstimate,
+                referenceId: estimate.Id);
+        }
+
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
     public async Task RejectServiceEstimateAsync(Guid serviceEstimateId, CancellationToken cancellationToken = default)
     {
         var estimate = await dbContext.ServiceEstimates.FirstOrDefaultAsync(x => x.Id == serviceEstimateId, cancellationToken)
@@ -164,6 +225,33 @@ public sealed class ServiceManagementService(
             ?? throw new NotFoundException("Service handover not found.");
 
         handover.Complete();
+
+        var job = await dbContext.ServiceJobs.AsNoTracking().FirstOrDefaultAsync(x => x.Id == handover.ServiceJobId, cancellationToken);
+        if (job is not null)
+        {
+            var customer = await dbContext.Customers.AsNoTracking().FirstOrDefaultAsync(x => x.Id == job.CustomerId, cancellationToken);
+            var pickupMessage = $"Service job {job.Number} is ready for pickup. Handover {handover.Number}.";
+
+            if (!string.IsNullOrWhiteSpace(customer?.Email))
+            {
+                notificationService.EnqueueEmail(
+                    customer.Email!,
+                    subject: $"Ready for pickup: {job.Number}",
+                    body: $"{pickupMessage} Please contact support/service desk for delivery confirmation.",
+                    referenceType: ReferenceTypes.ServiceHandover,
+                    referenceId: handover.Id);
+            }
+
+            if (!string.IsNullOrWhiteSpace(customer?.Phone))
+            {
+                notificationService.EnqueueSms(
+                    customer.Phone!,
+                    body: pickupMessage,
+                    referenceType: ReferenceTypes.ServiceHandover,
+                    referenceId: handover.Id);
+            }
+        }
+
         await dbContext.SaveChangesAsync(cancellationToken);
     }
 
@@ -174,6 +262,91 @@ public sealed class ServiceManagementService(
 
         handover.Cancel();
         await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task<Guid> ConvertServiceHandoverToSalesInvoiceAsync(
+        Guid serviceHandoverId,
+        Guid? serviceEstimateId,
+        Guid? laborItemId,
+        DateTimeOffset? dueDate,
+        CancellationToken cancellationToken = default)
+    {
+        var handover = await dbContext.ServiceHandovers.FirstOrDefaultAsync(x => x.Id == serviceHandoverId, cancellationToken)
+            ?? throw new NotFoundException("Service handover not found.");
+
+        if (handover.SalesInvoiceId is { } existingInvoiceId)
+        {
+            return existingInvoiceId;
+        }
+
+        if (handover.Status != ServiceHandoverStatus.Completed)
+        {
+            throw new DomainValidationException("Only completed service handovers can be converted to sales invoice.");
+        }
+
+        var job = await dbContext.ServiceJobs.AsNoTracking().FirstOrDefaultAsync(x => x.Id == handover.ServiceJobId, cancellationToken)
+                  ?? throw new NotFoundException("Service job not found.");
+
+        IQueryable<ServiceEstimate> estimateQuery = dbContext.ServiceEstimates.AsNoTracking()
+            .Include(x => x.Lines)
+            .Where(x => x.ServiceJobId == job.Id && x.Status == ServiceEstimateStatus.Approved);
+
+        if (serviceEstimateId is { } estimateId)
+        {
+            estimateQuery = estimateQuery.Where(x => x.Id == estimateId);
+        }
+
+        var estimate = await estimateQuery
+            .OrderByDescending(x => x.IssuedAt)
+            .ThenByDescending(x => x.CreatedAt)
+            .FirstOrDefaultAsync(cancellationToken)
+            ?? throw new DomainValidationException("No approved service estimate found for handover conversion.");
+
+        if (estimate.Lines.Count == 0)
+        {
+            throw new DomainValidationException("Approved estimate has no lines.");
+        }
+
+        var hasLabor = estimate.Lines.Any(x => x.Kind == ServiceEstimateLineKind.Labor);
+        if (hasLabor && laborItemId is null)
+        {
+            throw new DomainValidationException("Labor item is required to convert labor estimate lines into sales invoice lines.");
+        }
+
+        if (laborItemId is not null)
+        {
+            var laborItemExists = await dbContext.Items.AsNoTracking().AnyAsync(x => x.Id == laborItemId.Value, cancellationToken);
+            if (!laborItemExists)
+            {
+                throw new NotFoundException("Labor item not found.");
+            }
+        }
+
+        var number = await documentNumberService.NextAsync(ReferenceTypes.SalesInvoice, "INV", cancellationToken);
+        var invoice = new SalesInvoice(number, job.CustomerId, clock.UtcNow, dueDate);
+        await dbContext.SalesInvoices.AddAsync(invoice, cancellationToken);
+
+        foreach (var line in estimate.Lines)
+        {
+            var invoiceItemId = line.Kind switch
+            {
+                ServiceEstimateLineKind.Part => line.ItemId ?? throw new DomainValidationException("Part estimate line is missing item."),
+                ServiceEstimateLineKind.Labor => laborItemId!.Value,
+                _ => throw new DomainValidationException("Unsupported service estimate line kind.")
+            };
+
+            var invoiceLine = invoice.AddLine(
+                invoiceItemId,
+                line.Quantity,
+                line.UnitPrice,
+                discountPercent: 0m,
+                taxPercent: line.TaxPercent);
+            dbContext.DbContext.Add(invoiceLine);
+        }
+
+        handover.LinkSalesInvoice(invoice.Id, clock.UtcNow);
+        await dbContext.SaveChangesAsync(cancellationToken);
+        return invoice.Id;
     }
 
     public async Task<Guid> CreateWorkOrderAsync(Guid serviceJobId, string description, Guid? assignedToUserId, CancellationToken cancellationToken = default)

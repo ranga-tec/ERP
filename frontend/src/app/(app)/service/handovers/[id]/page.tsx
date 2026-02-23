@@ -2,6 +2,7 @@ import Link from "next/link";
 import { backendFetchJson } from "@/lib/backend.server";
 import { Card, SecondaryLink } from "@/components/ui";
 import { ServiceHandoverActions } from "../ServiceHandoverActions";
+import { ServiceHandoverConvertInvoiceForm } from "../ServiceHandoverConvertInvoiceForm";
 
 type ServiceHandoverDto = {
   id: string;
@@ -13,10 +14,26 @@ type ServiceHandoverDto = {
   customerAcknowledgement?: string | null;
   notes?: string | null;
   status: number;
+  salesInvoiceId?: string | null;
+  convertedToInvoiceAt?: string | null;
 };
 
 type ServiceJobDto = { id: string; number: string; customerId: string; status: number };
 type CustomerDto = { id: string; code: string; name: string };
+type ServiceEstimateSummaryDto = {
+  id: string;
+  number: string;
+  serviceJobId: string;
+  issuedAt: string;
+  validUntil?: string | null;
+  status: number;
+  subtotal: number;
+  taxTotal: number;
+  total: number;
+  lineCount: number;
+};
+type ItemDto = { id: string; sku: string; name: string };
+type InvoiceSummaryDto = { id: string; number: string; customerId: string; total: number; status: number };
 
 const statusLabel: Record<number, string> = {
   0: "Draft",
@@ -27,17 +44,24 @@ const statusLabel: Record<number, string> = {
 export default async function ServiceHandoverDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
 
-  const [handover, jobs, customers] = await Promise.all([
+  const [handover, jobs, customers, estimates, items, invoices] = await Promise.all([
     backendFetchJson<ServiceHandoverDto>(`/service/handovers/${id}`),
     backendFetchJson<ServiceJobDto[]>("/service/jobs?take=500"),
     backendFetchJson<CustomerDto[]>("/customers"),
+    backendFetchJson<ServiceEstimateSummaryDto[]>("/service/estimates?take=500"),
+    backendFetchJson<ItemDto[]>("/items"),
+    backendFetchJson<InvoiceSummaryDto[]>("/sales/invoices?take=500"),
   ]);
 
   const jobById = new Map(jobs.map((j) => [j.id, j]));
   const customerById = new Map(customers.map((c) => [c.id, c]));
+  const invoiceById = new Map(invoices.map((i) => [i.id, i]));
   const job = jobById.get(handover.serviceJobId);
   const customer = job ? customerById.get(job.customerId) : null;
   const isDraft = handover.status === 0;
+  const isCompleted = handover.status === 1;
+  const handoverJobEstimates = estimates.filter((e) => e.serviceJobId === handover.serviceJobId);
+  const linkedInvoice = handover.salesInvoiceId ? invoiceById.get(handover.salesInvoiceId) : null;
 
   return (
     <div className="space-y-6">
@@ -62,6 +86,16 @@ export default async function ServiceHandoverDetailPage({ params }: { params: Pr
               ? `${handover.postServiceWarrantyMonths} month(s)`
               : "-"}
           </div>
+          <div>
+            Invoice:{" "}
+            {handover.salesInvoiceId ? (
+              <Link className="underline" href={`/sales/invoices/${handover.salesInvoiceId}`}>
+                {linkedInvoice?.number ?? handover.salesInvoiceId}
+              </Link>
+            ) : (
+              "-"
+            )}
+          </div>
         </div>
       </div>
 
@@ -73,6 +107,20 @@ export default async function ServiceHandoverDetailPage({ params }: { params: Pr
           </SecondaryLink>
         </div>
         <ServiceHandoverActions handoverId={handover.id} canComplete={isDraft} canCancel={isDraft} />
+        <div className="mt-3">
+          <ServiceHandoverConvertInvoiceForm
+            handoverId={handover.id}
+            estimates={handoverJobEstimates}
+            items={items}
+            disabled={!isCompleted}
+            existingSalesInvoiceId={handover.salesInvoiceId}
+          />
+          {handover.convertedToInvoiceAt ? (
+            <div className="mt-2 text-xs text-zinc-500">
+              Converted at {new Date(handover.convertedToInvoiceAt).toLocaleString()}
+            </div>
+          ) : null}
+        </div>
       </Card>
 
       <Card>

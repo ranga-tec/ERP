@@ -97,6 +97,7 @@ export default async function ServiceEstimateDetailPage({ params }: { params: Pr
           estimateId={estimate.id}
           canApprove={isDraft && estimate.lines.length > 0}
           canReject={isDraft}
+          canSend={estimate.status !== 2 && estimate.lines.length > 0}
         />
       </Card>
 

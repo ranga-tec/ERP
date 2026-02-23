@@ -281,6 +281,12 @@ public sealed partial class DocumentPdfService
             meta.Add(("Equipment", $"{ItemLabel(equipmentItem, equipment.ItemId)} / SN: {equipment.SerialNumber}"));
         }
 
+        if (handover.SalesInvoiceId is { } invoiceId)
+        {
+            var invoice = await _dbContext.SalesInvoices.AsNoTracking().FirstOrDefaultAsync(x => x.Id == invoiceId, cancellationToken);
+            meta.Add(("Sales invoice", invoice?.Number ?? invoiceId.ToString()));
+        }
+
         return BuildPdf(
             title: "Service Handover",
             referenceNumber: handover.Number,

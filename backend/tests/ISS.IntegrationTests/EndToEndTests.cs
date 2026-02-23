@@ -895,6 +895,120 @@ public sealed class EndToEndTests(IssApiFixture fixture) : IClassFixture<IssApiF
     }
 
     [Fact]
+    public async Task Service_Estimate_Send_And_Handover_ConvertToInvoice_Queue_Notifications_And_Link_Invoice()
+    {
+        var customer = await Post<CustomerDto>("/api/customers", new { code = Code("CUS"), name = "Customer A", phone = "+15550123", email = "svc-customer@example.test", address = (string?)null });
+        var equipment = await Post<ItemDto>("/api/items", new
+        {
+            sku = Code("EQ"),
+            name = "Water Pump",
+            type = ItemType.Equipment,
+            trackingType = TrackingType.Serial,
+            unitOfMeasure = "UNIT",
+            brandId = (Guid?)null,
+            barcode = (string?)null,
+            defaultUnitCost = 0m
+        });
+        var partItem = await Post<ItemDto>("/api/items", new
+        {
+            sku = Code("SP"),
+            name = "Impeller",
+            type = ItemType.SparePart,
+            trackingType = TrackingType.None,
+            unitOfMeasure = "PCS",
+            brandId = (Guid?)null,
+            barcode = (string?)null,
+            defaultUnitCost = 20m
+        });
+        var laborItem = await Post<ItemDto>("/api/items", new
+        {
+            sku = Code("LAB"),
+            name = "Service Labor",
+            type = ItemType.Service,
+            trackingType = TrackingType.None,
+            unitOfMeasure = "HRS",
+            brandId = (Guid?)null,
+            barcode = (string?)null,
+            defaultUnitCost = 0m
+        });
+
+        var unit = await Post<EquipmentUnitDto>("/api/service/equipment-units", new
+        {
+            itemId = equipment.Id,
+            serialNumber = $"SN-{Guid.NewGuid():N}"[..20],
+            customerId = customer.Id,
+            purchasedAt = (DateTimeOffset?)null,
+            warrantyUntil = (DateTimeOffset?)null
+        });
+        var job = await Post<ServiceJobDto>("/api/service/jobs", new { equipmentUnitId = unit.Id, customerId = customer.Id, problemDescription = "No pressure output" });
+
+        var estimate = await Post<ServiceEstimateApiDto>("/api/service/estimates", new
+        {
+            serviceJobId = job.Id,
+            validUntil = (DateTimeOffset?)null,
+            terms = "Advance approval required"
+        });
+        await PostNoContent($"/api/service/estimates/{estimate.Id}/lines", new
+        {
+            kind = ServiceEstimateLineKind.Part,
+            itemId = partItem.Id,
+            description = "Replace impeller",
+            quantity = 1m,
+            unitPrice = 50m,
+            taxPercent = 0m
+        });
+        await PostNoContent($"/api/service/estimates/{estimate.Id}/lines", new
+        {
+            kind = ServiceEstimateLineKind.Labor,
+            itemId = (Guid?)null,
+            description = "Repair labor",
+            quantity = 2m,
+            unitPrice = 30m,
+            taxPercent = 0m
+        });
+        await PostNoContent($"/api/service/estimates/{estimate.Id}/send", new { appBaseUrl = "http://localhost:3000" });
+
+        var notificationsAfterEstimateSend = await Get<List<NotificationOutboxDto>>("/api/admin/notifications?take=500");
+        var estimateNotifications = notificationsAfterEstimateSend.Where(n => n.ReferenceType == "SE" && n.ReferenceId == estimate.Id).ToList();
+        Assert.Contains(estimateNotifications, n => n.Channel == NotificationChannel.Email && n.Recipient == customer.Email);
+        Assert.Contains(estimateNotifications, n => n.Channel == NotificationChannel.Sms && n.Recipient == customer.Phone);
+
+        await PostNoContent($"/api/service/estimates/{estimate.Id}/approve", new { });
+
+        var handover = await Post<ServiceHandoverApiDto>("/api/service/handovers", new
+        {
+            serviceJobId = job.Id,
+            itemsReturned = "Pump body, hose clamp",
+            postServiceWarrantyMonths = 1,
+            customerAcknowledgement = "Ready to collect",
+            notes = (string?)null
+        });
+        await PostNoContent($"/api/service/handovers/{handover.Id}/complete", new { });
+
+        var notificationsAfterHandoverComplete = await Get<List<NotificationOutboxDto>>("/api/admin/notifications?take=500");
+        var handoverNotifications = notificationsAfterHandoverComplete.Where(n => n.ReferenceType == "SH" && n.ReferenceId == handover.Id).ToList();
+        Assert.Contains(handoverNotifications, n => n.Channel == NotificationChannel.Email && n.Recipient == customer.Email);
+        Assert.Contains(handoverNotifications, n => n.Channel == NotificationChannel.Sms && n.Recipient == customer.Phone);
+
+        var convert = await Post<ConvertToSalesInvoiceResponseDto>($"/api/service/handovers/{handover.Id}/convert-to-sales-invoice", new
+        {
+            serviceEstimateId = estimate.Id,
+            laborItemId = laborItem.Id,
+            dueDate = (DateTimeOffset?)null
+        });
+
+        var linkedHandover = await Get<ServiceHandoverApiDto>($"/api/service/handovers/{handover.Id}");
+        Assert.Equal(convert.SalesInvoiceId, linkedHandover.SalesInvoiceId);
+        Assert.NotNull(linkedHandover.ConvertedToInvoiceAt);
+
+        var invoice = await Get<InvoiceDetailDto>($"/api/sales/invoices/{convert.SalesInvoiceId}");
+        Assert.Equal(SalesInvoiceStatus.Draft, invoice.Status);
+        Assert.Equal(customer.Id, invoice.CustomerId);
+        Assert.Equal(2, invoice.Lines.Count);
+        Assert.Equal(110m, invoice.Total);
+    }
+
+    [Fact]
     public async Task Inventory_ReorderAlerts_Returns_Items_Below_ReorderPoint()
     {
         var warehouse = await Post<WarehouseDto>("/api/warehouses", new { code = Code("WH"), name = "Main", address = (string?)null });
@@ -1041,6 +1155,8 @@ public sealed class EndToEndTests(IssApiFixture fixture) : IClassFixture<IssApiF
     private sealed record CustomerReturnLineApiDto(Guid Id, Guid ItemId, decimal Quantity, decimal UnitPrice, string? BatchNumber, IReadOnlyList<string> Serials);
     private sealed record CustomerReturnApiDto(Guid Id, string Number, Guid CustomerId, Guid WarehouseId, DateTimeOffset ReturnDate, CustomerReturnStatus Status, Guid? SalesInvoiceId, Guid? DispatchNoteId, string? Reason, IReadOnlyList<CustomerReturnLineApiDto> Lines);
     private sealed record InvoiceDto(Guid Id, string Number, Guid CustomerId, DateTimeOffset InvoiceDate, DateTimeOffset? DueDate, SalesInvoiceStatus Status, decimal Subtotal, decimal TaxTotal, decimal Total);
+    private sealed record InvoiceLineDetailDto(Guid Id, Guid ItemId, decimal Quantity, decimal UnitPrice, decimal DiscountPercent, decimal TaxPercent, decimal LineTotal);
+    private sealed record InvoiceDetailDto(Guid Id, string Number, Guid CustomerId, DateTimeOffset InvoiceDate, DateTimeOffset? DueDate, SalesInvoiceStatus Status, decimal Subtotal, decimal TaxTotal, decimal Total, IReadOnlyList<InvoiceLineDetailDto> Lines);
     private sealed record ArDto(Guid Id, Guid CustomerId, string ReferenceType, Guid ReferenceId, decimal Amount, decimal Outstanding, DateTimeOffset PostedAt);
     private sealed record PaymentDto(Guid Id, string ReferenceNumber, PaymentDirection Direction, CounterpartyType CounterpartyType, Guid CounterpartyId, decimal Amount, DateTimeOffset PaidAt, string? Notes);
 
@@ -1051,7 +1167,8 @@ public sealed class EndToEndTests(IssApiFixture fixture) : IClassFixture<IssApiF
     private sealed record ServiceJobDto(Guid Id, string Number, Guid EquipmentUnitId, Guid CustomerId, DateTimeOffset OpenedAt, string ProblemDescription, ServiceJobStatus Status, DateTimeOffset? CompletedAt);
     private sealed record ServiceEstimateLineApiDto(Guid Id, ServiceEstimateLineKind Kind, Guid? ItemId, string Description, decimal Quantity, decimal UnitPrice, decimal TaxPercent, decimal LineSubtotal, decimal LineTax, decimal LineTotal);
     private sealed record ServiceEstimateApiDto(Guid Id, string Number, Guid ServiceJobId, DateTimeOffset IssuedAt, DateTimeOffset? ValidUntil, string? Terms, ServiceEstimateStatus Status, decimal Subtotal, decimal TaxTotal, decimal Total, IReadOnlyList<ServiceEstimateLineApiDto> Lines);
-    private sealed record ServiceHandoverApiDto(Guid Id, string Number, Guid ServiceJobId, DateTimeOffset HandoverDate, string ItemsReturned, int? PostServiceWarrantyMonths, string? CustomerAcknowledgement, string? Notes, ServiceHandoverStatus Status);
+    private sealed record ServiceHandoverApiDto(Guid Id, string Number, Guid ServiceJobId, DateTimeOffset HandoverDate, string ItemsReturned, int? PostServiceWarrantyMonths, string? CustomerAcknowledgement, string? Notes, ServiceHandoverStatus Status, Guid? SalesInvoiceId = null, DateTimeOffset? ConvertedToInvoiceAt = null);
+    private sealed record ConvertToSalesInvoiceResponseDto(Guid SalesInvoiceId);
     private sealed record MaterialRequisitionDto(Guid Id, string Number, Guid ServiceJobId, Guid WarehouseId, DateTimeOffset RequestedAt, MaterialRequisitionStatus Status);
 
     private sealed record WorkOrderDto(Guid Id, Guid ServiceJobId, string Description, Guid? AssignedToUserId, WorkOrderStatus Status);

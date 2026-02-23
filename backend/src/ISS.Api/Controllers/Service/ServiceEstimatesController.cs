@@ -62,6 +62,7 @@ public sealed class ServiceEstimatesController(
         decimal Quantity,
         decimal UnitPrice,
         decimal TaxPercent);
+    public sealed record SendServiceEstimateRequest(string? AppBaseUrl);
 
     [HttpGet]
     public async Task<ActionResult<IReadOnlyList<ServiceEstimateSummaryDto>>> List(
@@ -165,6 +166,13 @@ public sealed class ServiceEstimatesController(
     public async Task<ActionResult> Approve(Guid id, CancellationToken cancellationToken)
     {
         await serviceManagementService.ApproveServiceEstimateAsync(id, cancellationToken);
+        return NoContent();
+    }
+
+    [HttpPost("{id:guid}/send")]
+    public async Task<ActionResult> Send(Guid id, SendServiceEstimateRequest? request, CancellationToken cancellationToken)
+    {
+        await serviceManagementService.SendServiceEstimateToCustomerAsync(id, request?.AppBaseUrl, cancellationToken);
         return NoContent();
     }
 

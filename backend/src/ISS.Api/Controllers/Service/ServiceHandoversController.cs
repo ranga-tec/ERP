@@ -26,7 +26,9 @@ public sealed class ServiceHandoversController(
         int? PostServiceWarrantyMonths,
         string? CustomerAcknowledgement,
         string? Notes,
-        ServiceHandoverStatus Status);
+        ServiceHandoverStatus Status,
+        Guid? SalesInvoiceId,
+        DateTimeOffset? ConvertedToInvoiceAt);
 
     public sealed record CreateServiceHandoverRequest(
         Guid ServiceJobId,
@@ -34,6 +36,8 @@ public sealed class ServiceHandoversController(
         int? PostServiceWarrantyMonths,
         string? CustomerAcknowledgement,
         string? Notes);
+    public sealed record ConvertToSalesInvoiceRequest(Guid? ServiceEstimateId, Guid? LaborItemId, DateTimeOffset? DueDate);
+    public sealed record ConvertToSalesInvoiceResponse(Guid SalesInvoiceId);
 
     [HttpGet]
     public async Task<ActionResult<IReadOnlyList<ServiceHandoverDto>>> List(
@@ -57,7 +61,9 @@ public sealed class ServiceHandoversController(
                 x.PostServiceWarrantyMonths,
                 x.CustomerAcknowledgement,
                 x.Notes,
-                x.Status))
+                x.Status,
+                x.SalesInvoiceId,
+                x.ConvertedToInvoiceAt))
             .ToListAsync(cancellationToken);
 
         return Ok(rows);
@@ -90,7 +96,9 @@ public sealed class ServiceHandoversController(
                 x.PostServiceWarrantyMonths,
                 x.CustomerAcknowledgement,
                 x.Notes,
-                x.Status))
+                x.Status,
+                x.SalesInvoiceId,
+                x.ConvertedToInvoiceAt))
             .FirstOrDefaultAsync(cancellationToken);
 
         return handover is null ? NotFound() : Ok(handover);
@@ -115,5 +123,21 @@ public sealed class ServiceHandoversController(
     {
         await serviceManagementService.CancelServiceHandoverAsync(id, cancellationToken);
         return NoContent();
+    }
+
+    [HttpPost("{id:guid}/convert-to-sales-invoice")]
+    public async Task<ActionResult<ConvertToSalesInvoiceResponse>> ConvertToSalesInvoice(
+        Guid id,
+        ConvertToSalesInvoiceRequest request,
+        CancellationToken cancellationToken)
+    {
+        var salesInvoiceId = await serviceManagementService.ConvertServiceHandoverToSalesInvoiceAsync(
+            id,
+            request.ServiceEstimateId,
+            request.LaborItemId,
+            request.DueDate,
+            cancellationToken);
+
+        return Ok(new ConvertToSalesInvoiceResponse(salesInvoiceId));
     }
 }

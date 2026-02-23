@@ -9,20 +9,28 @@ export function ServiceEstimateActions({
   estimateId,
   canApprove,
   canReject,
+  canSend,
 }: {
   estimateId: string;
   canApprove: boolean;
   canReject: boolean;
+  canSend: boolean;
 }) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  async function act(action: "approve" | "reject") {
+  async function act(action: "approve" | "reject" | "send") {
     setError(null);
     setBusy(true);
     try {
-      await apiPostNoContent(`service/estimates/${estimateId}/${action}`, {});
+      if (action === "send") {
+        await apiPostNoContent(`service/estimates/${estimateId}/send`, {
+          appBaseUrl: typeof window !== "undefined" ? window.location.origin : null,
+        });
+      } else {
+        await apiPostNoContent(`service/estimates/${estimateId}/${action}`, {});
+      }
       router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
@@ -39,6 +47,9 @@ export function ServiceEstimateActions({
         </SecondaryButton>
         <SecondaryButton type="button" disabled={!canReject || busy} onClick={() => act("reject")}>
           Reject
+        </SecondaryButton>
+        <SecondaryButton type="button" disabled={!canSend || busy} onClick={() => act("send")}>
+          Send to Customer
         </SecondaryButton>
       </div>
       {error ? (
