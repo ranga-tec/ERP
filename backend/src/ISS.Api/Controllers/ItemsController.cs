@@ -1,4 +1,5 @@
 using ISS.Api.Security;
+using ISS.Api.Files;
 using ISS.Application.Abstractions;
 using ISS.Application.Persistence;
 using ISS.Domain.MasterData;
@@ -16,8 +17,6 @@ namespace ISS.Api.Controllers;
 [Authorize(Roles = $"{Roles.Admin},{Roles.Inventory}")]
 public sealed class ItemsController(IIssDbContext dbContext, IDocumentPdfService pdfService, IWebHostEnvironment hostEnvironment) : ControllerBase
 {
-    private const long MaxAttachmentSizeBytes = 25 * 1024 * 1024;
-
     public sealed record ItemDto(
         Guid Id,
         string Sku,
@@ -335,21 +334,16 @@ public sealed class ItemsController(IIssDbContext dbContext, IDocumentPdfService
     }
 
     [HttpPost("{id:guid}/attachments/upload")]
-    [RequestSizeLimit(MaxAttachmentSizeBytes)]
+    [RequestSizeLimit(AttachmentUploadPolicy.MaxAttachmentSizeBytes)]
     public async Task<ActionResult<ItemAttachmentDto>> UploadAttachment(
         Guid id,
         [FromForm] IFormFile file,
         [FromForm] string? notes,
         CancellationToken cancellationToken)
     {
-        if (file is null || file.Length <= 0)
+        if (!AttachmentUploadPolicy.TryValidate(file, notes, out var validated, out var validationError))
         {
-            return BadRequest("A non-empty file is required.");
-        }
-
-        if (file.Length > MaxAttachmentSizeBytes)
-        {
-            return BadRequest($"File is too large. Max {MaxAttachmentSizeBytes} bytes.");
+            return BadRequest(validationError);
         }
 
         var itemExists = await dbContext.Items.AsNoTracking().AnyAsync(x => x.Id == id, cancellationToken);
@@ -358,15 +352,28 @@ public sealed class ItemsController(IIssDbContext dbContext, IDocumentPdfService
             return NotFound();
         }
 
-        var attachmentId = Guid.NewGuid();
-        var extension = Path.GetExtension(file.FileName);
-        if (extension.Length > 16)
+        var usage = await dbContext.ItemAttachments.AsNoTracking()
+            .Where(x => x.ItemId == id)
+            .GroupBy(_ => 1)
+            .Select(g => new
+            {
+                Count = g.Count(),
+                TotalBytes = g.Sum(x => x.SizeBytes ?? 0L)
+            })
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (!AttachmentUploadPolicy.TryValidateQuota(
+                usage?.Count ?? 0,
+                usage?.TotalBytes ?? 0L,
+                validated!.SizeBytes,
+                out var quotaError))
         {
-            extension = extension[..16];
+            return BadRequest(quotaError);
         }
 
+        var attachmentId = Guid.NewGuid();
         var itemFolderName = id.ToString("N");
-        var storedFileName = $"{attachmentId:N}{extension}";
+        var storedFileName = $"{attachmentId:N}{validated!.Extension}";
         var relativePath = Path.Combine("App_Data", "item-attachments", itemFolderName, storedFileName);
         var rootPath = hostEnvironment.ContentRootPath;
         var fullPath = Path.GetFullPath(Path.Combine(rootPath, relativePath));
@@ -384,19 +391,15 @@ public sealed class ItemsController(IIssDbContext dbContext, IDocumentPdfService
             await file.CopyToAsync(stream, cancellationToken);
         }
 
-        var contentType = string.IsNullOrWhiteSpace(file.ContentType)
-            ? "application/octet-stream"
-            : file.ContentType.Trim();
-        var isImage = contentType.StartsWith("image/", StringComparison.OrdinalIgnoreCase);
         var publicUrl = $"/api/items/{id}/attachments/{attachmentId}/content";
 
         var attachment = new ItemAttachment(
             id,
-            file.FileName,
+            validated.FileName,
             publicUrl,
-            isImage,
-            contentType,
-            file.Length,
+            validated.IsImage,
+            validated.ContentType,
+            validated.SizeBytes,
             notes,
             relativePath);
         attachment.Id = attachmentId;

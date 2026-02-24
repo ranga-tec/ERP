@@ -102,6 +102,21 @@ Environment variables:
   - `App_Data/document-attachments`
 - Include both the PostgreSQL database and `App_Data/` in backups (same retention policy window).
 
+### Attachment upload safety limits
+
+The API enforces upload safety checks for item attachments and document collaboration attachments:
+
+- Per-file size limit: `25 MB`
+- Per-record attachment count limit: `25 files`
+- Per-record total attachment storage limit: `100 MB`
+- Allowed extensions: `.pdf`, `.txt`, `.csv`, `.png`, `.jpg`, `.jpeg`, `.gif`, `.webp`, `.doc`, `.docx`, `.xls`, `.xlsx`
+- Allowed content types are restricted (common PDF/image/Office/text types)
+- File content is signature-checked (magic-byte sniffing) for common formats to reject renamed/disguised files
+
+Operational note:
+
+- If users need additional file types, extend the server allowlist and add tests before enabling them in production.
+
 ### Deployment smoke script
 
 This repo now includes `scripts/ops/smoke-api.ps1` for post-deploy API smoke checks.

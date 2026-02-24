@@ -1508,6 +1508,92 @@ public sealed class EndToEndTests(IssApiFixture fixture) : IClassFixture<IssApiF
     }
 
     [Fact]
+    public async Task Document_Collaboration_Attachment_Upload_With_Disallowed_File_Type_Returns_BadRequest()
+    {
+        var customer = await Post<CustomerDto>("/api/customers", new { code = Code("CUS"), name = "Customer A", phone = "555", email = (string?)null, address = (string?)null });
+        var equipment = await Post<ItemDto>("/api/items", new
+        {
+            sku = Code("EQ"),
+            name = "Starter Motor",
+            type = ItemType.Equipment,
+            trackingType = TrackingType.Serial,
+            unitOfMeasure = "UNIT",
+            brandId = (Guid?)null,
+            barcode = (string?)null,
+            defaultUnitCost = 0m
+        });
+        var unit = await Post<EquipmentUnitDto>("/api/service/equipment-units", new
+        {
+            itemId = equipment.Id,
+            serialNumber = $"SN-{Guid.NewGuid():N}"[..20],
+            customerId = customer.Id,
+            purchasedAt = (DateTimeOffset?)null,
+            warrantyUntil = (DateTimeOffset?)null
+        });
+        var job = await Post<ServiceJobDto>("/api/service/jobs", new { equipmentUnitId = unit.Id, customerId = customer.Id, problemDescription = "No crank" });
+        var estimate = await Post<ServiceEstimateApiDto>("/api/service/estimates", new
+        {
+            serviceJobId = job.Id,
+            validUntil = (DateTimeOffset?)null,
+            terms = (string?)null
+        });
+
+        using var multipart = new MultipartFormDataContent();
+        var fileContent = new ByteArrayContent(Encoding.UTF8.GetBytes("fake executable"));
+        fileContent.Headers.ContentType = new MediaTypeHeaderValue("application/octet-stream");
+        multipart.Add(fileContent, "file", "payload.exe");
+
+        var resp = await _client.PostAsync($"/api/documents/SE/{estimate.Id}/attachments/upload", multipart);
+        var body = await resp.Content.ReadAsStringAsync();
+
+        Assert.Equal(System.Net.HttpStatusCode.BadRequest, resp.StatusCode);
+        Assert.Contains("not allowed", body, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task Document_Collaboration_Attachment_Upload_With_Mismatched_Png_Content_Returns_BadRequest()
+    {
+        var customer = await Post<CustomerDto>("/api/customers", new { code = Code("CUS"), name = "Customer A", phone = "555", email = (string?)null, address = (string?)null });
+        var equipment = await Post<ItemDto>("/api/items", new
+        {
+            sku = Code("EQ"),
+            name = "Controller",
+            type = ItemType.Equipment,
+            trackingType = TrackingType.Serial,
+            unitOfMeasure = "UNIT",
+            brandId = (Guid?)null,
+            barcode = (string?)null,
+            defaultUnitCost = 0m
+        });
+        var unit = await Post<EquipmentUnitDto>("/api/service/equipment-units", new
+        {
+            itemId = equipment.Id,
+            serialNumber = $"SN-{Guid.NewGuid():N}"[..20],
+            customerId = customer.Id,
+            purchasedAt = (DateTimeOffset?)null,
+            warrantyUntil = (DateTimeOffset?)null
+        });
+        var job = await Post<ServiceJobDto>("/api/service/jobs", new { equipmentUnitId = unit.Id, customerId = customer.Id, problemDescription = "No display" });
+        var estimate = await Post<ServiceEstimateApiDto>("/api/service/estimates", new
+        {
+            serviceJobId = job.Id,
+            validUntil = (DateTimeOffset?)null,
+            terms = (string?)null
+        });
+
+        using var multipart = new MultipartFormDataContent();
+        var fileContent = new ByteArrayContent(Encoding.UTF8.GetBytes("not really a png"));
+        fileContent.Headers.ContentType = new MediaTypeHeaderValue("image/png");
+        multipart.Add(fileContent, "file", "photo.png");
+
+        var resp = await _client.PostAsync($"/api/documents/SE/{estimate.Id}/attachments/upload", multipart);
+        var body = await resp.Content.ReadAsStringAsync();
+
+        Assert.Equal(System.Net.HttpStatusCode.BadRequest, resp.StatusCode);
+        Assert.Contains("does not match", body, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
     public async Task Document_Collaboration_Invalid_ReferenceType_Returns_BadRequest()
     {
         var resp = await _client.PostAsJsonAsync($"/api/documents/bad.type/{Guid.NewGuid()}/comments", new { text = "invalid ref type" });

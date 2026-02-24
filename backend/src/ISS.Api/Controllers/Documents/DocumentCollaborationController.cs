@@ -1,4 +1,5 @@
 using ISS.Api.Security;
+using ISS.Api.Files;
 using ISS.Application.Persistence;
 using ISS.Domain.Documents;
 using Microsoft.AspNetCore.Authorization;
@@ -14,8 +15,6 @@ public sealed class DocumentCollaborationController(
     IIssDbContext dbContext,
     IHostEnvironment hostEnvironment) : ControllerBase
 {
-    private const long MaxAttachmentSizeBytes = 25 * 1024 * 1024;
-
     public sealed record DocumentCommentDto(
         Guid Id,
         string ReferenceType,
@@ -130,7 +129,7 @@ public sealed class DocumentCollaborationController(
     }
 
     [HttpPost("{referenceType}/{referenceId:guid}/attachments/upload")]
-    [RequestSizeLimit(MaxAttachmentSizeBytes)]
+    [RequestSizeLimit(AttachmentUploadPolicy.MaxAttachmentSizeBytes)]
     public async Task<ActionResult<DocumentAttachmentDto>> UploadAttachment(
         string referenceType,
         Guid referenceId,
@@ -140,26 +139,34 @@ public sealed class DocumentCollaborationController(
     {
         var normalizedType = NormalizeReferenceType(referenceType);
 
-        if (file is null || file.Length <= 0)
+        if (!AttachmentUploadPolicy.TryValidate(file, notes, out var validated, out var validationError))
         {
-            return BadRequest("A non-empty file is required.");
+            return BadRequest(validationError);
         }
 
-        if (file.Length > MaxAttachmentSizeBytes)
+        var usage = await dbContext.DocumentAttachments.AsNoTracking()
+            .Where(x => x.ReferenceType == normalizedType && x.ReferenceId == referenceId)
+            .GroupBy(_ => 1)
+            .Select(g => new
+            {
+                Count = g.Count(),
+                TotalBytes = g.Sum(x => x.SizeBytes ?? 0L)
+            })
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (!AttachmentUploadPolicy.TryValidateQuota(
+                usage?.Count ?? 0,
+                usage?.TotalBytes ?? 0L,
+                validated!.SizeBytes,
+                out var quotaError))
         {
-            return BadRequest($"File is too large. Max {MaxAttachmentSizeBytes} bytes.");
+            return BadRequest(quotaError);
         }
 
         var attachmentId = Guid.NewGuid();
-        var extension = Path.GetExtension(file.FileName);
-        if (extension.Length > 16)
-        {
-            extension = extension[..16];
-        }
-
         var refTypeFolder = normalizedType.Replace('-', '_');
         var refIdFolder = referenceId.ToString("N");
-        var storedFileName = $"{attachmentId:N}{extension}";
+        var storedFileName = $"{attachmentId:N}{validated!.Extension}";
         var relativePath = Path.Combine("App_Data", "document-attachments", refTypeFolder, refIdFolder, storedFileName);
         var rootPath = hostEnvironment.ContentRootPath;
         var fullPath = Path.GetFullPath(Path.Combine(rootPath, relativePath));
@@ -176,20 +183,16 @@ public sealed class DocumentCollaborationController(
             await file.CopyToAsync(stream, cancellationToken);
         }
 
-        var contentType = string.IsNullOrWhiteSpace(file.ContentType)
-            ? "application/octet-stream"
-            : file.ContentType.Trim();
-        var isImage = contentType.StartsWith("image/", StringComparison.OrdinalIgnoreCase);
         var publicUrl = $"/api/documents/{normalizedType}/{referenceId}/attachments/{attachmentId}/content";
 
         var attachment = new DocumentAttachment(
             normalizedType,
             referenceId,
-            file.FileName,
+            validated.FileName,
             publicUrl,
-            isImage,
-            contentType,
-            file.Length,
+            validated.IsImage,
+            validated.ContentType,
+            validated.SizeBytes,
             notes,
             relativePath);
         attachment.Id = attachmentId;
