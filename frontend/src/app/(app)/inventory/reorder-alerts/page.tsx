@@ -1,5 +1,6 @@
 import { backendFetchJson } from "@/lib/backend.server";
 import { Button, Card, Select, Table } from "@/components/ui";
+import { ReorderAlertsCreatePrButton } from "./ReorderAlertsCreatePrButton";
 
 type WarehouseDto = { id: string; code: string; name: string };
 type ItemDto = { id: string; sku: string; name: string };
@@ -58,6 +59,15 @@ export default async function ReorderAlertsPage({ searchParams }: { searchParams
         <div className="mb-3 flex items-center justify-between">
           <div className="text-sm font-semibold">Alerts</div>
           <div className="text-xs text-zinc-500">{alerts.length} item(s)</div>
+        </div>
+        <div className="mb-4 flex flex-wrap items-center gap-3">
+          {warehouseId ? (
+            <ReorderAlertsCreatePrButton warehouseId={warehouseId} alertCount={alerts.length} />
+          ) : (
+            <div className="text-sm text-zinc-500">
+              Select a warehouse to generate a purchase requisition draft from current alerts.
+            </div>
+          )}
         </div>
         <div className="overflow-auto">
           <Table>

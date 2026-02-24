@@ -1626,6 +1626,39 @@ public sealed class EndToEndTests(IssApiFixture fixture) : IClassFixture<IssApiF
     }
 
     [Fact]
+    public async Task Inventory_ReorderAlerts_Can_Create_PurchaseRequisition_Draft()
+    {
+        var warehouse = await Post<WarehouseDto>("/api/warehouses", new { code = Code("WH"), name = "Main", address = (string?)null });
+        var item = await Post<ItemDto>("/api/items", new
+        {
+            sku = Code("SKU"),
+            name = "Filter",
+            type = ItemType.SparePart,
+            trackingType = TrackingType.None,
+            unitOfMeasure = "PCS",
+            brandId = (Guid?)null,
+            barcode = (string?)null,
+            defaultUnitCost = 8m
+        });
+
+        await Post<ReorderSettingDto>("/api/reorder-settings", new { warehouseId = warehouse.Id, itemId = item.Id, reorderPoint = 2m, reorderQuantity = 5m });
+
+        var created = await Post<CreateReorderPurchaseRequisitionResponseDto>(
+            "/api/inventory/reorder-alerts/create-purchase-requisition",
+            new { warehouseId = warehouse.Id, notes = "Auto from reorder test", submit = false });
+
+        Assert.True(created.PurchaseRequisitionId != Guid.Empty);
+        Assert.Equal(1, created.LineCount);
+        Assert.Equal(5m, created.TotalSuggestedQuantity);
+
+        var pr = await Get<PurchaseRequisitionDto>($"/api/procurement/purchase-requisitions/{created.PurchaseRequisitionId}");
+        Assert.Equal(PurchaseRequisitionStatus.Draft, pr.Status);
+        var line = Assert.Single(pr.Lines);
+        Assert.Equal(item.Id, line.ItemId);
+        Assert.Equal(5m, line.Quantity);
+    }
+
+    [Fact]
     public async Task Inventory_StockAdjustment_Post_Changes_OnHand()
     {
         var warehouse = await Post<WarehouseDto>("/api/warehouses", new { code = Code("WH"), name = "Main", address = (string?)null });
@@ -1803,6 +1836,9 @@ public sealed class EndToEndTests(IssApiFixture fixture) : IClassFixture<IssApiF
 
     private sealed record ReorderSettingDto(Guid Id, Guid WarehouseId, Guid ItemId, decimal ReorderPoint, decimal ReorderQuantity);
     private sealed record ReorderAlertDto(Guid WarehouseId, Guid ItemId, decimal ReorderPoint, decimal ReorderQuantity, decimal OnHand);
+    private sealed record CreateReorderPurchaseRequisitionResponseDto(Guid PurchaseRequisitionId, string PurchaseRequisitionNumber, int LineCount, decimal TotalSuggestedQuantity);
+    private sealed record PurchaseRequisitionLineDto(Guid Id, Guid ItemId, decimal Quantity, string? Notes);
+    private sealed record PurchaseRequisitionDto(Guid Id, string Number, DateTimeOffset RequestDate, PurchaseRequisitionStatus Status, string? Notes, IReadOnlyList<PurchaseRequisitionLineDto> Lines);
 
     private sealed record DashboardDto(int OpenServiceJobs, decimal ArOutstanding, decimal ApOutstanding, int ReorderAlerts);
     private sealed record StockLedgerRowDto(
