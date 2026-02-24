@@ -1722,6 +1722,26 @@ public sealed class EndToEndTests(IssApiFixture fixture) : IClassFixture<IssApiF
         var dashboard = await Get<DashboardDto>("/api/reporting/dashboard");
         Assert.True(dashboard.OpenServiceJobs >= 0);
 
+        var stockLedger = await Get<StockLedgerReportDto>("/api/reporting/stock-ledger?take=20");
+        Assert.InRange(stockLedger.Count, 0, 20);
+        Assert.NotNull(stockLedger.Rows);
+
+        var aging = await Get<AgingReportDto>("/api/reporting/aging");
+        Assert.NotNull(aging.AccountsReceivable);
+        Assert.NotNull(aging.AccountsPayable);
+        Assert.True(aging.ArTotals.Total >= 0m);
+        Assert.True(aging.ApTotals.Total >= 0m);
+
+        var tax = await Get<TaxSummaryReportDto>("/api/reporting/tax-summary");
+        Assert.True(tax.From <= tax.To);
+        Assert.True(tax.SalesInvoiceCount >= 0);
+        Assert.True(tax.SupplierInvoiceCount >= 0);
+
+        var serviceKpis = await Get<ServiceKpiReportDto>("/api/reporting/service-kpis");
+        Assert.True(serviceKpis.From <= serviceKpis.To);
+        Assert.True(serviceKpis.OpenedJobs >= 0);
+        Assert.True(serviceKpis.MaterialRequisitionsPosted >= 0);
+
         var logs = await Get<List<AuditLogDto>>("/api/audit-logs?take=20");
         Assert.NotNull(logs);
     }
@@ -1785,6 +1805,61 @@ public sealed class EndToEndTests(IssApiFixture fixture) : IClassFixture<IssApiF
     private sealed record ReorderAlertDto(Guid WarehouseId, Guid ItemId, decimal ReorderPoint, decimal ReorderQuantity, decimal OnHand);
 
     private sealed record DashboardDto(int OpenServiceJobs, decimal ArOutstanding, decimal ApOutstanding, int ReorderAlerts);
+    private sealed record StockLedgerRowDto(
+        DateTimeOffset OccurredAt,
+        int MovementType,
+        Guid WarehouseId,
+        string WarehouseCode,
+        string WarehouseName,
+        Guid ItemId,
+        string ItemSku,
+        string ItemName,
+        decimal Quantity,
+        decimal UnitCost,
+        decimal LineValue,
+        decimal RunningQuantity,
+        string ReferenceType,
+        Guid ReferenceId,
+        string? BatchNumber,
+        string? SerialNumber);
+    private sealed record StockLedgerReportDto(
+        DateTimeOffset? From,
+        DateTimeOffset? To,
+        Guid? WarehouseId,
+        Guid? ItemId,
+        int Count,
+        decimal NetQuantity,
+        IReadOnlyList<StockLedgerRowDto> Rows);
+    private sealed record AgingBucketsDto(decimal Current, decimal Days1To30, decimal Days31To60, decimal Days61To90, decimal DaysOver90, decimal Total);
+    private sealed record ArAgingRowDto(Guid CustomerId, string CustomerCode, string CustomerName, AgingBucketsDto Buckets);
+    private sealed record ApAgingRowDto(Guid SupplierId, string SupplierCode, string SupplierName, AgingBucketsDto Buckets);
+    private sealed record AgingReportDto(DateTimeOffset AsOf, IReadOnlyList<ArAgingRowDto> AccountsReceivable, AgingBucketsDto ArTotals, IReadOnlyList<ApAgingRowDto> AccountsPayable, AgingBucketsDto ApTotals);
+    private sealed record TaxSummaryReportDto(
+        DateTimeOffset From,
+        DateTimeOffset To,
+        decimal SalesTaxableSubtotal,
+        decimal SalesTaxTotal,
+        decimal PurchaseTaxableSubtotal,
+        decimal PurchaseTaxTotal,
+        decimal NetTaxPayable,
+        int SalesInvoiceCount,
+        int SupplierInvoiceCount);
+    private sealed record ServiceKpiReportDto(
+        DateTimeOffset From,
+        DateTimeOffset To,
+        int OpenedJobs,
+        int InProgressJobs,
+        int CompletedJobs,
+        int ClosedJobs,
+        int CancelledJobs,
+        decimal? AverageCompletionHours,
+        int OpenJobsOlderThan7Days,
+        int OpenJobsOlderThan30Days,
+        int EstimatesIssued,
+        int EstimatesApproved,
+        int HandoversCompleted,
+        int MaterialRequisitionsPosted,
+        decimal PartsConsumedQuantity);
     private sealed record AuditLogDto(Guid Id, DateTimeOffset OccurredAt, Guid? UserId, string TableName, int Action, string Key, string ChangesJson);
     private sealed record ImportResultDto(int BrandsCreated, int BrandsUpdated, int WarehousesCreated, int WarehousesUpdated, int SuppliersCreated, int SuppliersUpdated, int CustomersCreated, int CustomersUpdated, int ItemsCreated, int ItemsUpdated, int ReorderSettingsCreated, int ReorderSettingsUpdated, int EquipmentUnitsCreated, int EquipmentUnitsUpdated);
     private sealed record NotificationOutboxDto(Guid Id, NotificationChannel Channel, string Recipient, string? Subject, string Body, NotificationStatus Status, int Attempts, DateTimeOffset NextAttemptAt, DateTimeOffset? LastAttemptAt, DateTimeOffset? SentAt, string? LastError, string? ReferenceType, Guid? ReferenceId, DateTimeOffset CreatedAt);

@@ -80,6 +80,16 @@ const sections: NavSection[] = [
     items: [{ href: "/audit-logs", label: "Audit Logs" }],
   },
   {
+    title: "Reporting",
+    items: [
+      { href: "/reporting", label: "Reports Overview" },
+      { href: "/reporting/stock-ledger", label: "Stock Ledger" },
+      { href: "/reporting/aging", label: "AR/AP Aging" },
+      { href: "/reporting/tax-summary", label: "Tax Summary" },
+      { href: "/reporting/service-kpis", label: "Service KPIs" },
+    ],
+  },
+  {
     title: "Admin",
     items: [
       { href: "/admin/import", label: "Import (Excel)" },
