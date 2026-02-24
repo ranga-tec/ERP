@@ -9,15 +9,15 @@
 - User manual (quick): `docs/user-manual.md`
 - Deployment / installation: `docs/deployment.md`
 
-## Local infrastructure (PostgreSQL + pgAdmin)
+## Local infrastructure (PostgreSQL)
 From the repo root:
 
 ```bash
 docker compose up -d
 ```
 
-- PostgreSQL: `localhost:5432` (db `iss`, user `pward`, password `vesper`)
-- pgAdmin: `http://localhost:5050` (email `vesper@local`, password `vesper`)
+- PostgreSQL: `localhost:5433` (db `iss`, user `pgadmin`, password `vesper`)
+- Note: the current `docker-compose.yml` starts PostgreSQL only (no pgAdmin service)
 
 ## Backend (API)
 
@@ -55,4 +55,12 @@ dotnet test backend/tests/ISS.IntegrationTests/ISS.IntegrationTests.csproj -c Re
 cd frontend
 npm run lint
 npm run build
+```
+
+If Docker/Testcontainers is unavailable in your shell, integration tests can use an existing PostgreSQL instance:
+
+```powershell
+$env:ISS_INTEGRATIONTESTS_CONNECTION_STRING="Host=localhost;Port=5433;Database=iss_integration_local;Username=pgadmin;Password=vesper"
+$env:ISS_INTEGRATIONTESTS_RESET_EXISTING_DB="1"
+dotnet test backend/tests/ISS.IntegrationTests/ISS.IntegrationTests.csproj -c Release --nologo
 ```

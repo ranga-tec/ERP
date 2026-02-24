@@ -5,7 +5,7 @@ This repo contains a complete ISS ERP system:
 - Backend: ASP.NET Core (.NET 8) + PostgreSQL
 - Frontend: Next.js (App Router) + TypeScript + Tailwind
 
-## Local infrastructure (PostgreSQL + pgAdmin)
+## Local infrastructure (PostgreSQL)
 
 From the repo root:
 
@@ -13,15 +13,15 @@ From the repo root:
 docker compose up -d
 ```
 
-- PostgreSQL: `localhost:5432` (db `iss`, user `pward`, password `vesper`)
-- pgAdmin: `http://localhost:5050` (email `vesper@local`, password `vesper`)
+- PostgreSQL: `localhost:5433` (db `iss`, user `pgadmin`, password `vesper`)
+- Note: the current repo `docker-compose.yml` starts PostgreSQL only (no pgAdmin service)
 
 ## Backend (API)
 
 The API requires a connection string. Example (PowerShell):
 
 ```powershell
-$env:ConnectionStrings__Default="Host=localhost;Database=iss;Username=pward;Password=vesper"
+$env:ConnectionStrings__Default="Host=localhost;Port=5433;Database=iss;Username=pgadmin;Password=vesper"
 dotnet run --project backend/src/ISS.Api/ISS.Api.csproj
 ```
 
@@ -51,7 +51,7 @@ dotnet ef migrations add <Name> `
 Apply migrations:
 
 ```powershell
-$env:ConnectionStrings__Default="Host=localhost;Database=iss;Username=pward;Password=vesper"
+$env:ConnectionStrings__Default="Host=localhost;Port=5433;Database=iss;Username=pgadmin;Password=vesper"
 dotnet ef database update `
   --project backend/src/ISS.Infrastructure/ISS.Infrastructure.csproj `
   --startup-project backend/src/ISS.Api/ISS.Api.csproj
@@ -79,6 +79,21 @@ Optional:
 - `Notifications__Dispatcher__Enabled` (enables background outbox dispatcher)
 - `Notifications__Email__Smtp__Host` / `Port` / `User` / `Password` / `FromEmail` / `FromName`
 - `Notifications__Sms__Twilio__AccountSid` / `AuthToken` / `From`
+
+### Integration test database fallback (without Testcontainers)
+
+If Docker/Testcontainers cannot access the Docker daemon from your shell/session, the integration tests can run against an existing PostgreSQL instance:
+
+```powershell
+$env:ISS_INTEGRATIONTESTS_CONNECTION_STRING="Host=localhost;Port=5433;Database=iss_integration_local;Username=pgadmin;Password=vesper"
+$env:ISS_INTEGRATIONTESTS_RESET_EXISTING_DB="1"
+dotnet test .\backend\tests\ISS.IntegrationTests\ISS.IntegrationTests.csproj -c Release --nologo
+```
+
+Notes:
+
+- `ISS_INTEGRATIONTESTS_RESET_EXISTING_DB=1` will delete and recreate the target database before each run.
+- Use a dedicated test database name (not your main `iss` database).
 
 ## Frontend (Web)
 
@@ -144,14 +159,14 @@ Database backup:
 
 ```powershell
 pg_dump --format=custom --file .\backup\iss-$(Get-Date -Format yyyyMMdd-HHmmss).dump `
-  --host localhost --port 5432 --username pward --dbname iss
+  --host localhost --port 5433 --username pgadmin --dbname iss
 ```
 
 Database restore (to a recreated/empty target DB):
 
 ```powershell
 pg_restore --clean --if-exists --no-owner --no-privileges `
-  --host localhost --port 5432 --username pward --dbname iss `
+  --host localhost --port 5433 --username pgadmin --dbname iss `
   .\backup\iss-YYYYMMDD-HHMMSS.dump
 ```
 
