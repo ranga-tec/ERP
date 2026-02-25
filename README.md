@@ -8,6 +8,11 @@
 - Gap checklist (proposal mapping): `docs/gap-checklist.md`
 - User manual (quick): `docs/user-manual.md`
 - Deployment / installation: `docs/deployment.md`
+- System + technical maintainer guide: `docs/system-technical-maintainer-guide.md`
+- Backend architecture + operations: `docs/backend-architecture.md`
+- Frontend architecture + UI integration: `docs/frontend-architecture.md`
+- Agent change playbook + troubleshooting: `docs/agent-change-playbook.md`
+- CSV closure tracking baseline: `docs/csv-closure-audit.md`
 
 ## Local infrastructure (PostgreSQL)
 From the repo root:

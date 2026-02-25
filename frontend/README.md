@@ -1,36 +1,62 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# ISS Frontend (Next.js)
 
-## Getting Started
+This is the web UI for the ISS ERP system.
 
-First, run the development server:
+## Purpose
 
-```bash
+- Authenticated ERP frontend (master data, procurement, inventory, sales, service, finance, reporting, admin)
+- Proxies API calls to the backend (`/api/backend/[...path]`)
+- Stores auth JWT in an HTTP-only cookie (`iss_token`)
+
+## Local Run
+
+From the `frontend/` directory:
+
+```powershell
+copy .env.example .env.local
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open `http://localhost:3000`.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Required `.env.local` value:
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+- `ISS_API_BASE_URL` (defaults to `http://localhost:5257` if omitted)
 
-## Learn More
+## Key Frontend Architecture Files
 
-To learn more about Next.js, take a look at the following resources:
+- `src/app/(auth)/login/page.tsx` -> login/register UI
+- `src/app/(app)/layout.tsx` -> authenticated app shell + sidebar/header
+- `src/proxy.ts` -> route protection (redirects to login if JWT missing/expired)
+- `src/app/api/backend/[...path]/route.ts` -> backend API proxy with auth forwarding
+- `src/lib/backend.server.ts` -> server-component fetch helper
+- `src/lib/api-client.ts` -> client-component API helpers
+- `src/components/Sidebar.tsx` -> app navigation
+- `src/components/DocumentCollaborationPanel.tsx` -> reusable comments/attachments UI
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Development Patterns
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+- Prefer server components for page-level data loading (`backendFetchJson`)
+- Use client components for forms/actions (`apiPost`, `apiPostNoContent`, `apiPostForm`)
+- Route all browser-side backend calls through `/api/backend/...`
+- Keep UI changes aligned with backend DTO shape changes in the same checkpoint
 
-## Deploy on Vercel
+## Build Validation
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+```powershell
+npm run build
+```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+This is the primary local check for TypeScript and route compilation issues.
+
+## System-Level Docs
+
+See the repo root docs for full architecture and maintenance guidance:
+
+- `../docs/system-technical-maintainer-guide.md`
+- `../docs/backend-architecture.md`
+- `../docs/frontend-architecture.md`
+- `../docs/agent-change-playbook.md`
+- `../docs/deployment.md`
+- `../docs/csv-closure-audit.md`
