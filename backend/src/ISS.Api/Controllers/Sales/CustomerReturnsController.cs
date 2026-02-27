@@ -43,6 +43,7 @@ public sealed class CustomerReturnsController(
 
     public sealed record CreateCustomerReturnRequest(Guid CustomerId, Guid WarehouseId, Guid? SalesInvoiceId, Guid? DispatchNoteId, string? Reason);
     public sealed record AddCustomerReturnLineRequest(Guid ItemId, decimal Quantity, decimal UnitPrice, string? BatchNumber, IReadOnlyList<string>? Serials);
+    public sealed record UpdateCustomerReturnLineRequest(decimal Quantity, decimal UnitPrice, string? BatchNumber, IReadOnlyList<string>? Serials);
 
     [HttpGet]
     public async Task<ActionResult<IReadOnlyList<CustomerReturnSummaryDto>>> List([FromQuery] int skip = 0, [FromQuery] int take = 100, CancellationToken cancellationToken = default)
@@ -119,6 +120,27 @@ public sealed class CustomerReturnsController(
     public async Task<ActionResult> AddLine(Guid id, AddCustomerReturnLineRequest request, CancellationToken cancellationToken)
     {
         await salesService.AddCustomerReturnLineAsync(id, request.ItemId, request.Quantity, request.UnitPrice, request.BatchNumber, request.Serials, cancellationToken);
+        return NoContent();
+    }
+
+    [HttpPut("{id:guid}/lines/{lineId:guid}")]
+    public async Task<ActionResult> UpdateLine(Guid id, Guid lineId, UpdateCustomerReturnLineRequest request, CancellationToken cancellationToken)
+    {
+        await salesService.UpdateCustomerReturnLineAsync(
+            id,
+            lineId,
+            request.Quantity,
+            request.UnitPrice,
+            request.BatchNumber,
+            request.Serials,
+            cancellationToken);
+        return NoContent();
+    }
+
+    [HttpDelete("{id:guid}/lines/{lineId:guid}")]
+    public async Task<ActionResult> RemoveLine(Guid id, Guid lineId, CancellationToken cancellationToken)
+    {
+        await salesService.RemoveCustomerReturnLineAsync(id, lineId, cancellationToken);
         return NoContent();
     }
 

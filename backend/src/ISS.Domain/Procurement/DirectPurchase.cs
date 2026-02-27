@@ -34,10 +34,7 @@ public sealed class DirectPurchase : AuditableEntity
 
     public DirectPurchaseLine AddLine(Guid itemId, decimal quantity, decimal unitPrice, decimal taxPercent, string? batchNumber)
     {
-        if (Status != DirectPurchaseStatus.Draft)
-        {
-            throw new DomainValidationException("Only draft direct purchases can be edited.");
-        }
+        EnsureDraftEditable();
 
         var line = new DirectPurchaseLine(
             Id,
@@ -49,6 +46,41 @@ public sealed class DirectPurchase : AuditableEntity
 
         Lines.Add(line);
         return line;
+    }
+
+    public void UpdateLine(
+        Guid lineId,
+        decimal quantity,
+        decimal unitPrice,
+        decimal taxPercent,
+        string? batchNumber,
+        IReadOnlyCollection<string>? serialNumbers)
+    {
+        EnsureDraftEditable();
+
+        var line = Lines.FirstOrDefault(x => x.Id == lineId)
+            ?? throw new DomainValidationException("Direct purchase line not found.");
+
+        line.Update(quantity, unitPrice, taxPercent, batchNumber);
+        line.ReplaceSerials(serialNumbers);
+    }
+
+    public void RemoveLine(Guid lineId)
+    {
+        EnsureDraftEditable();
+
+        var line = Lines.FirstOrDefault(x => x.Id == lineId)
+            ?? throw new DomainValidationException("Direct purchase line not found.");
+
+        Lines.Remove(line);
+    }
+
+    private void EnsureDraftEditable()
+    {
+        if (Status != DirectPurchaseStatus.Draft)
+        {
+            throw new DomainValidationException("Only draft direct purchases can be edited.");
+        }
     }
 
     public decimal Subtotal => Lines.Sum(l => l.Quantity * l.UnitPrice);
@@ -113,9 +145,31 @@ public sealed class DirectPurchaseLine : Entity
     public decimal LineTax => LineSubTotal * (TaxPercent / 100m);
     public decimal LineTotal => LineSubTotal + LineTax;
 
+    public void Update(decimal quantity, decimal unitPrice, decimal taxPercent, string? batchNumber)
+    {
+        Quantity = Guard.Positive(quantity, nameof(quantity));
+        UnitPrice = Guard.NotNegative(unitPrice, nameof(unitPrice));
+        TaxPercent = Guard.NotNegative(taxPercent, nameof(taxPercent));
+        BatchNumber = batchNumber?.Trim();
+    }
+
     public void AddSerial(string serialNumber)
     {
         Serials.Add(new DirectPurchaseLineSerial(Id, Guard.NotNullOrWhiteSpace(serialNumber, nameof(serialNumber), maxLength: 128)));
+    }
+
+    public void ReplaceSerials(IReadOnlyCollection<string>? serialNumbers)
+    {
+        Serials.Clear();
+        if (serialNumbers is null)
+        {
+            return;
+        }
+
+        foreach (var serial in serialNumbers)
+        {
+            AddSerial(serial);
+        }
     }
 }
 

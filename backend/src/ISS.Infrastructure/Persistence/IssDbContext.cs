@@ -28,6 +28,13 @@ public sealed class IssDbContext(
 
     public DbSet<Brand> Brands => Set<Brand>();
     public DbSet<UnitOfMeasure> UnitOfMeasures => Set<UnitOfMeasure>();
+    public DbSet<UnitConversion> UnitConversions => Set<UnitConversion>();
+    public DbSet<PaymentType> PaymentTypes => Set<PaymentType>();
+    public DbSet<TaxCode> TaxCodes => Set<TaxCode>();
+    public DbSet<TaxConversion> TaxConversions => Set<TaxConversion>();
+    public DbSet<Currency> Currencies => Set<Currency>();
+    public DbSet<CurrencyRate> CurrencyRates => Set<CurrencyRate>();
+    public DbSet<ReferenceForm> ReferenceForms => Set<ReferenceForm>();
     public DbSet<ItemCategory> ItemCategories => Set<ItemCategory>();
     public DbSet<ItemSubcategory> ItemSubcategories => Set<ItemSubcategory>();
     public DbSet<Item> Items => Set<Item>();
@@ -92,6 +99,68 @@ public sealed class IssDbContext(
             entity.HasIndex(x => x.Code).IsUnique();
             entity.Property(x => x.Code).HasMaxLength(16);
             entity.Property(x => x.Name).HasMaxLength(64);
+        });
+
+        builder.Entity<UnitConversion>(entity =>
+        {
+            entity.HasIndex(x => new { x.FromUnitOfMeasureId, x.ToUnitOfMeasureId }).IsUnique();
+            entity.Property(x => x.Factor).HasPrecision(18, 8);
+            entity.Property(x => x.Notes).HasMaxLength(256);
+            entity.HasOne(x => x.FromUnitOfMeasure).WithMany().HasForeignKey(x => x.FromUnitOfMeasureId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(x => x.ToUnitOfMeasure).WithMany().HasForeignKey(x => x.ToUnitOfMeasureId).OnDelete(DeleteBehavior.Restrict);
+        });
+
+        builder.Entity<PaymentType>(entity =>
+        {
+            entity.HasIndex(x => x.Code).IsUnique();
+            entity.Property(x => x.Code).HasMaxLength(32);
+            entity.Property(x => x.Name).HasMaxLength(128);
+            entity.Property(x => x.Description).HasMaxLength(512);
+        });
+
+        builder.Entity<TaxCode>(entity =>
+        {
+            entity.HasIndex(x => x.Code).IsUnique();
+            entity.Property(x => x.Code).HasMaxLength(32);
+            entity.Property(x => x.Name).HasMaxLength(128);
+            entity.Property(x => x.Description).HasMaxLength(512);
+            entity.Property(x => x.RatePercent).HasPrecision(18, 4);
+        });
+
+        builder.Entity<TaxConversion>(entity =>
+        {
+            entity.HasIndex(x => new { x.SourceTaxCodeId, x.TargetTaxCodeId }).IsUnique();
+            entity.Property(x => x.Multiplier).HasPrecision(18, 8);
+            entity.Property(x => x.Notes).HasMaxLength(256);
+            entity.HasOne(x => x.SourceTaxCode).WithMany().HasForeignKey(x => x.SourceTaxCodeId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(x => x.TargetTaxCode).WithMany().HasForeignKey(x => x.TargetTaxCodeId).OnDelete(DeleteBehavior.Restrict);
+        });
+
+        builder.Entity<Currency>(entity =>
+        {
+            entity.HasIndex(x => x.Code).IsUnique();
+            entity.HasIndex(x => x.IsBase).HasFilter("\"IsBase\" = TRUE");
+            entity.Property(x => x.Code).HasMaxLength(3);
+            entity.Property(x => x.Name).HasMaxLength(64);
+            entity.Property(x => x.Symbol).HasMaxLength(8);
+        });
+
+        builder.Entity<CurrencyRate>(entity =>
+        {
+            entity.HasIndex(x => new { x.FromCurrencyId, x.ToCurrencyId, x.RateType, x.EffectiveFrom }).IsUnique();
+            entity.Property(x => x.Rate).HasPrecision(18, 8);
+            entity.Property(x => x.Source).HasMaxLength(256);
+            entity.HasOne(x => x.FromCurrency).WithMany().HasForeignKey(x => x.FromCurrencyId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(x => x.ToCurrency).WithMany().HasForeignKey(x => x.ToCurrencyId).OnDelete(DeleteBehavior.Restrict);
+        });
+
+        builder.Entity<ReferenceForm>(entity =>
+        {
+            entity.HasIndex(x => x.Code).IsUnique();
+            entity.Property(x => x.Code).HasMaxLength(32);
+            entity.Property(x => x.Name).HasMaxLength(128);
+            entity.Property(x => x.Module).HasMaxLength(64);
+            entity.Property(x => x.RouteTemplate).HasMaxLength(256);
         });
 
         builder.Entity<ItemCategory>(entity =>
@@ -500,7 +569,10 @@ public sealed class IssDbContext(
         builder.Entity<Payment>(entity =>
         {
             entity.Property(x => x.ReferenceNumber).HasMaxLength(64);
+            entity.Property(x => x.CurrencyCode).HasMaxLength(3);
+            entity.Property(x => x.ExchangeRate).HasPrecision(18, 8);
             entity.Property(x => x.Amount).HasPrecision(18, 4);
+            entity.HasOne(x => x.PaymentType).WithMany().HasForeignKey(x => x.PaymentTypeId).OnDelete(DeleteBehavior.Restrict);
             entity.HasMany(x => x.Allocations).WithOne().HasForeignKey(x => x.PaymentId).OnDelete(DeleteBehavior.Cascade);
         });
         builder.Entity<PaymentAllocation>(entity =>

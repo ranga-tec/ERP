@@ -3,8 +3,14 @@ import { backendFetchJson } from "@/lib/backend.server";
 import { Card, SecondaryLink, Table } from "@/components/ui";
 import { PaymentAllocateForm } from "../PaymentAllocateForm";
 import { DocumentCollaborationPanel } from "@/components/DocumentCollaborationPanel";
+import { buildReferenceRouteMap, resolveReferenceHref } from "@/lib/reference-routing";
 
-type PaymentAllocationDto = { id: string; accountsReceivableEntryId?: string | null; accountsPayableEntryId?: string | null; amount: number };
+type PaymentAllocationDto = {
+  id: string;
+  accountsReceivableEntryId?: string | null;
+  accountsPayableEntryId?: string | null;
+  amount: number;
+};
 
 type PaymentDetailDto = {
   id: string;
@@ -12,7 +18,13 @@ type PaymentDetailDto = {
   direction: number;
   counterpartyType: number;
   counterpartyId: string;
+  paymentTypeId?: string | null;
+  paymentTypeCode?: string | null;
+  paymentTypeName?: string | null;
+  currencyCode: string;
+  exchangeRate: number;
   amount: number;
+  baseAmount: number;
   paidAt: string;
   notes?: string | null;
   allocations: PaymentAllocationDto[];
@@ -20,35 +32,44 @@ type PaymentDetailDto = {
 
 type CustomerDto = { id: string; code: string; name: string };
 type SupplierDto = { id: string; code: string; name: string };
+type ReferenceFormDto = { code: string; routeTemplate?: string | null; isActive: boolean };
 
-type ArDto = { id: string; customerId: string; referenceType: string; referenceId: string; amount: number; outstanding: number; postedAt: string };
-type ApDto = { id: string; supplierId: string; referenceType: string; referenceId: string; amount: number; outstanding: number; postedAt: string };
+type ArDto = {
+  id: string;
+  customerId: string;
+  referenceType: string;
+  referenceId: string;
+  amount: number;
+  outstanding: number;
+  postedAt: string;
+};
+
+type ApDto = {
+  id: string;
+  supplierId: string;
+  referenceType: string;
+  referenceId: string;
+  amount: number;
+  outstanding: number;
+  postedAt: string;
+};
 
 const directionLabel: Record<number, string> = { 1: "Incoming", 2: "Outgoing" };
 const counterpartyLabel: Record<number, string> = { 1: "Customer", 2: "Supplier" };
 
-function referenceHref(type: string, id: string): string | null {
-  if (type === "INV") return `/sales/invoices/${id}`;
-  if (type === "DN") return `/sales/dispatches/${id}`;
-  if (type === "GRN") return `/procurement/goods-receipts/${id}`;
-  if (type === "SR") return `/procurement/supplier-returns/${id}`;
-  if (type === "MR") return `/service/material-requisitions/${id}`;
-  if (type === "ADJ") return `/inventory/stock-adjustments/${id}`;
-  if (type === "TRF") return `/inventory/stock-transfers/${id}`;
-  return null;
-}
-
 export default async function PaymentDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
 
-  const [payment, customers, suppliers] = await Promise.all([
+  const [payment, customers, suppliers, referenceForms] = await Promise.all([
     backendFetchJson<PaymentDetailDto>(`/finance/payments/${id}`),
     backendFetchJson<CustomerDto[]>("/customers"),
     backendFetchJson<SupplierDto[]>("/suppliers"),
+    backendFetchJson<ReferenceFormDto[]>("/reference-forms"),
   ]);
 
   const customerById = new Map(customers.map((c) => [c.id, c]));
   const supplierById = new Map(suppliers.map((s) => [s.id, s]));
+  const referenceRouteMap = buildReferenceRouteMap(referenceForms);
 
   const allocated = payment.allocations.reduce((sum, a) => sum + a.amount, 0);
   const remaining = Math.max(0, payment.amount - allocated);
@@ -89,8 +110,13 @@ export default async function PaymentDetailPage({ params }: { params: Promise<{ 
           <div>
             Counterparty: {counterpartyLabel[payment.counterpartyType] ?? payment.counterpartyType} {counterpartyCode}
           </div>
+          <div>
+            Payment Type: {payment.paymentTypeCode ? `${payment.paymentTypeCode}${payment.paymentTypeName ? ` - ${payment.paymentTypeName}` : ""}` : "-"}
+          </div>
+          <div>Currency: {payment.currencyCode} @ {payment.exchangeRate}</div>
           <div>Paid: {new Date(payment.paidAt).toLocaleString()}</div>
           <div>Amount: {payment.amount}</div>
+          <div>Base Amount: {payment.baseAmount}</div>
           <div>Allocated: {allocated}</div>
           <div>Remaining: {remaining}</div>
         </div>
@@ -123,11 +149,17 @@ export default async function PaymentDetailPage({ params }: { params: Promise<{ 
             </thead>
             <tbody>
               {payment.allocations.map((a) => {
-                const target = a.accountsReceivableEntryId ? "AR" : a.accountsPayableEntryId ? "AP" : "—";
+                const target = a.accountsReceivableEntryId ? "AR" : a.accountsPayableEntryId ? "AP" : "-";
                 const entryId = a.accountsReceivableEntryId ?? a.accountsPayableEntryId ?? "";
-                const entry = a.accountsReceivableEntryId ? arById.get(a.accountsReceivableEntryId) : a.accountsPayableEntryId ? apById.get(a.accountsPayableEntryId) : undefined;
-                const ref = entry ? `${entry.referenceType}:${entry.referenceId.slice(0, 8)}` : entryId ? entryId.slice(0, 8) : "—";
-                const href = entry ? referenceHref(entry.referenceType, entry.referenceId) : null;
+                const entry = a.accountsReceivableEntryId
+                  ? arById.get(a.accountsReceivableEntryId)
+                  : a.accountsPayableEntryId
+                    ? apById.get(a.accountsPayableEntryId)
+                    : undefined;
+                const ref = entry ? `${entry.referenceType}:${entry.referenceId.slice(0, 8)}` : entryId ? entryId.slice(0, 8) : "-";
+                const href = entry
+                  ? resolveReferenceHref(referenceRouteMap, entry.referenceType, entry.referenceId)
+                  : null;
                 return (
                   <tr key={a.id} className="border-b border-zinc-100 dark:border-zinc-900">
                     <td className="py-2 pr-3">{target}</td>

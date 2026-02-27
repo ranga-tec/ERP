@@ -22,6 +22,11 @@ const reports = [
     title: "Service KPIs",
     description: "Service job throughput, completion timing, and parts-consumption indicators.",
   },
+  {
+    href: "/reporting/costing",
+    title: "Costing",
+    description: "Default vs weighted costs, last receipt rates, and current on-hand valuation.",
+  },
 ];
 
 export default function ReportingOverviewPage() {

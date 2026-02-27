@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { backendFetchJson } from "@/lib/backend.server";
 import { Button, Card, Select, Table } from "@/components/ui";
+import { buildReferenceRouteMap, resolveReferenceHref } from "@/lib/reference-routing";
 
 type ArDto = {
   id: string;
@@ -13,23 +14,20 @@ type ArDto = {
 };
 
 type CustomerDto = { id: string; code: string; name: string };
-
-function referenceHref(type: string, id: string): string | null {
-  if (type === "INV") return `/sales/invoices/${id}`;
-  if (type === "DN") return `/sales/dispatches/${id}`;
-  return null;
-}
+type ReferenceFormDto = { code: string; routeTemplate?: string | null; isActive: boolean };
 
 export default async function AccountsReceivablePage({ searchParams }: { searchParams?: Promise<{ outstandingOnly?: string }> }) {
   const sp = await searchParams;
   const outstandingOnly = (sp?.outstandingOnly ?? "true") !== "false";
 
-  const [entries, customers] = await Promise.all([
+  const [entries, customers, referenceForms] = await Promise.all([
     backendFetchJson<ArDto[]>(`/finance/ar?outstandingOnly=${outstandingOnly ? "true" : "false"}`),
     backendFetchJson<CustomerDto[]>("/customers"),
+    backendFetchJson<ReferenceFormDto[]>("/reference-forms"),
   ]);
 
   const customerById = new Map(customers.map((c) => [c.id, c]));
+  const referenceRouteMap = buildReferenceRouteMap(referenceForms);
 
   return (
     <div className="space-y-6">
@@ -67,7 +65,7 @@ export default async function AccountsReceivablePage({ searchParams }: { searchP
             </thead>
             <tbody>
               {entries.map((e) => {
-                const href = referenceHref(e.referenceType, e.referenceId);
+                const href = resolveReferenceHref(referenceRouteMap, e.referenceType, e.referenceId);
                 return (
                   <tr key={e.id} className="border-b border-zinc-100 dark:border-zinc-900">
                     <td className="py-2 pr-3 text-zinc-500">{new Date(e.postedAt).toLocaleString()}</td>

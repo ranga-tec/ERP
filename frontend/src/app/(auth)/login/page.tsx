@@ -5,6 +5,13 @@ import { Suspense, useMemo, useState } from "react";
 
 type Mode = "login" | "register";
 
+const selfRegistrationEnabled = (() => {
+  const configured = process.env.NEXT_PUBLIC_ISS_ALLOW_SELF_REGISTRATION;
+  if (configured === "true") return true;
+  if (configured === "false") return false;
+  return process.env.NODE_ENV !== "production";
+})();
+
 function LoginPageInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -23,6 +30,10 @@ function LoginPageInner() {
     setBusy(true);
 
     try {
+      if (mode === "register" && !selfRegistrationEnabled) {
+        throw new Error("Registration is disabled. Contact an administrator.");
+      }
+
       const endpoint = mode === "login" ? "/api/auth/login" : "/api/auth/register";
       const payload =
         mode === "login"
@@ -122,7 +133,7 @@ function LoginPageInner() {
         </form>
 
         <div className="mt-4 text-center text-sm text-zinc-500">
-          {mode === "login" ? (
+          {mode === "login" && selfRegistrationEnabled ? (
             <button
               type="button"
               className="font-medium text-zinc-900 hover:underline dark:text-zinc-100"
@@ -130,7 +141,7 @@ function LoginPageInner() {
             >
               Create an account
             </button>
-          ) : (
+          ) : mode === "register" ? (
             <button
               type="button"
               className="font-medium text-zinc-900 hover:underline dark:text-zinc-100"
@@ -138,6 +149,8 @@ function LoginPageInner() {
             >
               Back to sign in
             </button>
+          ) : (
+            <span>Account registration is disabled.</span>
           )}
         </div>
       </div>

@@ -3,6 +3,7 @@ import { backendFetchJson } from "@/lib/backend.server";
 import { Card, SecondaryLink, Table } from "@/components/ui";
 import { PurchaseOrderActions } from "../PurchaseOrderActions";
 import { PurchaseOrderLineAddForm } from "../PurchaseOrderLineAddForm";
+import { PurchaseOrderLineRow } from "../PurchaseOrderLineRow";
 import { DocumentCollaborationPanel } from "@/components/DocumentCollaborationPanel";
 
 type PurchaseOrderDto = {
@@ -101,21 +102,26 @@ export default async function PurchaseOrderDetailPage({ params }: { params: Prom
                 <th className="py-2 pr-3">Received</th>
                 <th className="py-2 pr-3">Unit Price</th>
                 <th className="py-2 pr-3">Line Total</th>
+                {isDraft ? <th className="py-2 pr-3">Actions</th> : null}
               </tr>
             </thead>
             <tbody>
-              {po.lines.map((l) => (
-                <tr key={l.id} className="border-b border-zinc-100 dark:border-zinc-900">
-                  <td className="py-2 pr-3">{itemById.get(l.itemId)?.sku ?? l.itemId}</td>
-                  <td className="py-2 pr-3">{l.orderedQuantity}</td>
-                  <td className="py-2 pr-3">{l.receivedQuantity}</td>
-                  <td className="py-2 pr-3">{l.unitPrice}</td>
-                  <td className="py-2 pr-3">{l.lineTotal}</td>
-                </tr>
-              ))}
+              {po.lines.map((l) => {
+                const item = itemById.get(l.itemId);
+                const itemLabel = item ? `${item.sku} - ${item.name}` : l.itemId;
+                return (
+                  <PurchaseOrderLineRow
+                    key={l.id}
+                    purchaseOrderId={po.id}
+                    line={l}
+                    itemLabel={itemLabel}
+                    canEdit={isDraft}
+                  />
+                );
+              })}
               {po.lines.length === 0 ? (
                 <tr>
-                  <td className="py-6 text-sm text-zinc-500" colSpan={5}>
+                  <td className="py-6 text-sm text-zinc-500" colSpan={isDraft ? 6 : 5}>
                     No lines yet.
                   </td>
                 </tr>

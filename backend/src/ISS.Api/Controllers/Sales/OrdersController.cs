@@ -20,6 +20,7 @@ public sealed class OrdersController(IIssDbContext dbContext, SalesService sales
 
     public sealed record CreateOrderRequest(Guid CustomerId);
     public sealed record AddOrderLineRequest(Guid ItemId, decimal Quantity, decimal UnitPrice);
+    public sealed record UpdateOrderLineRequest(decimal Quantity, decimal UnitPrice);
 
     [HttpGet]
     public async Task<ActionResult<IReadOnlyList<SalesOrderSummaryDto>>> List([FromQuery] int skip = 0, [FromQuery] int take = 100, CancellationToken cancellationToken = default)
@@ -83,6 +84,20 @@ public sealed class OrdersController(IIssDbContext dbContext, SalesService sales
     public async Task<ActionResult> AddLine(Guid id, AddOrderLineRequest request, CancellationToken cancellationToken)
     {
         await salesService.AddOrderLineAsync(id, request.ItemId, request.Quantity, request.UnitPrice, cancellationToken);
+        return NoContent();
+    }
+
+    [HttpPut("{id:guid}/lines/{lineId:guid}")]
+    public async Task<ActionResult> UpdateLine(Guid id, Guid lineId, UpdateOrderLineRequest request, CancellationToken cancellationToken)
+    {
+        await salesService.UpdateOrderLineAsync(id, lineId, request.Quantity, request.UnitPrice, cancellationToken);
+        return NoContent();
+    }
+
+    [HttpDelete("{id:guid}/lines/{lineId:guid}")]
+    public async Task<ActionResult> RemoveLine(Guid id, Guid lineId, CancellationToken cancellationToken)
+    {
+        await salesService.RemoveOrderLineAsync(id, lineId, cancellationToken);
         return NoContent();
     }
 

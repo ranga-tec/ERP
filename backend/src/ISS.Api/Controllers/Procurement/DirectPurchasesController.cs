@@ -56,6 +56,7 @@ public sealed class DirectPurchasesController(
 
     public sealed record CreateDirectPurchaseRequest(Guid SupplierId, Guid WarehouseId, DateTimeOffset? PurchasedAt, string? Remarks);
     public sealed record AddDirectPurchaseLineRequest(Guid ItemId, decimal Quantity, decimal UnitPrice, decimal TaxPercent, string? BatchNumber, IReadOnlyList<string>? Serials);
+    public sealed record UpdateDirectPurchaseLineRequest(decimal Quantity, decimal UnitPrice, decimal TaxPercent, string? BatchNumber, IReadOnlyList<string>? Serials);
 
     [HttpGet]
     public async Task<ActionResult<IReadOnlyList<DirectPurchaseSummaryDto>>> List(
@@ -158,6 +159,28 @@ public sealed class DirectPurchasesController(
             request.Serials,
             cancellationToken);
 
+        return NoContent();
+    }
+
+    [HttpPut("{id:guid}/lines/{lineId:guid}")]
+    public async Task<ActionResult> UpdateLine(Guid id, Guid lineId, UpdateDirectPurchaseLineRequest request, CancellationToken cancellationToken)
+    {
+        await procurementService.UpdateDirectPurchaseLineAsync(
+            id,
+            lineId,
+            request.Quantity,
+            request.UnitPrice,
+            request.TaxPercent,
+            request.BatchNumber,
+            request.Serials,
+            cancellationToken);
+        return NoContent();
+    }
+
+    [HttpDelete("{id:guid}/lines/{lineId:guid}")]
+    public async Task<ActionResult> RemoveLine(Guid id, Guid lineId, CancellationToken cancellationToken)
+    {
+        await procurementService.RemoveDirectPurchaseLineAsync(id, lineId, cancellationToken);
         return NoContent();
     }
 

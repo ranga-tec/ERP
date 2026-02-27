@@ -67,8 +67,6 @@ public sealed class ImportController(IIssDbContext dbContext) : ControllerBase
 
         var errors = new List<string>();
 
-        await using var tx = await dbContext.DbContext.Database.BeginTransactionAsync(cancellationToken);
-
         var brandByCode = (await dbContext.Brands.ToListAsync(cancellationToken))
             .ToDictionary(x => x.Code, x => x, StringComparer.OrdinalIgnoreCase);
         var warehouseByCode = (await dbContext.Warehouses.ToListAsync(cancellationToken))
@@ -99,7 +97,6 @@ public sealed class ImportController(IIssDbContext dbContext) : ControllerBase
         }
 
         await dbContext.SaveChangesAsync(cancellationToken);
-        await tx.CommitAsync(cancellationToken);
 
         return Ok(new ImportResult(
             counters.BrandsCreated,

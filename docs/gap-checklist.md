@@ -1,45 +1,81 @@
-# Gap Checklist — ERP System Proposal (C‑Com Equipment)
+# Gap Checklist - ERP System Proposal (C-Com Equipment)
 
-Source document: `ERP System Proposal - C-Com Equipment.pdf` (dated October 8, 2025).
+Source document: `ERP System Proposal - C-Com Equipment.pdf` (October 8, 2025).
 
-This checklist maps the proposal’s stated scope (“Core Modules” + “What’s Included”) to what exists in this repo, and tracks any gaps to close.
+This checklist maps proposal scope to the implemented repository scope.
 
-Note: the proposal suggests `.NET Core + Angular + MS SQL Server`. This repo implements `.NET 8 + Next.js + PostgreSQL` per the project request; the functional scope is mapped below.
+Note:
+- Proposal stack mentions `.NET + Angular + SQL Server`.
+- This project implementation is `.NET 8 + Next.js + PostgreSQL`.
+- Functional scope is mapped below.
 
 ## Core modules (proposal)
 
-- [x] Master Data Management (Items, Customers, Suppliers, Brands)
-- [x] Procurement Cycle (RFQ, PO, GRN, Supplier Returns)
-- [x] Inventory Operations (Stock Adjustments, Transfers, Reorder Planning)
-- [x] Sales & Dispatch Management (Quotations, Orders, Invoicing)
-- [x] Service Job Management (Job Cards, Work Orders, QC)
-- [x] Spare Parts Management (Direct sales, Material Requisitions)
-- [x] Serial & Batch Tracking (traceability for equipment/parts)
-- [x] Accounts Integration (AR/AP, Payments, Credit/Debit Notes)
-  - [x] AR/AP entries
-  - [x] Payments + allocations
-  - [x] Credit notes as explicit documents + allocations
-  - [x] Debit notes as explicit documents (create AR/AP charges)
-- [ ] Advanced Reporting & Analytics (real-time dashboards)
-  - [x] Basic dashboard KPIs
-  - [ ] Additional “advanced” reports (optional; proposal is not specific)
-- [x] Multi-warehouse Support (branch operations)
-- [ ] Mobile-responsive Design (access anywhere)
-  - [x] Responsive UI foundation (Tailwind)
-  - [ ] Responsive QA pass on all modules
-- [x] Role-based Security (user permissions & audit trails)
-  - [x] API authorization by role + JWT auth
-  - [x] Audit trail table for transactional entities
-  - [x] Admin UI to manage users/roles (and/or admin endpoints)
+- [x] Master data management
+  - [x] items, customers, suppliers, brands
+  - [x] UoM and UoM conversions
+  - [x] taxes and tax conversions
+  - [x] currencies and exchange rates
+  - [x] payment types and reference forms
+- [x] Procurement cycle
+  - [x] RFQ
+  - [x] purchase requisition
+  - [x] purchase order
+  - [x] GRN
+  - [x] direct purchase
+  - [x] supplier invoice
+  - [x] supplier returns
+- [x] Inventory operations
+  - [x] stock adjustments
+  - [x] stock transfers
+  - [x] reorder planning
+- [x] Sales and dispatch management
+  - [x] quotations
+  - [x] orders
+  - [x] dispatches
+  - [x] direct dispatches
+  - [x] invoicing
+  - [x] customer returns
+- [x] Service job management
+  - [x] jobs
+  - [x] work orders
+  - [x] quality checks
+  - [x] handovers
+  - [x] service estimates
+- [x] Spare parts management
+  - [x] material requisitions
+  - [x] direct issue flows via dispatch/direct dispatch
+- [x] Serial and batch tracking
+- [x] Accounts integration
+  - [x] AR/AP
+  - [x] payments + allocations
+  - [x] credit/debit notes
+- [x] Reporting and analytics
+  - [x] dashboard KPIs
+  - [x] stock ledger
+  - [x] AR/AP aging
+  - [x] tax summary
+  - [x] service KPIs
+  - [x] costing report
+- [x] Multi-warehouse support
+- [ ] Mobile-responsive design
+  - [x] responsive foundation exists
+  - [ ] full responsive QA across every module/screen
+- [x] Role-based security and audit trails
 
-## “What’s Included” (proposal)
+## Included items (proposal)
 
 - [x] Complete source code ownership
-- [x] Database design & setup (EF Core model + `docker-compose.yml` for Postgres + pgAdmin)
-- [x] Installation on your server (deployment/run instructions)
-- [x] User manuals & documentation (module/workflow docs)
-- [x] Data migration from Excel (import tooling + templates)
-- [x] Barcode/QR code integration (labels + scanning UX)
-- [x] Email & SMS notifications (outbox + providers + event triggers)
-- [x] PDF export for all documents
-- [x] Audit trail for all transactions
+- [x] Database design and setup
+- [x] Installation/deployment documentation
+- [x] User and technical documentation
+- [x] Data import from Excel
+- [x] Barcode and QR support
+- [x] Email and SMS notification framework
+- [x] PDF export for documents
+- [x] Audit trail for transactions
+
+## Workflow depth and usability closure notes
+
+- [x] Draft line grids now support full row actions (`Edit`, `Save/Cancel`, `Delete`) across all line-based document modules.
+- [ ] Final end-user acceptance and regression walkthrough on all responsive breakpoints.

@@ -33,6 +33,7 @@ public sealed class PurchaseRequisitionsController(IIssDbContext dbContext, Proc
 
     public sealed record CreatePurchaseRequisitionRequest(string? Notes);
     public sealed record AddPurchaseRequisitionLineRequest(Guid ItemId, decimal Quantity, string? Notes);
+    public sealed record UpdatePurchaseRequisitionLineRequest(decimal Quantity, string? Notes);
     public sealed record ConvertToPurchaseOrderRequest(Guid SupplierId);
     public sealed record PurchaseOrderRefDto(Guid Id, string Number);
 
@@ -93,6 +94,20 @@ public sealed class PurchaseRequisitionsController(IIssDbContext dbContext, Proc
     public async Task<ActionResult> AddLine(Guid id, AddPurchaseRequisitionLineRequest request, CancellationToken cancellationToken)
     {
         await procurementService.AddPurchaseRequisitionLineAsync(id, request.ItemId, request.Quantity, request.Notes, cancellationToken);
+        return NoContent();
+    }
+
+    [HttpPut("{id:guid}/lines/{lineId:guid}")]
+    public async Task<ActionResult> UpdateLine(Guid id, Guid lineId, UpdatePurchaseRequisitionLineRequest request, CancellationToken cancellationToken)
+    {
+        await procurementService.UpdatePurchaseRequisitionLineAsync(id, lineId, request.Quantity, request.Notes, cancellationToken);
+        return NoContent();
+    }
+
+    [HttpDelete("{id:guid}/lines/{lineId:guid}")]
+    public async Task<ActionResult> RemoveLine(Guid id, Guid lineId, CancellationToken cancellationToken)
+    {
+        await procurementService.RemovePurchaseRequisitionLineAsync(id, lineId, cancellationToken);
         return NoContent();
     }
 

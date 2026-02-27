@@ -48,14 +48,32 @@ public sealed class DirectDispatch : AuditableEntity
 
     public DirectDispatchLine AddLine(Guid itemId, decimal quantity, string? batchNumber)
     {
-        if (Status != DirectDispatchStatus.Draft)
-        {
-            throw new DomainValidationException("Only draft direct dispatches can be edited.");
-        }
+        EnsureDraftEditable();
 
         var line = new DirectDispatchLine(Id, itemId, Guard.Positive(quantity, nameof(quantity)), batchNumber);
         Lines.Add(line);
         return line;
+    }
+
+    public void UpdateLine(Guid lineId, decimal quantity, string? batchNumber, IReadOnlyCollection<string>? serialNumbers)
+    {
+        EnsureDraftEditable();
+
+        var line = Lines.FirstOrDefault(x => x.Id == lineId)
+            ?? throw new DomainValidationException("Direct dispatch line not found.");
+
+        line.Update(quantity, batchNumber);
+        line.ReplaceSerials(serialNumbers);
+    }
+
+    public void RemoveLine(Guid lineId)
+    {
+        EnsureDraftEditable();
+
+        var line = Lines.FirstOrDefault(x => x.Id == lineId)
+            ?? throw new DomainValidationException("Direct dispatch line not found.");
+
+        Lines.Remove(line);
     }
 
     public void Post()
@@ -87,6 +105,14 @@ public sealed class DirectDispatch : AuditableEntity
 
         Status = DirectDispatchStatus.Voided;
     }
+
+    private void EnsureDraftEditable()
+    {
+        if (Status != DirectDispatchStatus.Draft)
+        {
+            throw new DomainValidationException("Only draft direct dispatches can be edited.");
+        }
+    }
 }
 
 public sealed class DirectDispatchLine : Entity
@@ -108,9 +134,29 @@ public sealed class DirectDispatchLine : Entity
 
     public List<DirectDispatchLineSerial> Serials { get; private set; } = new();
 
+    public void Update(decimal quantity, string? batchNumber)
+    {
+        Quantity = Guard.Positive(quantity, nameof(quantity));
+        BatchNumber = batchNumber?.Trim();
+    }
+
     public void AddSerial(string serialNumber)
     {
         Serials.Add(new DirectDispatchLineSerial(Id, Guard.NotNullOrWhiteSpace(serialNumber, nameof(serialNumber), maxLength: 128)));
+    }
+
+    public void ReplaceSerials(IReadOnlyCollection<string>? serialNumbers)
+    {
+        Serials.Clear();
+        if (serialNumbers is null)
+        {
+            return;
+        }
+
+        foreach (var serial in serialNumbers)
+        {
+            AddSerial(serial);
+        }
     }
 }
 

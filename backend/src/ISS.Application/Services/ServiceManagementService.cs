@@ -112,6 +112,53 @@ public sealed class ServiceManagementService(
         await dbContext.SaveChangesAsync(cancellationToken);
     }
 
+    public async Task UpdateServiceEstimateLineAsync(
+        Guid serviceEstimateId,
+        Guid lineId,
+        ServiceEstimateLineKind kind,
+        Guid? itemId,
+        string description,
+        decimal quantity,
+        decimal unitPrice,
+        decimal taxPercent,
+        CancellationToken cancellationToken = default)
+    {
+        var estimate = await dbContext.ServiceEstimates.Include(x => x.Lines)
+            .FirstOrDefaultAsync(x => x.Id == serviceEstimateId, cancellationToken)
+            ?? throw new NotFoundException("Service estimate not found.");
+
+        if (kind == ServiceEstimateLineKind.Part && itemId is not null)
+        {
+            var itemExists = await dbContext.Items.AsNoTracking().AnyAsync(x => x.Id == itemId.Value, cancellationToken);
+            if (!itemExists)
+            {
+                throw new NotFoundException("Item not found.");
+            }
+        }
+
+        if (!estimate.Lines.Any(x => x.Id == lineId))
+        {
+            throw new NotFoundException("Service estimate line not found.");
+        }
+
+        estimate.UpdateLine(lineId, kind, itemId, description, quantity, unitPrice, taxPercent);
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task RemoveServiceEstimateLineAsync(Guid serviceEstimateId, Guid lineId, CancellationToken cancellationToken = default)
+    {
+        var estimate = await dbContext.ServiceEstimates.Include(x => x.Lines)
+            .FirstOrDefaultAsync(x => x.Id == serviceEstimateId, cancellationToken)
+            ?? throw new NotFoundException("Service estimate not found.");
+
+        var line = estimate.Lines.FirstOrDefault(x => x.Id == lineId)
+            ?? throw new NotFoundException("Service estimate line not found.");
+
+        estimate.RemoveLine(lineId);
+        dbContext.DbContext.Remove(line);
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
     public async Task ApproveServiceEstimateAsync(Guid serviceEstimateId, CancellationToken cancellationToken = default)
     {
         var estimate = await dbContext.ServiceEstimates.Include(x => x.Lines)
@@ -388,6 +435,41 @@ public sealed class ServiceManagementService(
         }
 
         dbContext.DbContext.Add(line);
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task UpdateMaterialRequisitionLineAsync(
+        Guid materialRequisitionId,
+        Guid lineId,
+        decimal quantity,
+        string? batchNumber,
+        IReadOnlyCollection<string>? serialNumbers,
+        CancellationToken cancellationToken = default)
+    {
+        var mr = await dbContext.MaterialRequisitions.Include(x => x.Lines).ThenInclude(l => l.Serials)
+                     .FirstOrDefaultAsync(x => x.Id == materialRequisitionId, cancellationToken)
+                 ?? throw new NotFoundException("Material requisition not found.");
+
+        if (!mr.Lines.Any(x => x.Id == lineId))
+        {
+            throw new NotFoundException("Material requisition line not found.");
+        }
+
+        mr.UpdateLine(lineId, quantity, batchNumber, serialNumbers);
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task RemoveMaterialRequisitionLineAsync(Guid materialRequisitionId, Guid lineId, CancellationToken cancellationToken = default)
+    {
+        var mr = await dbContext.MaterialRequisitions.Include(x => x.Lines).ThenInclude(l => l.Serials)
+                     .FirstOrDefaultAsync(x => x.Id == materialRequisitionId, cancellationToken)
+                 ?? throw new NotFoundException("Material requisition not found.");
+
+        var line = mr.Lines.FirstOrDefault(x => x.Id == lineId)
+            ?? throw new NotFoundException("Material requisition line not found.");
+
+        mr.RemoveLine(lineId);
+        dbContext.DbContext.Remove(line);
         await dbContext.SaveChangesAsync(cancellationToken);
     }
 

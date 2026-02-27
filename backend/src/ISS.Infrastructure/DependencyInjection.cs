@@ -22,8 +22,21 @@ public static class DependencyInjection
             throw new InvalidOperationException("Missing connection string: ConnectionStrings:Default");
         }
 
+        var enableRetryOnFailure = configuration.GetValue("Database:EnableRetryOnFailure", true);
+        var maxRetryCount = Math.Clamp(configuration.GetValue("Database:MaxRetryCount", 5), 0, 20);
+        var maxRetryDelaySeconds = Math.Clamp(configuration.GetValue("Database:MaxRetryDelaySeconds", 10), 1, 120);
+
         services.AddDbContext<IssDbContext>(options =>
-            options.UseNpgsql(connectionString));
+            options.UseNpgsql(connectionString, npgsql =>
+            {
+                if (enableRetryOnFailure && maxRetryCount > 0)
+                {
+                    npgsql.EnableRetryOnFailure(
+                        maxRetryCount: maxRetryCount,
+                        maxRetryDelay: TimeSpan.FromSeconds(maxRetryDelaySeconds),
+                        errorCodesToAdd: null);
+                }
+            }));
 
         services.AddScoped<IIssDbContext>(sp => sp.GetRequiredService<IssDbContext>());
         services.AddScoped<IDocumentPdfService, DocumentPdfService>();
@@ -56,6 +69,9 @@ public static class DependencyInjection
                 options.Password.RequireNonAlphanumeric = false;
                 options.Password.RequireUppercase = false;
                 options.Password.RequireLowercase = false;
+                options.Lockout.AllowedForNewUsers = true;
+                options.Lockout.MaxFailedAccessAttempts = 10;
+                options.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(15);
             })
             .AddRoles<IdentityRole<Guid>>()
             .AddEntityFrameworkStores<IssDbContext>()

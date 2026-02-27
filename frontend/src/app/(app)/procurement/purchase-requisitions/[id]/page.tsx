@@ -4,6 +4,7 @@ import { Card, Table } from "@/components/ui";
 import { PurchaseRequisitionActions } from "../PurchaseRequisitionActions";
 import { PurchaseRequisitionConvertToPoForm } from "../PurchaseRequisitionConvertToPoForm";
 import { PurchaseRequisitionLineAddForm } from "../PurchaseRequisitionLineAddForm";
+import { PurchaseRequisitionLineRow } from "../PurchaseRequisitionLineRow";
 import { DocumentCollaborationPanel } from "@/components/DocumentCollaborationPanel";
 
 type PurchaseRequisitionDto = {
@@ -15,8 +16,16 @@ type PurchaseRequisitionDto = {
   lines: { id: string; itemId: string; quantity: number; notes?: string | null }[];
 };
 
-type ItemDto = { id: string; sku: string; name: string };
+type ItemDto = { id: string; sku: string; name: string; unitOfMeasure: string };
 type SupplierDto = { id: string; code: string; name: string };
+type UomDto = { id: string; code: string; name: string; isActive: boolean };
+type UnitConversionDto = {
+  id: string;
+  fromUnitOfMeasureCode: string;
+  toUnitOfMeasureCode: string;
+  factor: number;
+  isActive: boolean;
+};
 
 const statusLabel: Record<number, string> = {
   0: "Draft",
@@ -33,10 +42,12 @@ export default async function PurchaseRequisitionDetailPage({
 }) {
   const { id } = await params;
 
-  const [pr, items, suppliers] = await Promise.all([
+  const [pr, items, suppliers, uoms, conversions] = await Promise.all([
     backendFetchJson<PurchaseRequisitionDto>(`/procurement/purchase-requisitions/${id}`),
     backendFetchJson<ItemDto[]>("/items"),
     backendFetchJson<SupplierDto[]>("/suppliers"),
+    backendFetchJson<UomDto[]>("/uoms"),
+    backendFetchJson<UnitConversionDto[]>("/uom-conversions"),
   ]);
 
   const itemById = new Map(items.map((i) => [i.id, i]));
@@ -85,7 +96,12 @@ export default async function PurchaseRequisitionDetailPage({
       {isDraft ? (
         <Card>
           <div className="mb-3 text-sm font-semibold">Add line</div>
-          <PurchaseRequisitionLineAddForm purchaseRequisitionId={pr.id} items={items} />
+          <PurchaseRequisitionLineAddForm
+            purchaseRequisitionId={pr.id}
+            items={items}
+            uoms={uoms}
+            conversions={conversions}
+          />
         </Card>
       ) : null}
 
@@ -96,23 +112,30 @@ export default async function PurchaseRequisitionDetailPage({
             <thead>
               <tr className="border-b border-zinc-200 text-left text-xs uppercase tracking-wide text-zinc-500 dark:border-zinc-800">
                 <th className="py-2 pr-3">Item</th>
-                <th className="py-2 pr-3">Qty</th>
+                <th className="py-2 pr-3">Qty (Base)</th>
+                <th className="py-2 pr-3">Base UoM</th>
                 <th className="py-2 pr-3">Notes</th>
+                {isDraft ? <th className="py-2 pr-3">Actions</th> : null}
               </tr>
             </thead>
             <tbody>
-              {pr.lines.map((line) => (
-                <tr key={line.id} className="border-b border-zinc-100 dark:border-zinc-900">
-                  <td className="py-2 pr-3">
-                    {itemById.get(line.itemId)?.sku ?? line.itemId}
-                  </td>
-                  <td className="py-2 pr-3">{line.quantity}</td>
-                  <td className="py-2 pr-3 text-zinc-500">{line.notes ?? "-"}</td>
-                </tr>
-              ))}
+              {pr.lines.map((line) => {
+                const item = itemById.get(line.itemId);
+                const itemLabel = item ? `${item.sku} - ${item.name}` : line.itemId;
+                return (
+                  <PurchaseRequisitionLineRow
+                    key={line.id}
+                    purchaseRequisitionId={pr.id}
+                    line={line}
+                    itemLabel={itemLabel}
+                    baseUom={item?.unitOfMeasure ?? "-"}
+                    canEdit={isDraft}
+                  />
+                );
+              })}
               {pr.lines.length === 0 ? (
                 <tr>
-                  <td className="py-6 text-sm text-zinc-500" colSpan={3}>
+                  <td className="py-6 text-sm text-zinc-500" colSpan={isDraft ? 5 : 4}>
                     No lines yet.
                   </td>
                 </tr>
@@ -126,3 +149,4 @@ export default async function PurchaseRequisitionDetailPage({
     </div>
   );
 }
+

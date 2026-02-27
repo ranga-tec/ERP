@@ -56,6 +56,16 @@ export async function apiPut<T>(path: string, body: unknown): Promise<T> {
   return (await resp.json()) as T;
 }
 
+export async function apiPutNoContent(path: string, body: unknown): Promise<void> {
+  await ensureOk(
+    await fetch(backendUrl(path), {
+      method: "PUT",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(body),
+    }),
+  );
+}
+
 export async function apiDeleteNoContent(path: string): Promise<void> {
   await ensureOk(
     await fetch(backendUrl(path), {

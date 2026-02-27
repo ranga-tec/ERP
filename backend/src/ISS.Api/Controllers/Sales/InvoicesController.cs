@@ -20,6 +20,7 @@ public sealed class InvoicesController(IIssDbContext dbContext, SalesService sal
 
     public sealed record CreateInvoiceRequest(Guid CustomerId, DateTimeOffset? DueDate);
     public sealed record AddInvoiceLineRequest(Guid ItemId, decimal Quantity, decimal UnitPrice, decimal DiscountPercent, decimal TaxPercent);
+    public sealed record UpdateInvoiceLineRequest(decimal Quantity, decimal UnitPrice, decimal DiscountPercent, decimal TaxPercent);
 
     [HttpGet]
     public async Task<ActionResult<IReadOnlyList<InvoiceSummaryDto>>> List([FromQuery] int skip = 0, [FromQuery] int take = 100, CancellationToken cancellationToken = default)
@@ -87,6 +88,27 @@ public sealed class InvoicesController(IIssDbContext dbContext, SalesService sal
     public async Task<ActionResult> AddLine(Guid id, AddInvoiceLineRequest request, CancellationToken cancellationToken)
     {
         await salesService.AddInvoiceLineAsync(id, request.ItemId, request.Quantity, request.UnitPrice, request.DiscountPercent, request.TaxPercent, cancellationToken);
+        return NoContent();
+    }
+
+    [HttpPut("{id:guid}/lines/{lineId:guid}")]
+    public async Task<ActionResult> UpdateLine(Guid id, Guid lineId, UpdateInvoiceLineRequest request, CancellationToken cancellationToken)
+    {
+        await salesService.UpdateInvoiceLineAsync(
+            id,
+            lineId,
+            request.Quantity,
+            request.UnitPrice,
+            request.DiscountPercent,
+            request.TaxPercent,
+            cancellationToken);
+        return NoContent();
+    }
+
+    [HttpDelete("{id:guid}/lines/{lineId:guid}")]
+    public async Task<ActionResult> RemoveLine(Guid id, Guid lineId, CancellationToken cancellationToken)
+    {
+        await salesService.RemoveInvoiceLineAsync(id, lineId, cancellationToken);
         return NoContent();
     }
 

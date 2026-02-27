@@ -13,12 +13,19 @@ const sections: NavSection[] = [
     items: [
       { href: "/master-data/brands", label: "Brands" },
       { href: "/master-data/uoms", label: "UoMs" },
+      { href: "/master-data/unit-conversions", label: "UoM Conversions" },
       { href: "/master-data/item-categories", label: "Item Categories" },
       { href: "/master-data/items", label: "Items" },
       { href: "/master-data/customers", label: "Customers" },
       { href: "/master-data/suppliers", label: "Suppliers" },
       { href: "/master-data/warehouses", label: "Warehouses" },
       { href: "/master-data/reorder-settings", label: "Reorder Settings" },
+      { href: "/master-data/payment-types", label: "Payment Types" },
+      { href: "/master-data/taxes", label: "Tax Codes" },
+      { href: "/master-data/tax-conversions", label: "Tax Conversions" },
+      { href: "/master-data/currencies", label: "Currencies" },
+      { href: "/master-data/currency-rates", label: "Currency Rates" },
+      { href: "/master-data/reference-forms", label: "Reference Forms" },
     ],
   },
   {
@@ -87,6 +94,7 @@ const sections: NavSection[] = [
       { href: "/reporting/aging", label: "AR/AP Aging" },
       { href: "/reporting/tax-summary", label: "Tax Summary" },
       { href: "/reporting/service-kpis", label: "Service KPIs" },
+      { href: "/reporting/costing", label: "Costing" },
     ],
   },
   {

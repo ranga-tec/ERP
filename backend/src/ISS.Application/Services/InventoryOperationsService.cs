@@ -49,6 +49,42 @@ public sealed class InventoryOperationsService(
         await dbContext.SaveChangesAsync(cancellationToken);
     }
 
+    public async Task UpdateStockAdjustmentLineAsync(
+        Guid stockAdjustmentId,
+        Guid lineId,
+        decimal quantityDelta,
+        decimal unitCost,
+        string? batchNumber,
+        IReadOnlyCollection<string>? serialNumbers,
+        CancellationToken cancellationToken = default)
+    {
+        var adjustment = await dbContext.StockAdjustments.Include(x => x.Lines).ThenInclude(l => l.Serials)
+                             .FirstOrDefaultAsync(x => x.Id == stockAdjustmentId, cancellationToken)
+                         ?? throw new NotFoundException("Stock adjustment not found.");
+
+        if (!adjustment.Lines.Any(x => x.Id == lineId))
+        {
+            throw new NotFoundException("Stock adjustment line not found.");
+        }
+
+        adjustment.UpdateLine(lineId, quantityDelta, unitCost, batchNumber, serialNumbers);
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task RemoveStockAdjustmentLineAsync(Guid stockAdjustmentId, Guid lineId, CancellationToken cancellationToken = default)
+    {
+        var adjustment = await dbContext.StockAdjustments.Include(x => x.Lines).ThenInclude(l => l.Serials)
+                             .FirstOrDefaultAsync(x => x.Id == stockAdjustmentId, cancellationToken)
+                         ?? throw new NotFoundException("Stock adjustment not found.");
+
+        var line = adjustment.Lines.FirstOrDefault(x => x.Id == lineId)
+            ?? throw new NotFoundException("Stock adjustment line not found.");
+
+        adjustment.RemoveLine(lineId);
+        dbContext.DbContext.Remove(line);
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
     public async Task PostStockAdjustmentAsync(Guid stockAdjustmentId, CancellationToken cancellationToken = default)
     {
         var adjustment = await dbContext.StockAdjustments.Include(x => x.Lines).ThenInclude(l => l.Serials)
@@ -127,6 +163,42 @@ public sealed class InventoryOperationsService(
         }
 
         dbContext.DbContext.Add(line);
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task UpdateStockTransferLineAsync(
+        Guid stockTransferId,
+        Guid lineId,
+        decimal quantity,
+        decimal unitCost,
+        string? batchNumber,
+        IReadOnlyCollection<string>? serialNumbers,
+        CancellationToken cancellationToken = default)
+    {
+        var transfer = await dbContext.StockTransfers.Include(x => x.Lines).ThenInclude(l => l.Serials)
+                           .FirstOrDefaultAsync(x => x.Id == stockTransferId, cancellationToken)
+                       ?? throw new NotFoundException("Stock transfer not found.");
+
+        if (!transfer.Lines.Any(x => x.Id == lineId))
+        {
+            throw new NotFoundException("Stock transfer line not found.");
+        }
+
+        transfer.UpdateLine(lineId, quantity, unitCost, batchNumber, serialNumbers);
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task RemoveStockTransferLineAsync(Guid stockTransferId, Guid lineId, CancellationToken cancellationToken = default)
+    {
+        var transfer = await dbContext.StockTransfers.Include(x => x.Lines).ThenInclude(l => l.Serials)
+                           .FirstOrDefaultAsync(x => x.Id == stockTransferId, cancellationToken)
+                       ?? throw new NotFoundException("Stock transfer not found.");
+
+        var line = transfer.Lines.FirstOrDefault(x => x.Id == lineId)
+            ?? throw new NotFoundException("Stock transfer line not found.");
+
+        transfer.RemoveLine(lineId);
+        dbContext.DbContext.Remove(line);
         await dbContext.SaveChangesAsync(cancellationToken);
     }
 

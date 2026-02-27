@@ -1,4 +1,5 @@
 using ISS.Domain.Common;
+using ISS.Domain.MasterData;
 
 namespace ISS.Domain.Finance;
 
@@ -23,6 +24,9 @@ public sealed class Payment : AuditableEntity
         PaymentDirection direction,
         CounterpartyType counterpartyType,
         Guid counterpartyId,
+        Guid? paymentTypeId,
+        string currencyCode,
+        decimal exchangeRate,
         decimal amount,
         DateTimeOffset paidAt,
         string? notes)
@@ -31,6 +35,9 @@ public sealed class Payment : AuditableEntity
         Direction = direction;
         CounterpartyType = counterpartyType;
         CounterpartyId = counterpartyId;
+        PaymentTypeId = paymentTypeId;
+        CurrencyCode = Guard.NotNullOrWhiteSpace(currencyCode, nameof(CurrencyCode), maxLength: 3).ToUpperInvariant();
+        ExchangeRate = Guard.Positive(exchangeRate, nameof(ExchangeRate));
         Amount = Guard.Positive(amount, nameof(Amount));
         PaidAt = paidAt;
         Notes = notes?.Trim();
@@ -40,7 +47,12 @@ public sealed class Payment : AuditableEntity
     public PaymentDirection Direction { get; private set; }
     public CounterpartyType CounterpartyType { get; private set; }
     public Guid CounterpartyId { get; private set; }
+    public Guid? PaymentTypeId { get; private set; }
+    public PaymentType? PaymentType { get; private set; }
+    public string CurrencyCode { get; private set; } = "USD";
+    public decimal ExchangeRate { get; private set; } = 1m;
     public decimal Amount { get; private set; }
+    public decimal BaseAmount => Amount * ExchangeRate;
     public DateTimeOffset PaidAt { get; private set; }
     public string? Notes { get; private set; }
 

@@ -20,6 +20,7 @@ public sealed class QuotesController(IIssDbContext dbContext, SalesService sales
 
     public sealed record CreateQuoteRequest(Guid CustomerId, DateTimeOffset? ValidUntil);
     public sealed record AddQuoteLineRequest(Guid ItemId, decimal Quantity, decimal UnitPrice);
+    public sealed record UpdateQuoteLineRequest(decimal Quantity, decimal UnitPrice);
 
     [HttpGet]
     public async Task<ActionResult<IReadOnlyList<SalesQuoteSummaryDto>>> List([FromQuery] int skip = 0, [FromQuery] int take = 100, CancellationToken cancellationToken = default)
@@ -85,6 +86,20 @@ public sealed class QuotesController(IIssDbContext dbContext, SalesService sales
     public async Task<ActionResult> AddLine(Guid id, AddQuoteLineRequest request, CancellationToken cancellationToken)
     {
         await salesService.AddQuoteLineAsync(id, request.ItemId, request.Quantity, request.UnitPrice, cancellationToken);
+        return NoContent();
+    }
+
+    [HttpPut("{id:guid}/lines/{lineId:guid}")]
+    public async Task<ActionResult> UpdateLine(Guid id, Guid lineId, UpdateQuoteLineRequest request, CancellationToken cancellationToken)
+    {
+        await salesService.UpdateQuoteLineAsync(id, lineId, request.Quantity, request.UnitPrice, cancellationToken);
+        return NoContent();
+    }
+
+    [HttpDelete("{id:guid}/lines/{lineId:guid}")]
+    public async Task<ActionResult> RemoveLine(Guid id, Guid lineId, CancellationToken cancellationToken)
+    {
+        await salesService.RemoveQuoteLineAsync(id, lineId, cancellationToken);
         return NoContent();
     }
 

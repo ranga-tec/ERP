@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { backendFetchJson } from "@/lib/backend.server";
 import { Button, Card, Select, Table } from "@/components/ui";
+import { buildReferenceRouteMap, resolveReferenceHref } from "@/lib/reference-routing";
 
 type ApDto = {
   id: string;
@@ -13,23 +14,20 @@ type ApDto = {
 };
 
 type SupplierDto = { id: string; code: string; name: string };
-
-function referenceHref(type: string, id: string): string | null {
-  if (type === "GRN") return `/procurement/goods-receipts/${id}`;
-  if (type === "SR") return `/procurement/supplier-returns/${id}`;
-  return null;
-}
+type ReferenceFormDto = { code: string; routeTemplate?: string | null; isActive: boolean };
 
 export default async function AccountsPayablePage({ searchParams }: { searchParams?: Promise<{ outstandingOnly?: string }> }) {
   const sp = await searchParams;
   const outstandingOnly = (sp?.outstandingOnly ?? "true") !== "false";
 
-  const [entries, suppliers] = await Promise.all([
+  const [entries, suppliers, referenceForms] = await Promise.all([
     backendFetchJson<ApDto[]>(`/finance/ap?outstandingOnly=${outstandingOnly ? "true" : "false"}`),
     backendFetchJson<SupplierDto[]>("/suppliers"),
+    backendFetchJson<ReferenceFormDto[]>("/reference-forms"),
   ]);
 
   const supplierById = new Map(suppliers.map((s) => [s.id, s]));
+  const referenceRouteMap = buildReferenceRouteMap(referenceForms);
 
   return (
     <div className="space-y-6">
@@ -67,7 +65,7 @@ export default async function AccountsPayablePage({ searchParams }: { searchPara
             </thead>
             <tbody>
               {entries.map((e) => {
-                const href = referenceHref(e.referenceType, e.referenceId);
+                const href = resolveReferenceHref(referenceRouteMap, e.referenceType, e.referenceId);
                 return (
                   <tr key={e.id} className="border-b border-zinc-100 dark:border-zinc-900">
                     <td className="py-2 pr-3 text-zinc-500">{new Date(e.postedAt).toLocaleString()}</td>

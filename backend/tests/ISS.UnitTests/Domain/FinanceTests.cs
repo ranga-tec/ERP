@@ -22,9 +22,8 @@ public sealed class FinanceTests
     [Fact]
     public void Payment_Can_Allocate_To_Entries()
     {
-        var payment = new Payment("PAY0001", PaymentDirection.Incoming, CounterpartyType.Customer, Guid.NewGuid(), 100m, DateTimeOffset.UtcNow, null);
+        var payment = new Payment("PAY0001", PaymentDirection.Incoming, CounterpartyType.Customer, Guid.NewGuid(), null, "USD", 1m, 100m, DateTimeOffset.UtcNow, null);
         payment.AllocateToAr(Guid.NewGuid(), 25m);
         Assert.Single(payment.Allocations);
     }
 }
-

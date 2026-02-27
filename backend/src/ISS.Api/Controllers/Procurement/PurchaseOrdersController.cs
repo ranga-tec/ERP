@@ -20,6 +20,7 @@ public sealed class PurchaseOrdersController(IIssDbContext dbContext, Procuremen
 
     public sealed record CreatePurchaseOrderRequest(Guid SupplierId);
     public sealed record AddPurchaseOrderLineRequest(Guid ItemId, decimal Quantity, decimal UnitPrice);
+    public sealed record UpdatePurchaseOrderLineRequest(decimal Quantity, decimal UnitPrice);
 
     [HttpGet]
     public async Task<ActionResult<IReadOnlyList<PurchaseOrderSummaryDto>>> List([FromQuery] int skip = 0, [FromQuery] int take = 100, CancellationToken cancellationToken = default)
@@ -83,6 +84,20 @@ public sealed class PurchaseOrdersController(IIssDbContext dbContext, Procuremen
     public async Task<ActionResult> AddLine(Guid id, AddPurchaseOrderLineRequest request, CancellationToken cancellationToken)
     {
         await procurementService.AddPurchaseOrderLineAsync(id, request.ItemId, request.Quantity, request.UnitPrice, cancellationToken);
+        return NoContent();
+    }
+
+    [HttpPut("{id:guid}/lines/{lineId:guid}")]
+    public async Task<ActionResult> UpdateLine(Guid id, Guid lineId, UpdatePurchaseOrderLineRequest request, CancellationToken cancellationToken)
+    {
+        await procurementService.UpdatePurchaseOrderLineAsync(id, lineId, request.Quantity, request.UnitPrice, cancellationToken);
+        return NoContent();
+    }
+
+    [HttpDelete("{id:guid}/lines/{lineId:guid}")]
+    public async Task<ActionResult> DeleteLine(Guid id, Guid lineId, CancellationToken cancellationToken)
+    {
+        await procurementService.RemovePurchaseOrderLineAsync(id, lineId, cancellationToken);
         return NoContent();
     }
 

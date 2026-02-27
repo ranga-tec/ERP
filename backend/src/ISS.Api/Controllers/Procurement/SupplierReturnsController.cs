@@ -20,6 +20,7 @@ public sealed class SupplierReturnsController(IIssDbContext dbContext, Procureme
 
     public sealed record CreateSupplierReturnRequest(Guid SupplierId, Guid WarehouseId, string? Reason);
     public sealed record AddSupplierReturnLineRequest(Guid ItemId, decimal Quantity, decimal UnitCost, string? BatchNumber, IReadOnlyList<string>? Serials);
+    public sealed record UpdateSupplierReturnLineRequest(decimal Quantity, decimal UnitCost, string? BatchNumber, IReadOnlyList<string>? Serials);
 
     [HttpGet]
     public async Task<ActionResult<IReadOnlyList<SupplierReturnSummaryDto>>> List([FromQuery] int skip = 0, [FromQuery] int take = 100, CancellationToken cancellationToken = default)
@@ -86,6 +87,27 @@ public sealed class SupplierReturnsController(IIssDbContext dbContext, Procureme
     public async Task<ActionResult> AddLine(Guid id, AddSupplierReturnLineRequest request, CancellationToken cancellationToken)
     {
         await procurementService.AddSupplierReturnLineAsync(id, request.ItemId, request.Quantity, request.UnitCost, request.BatchNumber, request.Serials, cancellationToken);
+        return NoContent();
+    }
+
+    [HttpPut("{id:guid}/lines/{lineId:guid}")]
+    public async Task<ActionResult> UpdateLine(Guid id, Guid lineId, UpdateSupplierReturnLineRequest request, CancellationToken cancellationToken)
+    {
+        await procurementService.UpdateSupplierReturnLineAsync(
+            id,
+            lineId,
+            request.Quantity,
+            request.UnitCost,
+            request.BatchNumber,
+            request.Serials,
+            cancellationToken);
+        return NoContent();
+    }
+
+    [HttpDelete("{id:guid}/lines/{lineId:guid}")]
+    public async Task<ActionResult> RemoveLine(Guid id, Guid lineId, CancellationToken cancellationToken)
+    {
+        await procurementService.RemoveSupplierReturnLineAsync(id, lineId, cancellationToken);
         return NoContent();
     }
 

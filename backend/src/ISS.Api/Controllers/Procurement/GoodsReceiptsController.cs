@@ -20,6 +20,7 @@ public sealed class GoodsReceiptsController(IIssDbContext dbContext, Procurement
 
     public sealed record CreateGoodsReceiptRequest(Guid PurchaseOrderId, Guid WarehouseId);
     public sealed record AddGoodsReceiptLineRequest(Guid ItemId, decimal Quantity, decimal UnitCost, string? BatchNumber, IReadOnlyList<string>? Serials);
+    public sealed record UpdateGoodsReceiptLineRequest(decimal Quantity, decimal UnitCost, string? BatchNumber, IReadOnlyList<string>? Serials);
 
     [HttpGet]
     public async Task<ActionResult<IReadOnlyList<GoodsReceiptSummaryDto>>> List([FromQuery] int skip = 0, [FromQuery] int take = 100, CancellationToken cancellationToken = default)
@@ -85,6 +86,20 @@ public sealed class GoodsReceiptsController(IIssDbContext dbContext, Procurement
     public async Task<ActionResult> AddLine(Guid id, AddGoodsReceiptLineRequest request, CancellationToken cancellationToken)
     {
         await procurementService.AddGoodsReceiptLineAsync(id, request.ItemId, request.Quantity, request.UnitCost, request.BatchNumber, request.Serials, cancellationToken);
+        return NoContent();
+    }
+
+    [HttpPut("{id:guid}/lines/{lineId:guid}")]
+    public async Task<ActionResult> UpdateLine(Guid id, Guid lineId, UpdateGoodsReceiptLineRequest request, CancellationToken cancellationToken)
+    {
+        await procurementService.UpdateGoodsReceiptLineAsync(id, lineId, request.Quantity, request.UnitCost, request.BatchNumber, request.Serials, cancellationToken);
+        return NoContent();
+    }
+
+    [HttpDelete("{id:guid}/lines/{lineId:guid}")]
+    public async Task<ActionResult> DeleteLine(Guid id, Guid lineId, CancellationToken cancellationToken)
+    {
+        await procurementService.RemoveGoodsReceiptLineAsync(id, lineId, cancellationToken);
         return NoContent();
     }
 

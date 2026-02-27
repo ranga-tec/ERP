@@ -8,6 +8,16 @@ This is the web UI for the ISS ERP system.
 - Proxies API calls to the backend (`/api/backend/[...path]`)
 - Stores auth JWT in an HTTP-only cookie (`iss_token`)
 
+Current UI coverage includes:
+
+- Master data: items, brands, categories/subcategories, warehouses, suppliers, customers, UoMs, UoM conversions, taxes, tax conversions, currencies, currency rates, payment types, reference forms, reorder settings
+- Procurement: RFQ, purchase requisition, PO, GRN, direct purchase, supplier invoice, supplier return
+- Sales: quote, order, dispatch, direct dispatch, invoice, customer return
+- Service: equipment units, jobs, work orders, estimates, material requisitions, quality checks, handovers
+- Inventory: on-hand, reorder alerts, stock adjustments, stock transfers
+- Finance: AR/AP, payments, credit notes, debit notes
+- Reporting: dashboard, stock-ledger, aging, tax summary, service KPIs, costing
+
 ## Local Run
 
 From the `frontend/` directory:
@@ -41,6 +51,9 @@ Required `.env.local` value:
 - Use client components for forms/actions (`apiPost`, `apiPostNoContent`, `apiPostForm`)
 - Route all browser-side backend calls through `/api/backend/...`
 - Keep UI changes aligned with backend DTO shape changes in the same checkpoint
+- For draft line-document detail pages, follow the row-action standard:
+  - show line `Actions` column in draft state
+  - support `Edit`, `Save/Cancel`, and `Delete` on each row
 
 ## Build Validation
 

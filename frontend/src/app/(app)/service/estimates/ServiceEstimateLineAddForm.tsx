@@ -6,6 +6,7 @@ import { apiPostNoContent } from "@/lib/api-client";
 import { Button, Input, Select } from "@/components/ui";
 
 type ItemRef = { id: string; sku: string; name: string; defaultUnitCost: number };
+type TaxRef = { id: string; code: string; name: string; ratePercent: number; isActive: boolean };
 
 const KIND_PART = "1";
 const KIND_LABOR = "2";
@@ -13,9 +14,11 @@ const KIND_LABOR = "2";
 export function ServiceEstimateLineAddForm({
   estimateId,
   items,
+  taxes,
 }: {
   estimateId: string;
   items: ItemRef[];
+  taxes: TaxRef[];
 }) {
   const router = useRouter();
   const [kind, setKind] = useState<string>(KIND_PART);
@@ -23,11 +26,16 @@ export function ServiceEstimateLineAddForm({
   const [description, setDescription] = useState("");
   const [quantity, setQuantity] = useState("1");
   const [unitPrice, setUnitPrice] = useState("");
+  const [taxCodeId, setTaxCodeId] = useState("");
   const [taxPercent, setTaxPercent] = useState("0");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const sortedItems = items.slice().sort((a, b) => a.sku.localeCompare(b.sku));
+  const taxOptions = taxes
+    .filter((t) => t.isActive)
+    .slice()
+    .sort((a, b) => a.code.localeCompare(b.code));
   const selectedItem = itemId ? items.find((i) => i.id === itemId) : undefined;
   const isPart = kind === KIND_PART;
 
@@ -60,6 +68,7 @@ export function ServiceEstimateLineAddForm({
       setDescription("");
       setQuantity("1");
       setUnitPrice("");
+      setTaxCodeId("");
       setTaxPercent("0");
       router.refresh();
     } catch (err) {
@@ -122,6 +131,27 @@ export function ServiceEstimateLineAddForm({
             inputMode="decimal"
             placeholder={isPart && selectedItem ? selectedItem.defaultUnitCost.toString() : "0"}
           />
+        </div>
+        <div>
+          <label className="mb-1 block text-sm font-medium">Tax code</label>
+          <Select
+            value={taxCodeId}
+            onChange={(e) => {
+              const selectedId = e.target.value;
+              setTaxCodeId(selectedId);
+              const selectedTax = taxOptions.find((t) => t.id === selectedId);
+              if (selectedTax) {
+                setTaxPercent(String(selectedTax.ratePercent));
+              }
+            }}
+          >
+            <option value="">(None)</option>
+            {taxOptions.map((tax) => (
+              <option key={tax.id} value={tax.id}>
+                {tax.code} - {tax.name}
+              </option>
+            ))}
+          </Select>
         </div>
         <div>
           <label className="mb-1 block text-sm font-medium">Tax %</label>

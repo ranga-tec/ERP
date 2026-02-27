@@ -42,6 +42,7 @@ public sealed class DirectDispatchesController(
 
     public sealed record CreateDirectDispatchRequest(Guid WarehouseId, Guid? CustomerId, Guid? ServiceJobId, string? Reason);
     public sealed record AddDirectDispatchLineRequest(Guid ItemId, decimal Quantity, string? BatchNumber, IReadOnlyList<string>? Serials);
+    public sealed record UpdateDirectDispatchLineRequest(decimal Quantity, string? BatchNumber, IReadOnlyList<string>? Serials);
 
     [HttpGet]
     public async Task<ActionResult<IReadOnlyList<DirectDispatchSummaryDto>>> List([FromQuery] int skip = 0, [FromQuery] int take = 100, CancellationToken cancellationToken = default)
@@ -116,6 +117,20 @@ public sealed class DirectDispatchesController(
     public async Task<ActionResult> AddLine(Guid id, AddDirectDispatchLineRequest request, CancellationToken cancellationToken)
     {
         await salesService.AddDirectDispatchLineAsync(id, request.ItemId, request.Quantity, request.BatchNumber, request.Serials, cancellationToken);
+        return NoContent();
+    }
+
+    [HttpPut("{id:guid}/lines/{lineId:guid}")]
+    public async Task<ActionResult> UpdateLine(Guid id, Guid lineId, UpdateDirectDispatchLineRequest request, CancellationToken cancellationToken)
+    {
+        await salesService.UpdateDirectDispatchLineAsync(id, lineId, request.Quantity, request.BatchNumber, request.Serials, cancellationToken);
+        return NoContent();
+    }
+
+    [HttpDelete("{id:guid}/lines/{lineId:guid}")]
+    public async Task<ActionResult> RemoveLine(Guid id, Guid lineId, CancellationToken cancellationToken)
+    {
+        await salesService.RemoveDirectDispatchLineAsync(id, lineId, cancellationToken);
         return NoContent();
     }
 

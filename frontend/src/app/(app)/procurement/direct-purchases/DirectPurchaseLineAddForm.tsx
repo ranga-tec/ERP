@@ -6,6 +6,7 @@ import { apiPostNoContent } from "@/lib/api-client";
 import { Button, Input, Select, Textarea } from "@/components/ui";
 
 type ItemRef = { id: string; sku: string; name: string; trackingType: number; defaultUnitCost: number };
+type TaxRef = { id: string; code: string; name: string; ratePercent: number; isActive: boolean };
 
 function parseList(text: string): string[] {
   return text
@@ -17,14 +18,17 @@ function parseList(text: string): string[] {
 export function DirectPurchaseLineAddForm({
   directPurchaseId,
   items,
+  taxes,
 }: {
   directPurchaseId: string;
   items: ItemRef[];
+  taxes: TaxRef[];
 }) {
   const router = useRouter();
   const [itemId, setItemId] = useState("");
   const [quantity, setQuantity] = useState("1");
   const [unitPrice, setUnitPrice] = useState("");
+  const [taxCodeId, setTaxCodeId] = useState("");
   const [taxPercent, setTaxPercent] = useState("0");
   const [batchNumber, setBatchNumber] = useState("");
   const [serials, setSerials] = useState("");
@@ -33,6 +37,10 @@ export function DirectPurchaseLineAddForm({
 
   const selectedItem = itemId ? items.find((i) => i.id === itemId) : undefined;
   const sortedItems = items.slice().sort((a, b) => a.sku.localeCompare(b.sku));
+  const taxOptions = taxes
+    .filter((t) => t.isActive)
+    .slice()
+    .sort((a, b) => a.code.localeCompare(b.code));
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -68,6 +76,7 @@ export function DirectPurchaseLineAddForm({
       setItemId("");
       setQuantity("1");
       setUnitPrice("");
+      setTaxCodeId("");
       setTaxPercent("0");
       setBatchNumber("");
       setSerials("");
@@ -107,6 +116,27 @@ export function DirectPurchaseLineAddForm({
             inputMode="decimal"
             placeholder={selectedItem ? selectedItem.defaultUnitCost.toString() : ""}
           />
+        </div>
+        <div>
+          <label className="mb-1 block text-sm font-medium">Tax Code</label>
+          <Select
+            value={taxCodeId}
+            onChange={(e) => {
+              const selectedId = e.target.value;
+              setTaxCodeId(selectedId);
+              const selectedTax = taxOptions.find((t) => t.id === selectedId);
+              if (selectedTax) {
+                setTaxPercent(String(selectedTax.ratePercent));
+              }
+            }}
+          >
+            <option value="">(None)</option>
+            {taxOptions.map((tax) => (
+              <option key={tax.id} value={tax.id}>
+                {tax.code} - {tax.name}
+              </option>
+            ))}
+          </Select>
         </div>
         <div>
           <label className="mb-1 block text-sm font-medium">Tax %</label>

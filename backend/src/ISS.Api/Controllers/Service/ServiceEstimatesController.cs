@@ -62,6 +62,13 @@ public sealed class ServiceEstimatesController(
         decimal Quantity,
         decimal UnitPrice,
         decimal TaxPercent);
+    public sealed record UpdateServiceEstimateLineRequest(
+        ServiceEstimateLineKind Kind,
+        Guid? ItemId,
+        string Description,
+        decimal Quantity,
+        decimal UnitPrice,
+        decimal TaxPercent);
     public sealed record SendServiceEstimateRequest(string? AppBaseUrl);
 
     [HttpGet]
@@ -159,6 +166,29 @@ public sealed class ServiceEstimatesController(
             request.UnitPrice,
             request.TaxPercent,
             cancellationToken);
+        return NoContent();
+    }
+
+    [HttpPut("{id:guid}/lines/{lineId:guid}")]
+    public async Task<ActionResult> UpdateLine(Guid id, Guid lineId, UpdateServiceEstimateLineRequest request, CancellationToken cancellationToken)
+    {
+        await serviceManagementService.UpdateServiceEstimateLineAsync(
+            id,
+            lineId,
+            request.Kind,
+            request.ItemId,
+            request.Description,
+            request.Quantity,
+            request.UnitPrice,
+            request.TaxPercent,
+            cancellationToken);
+        return NoContent();
+    }
+
+    [HttpDelete("{id:guid}/lines/{lineId:guid}")]
+    public async Task<ActionResult> RemoveLine(Guid id, Guid lineId, CancellationToken cancellationToken)
+    {
+        await serviceManagementService.RemoveServiceEstimateLineAsync(id, lineId, cancellationToken);
         return NoContent();
     }
 

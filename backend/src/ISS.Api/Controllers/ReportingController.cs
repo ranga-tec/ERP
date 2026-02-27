@@ -77,6 +77,28 @@ public sealed class ReportingController(IIssDbContext dbContext, InventoryServic
         int MaterialRequisitionsPosted,
         decimal PartsConsumedQuantity);
 
+    public sealed record CostingRowDto(
+        Guid ItemId,
+        string ItemSku,
+        string ItemName,
+        string UnitOfMeasure,
+        decimal DefaultUnitCost,
+        decimal? WeightedAverageCost,
+        decimal? LastReceiptCost,
+        DateTimeOffset? LastReceiptAt,
+        decimal OnHandQuantity,
+        decimal InventoryValue,
+        decimal? CostVariancePercent);
+
+    public sealed record CostingReportDto(
+        Guid? WarehouseId,
+        Guid? ItemId,
+        string BaseCurrencyCode,
+        int Count,
+        decimal TotalOnHandQuantity,
+        decimal TotalInventoryValue,
+        IReadOnlyList<CostingRowDto> Rows);
+
     private sealed record StockLedgerRawRow(
         DateTimeOffset OccurredAt,
         DateTimeOffset CreatedAt,
@@ -402,6 +424,139 @@ public sealed class ReportingController(IIssDbContext dbContext, InventoryServic
             handoversCompleted,
             materialReqsPosted,
             partsConsumedQty));
+    }
+
+    [HttpGet("costing")]
+    public async Task<ActionResult<CostingReportDto>> Costing(
+        [FromQuery] Guid? warehouseId = null,
+        [FromQuery] Guid? itemId = null,
+        [FromQuery] int take = 500,
+        CancellationToken cancellationToken = default)
+    {
+        take = Math.Clamp(take, 1, 2000);
+
+        var baseCurrencyCode = await dbContext.Currencies.AsNoTracking()
+            .Where(x => x.IsActive && x.IsBase)
+            .Select(x => x.Code)
+            .FirstOrDefaultAsync(cancellationToken) ?? "USD";
+
+        var itemsQuery = dbContext.Items.AsNoTracking();
+        if (itemId is not null)
+        {
+            itemsQuery = itemsQuery.Where(x => x.Id == itemId.Value);
+        }
+
+        var items = await itemsQuery
+            .OrderBy(x => x.Sku)
+            .Take(take)
+            .Select(x => new
+            {
+                x.Id,
+                x.Sku,
+                x.Name,
+                x.UnitOfMeasure,
+                x.DefaultUnitCost
+            })
+            .ToListAsync(cancellationToken);
+
+        if (items.Count == 0)
+        {
+            return Ok(new CostingReportDto(
+                warehouseId,
+                itemId,
+                baseCurrencyCode,
+                0,
+                0m,
+                0m,
+                []));
+        }
+
+        var itemIds = items.Select(x => x.Id).ToList();
+        var movementsQuery = dbContext.InventoryMovements.AsNoTracking()
+            .Where(x => itemIds.Contains(x.ItemId));
+
+        if (warehouseId is not null)
+        {
+            movementsQuery = movementsQuery.Where(x => x.WarehouseId == warehouseId.Value);
+        }
+
+        var movements = await movementsQuery
+            .Select(x => new
+            {
+                x.ItemId,
+                x.Quantity,
+                x.UnitCost,
+                x.OccurredAt,
+                x.CreatedAt
+            })
+            .ToListAsync(cancellationToken);
+
+        var movementsByItem = movements
+            .GroupBy(x => x.ItemId)
+            .ToDictionary(g => g.Key, g => g.ToList());
+
+        var rows = new List<CostingRowDto>(items.Count);
+        foreach (var item in items)
+        {
+            if (!movementsByItem.TryGetValue(item.Id, out var itemMovements))
+            {
+                rows.Add(new CostingRowDto(
+                    item.Id,
+                    item.Sku,
+                    item.Name,
+                    item.UnitOfMeasure,
+                    item.DefaultUnitCost,
+                    WeightedAverageCost: null,
+                    LastReceiptCost: null,
+                    LastReceiptAt: null,
+                    OnHandQuantity: 0m,
+                    InventoryValue: 0m,
+                    CostVariancePercent: null));
+                continue;
+            }
+
+            var onHand = itemMovements.Sum(x => x.Quantity);
+            var inbound = itemMovements.Where(x => x.Quantity > 0m).ToList();
+            var inboundQty = inbound.Sum(x => x.Quantity);
+            var inboundValue = inbound.Sum(x => x.Quantity * x.UnitCost);
+            var weightedAverage = inboundQty > 0m ? inboundValue / inboundQty : (decimal?)null;
+
+            var lastReceipt = inbound
+                .OrderByDescending(x => x.OccurredAt)
+                .ThenByDescending(x => x.CreatedAt)
+                .FirstOrDefault();
+
+            var costingUnit = weightedAverage ?? item.DefaultUnitCost;
+            var value = onHand * costingUnit;
+
+            decimal? variancePercent = null;
+            if (weightedAverage is not null && item.DefaultUnitCost > 0m)
+            {
+                variancePercent = ((weightedAverage.Value - item.DefaultUnitCost) / item.DefaultUnitCost) * 100m;
+            }
+
+            rows.Add(new CostingRowDto(
+                item.Id,
+                item.Sku,
+                item.Name,
+                item.UnitOfMeasure,
+                item.DefaultUnitCost,
+                weightedAverage,
+                lastReceipt?.UnitCost,
+                lastReceipt?.OccurredAt,
+                onHand,
+                value,
+                variancePercent));
+        }
+
+        return Ok(new CostingReportDto(
+            warehouseId,
+            itemId,
+            baseCurrencyCode,
+            rows.Count,
+            rows.Sum(x => x.OnHandQuantity),
+            rows.Sum(x => x.InventoryValue),
+            rows));
     }
 
     private static AgingBuckets BucketizeAge(decimal amount, DateTimeOffset postedAt, DateTimeOffset asOf)

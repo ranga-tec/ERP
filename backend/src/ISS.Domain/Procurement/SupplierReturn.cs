@@ -34,9 +34,37 @@ public sealed class SupplierReturn : AuditableEntity
 
     public SupplierReturnLine AddLine(Guid itemId, decimal quantity, decimal unitCost, string? batchNumber)
     {
+        EnsureDraftEditable();
+
         var line = new SupplierReturnLine(Id, itemId, Guard.Positive(quantity, nameof(quantity)), Guard.NotNegative(unitCost, nameof(unitCost)), batchNumber);
         Lines.Add(line);
         return line;
+    }
+
+    public void UpdateLine(
+        Guid lineId,
+        decimal quantity,
+        decimal unitCost,
+        string? batchNumber,
+        IReadOnlyCollection<string>? serialNumbers)
+    {
+        EnsureDraftEditable();
+
+        var line = Lines.FirstOrDefault(x => x.Id == lineId)
+            ?? throw new DomainValidationException("Supplier return line not found.");
+
+        line.Update(quantity, unitCost, batchNumber);
+        line.ReplaceSerials(serialNumbers);
+    }
+
+    public void RemoveLine(Guid lineId)
+    {
+        EnsureDraftEditable();
+
+        var line = Lines.FirstOrDefault(x => x.Id == lineId)
+            ?? throw new DomainValidationException("Supplier return line not found.");
+
+        Lines.Remove(line);
     }
 
     public void Post()
@@ -68,6 +96,14 @@ public sealed class SupplierReturn : AuditableEntity
 
         Status = SupplierReturnStatus.Voided;
     }
+
+    private void EnsureDraftEditable()
+    {
+        if (Status != SupplierReturnStatus.Draft)
+        {
+            throw new DomainValidationException("Only draft supplier returns can be edited.");
+        }
+    }
 }
 
 public sealed class SupplierReturnLine : Entity
@@ -91,9 +127,30 @@ public sealed class SupplierReturnLine : Entity
 
     public List<SupplierReturnLineSerial> Serials { get; private set; } = new();
 
+    public void Update(decimal quantity, decimal unitCost, string? batchNumber)
+    {
+        Quantity = Guard.Positive(quantity, nameof(quantity));
+        UnitCost = Guard.NotNegative(unitCost, nameof(unitCost));
+        BatchNumber = batchNumber?.Trim();
+    }
+
     public void AddSerial(string serialNumber)
     {
         Serials.Add(new SupplierReturnLineSerial(Id, Guard.NotNullOrWhiteSpace(serialNumber, nameof(serialNumber), maxLength: 128)));
+    }
+
+    public void ReplaceSerials(IReadOnlyCollection<string>? serialNumbers)
+    {
+        Serials.Clear();
+        if (serialNumbers is null)
+        {
+            return;
+        }
+
+        foreach (var serial in serialNumbers)
+        {
+            AddSerial(serial);
+        }
     }
 }
 
@@ -110,4 +167,3 @@ public sealed class SupplierReturnLineSerial : Entity
     public Guid SupplierReturnLineId { get; private set; }
     public string SerialNumber { get; private set; } = null!;
 }
-

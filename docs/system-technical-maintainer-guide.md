@@ -11,8 +11,11 @@ Use this hub first, then jump into the specialized docs linked below.
 ## Current Project Status (Practical Summary)
 
 - Major ERP/service modules are implemented across backend + frontend.
-- Current work is mostly production hardening and CSV closure/completeness.
-- The system is not yet 100% CSV-exact complete.
+- Production-hardening work is active (auth, reverse-proxy safety, retries, migration discipline, test coverage).
+- Line-level editing/deleting is now implemented across all draft document detail grids.
+- Master data now includes UoM conversions, payment types, taxes/tax conversions, currencies/rates, and reference forms.
+- Reporting now includes costing in addition to dashboard, stock-ledger, aging, tax summary, and service KPIs.
+- The system is close to full CSV closure but still requires final UAT/responsive verification and workflow-depth validation.
 - Use `docs/csv-closure-audit.md` as the working status baseline for closure planning.
 
 ## Stack and Runtime Topology
@@ -26,6 +29,25 @@ Use this hub first, then jump into the specialized docs linked below.
 Typical local runtime:
 
 - Frontend (`localhost:3000`) -> Next.js proxy route -> Backend API (`localhost:5257`) -> PostgreSQL (`localhost:5433`)
+
+## Implemented Functional Coverage Snapshot
+
+- Master data:
+  - items, brands, categories/subcategories, warehouses, suppliers, customers, reorder settings
+  - UoMs, UoM conversions
+  - taxes, tax conversions
+  - currencies, currency rates
+  - payment types, reference forms
+- Procurement:
+  - RFQ, purchase requisition, purchase order, goods receipt, direct purchase, supplier invoice, supplier return
+- Sales:
+  - quote, order, dispatch, direct dispatch, invoice, customer return
+- Service:
+  - equipment units, jobs, work orders, estimates, material requisitions, quality checks, handovers
+- Finance:
+  - AR/AP, payments + allocations, credit notes, debit notes
+- Reporting:
+  - dashboard, stock ledger, aging, tax summary, service KPIs, costing
 
 ## Repository Map
 

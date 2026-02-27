@@ -3,6 +3,7 @@ import { backendFetchJson } from "@/lib/backend.server";
 import { Card, SecondaryLink, Table } from "@/components/ui";
 import { RfqActions } from "../RfqActions";
 import { RfqLineAddForm } from "../RfqLineAddForm";
+import { RfqLineRow } from "../RfqLineRow";
 import { DocumentCollaborationPanel } from "@/components/DocumentCollaborationPanel";
 
 type RfqDto = {
@@ -89,21 +90,18 @@ export default async function RfqDetailPage({ params }: { params: Promise<{ id: 
                 <th className="py-2 pr-3">Item</th>
                 <th className="py-2 pr-3">Qty</th>
                 <th className="py-2 pr-3">Notes</th>
+                {isDraft ? <th className="py-2 pr-3">Actions</th> : null}
               </tr>
             </thead>
             <tbody>
-              {rfq.lines.map((l) => (
-                <tr key={l.id} className="border-b border-zinc-100 dark:border-zinc-900">
-                  <td className="py-2 pr-3">
-                    {itemById.get(l.itemId)?.sku ?? l.itemId}
-                  </td>
-                  <td className="py-2 pr-3">{l.quantity}</td>
-                  <td className="py-2 pr-3 text-zinc-500">{l.notes ?? "—"}</td>
-                </tr>
-              ))}
+              {rfq.lines.map((l) => {
+                const item = itemById.get(l.itemId);
+                const itemLabel = item ? `${item.sku} - ${item.name}` : l.itemId;
+                return <RfqLineRow key={l.id} rfqId={rfq.id} line={l} itemLabel={itemLabel} canEdit={isDraft} />;
+              })}
               {rfq.lines.length === 0 ? (
                 <tr>
-                  <td className="py-6 text-sm text-zinc-500" colSpan={3}>
+                  <td className="py-6 text-sm text-zinc-500" colSpan={isDraft ? 4 : 3}>
                     No lines yet.
                   </td>
                 </tr>
@@ -117,3 +115,4 @@ export default async function RfqDetailPage({ params }: { params: Promise<{ id: 
     </div>
   );
 }
+

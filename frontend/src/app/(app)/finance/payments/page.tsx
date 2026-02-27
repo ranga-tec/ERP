@@ -9,22 +9,32 @@ type PaymentDto = {
   direction: number;
   counterpartyType: number;
   counterpartyId: string;
+  paymentTypeId?: string | null;
+  paymentTypeCode?: string | null;
+  paymentTypeName?: string | null;
+  currencyCode: string;
+  exchangeRate: number;
   amount: number;
+  baseAmount: number;
   paidAt: string;
   notes?: string | null;
 };
 
 type CustomerDto = { id: string; code: string; name: string };
 type SupplierDto = { id: string; code: string; name: string };
+type PaymentTypeDto = { id: string; code: string; name: string; isActive: boolean };
+type CurrencyDto = { id: string; code: string; name: string; isBase: boolean; isActive: boolean };
 
 const directionLabel: Record<number, string> = { 1: "Incoming", 2: "Outgoing" };
 const counterpartyLabel: Record<number, string> = { 1: "Customer", 2: "Supplier" };
 
 export default async function PaymentsPage() {
-  const [payments, customers, suppliers] = await Promise.all([
+  const [payments, customers, suppliers, paymentTypes, currencies] = await Promise.all([
     backendFetchJson<PaymentDto[]>("/finance/payments?take=100"),
     backendFetchJson<CustomerDto[]>("/customers"),
     backendFetchJson<SupplierDto[]>("/suppliers"),
+    backendFetchJson<PaymentTypeDto[]>("/payment-types"),
+    backendFetchJson<CurrencyDto[]>("/currencies"),
   ]);
 
   const customerById = new Map(customers.map((c) => [c.id, c]));
@@ -45,7 +55,12 @@ export default async function PaymentsPage() {
 
       <Card>
         <div className="mb-3 text-sm font-semibold">Create</div>
-        <PaymentCreateForm customers={customers} suppliers={suppliers} />
+        <PaymentCreateForm
+          customers={customers}
+          suppliers={suppliers}
+          paymentTypes={paymentTypes}
+          currencies={currencies}
+        />
       </Card>
 
       <Card>
@@ -57,8 +72,11 @@ export default async function PaymentsPage() {
                 <th className="py-2 pr-3">Reference</th>
                 <th className="py-2 pr-3">Direction</th>
                 <th className="py-2 pr-3">Counterparty</th>
+                <th className="py-2 pr-3">Payment Type</th>
+                <th className="py-2 pr-3">Currency</th>
                 <th className="py-2 pr-3">Paid</th>
                 <th className="py-2 pr-3">Amount</th>
+                <th className="py-2 pr-3">Base Amount</th>
                 <th className="py-2 pr-3">Notes</th>
               </tr>
             </thead>
@@ -75,14 +93,21 @@ export default async function PaymentsPage() {
                     {counterpartyLabel[p.counterpartyType] ?? p.counterpartyType}:{" "}
                     {counterpartyCode(p.counterpartyType, p.counterpartyId)}
                   </td>
+                  <td className="py-2 pr-3 text-zinc-500">
+                    {p.paymentTypeCode ? `${p.paymentTypeCode}${p.paymentTypeName ? ` - ${p.paymentTypeName}` : ""}` : "-"}
+                  </td>
+                  <td className="py-2 pr-3 text-zinc-500">
+                    {p.currencyCode} @ {p.exchangeRate}
+                  </td>
                   <td className="py-2 pr-3 text-zinc-500">{new Date(p.paidAt).toLocaleString()}</td>
                   <td className="py-2 pr-3">{p.amount}</td>
-                  <td className="py-2 pr-3 text-zinc-500">{p.notes ?? "—"}</td>
+                  <td className="py-2 pr-3">{p.baseAmount}</td>
+                  <td className="py-2 pr-3 text-zinc-500">{p.notes ?? "-"}</td>
                 </tr>
               ))}
               {payments.length === 0 ? (
                 <tr>
-                  <td className="py-6 text-sm text-zinc-500" colSpan={6}>
+                  <td className="py-6 text-sm text-zinc-500" colSpan={9}>
                     No payments yet.
                   </td>
                 </tr>
@@ -94,4 +119,3 @@ export default async function PaymentsPage() {
     </div>
   );
 }
-

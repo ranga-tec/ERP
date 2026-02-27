@@ -16,12 +16,66 @@ public sealed class FinanceService(
         PaymentDirection direction,
         CounterpartyType counterpartyType,
         Guid counterpartyId,
+        Guid? paymentTypeId,
+        string? currencyCode,
+        decimal? exchangeRate,
         decimal amount,
         string? notes,
         CancellationToken cancellationToken = default)
     {
+        if (paymentTypeId is not null)
+        {
+            var paymentTypeExists = await dbContext.PaymentTypes.AsNoTracking()
+                .AnyAsync(x => x.Id == paymentTypeId.Value && x.IsActive, cancellationToken);
+            if (!paymentTypeExists)
+            {
+                throw new DomainValidationException("Selected payment type is invalid or inactive.");
+            }
+        }
+
+        var baseCurrency = await dbContext.Currencies.AsNoTracking()
+            .Where(x => x.IsActive && x.IsBase)
+            .Select(x => x.Code)
+            .FirstOrDefaultAsync(cancellationToken)
+            ?? "USD";
+
+        var resolvedCurrencyCode = string.IsNullOrWhiteSpace(currencyCode)
+            ? baseCurrency
+            : currencyCode.Trim().ToUpperInvariant();
+
+        var currencyExists = await dbContext.Currencies.AsNoTracking()
+            .AnyAsync(x => x.Code == resolvedCurrencyCode && x.IsActive, cancellationToken);
+        if (!currencyExists)
+        {
+            throw new DomainValidationException("Selected currency is invalid or inactive.");
+        }
+
+        var resolvedExchangeRate = exchangeRate;
+        if (resolvedCurrencyCode == baseCurrency)
+        {
+            resolvedExchangeRate = 1m;
+        }
+        else if (resolvedExchangeRate is null)
+        {
+            resolvedExchangeRate = await (
+                from rate in dbContext.CurrencyRates.AsNoTracking()
+                join fromCurrency in dbContext.Currencies.AsNoTracking() on rate.FromCurrencyId equals fromCurrency.Id
+                join toCurrency in dbContext.Currencies.AsNoTracking() on rate.ToCurrencyId equals toCurrency.Id
+                where rate.IsActive
+                      && fromCurrency.Code == resolvedCurrencyCode
+                      && toCurrency.Code == baseCurrency
+                orderby rate.EffectiveFrom descending
+                select (decimal?)rate.Rate)
+                .FirstOrDefaultAsync(cancellationToken);
+
+            if (resolvedExchangeRate is null)
+            {
+                throw new DomainValidationException($"No active FX rate found from {resolvedCurrencyCode} to {baseCurrency}. Provide exchange rate.");
+            }
+        }
+
         var reference = await documentNumberService.NextAsync("PAY", "PAY", cancellationToken);
-        var payment = new Payment(reference, direction, counterpartyType, counterpartyId, amount, clock.UtcNow, notes);
+        var payment = new Payment(reference, direction, counterpartyType, counterpartyId, paymentTypeId, resolvedCurrencyCode, resolvedExchangeRate.Value, amount, clock.UtcNow, notes);
         await dbContext.Payments.AddAsync(payment, cancellationToken);
         await dbContext.SaveChangesAsync(cancellationToken);
         return payment.Id;

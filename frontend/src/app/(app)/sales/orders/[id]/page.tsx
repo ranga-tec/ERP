@@ -3,6 +3,7 @@ import { backendFetchJson } from "@/lib/backend.server";
 import { Card, SecondaryLink, Table } from "@/components/ui";
 import { SalesOrderActions } from "../SalesOrderActions";
 import { SalesOrderLineAddForm } from "../SalesOrderLineAddForm";
+import { SalesOrderLineRow } from "../SalesOrderLineRow";
 import { DocumentCollaborationPanel } from "@/components/DocumentCollaborationPanel";
 
 type SalesOrderDto = {
@@ -93,20 +94,18 @@ export default async function SalesOrderDetailPage({ params }: { params: Promise
                 <th className="py-2 pr-3">Qty</th>
                 <th className="py-2 pr-3">Unit Price</th>
                 <th className="py-2 pr-3">Line Total</th>
+                {isDraft ? <th className="py-2 pr-3">Actions</th> : null}
               </tr>
             </thead>
             <tbody>
-              {order.lines.map((l) => (
-                <tr key={l.id} className="border-b border-zinc-100 dark:border-zinc-900">
-                  <td className="py-2 pr-3">{itemById.get(l.itemId)?.sku ?? l.itemId}</td>
-                  <td className="py-2 pr-3">{l.quantity}</td>
-                  <td className="py-2 pr-3">{l.unitPrice}</td>
-                  <td className="py-2 pr-3">{l.lineTotal}</td>
-                </tr>
-              ))}
+              {order.lines.map((l) => {
+                const item = itemById.get(l.itemId);
+                const itemLabel = item ? `${item.sku} - ${item.name}` : l.itemId;
+                return <SalesOrderLineRow key={l.id} salesOrderId={order.id} line={l} itemLabel={itemLabel} canEdit={isDraft} />;
+              })}
               {order.lines.length === 0 ? (
                 <tr>
-                  <td className="py-6 text-sm text-zinc-500" colSpan={4}>
+                  <td className="py-6 text-sm text-zinc-500" colSpan={isDraft ? 5 : 4}>
                     No lines yet.
                   </td>
                 </tr>
@@ -120,3 +119,4 @@ export default async function SalesOrderDetailPage({ params }: { params: Promise
     </div>
   );
 }
+

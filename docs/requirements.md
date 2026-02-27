@@ -16,6 +16,21 @@ Source: `c:\Users\ASUS\Downloads\ERP System Proposal - C-Com Equipment.pdf` (dat
 - Multi-warehouse support
 - Role-based security (permissions, audit trails)
 
+## Implemented additions (current project scope)
+
+- Purchase requisitions
+- Direct purchases
+- Supplier invoices
+- Direct dispatches and customer returns
+- Service estimates and service handovers
+- UoM conversions
+- Taxes and tax conversions
+- Currencies and currency rates
+- Payment types
+- Reference forms
+- Costing report (weighted average and valuation view)
+- Line-level edit/delete actions on all draft line-document grids
+
 ## Non-functional / inclusions
 
 - Mobile-responsive UI
@@ -23,4 +38,3 @@ Source: `c:\Users\ASUS\Downloads\ERP System Proposal - C-Com Equipment.pdf` (dat
 - Email/SMS notifications
 - PDF export for documents
 - Audit trail for transactions
-

@@ -39,14 +39,37 @@ public sealed class StockTransfer : AuditableEntity
 
     public StockTransferLine AddLine(Guid itemId, decimal quantity, decimal unitCost, string? batchNumber)
     {
-        if (Status != StockTransferStatus.Draft)
-        {
-            throw new DomainValidationException("Only draft stock transfers can be edited.");
-        }
+        EnsureDraftEditable();
 
         var line = new StockTransferLine(Id, itemId, Guard.Positive(quantity, nameof(quantity)), Guard.NotNegative(unitCost, nameof(unitCost)), batchNumber);
         Lines.Add(line);
         return line;
+    }
+
+    public void UpdateLine(
+        Guid lineId,
+        decimal quantity,
+        decimal unitCost,
+        string? batchNumber,
+        IReadOnlyCollection<string>? serialNumbers)
+    {
+        EnsureDraftEditable();
+
+        var line = Lines.FirstOrDefault(x => x.Id == lineId)
+            ?? throw new DomainValidationException("Stock transfer line not found.");
+
+        line.Update(quantity, unitCost, batchNumber);
+        line.ReplaceSerials(serialNumbers);
+    }
+
+    public void RemoveLine(Guid lineId)
+    {
+        EnsureDraftEditable();
+
+        var line = Lines.FirstOrDefault(x => x.Id == lineId)
+            ?? throw new DomainValidationException("Stock transfer line not found.");
+
+        Lines.Remove(line);
     }
 
     public void Post()
@@ -78,6 +101,14 @@ public sealed class StockTransfer : AuditableEntity
 
         Status = StockTransferStatus.Voided;
     }
+
+    private void EnsureDraftEditable()
+    {
+        if (Status != StockTransferStatus.Draft)
+        {
+            throw new DomainValidationException("Only draft stock transfers can be edited.");
+        }
+    }
 }
 
 public sealed class StockTransferLine : Entity
@@ -101,9 +132,30 @@ public sealed class StockTransferLine : Entity
 
     public List<StockTransferLineSerial> Serials { get; private set; } = new();
 
+    public void Update(decimal quantity, decimal unitCost, string? batchNumber)
+    {
+        Quantity = Guard.Positive(quantity, nameof(quantity));
+        UnitCost = Guard.NotNegative(unitCost, nameof(unitCost));
+        BatchNumber = batchNumber?.Trim();
+    }
+
     public void AddSerial(string serialNumber)
     {
         Serials.Add(new StockTransferLineSerial(Id, Guard.NotNullOrWhiteSpace(serialNumber, nameof(serialNumber), maxLength: 128)));
+    }
+
+    public void ReplaceSerials(IReadOnlyCollection<string>? serialNumbers)
+    {
+        Serials.Clear();
+        if (serialNumbers is null)
+        {
+            return;
+        }
+
+        foreach (var serial in serialNumbers)
+        {
+            AddSerial(serial);
+        }
     }
 }
 
@@ -120,4 +172,3 @@ public sealed class StockTransferLineSerial : Entity
     public Guid StockTransferLineId { get; private set; }
     public string SerialNumber { get; private set; } = null!;
 }
-

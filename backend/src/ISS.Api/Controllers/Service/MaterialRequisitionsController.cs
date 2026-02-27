@@ -20,6 +20,7 @@ public sealed class MaterialRequisitionsController(IIssDbContext dbContext, Serv
 
     public sealed record CreateMaterialRequisitionRequest(Guid ServiceJobId, Guid WarehouseId);
     public sealed record AddMaterialRequisitionLineRequest(Guid ItemId, decimal Quantity, string? BatchNumber, IReadOnlyList<string>? Serials);
+    public sealed record UpdateMaterialRequisitionLineRequest(decimal Quantity, string? BatchNumber, IReadOnlyList<string>? Serials);
 
     [HttpGet]
     public async Task<ActionResult<IReadOnlyList<MaterialRequisitionSummaryDto>>> List([FromQuery] int skip = 0, [FromQuery] int take = 100, CancellationToken cancellationToken = default)
@@ -78,6 +79,26 @@ public sealed class MaterialRequisitionsController(IIssDbContext dbContext, Serv
     public async Task<ActionResult> AddLine(Guid id, AddMaterialRequisitionLineRequest request, CancellationToken cancellationToken)
     {
         await serviceManagementService.AddMaterialRequisitionLineAsync(id, request.ItemId, request.Quantity, request.BatchNumber, request.Serials, cancellationToken);
+        return NoContent();
+    }
+
+    [HttpPut("{id:guid}/lines/{lineId:guid}")]
+    public async Task<ActionResult> UpdateLine(Guid id, Guid lineId, UpdateMaterialRequisitionLineRequest request, CancellationToken cancellationToken)
+    {
+        await serviceManagementService.UpdateMaterialRequisitionLineAsync(
+            id,
+            lineId,
+            request.Quantity,
+            request.BatchNumber,
+            request.Serials,
+            cancellationToken);
+        return NoContent();
+    }
+
+    [HttpDelete("{id:guid}/lines/{lineId:guid}")]
+    public async Task<ActionResult> RemoveLine(Guid id, Guid lineId, CancellationToken cancellationToken)
+    {
+        await serviceManagementService.RemoveMaterialRequisitionLineAsync(id, lineId, cancellationToken);
         return NoContent();
     }
 

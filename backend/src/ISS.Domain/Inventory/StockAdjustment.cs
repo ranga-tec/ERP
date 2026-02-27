@@ -32,10 +32,7 @@ public sealed class StockAdjustment : AuditableEntity
 
     public StockAdjustmentLine AddLine(Guid itemId, decimal quantityDelta, decimal unitCost, string? batchNumber)
     {
-        if (Status != StockAdjustmentStatus.Draft)
-        {
-            throw new DomainValidationException("Only draft stock adjustments can be edited.");
-        }
+        EnsureDraftEditable();
 
         if (quantityDelta == 0m)
         {
@@ -45,6 +42,32 @@ public sealed class StockAdjustment : AuditableEntity
         var line = new StockAdjustmentLine(Id, itemId, quantityDelta, Guard.NotNegative(unitCost, nameof(unitCost)), batchNumber);
         Lines.Add(line);
         return line;
+    }
+
+    public void UpdateLine(
+        Guid lineId,
+        decimal quantityDelta,
+        decimal unitCost,
+        string? batchNumber,
+        IReadOnlyCollection<string>? serialNumbers)
+    {
+        EnsureDraftEditable();
+
+        var line = Lines.FirstOrDefault(x => x.Id == lineId)
+            ?? throw new DomainValidationException("Stock adjustment line not found.");
+
+        line.Update(quantityDelta, unitCost, batchNumber);
+        line.ReplaceSerials(serialNumbers);
+    }
+
+    public void RemoveLine(Guid lineId)
+    {
+        EnsureDraftEditable();
+
+        var line = Lines.FirstOrDefault(x => x.Id == lineId)
+            ?? throw new DomainValidationException("Stock adjustment line not found.");
+
+        Lines.Remove(line);
     }
 
     public void Post()
@@ -76,6 +99,14 @@ public sealed class StockAdjustment : AuditableEntity
 
         Status = StockAdjustmentStatus.Voided;
     }
+
+    private void EnsureDraftEditable()
+    {
+        if (Status != StockAdjustmentStatus.Draft)
+        {
+            throw new DomainValidationException("Only draft stock adjustments can be edited.");
+        }
+    }
 }
 
 public sealed class StockAdjustmentLine : Entity
@@ -99,9 +130,35 @@ public sealed class StockAdjustmentLine : Entity
 
     public List<StockAdjustmentLineSerial> Serials { get; private set; } = new();
 
+    public void Update(decimal quantityDelta, decimal unitCost, string? batchNumber)
+    {
+        if (quantityDelta == 0m)
+        {
+            throw new DomainValidationException("Quantity delta cannot be zero.");
+        }
+
+        QuantityDelta = quantityDelta;
+        UnitCost = Guard.NotNegative(unitCost, nameof(unitCost));
+        BatchNumber = batchNumber?.Trim();
+    }
+
     public void AddSerial(string serialNumber)
     {
         Serials.Add(new StockAdjustmentLineSerial(Id, Guard.NotNullOrWhiteSpace(serialNumber, nameof(serialNumber), maxLength: 128)));
+    }
+
+    public void ReplaceSerials(IReadOnlyCollection<string>? serialNumbers)
+    {
+        Serials.Clear();
+        if (serialNumbers is null)
+        {
+            return;
+        }
+
+        foreach (var serial in serialNumbers)
+        {
+            AddSerial(serial);
+        }
     }
 }
 
@@ -118,4 +175,3 @@ public sealed class StockAdjustmentLineSerial : Entity
     public Guid StockAdjustmentLineId { get; private set; }
     public string SerialNumber { get; private set; } = null!;
 }
-

@@ -3,6 +3,7 @@ import { backendFetchJson } from "@/lib/backend.server";
 import { Card, SecondaryLink, Table } from "@/components/ui";
 import { DirectPurchaseActions } from "../DirectPurchaseActions";
 import { DirectPurchaseLineAddForm } from "../DirectPurchaseLineAddForm";
+import { DirectPurchaseLineRow } from "../DirectPurchaseLineRow";
 import { DocumentCollaborationPanel } from "@/components/DocumentCollaborationPanel";
 
 type DirectPurchaseDto = {
@@ -33,6 +34,7 @@ type DirectPurchaseDto = {
 type SupplierDto = { id: string; code: string; name: string };
 type WarehouseDto = { id: string; code: string; name: string };
 type ItemDto = { id: string; sku: string; name: string; trackingType: number; defaultUnitCost: number };
+type TaxDto = { id: string; code: string; name: string; ratePercent: number; isActive: boolean };
 
 const statusLabel: Record<number, string> = {
   0: "Draft",
@@ -43,11 +45,12 @@ const statusLabel: Record<number, string> = {
 export default async function DirectPurchaseDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
 
-  const [dp, suppliers, warehouses, items] = await Promise.all([
+  const [dp, suppliers, warehouses, items, taxes] = await Promise.all([
     backendFetchJson<DirectPurchaseDto>(`/procurement/direct-purchases/${id}`),
     backendFetchJson<SupplierDto[]>("/suppliers"),
     backendFetchJson<WarehouseDto[]>("/warehouses"),
     backendFetchJson<ItemDto[]>("/items"),
+    backendFetchJson<TaxDto[]>("/taxes"),
   ]);
 
   const supplierById = new Map(suppliers.map((s) => [s.id, s]));
@@ -94,7 +97,7 @@ export default async function DirectPurchaseDetailPage({ params }: { params: Pro
       {isDraft ? (
         <Card>
           <div className="mb-3 text-sm font-semibold">Add line</div>
-          <DirectPurchaseLineAddForm directPurchaseId={dp.id} items={items} />
+          <DirectPurchaseLineAddForm directPurchaseId={dp.id} items={items} taxes={taxes} />
         </Card>
       ) : null}
 
@@ -111,23 +114,26 @@ export default async function DirectPurchaseDetailPage({ params }: { params: Pro
                 <th className="py-2 pr-3">Line Total</th>
                 <th className="py-2 pr-3">Batch</th>
                 <th className="py-2 pr-3">Serials</th>
+                {isDraft ? <th className="py-2 pr-3">Actions</th> : null}
               </tr>
             </thead>
             <tbody>
-              {dp.lines.map((l) => (
-                <tr key={l.id} className="border-b border-zinc-100 dark:border-zinc-900">
-                  <td className="py-2 pr-3">{itemById.get(l.itemId)?.sku ?? l.itemId}</td>
-                  <td className="py-2 pr-3">{l.quantity}</td>
-                  <td className="py-2 pr-3">{l.unitPrice}</td>
-                  <td className="py-2 pr-3">{l.taxPercent}</td>
-                  <td className="py-2 pr-3">{l.lineTotal.toFixed(2)}</td>
-                  <td className="py-2 pr-3 font-mono text-xs text-zinc-500">{l.batchNumber ?? "-"}</td>
-                  <td className="py-2 pr-3 font-mono text-xs text-zinc-500">{l.serials.length ? l.serials.join(", ") : "-"}</td>
-                </tr>
-              ))}
+              {dp.lines.map((l) => {
+                const item = itemById.get(l.itemId);
+                const itemLabel = item ? `${item.sku} - ${item.name}` : l.itemId;
+                return (
+                  <DirectPurchaseLineRow
+                    key={l.id}
+                    directPurchaseId={dp.id}
+                    line={l}
+                    itemLabel={itemLabel}
+                    canEdit={isDraft}
+                  />
+                );
+              })}
               {dp.lines.length === 0 ? (
                 <tr>
-                  <td className="py-6 text-sm text-zinc-500" colSpan={7}>
+                  <td className="py-6 text-sm text-zinc-500" colSpan={isDraft ? 8 : 7}>
                     No lines yet.
                   </td>
                 </tr>
@@ -141,3 +147,4 @@ export default async function DirectPurchaseDetailPage({ params }: { params: Pro
     </div>
   );
 }
+

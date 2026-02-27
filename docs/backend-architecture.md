@@ -178,6 +178,11 @@ Patterns:
 - Services perform entity loading, invariants, downstream side effects (inventory, AR/AP, notifications)
 - Document numbers are generated centrally (`DocumentNumberService`) and persisted via sequences
 
+Document number reliability detail:
+
+- `DocumentNumberService` runs serializable sequence updates inside EF Core execution strategy (`CreateExecutionStrategy().ExecuteAsync(...)`).
+- This is required when Npgsql retry strategy is enabled (`EnableRetryOnFailure`) so user-initiated transactions remain retriable.
+
 When extending workflows:
 
 - Add behavior first in domain entity if it is an invariant/state transition
@@ -203,6 +208,22 @@ Conventions commonly used:
 - DTO `record` types defined inside controllers
 - `NoContent()` for successful command-style actions
 - domain/service exceptions mapped by middleware to ProblemDetails
+
+Master data API surface (current):
+
+- Core: `/api/items`, `/api/brands`, `/api/warehouses`, `/api/suppliers`, `/api/customers`
+- Classification/units: `/api/item-categories`, `/api/item-subcategories`, `/api/uoms`, `/api/uom-conversions`
+- Finance-related masters: `/api/taxes`, `/api/tax-conversions`, `/api/currencies`, `/api/currency-rates`, `/api/payment-types`
+- Operational metadata: `/api/reference-forms`, `/api/reorder-settings`
+
+Line item API standard:
+
+- For line-based draft documents, controllers now expose:
+  - `POST /{id}/lines` (add)
+  - `PUT /{id}/lines/{lineId}` (edit)
+  - `DELETE /{id}/lines/{lineId}` (delete)
+- This is implemented across procurement, sales, inventory, and service line-document controllers, not only PO/GRN.
+- Application services and domain aggregates enforce draft-only line mutation rules.
 
 ### Document Collaboration and Attachments (High Change Surface)
 
@@ -243,7 +264,7 @@ Important maintainer rule:
   - item attachments (in `ItemsController`)
 - Add integration tests for both allowed and rejected cases
 
-### Reporting Module (First Wave Implemented)
+### Reporting Module (Current)
 
 Reporting endpoints live in:
 
@@ -256,11 +277,12 @@ Current endpoints include:
 - `/api/reporting/aging`
 - `/api/reporting/tax-summary`
 - `/api/reporting/service-kpis`
+- `/api/reporting/costing`
 
 Notes:
 
-- This is the first-wave operational reporting pack
-- Advanced reporting (valuation, profitability, supplier performance, export-heavy analytics) is still pending
+- The reporting pack covers operational dashboards and item-level costing visibility.
+- Advanced reporting (for example profitability slices, supplier performance, export-heavy analytics) is still pending.
 
 Implementation caution:
 

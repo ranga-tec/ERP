@@ -16,6 +16,13 @@ public interface IIssDbContext
 {
     DbSet<Brand> Brands { get; }
     DbSet<UnitOfMeasure> UnitOfMeasures { get; }
+    DbSet<UnitConversion> UnitConversions { get; }
+    DbSet<PaymentType> PaymentTypes { get; }
+    DbSet<TaxCode> TaxCodes { get; }
+    DbSet<TaxConversion> TaxConversions { get; }
+    DbSet<Currency> Currencies { get; }
+    DbSet<CurrencyRate> CurrencyRates { get; }
+    DbSet<ReferenceForm> ReferenceForms { get; }
     DbSet<ItemCategory> ItemCategories { get; }
     DbSet<ItemSubcategory> ItemSubcategories { get; }
     DbSet<Item> Items { get; }

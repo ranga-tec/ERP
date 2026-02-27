@@ -32,17 +32,42 @@ public sealed class PurchaseOrder : AuditableEntity
 
     public PurchaseOrderLine AddLine(Guid itemId, decimal quantity, decimal unitPrice)
     {
-        if (Status != PurchaseOrderStatus.Draft)
-        {
-            throw new DomainValidationException("Only draft POs can be edited.");
-        }
+        EnsureDraftEditable();
 
         var line = new PurchaseOrderLine(Id, itemId, Guard.Positive(quantity, nameof(quantity)), Guard.NotNegative(unitPrice, nameof(unitPrice)));
         Lines.Add(line);
         return line;
     }
 
+    public void UpdateLine(Guid lineId, decimal quantity, decimal unitPrice)
+    {
+        EnsureDraftEditable();
+
+        var line = Lines.FirstOrDefault(x => x.Id == lineId)
+                   ?? throw new DomainValidationException("PO line not found.");
+
+        line.Update(quantity, unitPrice);
+    }
+
+    public void RemoveLine(Guid lineId)
+    {
+        EnsureDraftEditable();
+
+        var line = Lines.FirstOrDefault(x => x.Id == lineId)
+                   ?? throw new DomainValidationException("PO line not found.");
+
+        Lines.Remove(line);
+    }
+
     public decimal Total => Lines.Sum(l => l.LineTotal);
+
+    private void EnsureDraftEditable()
+    {
+        if (Status != PurchaseOrderStatus.Draft)
+        {
+            throw new DomainValidationException("Only draft POs can be edited.");
+        }
+    }
 
     public void Approve()
     {
@@ -115,6 +140,18 @@ public sealed class PurchaseOrderLine : Entity
 
     public decimal LineTotal => OrderedQuantity * UnitPrice;
 
+    public void Update(decimal orderedQuantity, decimal unitPrice)
+    {
+        var nextQuantity = Guard.Positive(orderedQuantity, nameof(orderedQuantity));
+        if (nextQuantity < ReceivedQuantity)
+        {
+            throw new DomainValidationException("Ordered quantity cannot be less than received quantity.");
+        }
+
+        OrderedQuantity = nextQuantity;
+        UnitPrice = Guard.NotNegative(unitPrice, nameof(unitPrice));
+    }
+
     public decimal ApplyReceipt(decimal quantity)
     {
         var remainingForLine = OrderedQuantity - ReceivedQuantity;
@@ -128,4 +165,3 @@ public sealed class PurchaseOrderLine : Entity
         return quantity - applied;
     }
 }
-

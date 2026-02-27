@@ -13,6 +13,28 @@
 - Frontend architecture + UI integration: `docs/frontend-architecture.md`
 - Agent change playbook + troubleshooting: `docs/agent-change-playbook.md`
 - CSV closure tracking baseline: `docs/csv-closure-audit.md`
+- Session handover notes: `docs/next-session-notes.md`
+
+## Current Scope Highlights
+
+- Master data includes:
+  - items, brands, categories/subcategories, warehouses, suppliers, customers
+  - UoMs and UoM conversions
+  - taxes and tax conversions
+  - currencies and FX rates
+  - payment types and reference forms
+- Procurement includes:
+  - RFQ, purchase requisition, purchase order, goods receipt, direct purchase, supplier invoice, supplier return
+- Sales includes:
+  - quote, order, dispatch, direct dispatch, invoice, customer return
+- Service includes:
+  - equipment units, jobs, work orders, estimates, material requisitions, quality checks, handovers
+- Finance includes:
+  - AR/AP, payments + allocations, credit notes, debit notes
+- Reporting includes:
+  - dashboard, stock ledger, aging, tax summary, service KPIs, costing
+- Draft document detail pages with line grids now support row actions:
+  - `Edit`, `Save/Cancel`, and `Delete` (PO/GRN and all other line-based documents)
 
 ## Local infrastructure (PostgreSQL)
 From the repo root:

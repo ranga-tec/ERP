@@ -20,6 +20,7 @@ public sealed class RfqsController(IIssDbContext dbContext, ProcurementService p
 
     public sealed record CreateRfqRequest(Guid SupplierId);
     public sealed record AddRfqLineRequest(Guid ItemId, decimal Quantity, string? Notes);
+    public sealed record UpdateRfqLineRequest(decimal Quantity, string? Notes);
 
     [HttpGet]
     public async Task<ActionResult<IReadOnlyList<RfqSummaryDto>>> List([FromQuery] int skip = 0, [FromQuery] int take = 100, CancellationToken cancellationToken = default)
@@ -76,6 +77,20 @@ public sealed class RfqsController(IIssDbContext dbContext, ProcurementService p
     public async Task<ActionResult> AddLine(Guid id, AddRfqLineRequest request, CancellationToken cancellationToken)
     {
         await procurementService.AddRfqLineAsync(id, request.ItemId, request.Quantity, request.Notes, cancellationToken);
+        return NoContent();
+    }
+
+    [HttpPut("{id:guid}/lines/{lineId:guid}")]
+    public async Task<ActionResult> UpdateLine(Guid id, Guid lineId, UpdateRfqLineRequest request, CancellationToken cancellationToken)
+    {
+        await procurementService.UpdateRfqLineAsync(id, lineId, request.Quantity, request.Notes, cancellationToken);
+        return NoContent();
+    }
+
+    [HttpDelete("{id:guid}/lines/{lineId:guid}")]
+    public async Task<ActionResult> RemoveLine(Guid id, Guid lineId, CancellationToken cancellationToken)
+    {
+        await procurementService.RemoveRfqLineAsync(id, lineId, cancellationToken);
         return NoContent();
     }
 

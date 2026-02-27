@@ -3,6 +3,7 @@ import { backendFetchJson } from "@/lib/backend.server";
 import { Card, SecondaryLink, Table } from "@/components/ui";
 import { GoodsReceiptActions } from "../GoodsReceiptActions";
 import { GoodsReceiptLineAddForm } from "../GoodsReceiptLineAddForm";
+import { GoodsReceiptLineRow } from "../GoodsReceiptLineRow";
 import { DocumentCollaborationPanel } from "@/components/DocumentCollaborationPanel";
 
 type GoodsReceiptDto = {
@@ -95,23 +96,26 @@ export default async function GoodsReceiptDetailPage({ params }: { params: Promi
                 <th className="py-2 pr-3">Unit Cost</th>
                 <th className="py-2 pr-3">Batch</th>
                 <th className="py-2 pr-3">Serials</th>
+                {isDraft ? <th className="py-2 pr-3">Actions</th> : null}
               </tr>
             </thead>
             <tbody>
-              {grn.lines.map((l) => (
-                <tr key={l.id} className="border-b border-zinc-100 dark:border-zinc-900">
-                  <td className="py-2 pr-3">{itemById.get(l.itemId)?.sku ?? l.itemId}</td>
-                  <td className="py-2 pr-3">{l.quantity}</td>
-                  <td className="py-2 pr-3">{l.unitCost}</td>
-                  <td className="py-2 pr-3 font-mono text-xs text-zinc-500">{l.batchNumber ?? "—"}</td>
-                  <td className="py-2 pr-3 font-mono text-xs text-zinc-500">
-                    {l.serials?.length ? l.serials.join(", ") : "—"}
-                  </td>
-                </tr>
-              ))}
+              {grn.lines.map((l) => {
+                const item = itemById.get(l.itemId);
+                const itemLabel = item ? `${item.sku} - ${item.name}` : l.itemId;
+                return (
+                  <GoodsReceiptLineRow
+                    key={l.id}
+                    goodsReceiptId={grn.id}
+                    line={l}
+                    itemLabel={itemLabel}
+                    canEdit={isDraft}
+                  />
+                );
+              })}
               {grn.lines.length === 0 ? (
                 <tr>
-                  <td className="py-6 text-sm text-zinc-500" colSpan={5}>
+                  <td className="py-6 text-sm text-zinc-500" colSpan={isDraft ? 6 : 5}>
                     No lines yet.
                   </td>
                 </tr>
@@ -125,3 +129,4 @@ export default async function GoodsReceiptDetailPage({ params }: { params: Promi
     </div>
   );
 }
+

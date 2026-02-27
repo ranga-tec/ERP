@@ -32,9 +32,36 @@ public sealed class MaterialRequisition : AuditableEntity
 
     public MaterialRequisitionLine AddLine(Guid itemId, decimal quantity, string? batchNumber)
     {
+        EnsureDraftEditable();
+
         var line = new MaterialRequisitionLine(Id, itemId, Guard.Positive(quantity, nameof(quantity)), batchNumber);
         Lines.Add(line);
         return line;
+    }
+
+    public void UpdateLine(
+        Guid lineId,
+        decimal quantity,
+        string? batchNumber,
+        IReadOnlyCollection<string>? serialNumbers)
+    {
+        EnsureDraftEditable();
+
+        var line = Lines.FirstOrDefault(x => x.Id == lineId)
+            ?? throw new DomainValidationException("Material requisition line not found.");
+
+        line.Update(quantity, batchNumber);
+        line.ReplaceSerials(serialNumbers);
+    }
+
+    public void RemoveLine(Guid lineId)
+    {
+        EnsureDraftEditable();
+
+        var line = Lines.FirstOrDefault(x => x.Id == lineId)
+            ?? throw new DomainValidationException("Material requisition line not found.");
+
+        Lines.Remove(line);
     }
 
     public void Post()
@@ -66,6 +93,14 @@ public sealed class MaterialRequisition : AuditableEntity
 
         Status = MaterialRequisitionStatus.Voided;
     }
+
+    private void EnsureDraftEditable()
+    {
+        if (Status != MaterialRequisitionStatus.Draft)
+        {
+            throw new DomainValidationException("Only draft material requisitions can be edited.");
+        }
+    }
 }
 
 public sealed class MaterialRequisitionLine : Entity
@@ -87,9 +122,29 @@ public sealed class MaterialRequisitionLine : Entity
 
     public List<MaterialRequisitionLineSerial> Serials { get; private set; } = new();
 
+    public void Update(decimal quantity, string? batchNumber)
+    {
+        Quantity = Guard.Positive(quantity, nameof(quantity));
+        BatchNumber = batchNumber?.Trim();
+    }
+
     public void AddSerial(string serialNumber)
     {
         Serials.Add(new MaterialRequisitionLineSerial(Id, Guard.NotNullOrWhiteSpace(serialNumber, nameof(serialNumber), maxLength: 128)));
+    }
+
+    public void ReplaceSerials(IReadOnlyCollection<string>? serialNumbers)
+    {
+        Serials.Clear();
+        if (serialNumbers is null)
+        {
+            return;
+        }
+
+        foreach (var serial in serialNumbers)
+        {
+            AddSerial(serial);
+        }
     }
 }
 
@@ -106,4 +161,3 @@ public sealed class MaterialRequisitionLineSerial : Entity
     public Guid MaterialRequisitionLineId { get; private set; }
     public string SerialNumber { get; private set; } = null!;
 }
-

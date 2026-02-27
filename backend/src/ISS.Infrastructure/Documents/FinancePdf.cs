@@ -12,6 +12,7 @@ public sealed partial class DocumentPdfService
     {
         var payment = await _dbContext.Payments.AsNoTracking()
                           .Include(x => x.Allocations)
+                          .Include(x => x.PaymentType)
                           .FirstOrDefaultAsync(x => x.Id == id, cancellationToken)
                       ?? throw new NotFoundException("Payment not found.");
 
@@ -26,8 +27,10 @@ public sealed partial class DocumentPdfService
         {
             ("Direction", payment.Direction.ToString()),
             ("Counterparty", payment.CounterpartyType == CounterpartyType.Customer ? CustomerLabel(customer, payment.CounterpartyId) : SupplierLabel(supplier, payment.CounterpartyId)),
+            ("Payment Type", payment.PaymentType is null ? "-" : $"{payment.PaymentType.Code} - {payment.PaymentType.Name}"),
+            ("Currency", $"{payment.CurrencyCode} @ {payment.ExchangeRate}"),
             ("Paid at", payment.PaidAt.ToString("u")),
-            ("Amount", FormatMoney(payment.Amount)),
+            ("Amount", $"{FormatMoney(payment.Amount)} (base {FormatMoney(payment.BaseAmount)})"),
             ("Notes", payment.Notes ?? "")
         };
 

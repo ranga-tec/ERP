@@ -2,6 +2,28 @@
 
 Generated from code inspection on 2026-02-22.
 
+## 0. Implementation Update (2026-02-27)
+
+The following scope was implemented after the previous documentation snapshot:
+
+- Master-data expansion:
+  - payment types
+  - taxes
+  - tax conversions
+  - currencies
+  - currency rates
+  - reference forms
+  - UoM conversion management surfaced in UI and API
+- Reporting expansion:
+  - costing report endpoint and UI page (`/api/reporting/costing`, `/reporting/costing`)
+- Draft line-grid action completeness:
+  - all line-based document detail screens now support row-level `Edit`, `Save/Cancel`, and `Delete`
+  - backend line APIs were standardized with `POST/PUT/DELETE` line endpoints across procurement, sales, inventory, and service documents
+- Reliability fix:
+  - `DocumentNumberService` sequence transaction now runs inside EF execution strategy for compatibility with Npgsql retry strategy
+
+These updates supersede earlier notes that line editing/deleting existed only for PO/GRN.
+
 ## 0. Implementation Update (2026-02-22, Post-Documentation)
 
 The following features were implemented after the initial documentation pass:

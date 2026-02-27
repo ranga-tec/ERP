@@ -14,11 +14,48 @@ namespace ISS.Api.Controllers.Finance;
 [Authorize(Roles = $"{Roles.Admin},{Roles.Finance}")]
 public sealed class PaymentsController(IIssDbContext dbContext, FinanceService financeService, IDocumentPdfService pdfService) : ControllerBase
 {
-    public sealed record PaymentDto(Guid Id, string ReferenceNumber, PaymentDirection Direction, CounterpartyType CounterpartyType, Guid CounterpartyId, decimal Amount, DateTimeOffset PaidAt, string? Notes);
+    public sealed record PaymentDto(
+        Guid Id,
+        string ReferenceNumber,
+        PaymentDirection Direction,
+        CounterpartyType CounterpartyType,
+        Guid CounterpartyId,
+        Guid? PaymentTypeId,
+        string? PaymentTypeCode,
+        string? PaymentTypeName,
+        string CurrencyCode,
+        decimal ExchangeRate,
+        decimal Amount,
+        decimal BaseAmount,
+        DateTimeOffset PaidAt,
+        string? Notes);
     public sealed record PaymentAllocationDto(Guid Id, Guid? AccountsReceivableEntryId, Guid? AccountsPayableEntryId, decimal Amount);
-    public sealed record PaymentDetailDto(Guid Id, string ReferenceNumber, PaymentDirection Direction, CounterpartyType CounterpartyType, Guid CounterpartyId, decimal Amount, DateTimeOffset PaidAt, string? Notes, IReadOnlyList<PaymentAllocationDto> Allocations);
+    public sealed record PaymentDetailDto(
+        Guid Id,
+        string ReferenceNumber,
+        PaymentDirection Direction,
+        CounterpartyType CounterpartyType,
+        Guid CounterpartyId,
+        Guid? PaymentTypeId,
+        string? PaymentTypeCode,
+        string? PaymentTypeName,
+        string CurrencyCode,
+        decimal ExchangeRate,
+        decimal Amount,
+        decimal BaseAmount,
+        DateTimeOffset PaidAt,
+        string? Notes,
+        IReadOnlyList<PaymentAllocationDto> Allocations);
 
-    public sealed record CreatePaymentRequest(PaymentDirection Direction, CounterpartyType CounterpartyType, Guid CounterpartyId, decimal Amount, string? Notes);
+    public sealed record CreatePaymentRequest(
+        PaymentDirection Direction,
+        CounterpartyType CounterpartyType,
+        Guid CounterpartyId,
+        Guid? PaymentTypeId,
+        string? CurrencyCode,
+        decimal? ExchangeRate,
+        decimal Amount,
+        string? Notes);
     public sealed record AllocateRequest(Guid EntryId, decimal Amount);
 
     [HttpGet]
@@ -31,7 +68,21 @@ public sealed class PaymentsController(IIssDbContext dbContext, FinanceService f
             .OrderByDescending(x => x.PaidAt)
             .Skip(skip)
             .Take(take)
-            .Select(x => new PaymentDto(x.Id, x.ReferenceNumber, x.Direction, x.CounterpartyType, x.CounterpartyId, x.Amount, x.PaidAt, x.Notes))
+            .Select(x => new PaymentDto(
+                x.Id,
+                x.ReferenceNumber,
+                x.Direction,
+                x.CounterpartyType,
+                x.CounterpartyId,
+                x.PaymentTypeId,
+                x.PaymentType != null ? x.PaymentType.Code : null,
+                x.PaymentType != null ? x.PaymentType.Name : null,
+                x.CurrencyCode,
+                x.ExchangeRate,
+                x.Amount,
+                x.BaseAmount,
+                x.PaidAt,
+                x.Notes))
             .ToListAsync(cancellationToken);
 
         return Ok(payments);
@@ -42,6 +93,7 @@ public sealed class PaymentsController(IIssDbContext dbContext, FinanceService f
     {
         var payment = await dbContext.Payments.AsNoTracking()
             .Include(x => x.Allocations)
+            .Include(x => x.PaymentType)
             .FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
 
         if (payment is null)
@@ -55,7 +107,13 @@ public sealed class PaymentsController(IIssDbContext dbContext, FinanceService f
             payment.Direction,
             payment.CounterpartyType,
             payment.CounterpartyId,
+            payment.PaymentTypeId,
+            payment.PaymentType?.Code,
+            payment.PaymentType?.Name,
+            payment.CurrencyCode,
+            payment.ExchangeRate,
             payment.Amount,
+            payment.BaseAmount,
             payment.PaidAt,
             payment.Notes,
             payment.Allocations.Select(a => new PaymentAllocationDto(a.Id, a.AccountsReceivableEntryId, a.AccountsPayableEntryId, a.Amount)).ToList()));
@@ -71,11 +129,34 @@ public sealed class PaymentsController(IIssDbContext dbContext, FinanceService f
     [HttpPost]
     public async Task<ActionResult<PaymentDto>> Create(CreatePaymentRequest request, CancellationToken cancellationToken)
     {
-        var id = await financeService.CreatePaymentAsync(request.Direction, request.CounterpartyType, request.CounterpartyId, request.Amount, request.Notes, cancellationToken);
+        var id = await financeService.CreatePaymentAsync(
+            request.Direction,
+            request.CounterpartyType,
+            request.CounterpartyId,
+            request.PaymentTypeId,
+            request.CurrencyCode,
+            request.ExchangeRate,
+            request.Amount,
+            request.Notes,
+            cancellationToken);
 
         var payment = await dbContext.Payments.AsNoTracking()
             .Where(x => x.Id == id)
-            .Select(x => new PaymentDto(x.Id, x.ReferenceNumber, x.Direction, x.CounterpartyType, x.CounterpartyId, x.Amount, x.PaidAt, x.Notes))
+            .Select(x => new PaymentDto(
+                x.Id,
+                x.ReferenceNumber,
+                x.Direction,
+                x.CounterpartyType,
+                x.CounterpartyId,
+                x.PaymentTypeId,
+                x.PaymentType != null ? x.PaymentType.Code : null,
+                x.PaymentType != null ? x.PaymentType.Name : null,
+                x.CurrencyCode,
+                x.ExchangeRate,
+                x.Amount,
+                x.BaseAmount,
+                x.PaidAt,
+                x.Notes))
             .FirstAsync(cancellationToken);
 
         return Ok(payment);

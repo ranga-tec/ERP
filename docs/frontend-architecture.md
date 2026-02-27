@@ -125,3 +125,45 @@ When adding/removing modules or report pages:
 - ensure page route exists
 - verify role access (frontend may still render link even if backend denies)
 
+### Implemented Module Coverage (UI)
+
+Master data pages include:
+
+- brands, items, item categories/subcategories, warehouses, suppliers, customers, reorder settings
+- UoMs, UoM conversions
+- taxes, tax conversions
+- currencies, currency rates
+- payment types, reference forms
+
+Transactional module pages include:
+
+- procurement: RFQ, purchase requisition, PO, GRN, direct purchase, supplier invoice, supplier return
+- sales: quote, order, dispatch, direct dispatch, invoice, customer return
+- service: equipment units, jobs, work orders, estimates, material requisitions, quality checks, handovers
+- inventory: on-hand, reorder alerts, stock adjustments, stock transfers
+- finance: AR/AP, payments, credit notes, debit notes
+- reporting: dashboard, stock-ledger, aging, tax summary, service KPIs, costing
+
+### Line Grid Action Standard (Draft Documents)
+
+The detail pages for line-based documents use a common behavior:
+
+- show `Add line` card only while the document is draft/editable
+- show an `Actions` column in the line grid while draft
+- each line row supports `Edit`, `Save/Cancel`, and `Delete`
+
+This is now applied consistently across all line-document detail pages (not just PO/GRN).
+
+### Costing Reporting UI
+
+Costing UI route:
+
+- `/reporting/costing`
+
+This page supports:
+
+- warehouse/item filters
+- default vs weighted average cost display
+- last receipt cost/date display
+- on-hand and inventory valuation totals in base currency
+

@@ -3,6 +3,7 @@ import { backendFetchJson } from "@/lib/backend.server";
 import { Card, SecondaryLink, Table } from "@/components/ui";
 import { MaterialRequisitionActions } from "../MaterialRequisitionActions";
 import { MaterialRequisitionLineAddForm } from "../MaterialRequisitionLineAddForm";
+import { MaterialRequisitionLineRow } from "../MaterialRequisitionLineRow";
 import { DocumentCollaborationPanel } from "@/components/DocumentCollaborationPanel";
 
 type MaterialRequisitionDto = {
@@ -91,22 +92,26 @@ export default async function MaterialRequisitionDetailPage({ params }: { params
                 <th className="py-2 pr-3">Qty</th>
                 <th className="py-2 pr-3">Batch</th>
                 <th className="py-2 pr-3">Serials</th>
+                {isDraft ? <th className="py-2 pr-3">Actions</th> : null}
               </tr>
             </thead>
             <tbody>
-              {mr.lines.map((l) => (
-                <tr key={l.id} className="border-b border-zinc-100 dark:border-zinc-900">
-                  <td className="py-2 pr-3">{itemById.get(l.itemId)?.sku ?? l.itemId}</td>
-                  <td className="py-2 pr-3">{l.quantity}</td>
-                  <td className="py-2 pr-3 font-mono text-xs text-zinc-500">{l.batchNumber ?? "—"}</td>
-                  <td className="py-2 pr-3 font-mono text-xs text-zinc-500">
-                    {l.serials?.length ? l.serials.join(", ") : "—"}
-                  </td>
-                </tr>
-              ))}
+              {mr.lines.map((l) => {
+                const item = itemById.get(l.itemId);
+                const itemLabel = item ? `${item.sku} - ${item.name}` : l.itemId;
+                return (
+                  <MaterialRequisitionLineRow
+                    key={l.id}
+                    requisitionId={mr.id}
+                    line={l}
+                    itemLabel={itemLabel}
+                    canEdit={isDraft}
+                  />
+                );
+              })}
               {mr.lines.length === 0 ? (
                 <tr>
-                  <td className="py-6 text-sm text-zinc-500" colSpan={4}>
+                  <td className="py-6 text-sm text-zinc-500" colSpan={isDraft ? 5 : 4}>
                     No lines yet.
                   </td>
                 </tr>
@@ -120,3 +125,4 @@ export default async function MaterialRequisitionDetailPage({ params }: { params
     </div>
   );
 }
+

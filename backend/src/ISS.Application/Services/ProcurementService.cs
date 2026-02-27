@@ -34,6 +34,33 @@ public sealed class ProcurementService(
         await dbContext.SaveChangesAsync(cancellationToken);
     }
 
+    public async Task UpdateRfqLineAsync(Guid rfqId, Guid lineId, decimal quantity, string? notes, CancellationToken cancellationToken = default)
+    {
+        var rfq = await dbContext.RequestForQuotes.Include(x => x.Lines).FirstOrDefaultAsync(x => x.Id == rfqId, cancellationToken)
+                  ?? throw new NotFoundException("RFQ not found.");
+
+        if (!rfq.Lines.Any(x => x.Id == lineId))
+        {
+            throw new NotFoundException("RFQ line not found.");
+        }
+
+        rfq.UpdateLine(lineId, quantity, notes);
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task RemoveRfqLineAsync(Guid rfqId, Guid lineId, CancellationToken cancellationToken = default)
+    {
+        var rfq = await dbContext.RequestForQuotes.Include(x => x.Lines).FirstOrDefaultAsync(x => x.Id == rfqId, cancellationToken)
+                  ?? throw new NotFoundException("RFQ not found.");
+
+        var line = rfq.Lines.FirstOrDefault(x => x.Id == lineId)
+            ?? throw new NotFoundException("RFQ line not found.");
+
+        rfq.RemoveLine(lineId);
+        dbContext.DbContext.Remove(line);
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
     public async Task MarkRfqSentAsync(Guid rfqId, CancellationToken cancellationToken = default)
     {
         var rfq = await dbContext.RequestForQuotes.Include(x => x.Lines).FirstOrDefaultAsync(x => x.Id == rfqId, cancellationToken)
@@ -59,6 +86,41 @@ public sealed class ProcurementService(
 
         var line = pr.AddLine(itemId, quantity, notes);
         dbContext.DbContext.Add(line);
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task UpdatePurchaseRequisitionLineAsync(
+        Guid purchaseRequisitionId,
+        Guid lineId,
+        decimal quantity,
+        string? notes,
+        CancellationToken cancellationToken = default)
+    {
+        var pr = await dbContext.PurchaseRequisitions.Include(x => x.Lines).FirstOrDefaultAsync(x => x.Id == purchaseRequisitionId, cancellationToken)
+                 ?? throw new NotFoundException("Purchase requisition not found.");
+
+        if (!pr.Lines.Any(x => x.Id == lineId))
+        {
+            throw new NotFoundException("Purchase requisition line not found.");
+        }
+
+        pr.UpdateLine(lineId, quantity, notes);
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task RemovePurchaseRequisitionLineAsync(
+        Guid purchaseRequisitionId,
+        Guid lineId,
+        CancellationToken cancellationToken = default)
+    {
+        var pr = await dbContext.PurchaseRequisitions.Include(x => x.Lines).FirstOrDefaultAsync(x => x.Id == purchaseRequisitionId, cancellationToken)
+                 ?? throw new NotFoundException("Purchase requisition not found.");
+
+        var line = pr.Lines.FirstOrDefault(x => x.Id == lineId)
+            ?? throw new NotFoundException("Purchase requisition line not found.");
+
+        pr.RemoveLine(lineId);
+        dbContext.DbContext.Remove(line);
         await dbContext.SaveChangesAsync(cancellationToken);
     }
 
@@ -170,6 +232,38 @@ public sealed class ProcurementService(
         await dbContext.SaveChangesAsync(cancellationToken);
     }
 
+    public async Task UpdatePurchaseOrderLineAsync(
+        Guid purchaseOrderId,
+        Guid lineId,
+        decimal quantity,
+        decimal unitPrice,
+        CancellationToken cancellationToken = default)
+    {
+        var po = await dbContext.PurchaseOrders.Include(x => x.Lines).FirstOrDefaultAsync(x => x.Id == purchaseOrderId, cancellationToken)
+                 ?? throw new NotFoundException("Purchase order not found.");
+
+        if (!po.Lines.Any(x => x.Id == lineId))
+        {
+            throw new NotFoundException("Purchase order line not found.");
+        }
+
+        po.UpdateLine(lineId, quantity, unitPrice);
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task RemovePurchaseOrderLineAsync(Guid purchaseOrderId, Guid lineId, CancellationToken cancellationToken = default)
+    {
+        var po = await dbContext.PurchaseOrders.Include(x => x.Lines).FirstOrDefaultAsync(x => x.Id == purchaseOrderId, cancellationToken)
+                 ?? throw new NotFoundException("Purchase order not found.");
+
+        var line = po.Lines.FirstOrDefault(x => x.Id == lineId)
+                   ?? throw new NotFoundException("Purchase order line not found.");
+
+        po.RemoveLine(lineId);
+        dbContext.DbContext.Remove(line);
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
     public async Task ApprovePurchaseOrderAsync(Guid purchaseOrderId, CancellationToken cancellationToken = default)
     {
         var po = await dbContext.PurchaseOrders.Include(x => x.Lines).FirstOrDefaultAsync(x => x.Id == purchaseOrderId, cancellationToken)
@@ -253,6 +347,43 @@ public sealed class ProcurementService(
         await dbContext.SaveChangesAsync(cancellationToken);
     }
 
+    public async Task UpdateDirectPurchaseLineAsync(
+        Guid directPurchaseId,
+        Guid lineId,
+        decimal quantity,
+        decimal unitPrice,
+        decimal taxPercent,
+        string? batchNumber,
+        IReadOnlyCollection<string>? serialNumbers,
+        CancellationToken cancellationToken = default)
+    {
+        var dp = await dbContext.DirectPurchases.Include(x => x.Lines).ThenInclude(x => x.Serials)
+                     .FirstOrDefaultAsync(x => x.Id == directPurchaseId, cancellationToken)
+                 ?? throw new NotFoundException("Direct purchase not found.");
+
+        if (!dp.Lines.Any(x => x.Id == lineId))
+        {
+            throw new NotFoundException("Direct purchase line not found.");
+        }
+
+        dp.UpdateLine(lineId, quantity, unitPrice, taxPercent, batchNumber, serialNumbers);
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task RemoveDirectPurchaseLineAsync(Guid directPurchaseId, Guid lineId, CancellationToken cancellationToken = default)
+    {
+        var dp = await dbContext.DirectPurchases.Include(x => x.Lines).ThenInclude(x => x.Serials)
+                     .FirstOrDefaultAsync(x => x.Id == directPurchaseId, cancellationToken)
+                 ?? throw new NotFoundException("Direct purchase not found.");
+
+        var line = dp.Lines.FirstOrDefault(x => x.Id == lineId)
+            ?? throw new NotFoundException("Direct purchase line not found.");
+
+        dp.RemoveLine(lineId);
+        dbContext.DbContext.Remove(line);
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
     public async Task PostDirectPurchaseAsync(Guid directPurchaseId, CancellationToken cancellationToken = default)
     {
         var dp = await dbContext.DirectPurchases.Include(x => x.Lines).ThenInclude(x => x.Serials)
@@ -312,6 +443,42 @@ public sealed class ProcurementService(
         }
 
         dbContext.DbContext.Add(line);
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task UpdateGoodsReceiptLineAsync(
+        Guid goodsReceiptId,
+        Guid lineId,
+        decimal quantity,
+        decimal unitCost,
+        string? batchNumber,
+        IReadOnlyCollection<string>? serialNumbers,
+        CancellationToken cancellationToken = default)
+    {
+        var grn = await dbContext.GoodsReceipts.Include(x => x.Lines).ThenInclude(x => x.Serials)
+                      .FirstOrDefaultAsync(x => x.Id == goodsReceiptId, cancellationToken)
+                  ?? throw new NotFoundException("Goods receipt not found.");
+
+        if (!grn.Lines.Any(x => x.Id == lineId))
+        {
+            throw new NotFoundException("Goods receipt line not found.");
+        }
+
+        grn.UpdateLine(lineId, quantity, unitCost, batchNumber, serialNumbers);
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task RemoveGoodsReceiptLineAsync(Guid goodsReceiptId, Guid lineId, CancellationToken cancellationToken = default)
+    {
+        var grn = await dbContext.GoodsReceipts.Include(x => x.Lines).ThenInclude(x => x.Serials)
+                      .FirstOrDefaultAsync(x => x.Id == goodsReceiptId, cancellationToken)
+                  ?? throw new NotFoundException("Goods receipt not found.");
+
+        var line = grn.Lines.FirstOrDefault(x => x.Id == lineId)
+                   ?? throw new NotFoundException("Goods receipt line not found.");
+
+        grn.RemoveLine(lineId);
+        dbContext.DbContext.Remove(line);
         await dbContext.SaveChangesAsync(cancellationToken);
     }
 
@@ -487,6 +654,42 @@ public sealed class ProcurementService(
         }
 
         dbContext.DbContext.Add(line);
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task UpdateSupplierReturnLineAsync(
+        Guid supplierReturnId,
+        Guid lineId,
+        decimal quantity,
+        decimal unitCost,
+        string? batchNumber,
+        IReadOnlyCollection<string>? serialNumbers,
+        CancellationToken cancellationToken = default)
+    {
+        var sr = await dbContext.SupplierReturns.Include(x => x.Lines).ThenInclude(l => l.Serials)
+                     .FirstOrDefaultAsync(x => x.Id == supplierReturnId, cancellationToken)
+                 ?? throw new NotFoundException("Supplier return not found.");
+
+        if (!sr.Lines.Any(x => x.Id == lineId))
+        {
+            throw new NotFoundException("Supplier return line not found.");
+        }
+
+        sr.UpdateLine(lineId, quantity, unitCost, batchNumber, serialNumbers);
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task RemoveSupplierReturnLineAsync(Guid supplierReturnId, Guid lineId, CancellationToken cancellationToken = default)
+    {
+        var sr = await dbContext.SupplierReturns.Include(x => x.Lines).ThenInclude(l => l.Serials)
+                     .FirstOrDefaultAsync(x => x.Id == supplierReturnId, cancellationToken)
+                 ?? throw new NotFoundException("Supplier return not found.");
+
+        var line = sr.Lines.FirstOrDefault(x => x.Id == lineId)
+            ?? throw new NotFoundException("Supplier return line not found.");
+
+        sr.RemoveLine(lineId);
+        dbContext.DbContext.Remove(line);
         await dbContext.SaveChangesAsync(cancellationToken);
     }
 

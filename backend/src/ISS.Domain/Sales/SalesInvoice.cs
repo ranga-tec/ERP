@@ -33,10 +33,7 @@ public sealed class SalesInvoice : AuditableEntity
 
     public SalesInvoiceLine AddLine(Guid itemId, decimal quantity, decimal unitPrice, decimal discountPercent, decimal taxPercent)
     {
-        if (Status != SalesInvoiceStatus.Draft)
-        {
-            throw new DomainValidationException("Only draft invoices can be edited.");
-        }
+        EnsureDraftEditable();
 
         var line = new SalesInvoiceLine(
             Id,
@@ -48,6 +45,31 @@ public sealed class SalesInvoice : AuditableEntity
 
         Lines.Add(line);
         return line;
+    }
+
+    public void UpdateLine(
+        Guid lineId,
+        decimal quantity,
+        decimal unitPrice,
+        decimal discountPercent,
+        decimal taxPercent)
+    {
+        EnsureDraftEditable();
+
+        var line = Lines.FirstOrDefault(x => x.Id == lineId)
+            ?? throw new DomainValidationException("Invoice line not found.");
+
+        line.Update(quantity, unitPrice, discountPercent, taxPercent);
+    }
+
+    public void RemoveLine(Guid lineId)
+    {
+        EnsureDraftEditable();
+
+        var line = Lines.FirstOrDefault(x => x.Id == lineId)
+            ?? throw new DomainValidationException("Invoice line not found.");
+
+        Lines.Remove(line);
     }
 
     public decimal Subtotal => Lines.Sum(l => l.LineSubtotal);
@@ -93,6 +115,14 @@ public sealed class SalesInvoice : AuditableEntity
 
         Status = SalesInvoiceStatus.Voided;
     }
+
+    private void EnsureDraftEditable()
+    {
+        if (Status != SalesInvoiceStatus.Draft)
+        {
+            throw new DomainValidationException("Only draft invoices can be edited.");
+        }
+    }
 }
 
 public sealed class SalesInvoiceLine : Entity
@@ -116,6 +146,14 @@ public sealed class SalesInvoiceLine : Entity
     public decimal DiscountPercent { get; private set; }
     public decimal TaxPercent { get; private set; }
 
+    public void Update(decimal quantity, decimal unitPrice, decimal discountPercent, decimal taxPercent)
+    {
+        Quantity = Guard.Positive(quantity, nameof(quantity));
+        UnitPrice = Guard.NotNegative(unitPrice, nameof(unitPrice));
+        DiscountPercent = Guard.NotNegative(discountPercent, nameof(discountPercent));
+        TaxPercent = Guard.NotNegative(taxPercent, nameof(taxPercent));
+    }
+
     public decimal LineSubtotal
     {
         get
@@ -129,4 +167,3 @@ public sealed class SalesInvoiceLine : Entity
     public decimal LineTax => LineSubtotal * (TaxPercent / 100m);
     public decimal LineTotal => LineSubtotal + LineTax;
 }
-

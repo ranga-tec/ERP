@@ -75,6 +75,15 @@ Optional:
 
 - `Jwt__Issuer`, `Jwt__Audience`
 - `Database__InitializationMode` (`EnsureCreated` | `Migrate` | `None`)
+- `Database__EnableRetryOnFailure` (`true` | `false`; default `true`)
+- `Database__MaxRetryCount` (default `5`)
+- `Database__MaxRetryDelaySeconds` (default `10`)
+- `Auth__AllowSelfRegistration` (`true` | `false`; default is `true` in Development and `false` in non-Development)
+- `Auth__AllowFirstUserBootstrapRegistration` (`true` | `false`; default `true`)
+- `ReverseProxy__Enabled` (`true` | `false`; default `false`)
+- `ReverseProxy__ForwardLimit` (default `1`)
+- `ReverseProxy__KnownProxies__0`, `ReverseProxy__KnownProxies__1`, ...
+- `ReverseProxy__KnownNetworks__0`, `ReverseProxy__KnownNetworks__1`, ... (CIDR format, e.g. `10.0.0.0/8`)
 - `Notifications__Enabled`, `Notifications__EmailEnabled`, `Notifications__SmsEnabled`
 - `Notifications__Dispatcher__Enabled` (enables background outbox dispatcher)
 - `Notifications__Email__Smtp__Host` / `Port` / `User` / `Password` / `FromEmail` / `FromName`
@@ -87,13 +96,17 @@ If Docker/Testcontainers cannot access the Docker daemon from your shell/session
 ```powershell
 $env:ISS_INTEGRATIONTESTS_CONNECTION_STRING="Host=localhost;Port=5433;Database=iss_integration_local;Username=pgadmin;Password=vesper"
 $env:ISS_INTEGRATIONTESTS_RESET_EXISTING_DB="1"
-dotnet test .\backend\tests\ISS.IntegrationTests\ISS.IntegrationTests.csproj -c Release --nologo
+$env:ISS_INTEGRATIONTESTS_HTTP_TIMEOUT_SECONDS="60"
+$env:ISS_INTEGRATIONTESTS_DB_READY_TIMEOUT_SECONDS="60"
+dotnet test .\backend\tests\ISS.IntegrationTests\ISS.IntegrationTests.csproj -c Release --nologo --no-build --logger "console;verbosity=minimal"
 ```
 
 Notes:
 
 - `ISS_INTEGRATIONTESTS_RESET_EXISTING_DB=1` will delete and recreate the target database before each run.
 - Use a dedicated test database name (not your main `iss` database).
+- Build once before `--no-build` runs:
+  - `dotnet build .\backend\tests\ISS.IntegrationTests\ISS.IntegrationTests.csproj -c Release --nologo`
 
 ## Frontend (Web)
 
@@ -107,15 +120,59 @@ npm run dev
 Environment variables:
 
 - `ISS_API_BASE_URL` (defaults to `http://localhost:5257`)
+- `ISS_BACKEND_PROXY_TIMEOUT_MS` (optional; backend proxy upstream timeout in ms, default `30000`)
+- `NEXT_PUBLIC_ISS_ALLOW_SELF_REGISTRATION` (optional; login UI register link is enabled by default in dev and disabled by default in production)
 
 ## Production notes (high level)
 
 - Put the API behind HTTPS (reverse proxy like Nginx/IIS) and set a strong `Jwt__Key`.
+- If running behind a reverse proxy/load balancer, set:
+  - `ReverseProxy__Enabled=true`
+  - trusted proxy IPs/networks via `ReverseProxy__KnownProxies__*` and/or `ReverseProxy__KnownNetworks__*`
+  - `ReverseProxy__ForwardLimit` matching your hop count
+- For production, keep self-registration disabled unless intentionally required:
+  - Backend default in non-Development already disables self-registration after initial bootstrap
+  - Set `Auth__AllowFirstUserBootstrapRegistration=false` after provisioning the first admin user
+  - Only set `Auth__AllowSelfRegistration=true` if you intentionally support open signup
+  - Set `NEXT_PUBLIC_ISS_ALLOW_SELF_REGISTRATION=true` only when you want the login UI to expose the register option
 - Run the notification dispatcher only when SMTP/Twilio are configured and `Notifications__Dispatcher__Enabled=true`.
 - Persist backend file storage (`App_Data/`) across deployments. This now includes:
   - `App_Data/item-attachments`
   - `App_Data/document-attachments`
 - Include both the PostgreSQL database and `App_Data/` in backups (same retention policy window).
+
+### Reverse Proxy Examples
+
+Nginx -> Kestrel on same host:
+
+```nginx
+location / {
+  proxy_pass         http://127.0.0.1:5257;
+  proxy_set_header   Host $host;
+  proxy_set_header   X-Forwarded-For $proxy_add_x_forwarded_for;
+  proxy_set_header   X-Forwarded-Proto $scheme;
+}
+```
+
+API environment for this topology:
+
+```powershell
+$env:ReverseProxy__Enabled="true"
+$env:ReverseProxy__ForwardLimit="1"
+$env:ReverseProxy__KnownProxies__0="127.0.0.1"
+```
+
+Load balancer/private network in front of API:
+
+```powershell
+$env:ReverseProxy__Enabled="true"
+$env:ReverseProxy__ForwardLimit="2"
+$env:ReverseProxy__KnownNetworks__0="10.0.0.0/8"
+$env:ReverseProxy__KnownNetworks__1="172.16.0.0/12"
+$env:ReverseProxy__KnownNetworks__2="192.168.0.0/16"
+```
+
+Only trust proxy addresses that are actually under your control.
 
 ### Attachment upload safety limits
 

@@ -31,14 +31,39 @@ public sealed class RequestForQuote : AuditableEntity
 
     public RequestForQuoteLine AddLine(Guid itemId, decimal quantity, string? notes)
     {
-        if (Status != RequestForQuoteStatus.Draft)
-        {
-            throw new DomainValidationException("Only draft RFQs can be edited.");
-        }
+        EnsureDraftEditable();
 
         var line = new RequestForQuoteLine(Id, itemId, Guard.Positive(quantity, nameof(quantity)), notes);
         Lines.Add(line);
         return line;
+    }
+
+    public void UpdateLine(Guid lineId, decimal quantity, string? notes)
+    {
+        EnsureDraftEditable();
+
+        var line = Lines.FirstOrDefault(x => x.Id == lineId)
+            ?? throw new DomainValidationException("RFQ line not found.");
+
+        line.Update(quantity, notes);
+    }
+
+    public void RemoveLine(Guid lineId)
+    {
+        EnsureDraftEditable();
+
+        var line = Lines.FirstOrDefault(x => x.Id == lineId)
+            ?? throw new DomainValidationException("RFQ line not found.");
+
+        Lines.Remove(line);
+    }
+
+    private void EnsureDraftEditable()
+    {
+        if (Status != RequestForQuoteStatus.Draft)
+        {
+            throw new DomainValidationException("Only draft RFQs can be edited.");
+        }
     }
 
     public void MarkSent()
@@ -88,5 +113,10 @@ public sealed class RequestForQuoteLine : Entity
     public Guid ItemId { get; private set; }
     public decimal Quantity { get; private set; }
     public string? Notes { get; private set; }
-}
 
+    public void Update(decimal quantity, string? notes)
+    {
+        Quantity = Guard.Positive(quantity, nameof(quantity));
+        Notes = notes?.Trim();
+    }
+}

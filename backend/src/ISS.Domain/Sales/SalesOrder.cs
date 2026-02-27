@@ -32,14 +32,39 @@ public sealed class SalesOrder : AuditableEntity
 
     public SalesOrderLine AddLine(Guid itemId, decimal quantity, decimal unitPrice)
     {
-        if (Status != SalesOrderStatus.Draft)
-        {
-            throw new DomainValidationException("Only draft sales orders can be edited.");
-        }
+        EnsureDraftEditable();
 
         var line = new SalesOrderLine(Id, itemId, Guard.Positive(quantity, nameof(quantity)), Guard.NotNegative(unitPrice, nameof(unitPrice)));
         Lines.Add(line);
         return line;
+    }
+
+    public void UpdateLine(Guid lineId, decimal quantity, decimal unitPrice)
+    {
+        EnsureDraftEditable();
+
+        var line = Lines.FirstOrDefault(x => x.Id == lineId)
+            ?? throw new DomainValidationException("Sales order line not found.");
+
+        line.Update(quantity, unitPrice);
+    }
+
+    public void RemoveLine(Guid lineId)
+    {
+        EnsureDraftEditable();
+
+        var line = Lines.FirstOrDefault(x => x.Id == lineId)
+            ?? throw new DomainValidationException("Sales order line not found.");
+
+        Lines.Remove(line);
+    }
+
+    private void EnsureDraftEditable()
+    {
+        if (Status != SalesOrderStatus.Draft)
+        {
+            throw new DomainValidationException("Only draft sales orders can be edited.");
+        }
     }
 
     public decimal Total => Lines.Sum(l => l.LineTotal);
@@ -108,5 +133,10 @@ public sealed class SalesOrderLine : Entity
     public decimal UnitPrice { get; private set; }
 
     public decimal LineTotal => Quantity * UnitPrice;
-}
 
+    public void Update(decimal quantity, decimal unitPrice)
+    {
+        Quantity = Guard.Positive(quantity, nameof(quantity));
+        UnitPrice = Guard.NotNegative(unitPrice, nameof(unitPrice));
+    }
+}

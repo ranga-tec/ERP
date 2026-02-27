@@ -4,6 +4,7 @@ import { Card, SecondaryLink, Table } from "@/components/ui";
 import { DocumentCollaborationPanel } from "@/components/DocumentCollaborationPanel";
 import { ServiceEstimateActions } from "../ServiceEstimateActions";
 import { ServiceEstimateLineAddForm } from "../ServiceEstimateLineAddForm";
+import { ServiceEstimateLineRow } from "../ServiceEstimateLineRow";
 
 type ServiceEstimateDto = {
   id: string;
@@ -33,6 +34,7 @@ type ServiceEstimateDto = {
 type ServiceJobDto = { id: string; number: string; customerId: string; status: number };
 type CustomerDto = { id: string; code: string; name: string };
 type ItemDto = { id: string; sku: string; name: string; defaultUnitCost: number };
+type TaxDto = { id: string; code: string; name: string; ratePercent: number; isActive: boolean };
 
 const statusLabel: Record<number, string> = {
   0: "Draft",
@@ -48,11 +50,12 @@ const kindLabel: Record<number, string> = {
 export default async function ServiceEstimateDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
 
-  const [estimate, jobs, customers, items] = await Promise.all([
+  const [estimate, jobs, customers, items, taxes] = await Promise.all([
     backendFetchJson<ServiceEstimateDto>(`/service/estimates/${id}`),
     backendFetchJson<ServiceJobDto[]>("/service/jobs?take=500"),
     backendFetchJson<CustomerDto[]>("/customers"),
     backendFetchJson<ItemDto[]>("/items"),
+    backendFetchJson<TaxDto[]>("/taxes"),
   ]);
 
   const jobById = new Map(jobs.map((j) => [j.id, j]));
@@ -105,7 +108,7 @@ export default async function ServiceEstimateDetailPage({ params }: { params: Pr
       {isDraft ? (
         <Card>
           <div className="mb-3 text-sm font-semibold">Add line</div>
-          <ServiceEstimateLineAddForm estimateId={estimate.id} items={items} />
+          <ServiceEstimateLineAddForm estimateId={estimate.id} items={items} taxes={taxes} />
         </Card>
       ) : null}
 
@@ -129,23 +132,27 @@ export default async function ServiceEstimateDetailPage({ params }: { params: Pr
                 <th className="py-2 pr-3">Unit Price</th>
                 <th className="py-2 pr-3">Tax %</th>
                 <th className="py-2 pr-3">Line Total</th>
+                {isDraft ? <th className="py-2 pr-3">Actions</th> : null}
               </tr>
             </thead>
             <tbody>
-              {estimate.lines.map((line) => (
-                <tr key={line.id} className="border-b border-zinc-100 dark:border-zinc-900">
-                  <td className="py-2 pr-3">{kindLabel[line.kind] ?? line.kind}</td>
-                  <td className="py-2 pr-3">{line.itemId ? itemById.get(line.itemId)?.sku ?? line.itemId : "-"}</td>
-                  <td className="py-2 pr-3 text-zinc-500">{line.description}</td>
-                  <td className="py-2 pr-3">{line.quantity}</td>
-                  <td className="py-2 pr-3">{line.unitPrice.toFixed(2)}</td>
-                  <td className="py-2 pr-3">{line.taxPercent.toFixed(2)}</td>
-                  <td className="py-2 pr-3">{line.lineTotal.toFixed(2)}</td>
-                </tr>
-              ))}
+              {estimate.lines.map((line) => {
+                const item = line.itemId ? itemById.get(line.itemId) : null;
+                const itemLabel = item ? `${item.sku} - ${item.name}` : (line.itemId ?? "-");
+                return (
+                  <ServiceEstimateLineRow
+                    key={line.id}
+                    estimateId={estimate.id}
+                    line={line}
+                    kindLabel={kindLabel[line.kind] ?? String(line.kind)}
+                    itemLabel={itemLabel}
+                    canEdit={isDraft}
+                  />
+                );
+              })}
               {estimate.lines.length === 0 ? (
                 <tr>
-                  <td className="py-6 text-sm text-zinc-500" colSpan={7}>
+                  <td className="py-6 text-sm text-zinc-500" colSpan={isDraft ? 8 : 7}>
                     No lines yet.
                   </td>
                 </tr>
@@ -163,3 +170,4 @@ export default async function ServiceEstimateDetailPage({ params }: { params: Pr
     </div>
   );
 }
+

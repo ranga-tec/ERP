@@ -3,6 +3,7 @@ import { backendFetchJson } from "@/lib/backend.server";
 import { Card, SecondaryLink, Table } from "@/components/ui";
 import { InvoiceActions } from "../InvoiceActions";
 import { InvoiceLineAddForm } from "../InvoiceLineAddForm";
+import { InvoiceLineRow } from "../InvoiceLineRow";
 import { DocumentCollaborationPanel } from "@/components/DocumentCollaborationPanel";
 
 type InvoiceDto = {
@@ -28,6 +29,7 @@ type InvoiceDto = {
 
 type CustomerDto = { id: string; code: string; name: string };
 type ItemDto = { id: string; sku: string; name: string };
+type TaxDto = { id: string; code: string; name: string; ratePercent: number; isActive: boolean };
 
 const statusLabel: Record<number, string> = {
   0: "Draft",
@@ -39,10 +41,11 @@ const statusLabel: Record<number, string> = {
 export default async function InvoiceDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
 
-  const [invoice, customers, items] = await Promise.all([
+  const [invoice, customers, items, taxes] = await Promise.all([
     backendFetchJson<InvoiceDto>(`/sales/invoices/${id}`),
     backendFetchJson<CustomerDto[]>("/customers"),
     backendFetchJson<ItemDto[]>("/items"),
+    backendFetchJson<TaxDto[]>("/taxes"),
   ]);
 
   const customerById = new Map(customers.map((c) => [c.id, c]));
@@ -93,7 +96,7 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
       {isDraft ? (
         <Card>
           <div className="mb-3 text-sm font-semibold">Add line</div>
-          <InvoiceLineAddForm invoiceId={invoice.id} items={items} />
+          <InvoiceLineAddForm invoiceId={invoice.id} items={items} taxes={taxes} />
         </Card>
       ) : null}
 
@@ -109,22 +112,26 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
                 <th className="py-2 pr-3">Disc %</th>
                 <th className="py-2 pr-3">Tax %</th>
                 <th className="py-2 pr-3">Line Total</th>
+                {isDraft ? <th className="py-2 pr-3">Actions</th> : null}
               </tr>
             </thead>
             <tbody>
-              {invoice.lines.map((l) => (
-                <tr key={l.id} className="border-b border-zinc-100 dark:border-zinc-900">
-                  <td className="py-2 pr-3">{itemById.get(l.itemId)?.sku ?? l.itemId}</td>
-                  <td className="py-2 pr-3">{l.quantity}</td>
-                  <td className="py-2 pr-3">{l.unitPrice}</td>
-                  <td className="py-2 pr-3">{l.discountPercent}</td>
-                  <td className="py-2 pr-3">{l.taxPercent}</td>
-                  <td className="py-2 pr-3">{l.lineTotal}</td>
-                </tr>
-              ))}
+              {invoice.lines.map((l) => {
+                const item = itemById.get(l.itemId);
+                const itemLabel = item ? `${item.sku} - ${item.name}` : l.itemId;
+                return (
+                  <InvoiceLineRow
+                    key={l.id}
+                    invoiceId={invoice.id}
+                    line={l}
+                    itemLabel={itemLabel}
+                    canEdit={isDraft}
+                  />
+                );
+              })}
               {invoice.lines.length === 0 ? (
                 <tr>
-                  <td className="py-6 text-sm text-zinc-500" colSpan={6}>
+                  <td className="py-6 text-sm text-zinc-500" colSpan={isDraft ? 7 : 6}>
                     No lines yet.
                   </td>
                 </tr>
@@ -138,3 +145,4 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
     </div>
   );
 }
+

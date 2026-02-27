@@ -34,6 +34,38 @@ public sealed class SalesService(
         await dbContext.SaveChangesAsync(cancellationToken);
     }
 
+    public async Task UpdateQuoteLineAsync(
+        Guid quoteId,
+        Guid lineId,
+        decimal quantity,
+        decimal unitPrice,
+        CancellationToken cancellationToken = default)
+    {
+        var quote = await dbContext.SalesQuotes.Include(x => x.Lines).FirstOrDefaultAsync(x => x.Id == quoteId, cancellationToken)
+                    ?? throw new NotFoundException("Sales quote not found.");
+
+        if (!quote.Lines.Any(x => x.Id == lineId))
+        {
+            throw new NotFoundException("Sales quote line not found.");
+        }
+
+        quote.UpdateLine(lineId, quantity, unitPrice);
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task RemoveQuoteLineAsync(Guid quoteId, Guid lineId, CancellationToken cancellationToken = default)
+    {
+        var quote = await dbContext.SalesQuotes.Include(x => x.Lines).FirstOrDefaultAsync(x => x.Id == quoteId, cancellationToken)
+                    ?? throw new NotFoundException("Sales quote not found.");
+
+        var line = quote.Lines.FirstOrDefault(x => x.Id == lineId)
+            ?? throw new NotFoundException("Sales quote line not found.");
+
+        quote.RemoveLine(lineId);
+        dbContext.DbContext.Remove(line);
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
     public async Task MarkQuoteSentAsync(Guid quoteId, CancellationToken cancellationToken = default)
     {
         var quote = await dbContext.SalesQuotes.Include(x => x.Lines).FirstOrDefaultAsync(x => x.Id == quoteId, cancellationToken)
@@ -59,6 +91,38 @@ public sealed class SalesService(
 
         var line = order.AddLine(itemId, quantity, unitPrice);
         dbContext.DbContext.Add(line);
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task UpdateOrderLineAsync(
+        Guid orderId,
+        Guid lineId,
+        decimal quantity,
+        decimal unitPrice,
+        CancellationToken cancellationToken = default)
+    {
+        var order = await dbContext.SalesOrders.Include(x => x.Lines).FirstOrDefaultAsync(x => x.Id == orderId, cancellationToken)
+                    ?? throw new NotFoundException("Sales order not found.");
+
+        if (!order.Lines.Any(x => x.Id == lineId))
+        {
+            throw new NotFoundException("Sales order line not found.");
+        }
+
+        order.UpdateLine(lineId, quantity, unitPrice);
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task RemoveOrderLineAsync(Guid orderId, Guid lineId, CancellationToken cancellationToken = default)
+    {
+        var order = await dbContext.SalesOrders.Include(x => x.Lines).FirstOrDefaultAsync(x => x.Id == orderId, cancellationToken)
+                    ?? throw new NotFoundException("Sales order not found.");
+
+        var line = order.Lines.FirstOrDefault(x => x.Id == lineId)
+            ?? throw new NotFoundException("Sales order line not found.");
+
+        order.RemoveLine(lineId);
+        dbContext.DbContext.Remove(line);
         await dbContext.SaveChangesAsync(cancellationToken);
     }
 
@@ -144,6 +208,41 @@ public sealed class SalesService(
         await dbContext.SaveChangesAsync(cancellationToken);
     }
 
+    public async Task UpdateDispatchLineAsync(
+        Guid dispatchId,
+        Guid lineId,
+        decimal quantity,
+        string? batchNumber,
+        IReadOnlyCollection<string>? serialNumbers,
+        CancellationToken cancellationToken = default)
+    {
+        var dispatch = await dbContext.DispatchNotes.Include(x => x.Lines).ThenInclude(l => l.Serials)
+                         .FirstOrDefaultAsync(x => x.Id == dispatchId, cancellationToken)
+                     ?? throw new NotFoundException("Dispatch note not found.");
+
+        if (!dispatch.Lines.Any(x => x.Id == lineId))
+        {
+            throw new NotFoundException("Dispatch line not found.");
+        }
+
+        dispatch.UpdateLine(lineId, quantity, batchNumber, serialNumbers);
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task RemoveDispatchLineAsync(Guid dispatchId, Guid lineId, CancellationToken cancellationToken = default)
+    {
+        var dispatch = await dbContext.DispatchNotes.Include(x => x.Lines).ThenInclude(l => l.Serials)
+                         .FirstOrDefaultAsync(x => x.Id == dispatchId, cancellationToken)
+                     ?? throw new NotFoundException("Dispatch note not found.");
+
+        var line = dispatch.Lines.FirstOrDefault(x => x.Id == lineId)
+            ?? throw new NotFoundException("Dispatch line not found.");
+
+        dispatch.RemoveLine(lineId);
+        dbContext.DbContext.Remove(line);
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
     public async Task AddDirectDispatchLineAsync(
         Guid directDispatchId,
         Guid itemId,
@@ -166,6 +265,41 @@ public sealed class SalesService(
         }
 
         dbContext.DbContext.Add(line);
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task UpdateDirectDispatchLineAsync(
+        Guid directDispatchId,
+        Guid lineId,
+        decimal quantity,
+        string? batchNumber,
+        IReadOnlyCollection<string>? serialNumbers,
+        CancellationToken cancellationToken = default)
+    {
+        var dispatch = await dbContext.DirectDispatches.Include(x => x.Lines).ThenInclude(l => l.Serials)
+                         .FirstOrDefaultAsync(x => x.Id == directDispatchId, cancellationToken)
+                     ?? throw new NotFoundException("Direct dispatch not found.");
+
+        if (!dispatch.Lines.Any(x => x.Id == lineId))
+        {
+            throw new NotFoundException("Direct dispatch line not found.");
+        }
+
+        dispatch.UpdateLine(lineId, quantity, batchNumber, serialNumbers);
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task RemoveDirectDispatchLineAsync(Guid directDispatchId, Guid lineId, CancellationToken cancellationToken = default)
+    {
+        var dispatch = await dbContext.DirectDispatches.Include(x => x.Lines).ThenInclude(l => l.Serials)
+                         .FirstOrDefaultAsync(x => x.Id == directDispatchId, cancellationToken)
+                     ?? throw new NotFoundException("Direct dispatch not found.");
+
+        var line = dispatch.Lines.FirstOrDefault(x => x.Id == lineId)
+            ?? throw new NotFoundException("Direct dispatch line not found.");
+
+        dispatch.RemoveLine(lineId);
+        dbContext.DbContext.Remove(line);
         await dbContext.SaveChangesAsync(cancellationToken);
     }
 
@@ -276,6 +410,40 @@ public sealed class SalesService(
         await dbContext.SaveChangesAsync(cancellationToken);
     }
 
+    public async Task UpdateInvoiceLineAsync(
+        Guid invoiceId,
+        Guid lineId,
+        decimal quantity,
+        decimal unitPrice,
+        decimal discountPercent,
+        decimal taxPercent,
+        CancellationToken cancellationToken = default)
+    {
+        var invoice = await dbContext.SalesInvoices.Include(x => x.Lines).FirstOrDefaultAsync(x => x.Id == invoiceId, cancellationToken)
+                      ?? throw new NotFoundException("Sales invoice not found.");
+
+        if (!invoice.Lines.Any(x => x.Id == lineId))
+        {
+            throw new NotFoundException("Sales invoice line not found.");
+        }
+
+        invoice.UpdateLine(lineId, quantity, unitPrice, discountPercent, taxPercent);
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task RemoveInvoiceLineAsync(Guid invoiceId, Guid lineId, CancellationToken cancellationToken = default)
+    {
+        var invoice = await dbContext.SalesInvoices.Include(x => x.Lines).FirstOrDefaultAsync(x => x.Id == invoiceId, cancellationToken)
+                      ?? throw new NotFoundException("Sales invoice not found.");
+
+        var line = invoice.Lines.FirstOrDefault(x => x.Id == lineId)
+            ?? throw new NotFoundException("Sales invoice line not found.");
+
+        invoice.RemoveLine(lineId);
+        dbContext.DbContext.Remove(line);
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
     public async Task PostInvoiceAsync(Guid invoiceId, CancellationToken cancellationToken = default)
     {
         var invoice = await dbContext.SalesInvoices.Include(x => x.Lines).FirstOrDefaultAsync(x => x.Id == invoiceId, cancellationToken)
@@ -381,6 +549,42 @@ public sealed class SalesService(
         }
 
         dbContext.DbContext.Add(line);
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task UpdateCustomerReturnLineAsync(
+        Guid customerReturnId,
+        Guid lineId,
+        decimal quantity,
+        decimal unitPrice,
+        string? batchNumber,
+        IReadOnlyCollection<string>? serialNumbers,
+        CancellationToken cancellationToken = default)
+    {
+        var cr = await dbContext.CustomerReturns.Include(x => x.Lines).ThenInclude(l => l.Serials)
+                     .FirstOrDefaultAsync(x => x.Id == customerReturnId, cancellationToken)
+                 ?? throw new NotFoundException("Customer return not found.");
+
+        if (!cr.Lines.Any(x => x.Id == lineId))
+        {
+            throw new NotFoundException("Customer return line not found.");
+        }
+
+        cr.UpdateLine(lineId, quantity, unitPrice, batchNumber, serialNumbers);
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task RemoveCustomerReturnLineAsync(Guid customerReturnId, Guid lineId, CancellationToken cancellationToken = default)
+    {
+        var cr = await dbContext.CustomerReturns.Include(x => x.Lines).ThenInclude(l => l.Serials)
+                     .FirstOrDefaultAsync(x => x.Id == customerReturnId, cancellationToken)
+                 ?? throw new NotFoundException("Customer return not found.");
+
+        var line = cr.Lines.FirstOrDefault(x => x.Id == lineId)
+            ?? throw new NotFoundException("Customer return line not found.");
+
+        cr.RemoveLine(lineId);
+        dbContext.DbContext.Remove(line);
         await dbContext.SaveChangesAsync(cancellationToken);
     }
 

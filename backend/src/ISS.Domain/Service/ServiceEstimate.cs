@@ -46,10 +46,7 @@ public sealed class ServiceEstimate : AuditableEntity
         decimal unitPrice,
         decimal taxPercent)
     {
-        if (Status != ServiceEstimateStatus.Draft)
-        {
-            throw new DomainValidationException("Only draft estimates can be edited.");
-        }
+        EnsureDraftEditable();
 
         var line = new ServiceEstimateLine(
             Id,
@@ -62,6 +59,33 @@ public sealed class ServiceEstimate : AuditableEntity
 
         Lines.Add(line);
         return line;
+    }
+
+    public void UpdateLine(
+        Guid lineId,
+        ServiceEstimateLineKind kind,
+        Guid? itemId,
+        string description,
+        decimal quantity,
+        decimal unitPrice,
+        decimal taxPercent)
+    {
+        EnsureDraftEditable();
+
+        var line = Lines.FirstOrDefault(x => x.Id == lineId)
+            ?? throw new DomainValidationException("Service estimate line not found.");
+
+        line.Update(kind, itemId, description, quantity, unitPrice, taxPercent);
+    }
+
+    public void RemoveLine(Guid lineId)
+    {
+        EnsureDraftEditable();
+
+        var line = Lines.FirstOrDefault(x => x.Id == lineId)
+            ?? throw new DomainValidationException("Service estimate line not found.");
+
+        Lines.Remove(line);
     }
 
     public decimal Subtotal => Lines.Sum(l => l.LineSubtotal);
@@ -91,6 +115,14 @@ public sealed class ServiceEstimate : AuditableEntity
         }
 
         Status = ServiceEstimateStatus.Rejected;
+    }
+
+    private void EnsureDraftEditable()
+    {
+        if (Status != ServiceEstimateStatus.Draft)
+        {
+            throw new DomainValidationException("Only draft estimates can be edited.");
+        }
     }
 }
 
@@ -128,6 +160,27 @@ public sealed class ServiceEstimateLine : Entity
     public decimal Quantity { get; private set; }
     public decimal UnitPrice { get; private set; }
     public decimal TaxPercent { get; private set; }
+
+    public void Update(
+        ServiceEstimateLineKind kind,
+        Guid? itemId,
+        string description,
+        decimal quantity,
+        decimal unitPrice,
+        decimal taxPercent)
+    {
+        if (kind == ServiceEstimateLineKind.Part && itemId is null)
+        {
+            throw new DomainValidationException("Part estimate lines require an item.");
+        }
+
+        Kind = kind;
+        ItemId = itemId;
+        Description = Guard.NotNullOrWhiteSpace(description, nameof(description), maxLength: 512);
+        Quantity = Guard.Positive(quantity, nameof(quantity));
+        UnitPrice = Guard.NotNegative(unitPrice, nameof(unitPrice));
+        TaxPercent = Guard.NotNegative(taxPercent, nameof(taxPercent));
+    }
 
     public decimal LineSubtotal => Quantity * UnitPrice;
     public decimal LineTax => LineSubtotal * (TaxPercent / 100m);

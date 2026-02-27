@@ -32,9 +32,32 @@ public sealed class DispatchNote : AuditableEntity
 
     public DispatchLine AddLine(Guid itemId, decimal quantity, string? batchNumber)
     {
+        EnsureDraftEditable();
+
         var line = new DispatchLine(Id, itemId, Guard.Positive(quantity, nameof(quantity)), batchNumber);
         Lines.Add(line);
         return line;
+    }
+
+    public void UpdateLine(Guid lineId, decimal quantity, string? batchNumber, IReadOnlyCollection<string>? serialNumbers)
+    {
+        EnsureDraftEditable();
+
+        var line = Lines.FirstOrDefault(x => x.Id == lineId)
+            ?? throw new DomainValidationException("Dispatch line not found.");
+
+        line.Update(quantity, batchNumber);
+        line.ReplaceSerials(serialNumbers);
+    }
+
+    public void RemoveLine(Guid lineId)
+    {
+        EnsureDraftEditable();
+
+        var line = Lines.FirstOrDefault(x => x.Id == lineId)
+            ?? throw new DomainValidationException("Dispatch line not found.");
+
+        Lines.Remove(line);
     }
 
     public void Post()
@@ -66,6 +89,14 @@ public sealed class DispatchNote : AuditableEntity
 
         Status = DispatchStatus.Voided;
     }
+
+    private void EnsureDraftEditable()
+    {
+        if (Status != DispatchStatus.Draft)
+        {
+            throw new DomainValidationException("Only draft dispatch notes can be edited.");
+        }
+    }
 }
 
 public sealed class DispatchLine : Entity
@@ -87,9 +118,29 @@ public sealed class DispatchLine : Entity
 
     public List<DispatchLineSerial> Serials { get; private set; } = new();
 
+    public void Update(decimal quantity, string? batchNumber)
+    {
+        Quantity = Guard.Positive(quantity, nameof(quantity));
+        BatchNumber = batchNumber?.Trim();
+    }
+
     public void AddSerial(string serialNumber)
     {
         Serials.Add(new DispatchLineSerial(Id, Guard.NotNullOrWhiteSpace(serialNumber, nameof(serialNumber), maxLength: 128)));
+    }
+
+    public void ReplaceSerials(IReadOnlyCollection<string>? serialNumbers)
+    {
+        Serials.Clear();
+        if (serialNumbers is null)
+        {
+            return;
+        }
+
+        foreach (var serial in serialNumbers)
+        {
+            AddSerial(serial);
+        }
     }
 }
 
@@ -106,4 +157,3 @@ public sealed class DispatchLineSerial : Entity
     public Guid DispatchLineId { get; private set; }
     public string SerialNumber { get; private set; } = null!;
 }
-

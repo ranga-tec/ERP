@@ -6,18 +6,36 @@ import { apiPostNoContent } from "@/lib/api-client";
 import { Button, Input, Select } from "@/components/ui";
 
 type ItemRef = { id: string; sku: string; name: string };
+type TaxRef = { id: string; code: string; name: string; ratePercent: number; isActive: boolean };
 
-export function InvoiceLineAddForm({ invoiceId, items }: { invoiceId: string; items: ItemRef[] }) {
+export function InvoiceLineAddForm({
+  invoiceId,
+  items,
+  taxes,
+}: {
+  invoiceId: string;
+  items: ItemRef[];
+  taxes: TaxRef[];
+}) {
   const router = useRouter();
   const itemOptions = useMemo(
     () => items.slice().sort((a, b) => a.sku.localeCompare(b.sku)),
     [items],
+  );
+  const taxOptions = useMemo(
+    () =>
+      taxes
+        .filter((t) => t.isActive)
+        .slice()
+        .sort((a, b) => a.code.localeCompare(b.code)),
+    [taxes],
   );
 
   const [itemId, setItemId] = useState("");
   const [quantity, setQuantity] = useState("1");
   const [unitPrice, setUnitPrice] = useState("0");
   const [discountPercent, setDiscountPercent] = useState("0");
+  const [taxCodeId, setTaxCodeId] = useState("");
   const [taxPercent, setTaxPercent] = useState("0");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -56,6 +74,7 @@ export function InvoiceLineAddForm({ invoiceId, items }: { invoiceId: string; it
       setQuantity("1");
       setUnitPrice("0");
       setDiscountPercent("0");
+      setTaxCodeId("");
       setTaxPercent("0");
       router.refresh();
     } catch (err) {
@@ -94,6 +113,27 @@ export function InvoiceLineAddForm({ invoiceId, items }: { invoiceId: string; it
           <Input value={discountPercent} onChange={(e) => setDiscountPercent(e.target.value)} inputMode="decimal" required />
         </div>
         <div>
+          <label className="mb-1 block text-sm font-medium">Tax code</label>
+          <Select
+            value={taxCodeId}
+            onChange={(e) => {
+              const selectedId = e.target.value;
+              setTaxCodeId(selectedId);
+              const selectedTax = taxOptions.find((t) => t.id === selectedId);
+              if (selectedTax) {
+                setTaxPercent(String(selectedTax.ratePercent));
+              }
+            }}
+          >
+            <option value="">(None)</option>
+            {taxOptions.map((tax) => (
+              <option key={tax.id} value={tax.id}>
+                {tax.code} - {tax.name}
+              </option>
+            ))}
+          </Select>
+        </div>
+        <div>
           <label className="mb-1 block text-sm font-medium">Tax %</label>
           <Input value={taxPercent} onChange={(e) => setTaxPercent(e.target.value)} inputMode="decimal" required />
         </div>
@@ -111,4 +151,3 @@ export function InvoiceLineAddForm({ invoiceId, items }: { invoiceId: string; it
     </form>
   );
 }
-

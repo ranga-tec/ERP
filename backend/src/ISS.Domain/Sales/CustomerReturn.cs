@@ -45,10 +45,7 @@ public sealed class CustomerReturn : AuditableEntity
 
     public CustomerReturnLine AddLine(Guid itemId, decimal quantity, decimal unitPrice, string? batchNumber)
     {
-        if (Status != CustomerReturnStatus.Draft)
-        {
-            throw new DomainValidationException("Only draft customer returns can be edited.");
-        }
+        EnsureDraftEditable();
 
         var line = new CustomerReturnLine(
             Id,
@@ -58,6 +55,32 @@ public sealed class CustomerReturn : AuditableEntity
             batchNumber);
         Lines.Add(line);
         return line;
+    }
+
+    public void UpdateLine(
+        Guid lineId,
+        decimal quantity,
+        decimal unitPrice,
+        string? batchNumber,
+        IReadOnlyCollection<string>? serialNumbers)
+    {
+        EnsureDraftEditable();
+
+        var line = Lines.FirstOrDefault(x => x.Id == lineId)
+            ?? throw new DomainValidationException("Customer return line not found.");
+
+        line.Update(quantity, unitPrice, batchNumber);
+        line.ReplaceSerials(serialNumbers);
+    }
+
+    public void RemoveLine(Guid lineId)
+    {
+        EnsureDraftEditable();
+
+        var line = Lines.FirstOrDefault(x => x.Id == lineId)
+            ?? throw new DomainValidationException("Customer return line not found.");
+
+        Lines.Remove(line);
     }
 
     public void Post()
@@ -89,6 +112,14 @@ public sealed class CustomerReturn : AuditableEntity
 
         Status = CustomerReturnStatus.Voided;
     }
+
+    private void EnsureDraftEditable()
+    {
+        if (Status != CustomerReturnStatus.Draft)
+        {
+            throw new DomainValidationException("Only draft customer returns can be edited.");
+        }
+    }
 }
 
 public sealed class CustomerReturnLine : Entity
@@ -112,9 +143,30 @@ public sealed class CustomerReturnLine : Entity
 
     public List<CustomerReturnLineSerial> Serials { get; private set; } = new();
 
+    public void Update(decimal quantity, decimal unitPrice, string? batchNumber)
+    {
+        Quantity = Guard.Positive(quantity, nameof(quantity));
+        UnitPrice = Guard.NotNegative(unitPrice, nameof(unitPrice));
+        BatchNumber = batchNumber?.Trim();
+    }
+
     public void AddSerial(string serialNumber)
     {
         Serials.Add(new CustomerReturnLineSerial(Id, Guard.NotNullOrWhiteSpace(serialNumber, nameof(serialNumber), maxLength: 128)));
+    }
+
+    public void ReplaceSerials(IReadOnlyCollection<string>? serialNumbers)
+    {
+        Serials.Clear();
+        if (serialNumbers is null)
+        {
+            return;
+        }
+
+        foreach (var serial in serialNumbers)
+        {
+            AddSerial(serial);
+        }
     }
 }
 

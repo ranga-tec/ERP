@@ -36,6 +36,7 @@ public sealed class StockTransfersController(IIssDbContext dbContext, InventoryO
 
     public sealed record CreateStockTransferRequest(Guid FromWarehouseId, Guid ToWarehouseId, string? Notes);
     public sealed record AddStockTransferLineRequest(Guid ItemId, decimal Quantity, decimal UnitCost, string? BatchNumber, IReadOnlyList<string>? Serials);
+    public sealed record UpdateStockTransferLineRequest(decimal Quantity, decimal UnitCost, string? BatchNumber, IReadOnlyList<string>? Serials);
 
     [HttpGet]
     public async Task<ActionResult<IReadOnlyList<StockTransferSummaryDto>>> List([FromQuery] int skip = 0, [FromQuery] int take = 100, CancellationToken cancellationToken = default)
@@ -110,6 +111,27 @@ public sealed class StockTransfersController(IIssDbContext dbContext, InventoryO
             request.Serials,
             cancellationToken);
 
+        return NoContent();
+    }
+
+    [HttpPut("{id:guid}/lines/{lineId:guid}")]
+    public async Task<ActionResult> UpdateLine(Guid id, Guid lineId, UpdateStockTransferLineRequest request, CancellationToken cancellationToken)
+    {
+        await inventoryOperationsService.UpdateStockTransferLineAsync(
+            id,
+            lineId,
+            request.Quantity,
+            request.UnitCost,
+            request.BatchNumber,
+            request.Serials,
+            cancellationToken);
+        return NoContent();
+    }
+
+    [HttpDelete("{id:guid}/lines/{lineId:guid}")]
+    public async Task<ActionResult> RemoveLine(Guid id, Guid lineId, CancellationToken cancellationToken)
+    {
+        await inventoryOperationsService.RemoveStockTransferLineAsync(id, lineId, cancellationToken);
         return NoContent();
     }
 
