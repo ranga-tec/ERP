@@ -136,11 +136,12 @@ export function StockAdjustmentLineRow({
           <div className="flex flex-wrap items-center gap-2">
             {isEditing ? (
               <>
-                <Button type="button" onClick={saveEdit} disabled={busy}>
+                <Button type="button" className="px-2 py-1 text-xs" onClick={saveEdit} disabled={busy}>
                   {busy ? "Saving..." : "Save"}
                 </Button>
                 <SecondaryButton
                   type="button"
+                  className="px-2 py-1 text-xs"
                   onClick={() => {
                     setError(null);
                     setIsEditing(false);
@@ -151,11 +152,11 @@ export function StockAdjustmentLineRow({
                 </SecondaryButton>
               </>
             ) : (
-              <SecondaryButton type="button" onClick={beginEdit} disabled={busy}>
+              <SecondaryButton type="button" className="px-2 py-1 text-xs" onClick={beginEdit} disabled={busy}>
                 Edit
               </SecondaryButton>
             )}
-            <SecondaryButton type="button" onClick={deleteLine} disabled={busy}>
+            <SecondaryButton type="button" className="px-2 py-1 text-xs" onClick={deleteLine} disabled={busy}>
               Delete
             </SecondaryButton>
           </div>
@@ -165,4 +166,7 @@ export function StockAdjustmentLineRow({
     </tr>
   );
 }
+
+
+
 

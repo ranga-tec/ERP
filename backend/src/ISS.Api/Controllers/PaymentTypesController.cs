@@ -60,4 +60,26 @@ public sealed class PaymentTypesController(IIssDbContext dbContext) : Controller
         await dbContext.SaveChangesAsync(cancellationToken);
         return await Get(id, cancellationToken);
     }
+
+    [HttpDelete("{id:guid}")]
+    public async Task<IActionResult> Delete(Guid id, CancellationToken cancellationToken)
+    {
+        var item = await dbContext.PaymentTypes.FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
+        if (item is null)
+        {
+            return NotFound();
+        }
+
+        dbContext.PaymentTypes.Remove(item);
+        try
+        {
+            await dbContext.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateException)
+        {
+            return Conflict("Payment type is in use and cannot be deleted. Mark it inactive instead.");
+        }
+
+        return NoContent();
+    }
 }

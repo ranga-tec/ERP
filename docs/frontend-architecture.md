@@ -154,6 +154,18 @@ The detail pages for line-based documents use a common behavior:
 
 This is now applied consistently across all line-document detail pages (not just PO/GRN).
 
+### Master Data Grid Action Standard
+
+Master-data list pages now follow the same maintainability pattern:
+
+- list table includes an `Actions` column
+- each row supports `Edit`, `Save/Cancel`, and `Delete`
+- errors are shown inline per row
+- destructive actions use explicit confirmation prompts
+
+This standard is now implemented across brands, customers, suppliers, warehouses, UoMs, UoM conversions, taxes, tax conversions, currencies, currency rates, payment types, reference forms, item categories/subcategories, and reorder settings.
+Items support `Save` and `Delete` through the dedicated edit panel.
+
 ### Costing Reporting UI
 
 Costing UI route:

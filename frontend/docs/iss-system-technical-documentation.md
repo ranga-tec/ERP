@@ -19,6 +19,10 @@ The following scope was implemented after the previous documentation snapshot:
 - Draft line-grid action completeness:
   - all line-based document detail screens now support row-level `Edit`, `Save/Cancel`, and `Delete`
   - backend line APIs were standardized with `POST/PUT/DELETE` line endpoints across procurement, sales, inventory, and service documents
+- Master-data maintenance completeness:
+  - all maintained master-data grids now expose row-level `Edit`, `Save/Cancel`, and `Delete`
+  - backend master-data controllers now expose delete endpoints with conflict-safe responses for in-use records
+  - item maintenance panel now supports direct item deletion with confirmation
 - Reliability fix:
   - `DocumentNumberService` sequence transaction now runs inside EF execution strategy for compatibility with Npgsql retry strategy
 

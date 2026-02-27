@@ -1,6 +1,7 @@
 import { backendFetchJson } from "@/lib/backend.server";
 import { Card, Table } from "@/components/ui";
 import { PaymentTypeCreateForm } from "./PaymentTypeCreateForm";
+import { PaymentTypeRow } from "./PaymentTypeRow";
 
 type PaymentTypeDto = {
   id: string;
@@ -35,20 +36,14 @@ export default async function PaymentTypesPage() {
                 <th className="py-2 pr-3">Name</th>
                 <th className="py-2 pr-3">Description</th>
                 <th className="py-2 pr-3">Active</th>
+                <th className="py-2 pr-3">Actions</th>
               </tr>
             </thead>
             <tbody>
-              {paymentTypes.map((p) => (
-                <tr key={p.id} className="border-b border-zinc-100 dark:border-zinc-900">
-                  <td className="py-2 pr-3 font-mono text-xs">{p.code}</td>
-                  <td className="py-2 pr-3">{p.name}</td>
-                  <td className="py-2 pr-3 text-zinc-500">{p.description ?? "-"}</td>
-                  <td className="py-2 pr-3">{p.isActive ? "Yes" : "No"}</td>
-                </tr>
-              ))}
+              {paymentTypes.map((p) => <PaymentTypeRow key={p.id} paymentType={p} />)}
               {paymentTypes.length === 0 ? (
                 <tr>
-                  <td className="py-6 text-sm text-zinc-500" colSpan={4}>
+                  <td className="py-6 text-sm text-zinc-500" colSpan={5}>
                     No payment types yet.
                   </td>
                 </tr>

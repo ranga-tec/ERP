@@ -58,5 +58,26 @@ public sealed class SuppliersController(IIssDbContext dbContext) : ControllerBas
         await dbContext.SaveChangesAsync(cancellationToken);
         return Ok(new SupplierDto(supplier.Id, supplier.Code, supplier.Name, supplier.Phone, supplier.Email, supplier.Address, supplier.IsActive));
     }
-}
 
+    [HttpDelete("{id:guid}")]
+    public async Task<IActionResult> Delete(Guid id, CancellationToken cancellationToken)
+    {
+        var supplier = await dbContext.Suppliers.FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
+        if (supplier is null)
+        {
+            return NotFound();
+        }
+
+        dbContext.Suppliers.Remove(supplier);
+        try
+        {
+            await dbContext.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateException)
+        {
+            return Conflict("Supplier is in use and cannot be deleted. Mark it inactive instead.");
+        }
+
+        return NoContent();
+    }
+}

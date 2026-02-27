@@ -1,6 +1,7 @@
 import { backendFetchJson } from "@/lib/backend.server";
 import { Card, Table } from "@/components/ui";
 import { SupplierCreateForm } from "./SupplierCreateForm";
+import { SupplierRow } from "./SupplierRow";
 
 type SupplierDto = {
   id: string;
@@ -37,22 +38,18 @@ export default async function SuppliersPage() {
                 <th className="py-2 pr-3">Name</th>
                 <th className="py-2 pr-3">Phone</th>
                 <th className="py-2 pr-3">Email</th>
+                <th className="py-2 pr-3">Address</th>
                 <th className="py-2 pr-3">Active</th>
+                <th className="py-2 pr-3">Actions</th>
               </tr>
             </thead>
             <tbody>
-              {suppliers.map((s) => (
-                <tr key={s.id} className="border-b border-zinc-100 dark:border-zinc-900">
-                  <td className="py-2 pr-3 font-mono text-xs">{s.code}</td>
-                  <td className="py-2 pr-3">{s.name}</td>
-                  <td className="py-2 pr-3 text-zinc-500">{s.phone ?? "—"}</td>
-                  <td className="py-2 pr-3 text-zinc-500">{s.email ?? "—"}</td>
-                  <td className="py-2 pr-3">{s.isActive ? "Yes" : "No"}</td>
-                </tr>
+              {suppliers.map((supplier) => (
+                <SupplierRow key={supplier.id} supplier={supplier} />
               ))}
               {suppliers.length === 0 ? (
                 <tr>
-                  <td className="py-6 text-sm text-zinc-500" colSpan={5}>
+                  <td className="py-6 text-sm text-zinc-500" colSpan={7}>
                     No suppliers yet.
                   </td>
                 </tr>
@@ -64,4 +61,3 @@ export default async function SuppliersPage() {
     </div>
   );
 }
-

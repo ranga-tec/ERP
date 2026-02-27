@@ -1,6 +1,7 @@
 import { backendFetchJson } from "@/lib/backend.server";
 import { Card, Table } from "@/components/ui";
 import { CurrencyRateCreateForm } from "./CurrencyRateCreateForm";
+import { CurrencyRateRow } from "./CurrencyRateRow";
 
 type CurrencyDto = { id: string; code: string; name: string; isActive: boolean };
 type CurrencyRateDto = {
@@ -15,8 +16,6 @@ type CurrencyRateDto = {
   source?: string | null;
   isActive: boolean;
 };
-
-const rateTypeLabel: Record<number, string> = { 1: "Spot", 2: "Corporate", 3: "Manual" };
 
 export default async function CurrencyRatesPage() {
   const [currencyRates, currencies] = await Promise.all([
@@ -48,24 +47,16 @@ export default async function CurrencyRatesPage() {
                 <th className="py-2 pr-3">Effective</th>
                 <th className="py-2 pr-3">Source</th>
                 <th className="py-2 pr-3">Active</th>
+                <th className="py-2 pr-3">Actions</th>
               </tr>
             </thead>
             <tbody>
               {currencyRates.map((r) => (
-                <tr key={r.id} className="border-b border-zinc-100 dark:border-zinc-900">
-                  <td className="py-2 pr-3 font-mono text-xs">
-                    {r.fromCurrencyCode}/{r.toCurrencyCode}
-                  </td>
-                  <td className="py-2 pr-3">{r.rate}</td>
-                  <td className="py-2 pr-3">{rateTypeLabel[r.rateType] ?? r.rateType}</td>
-                  <td className="py-2 pr-3 text-zinc-500">{new Date(r.effectiveFrom).toLocaleString()}</td>
-                  <td className="py-2 pr-3 text-zinc-500">{r.source ?? "-"}</td>
-                  <td className="py-2 pr-3">{r.isActive ? "Yes" : "No"}</td>
-                </tr>
+                <CurrencyRateRow key={r.id} rate={r} currencies={currencies} />
               ))}
               {currencyRates.length === 0 ? (
                 <tr>
-                  <td className="py-6 text-sm text-zinc-500" colSpan={6}>
+                  <td className="py-6 text-sm text-zinc-500" colSpan={7}>
                     No currency rates yet.
                   </td>
                 </tr>

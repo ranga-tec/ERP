@@ -118,6 +118,28 @@ public sealed class UnitConversionsController(IIssDbContext dbContext) : Control
         return await Get(id, cancellationToken);
     }
 
+    [HttpDelete("{id:guid}")]
+    public async Task<IActionResult> Delete(Guid id, CancellationToken cancellationToken)
+    {
+        var item = await dbContext.UnitConversions.FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
+        if (item is null)
+        {
+            return NotFound();
+        }
+
+        dbContext.UnitConversions.Remove(item);
+        try
+        {
+            await dbContext.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateException)
+        {
+            return Conflict("UoM conversion is in use and cannot be deleted. Mark it inactive instead.");
+        }
+
+        return NoContent();
+    }
+
     [HttpGet("convert")]
     public async Task<ActionResult<ConversionResultDto>> Convert(
         [FromQuery] Guid fromUnitOfMeasureId,

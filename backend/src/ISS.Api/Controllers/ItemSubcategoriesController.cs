@@ -129,4 +129,26 @@ public sealed class ItemSubcategoriesController(IIssDbContext dbContext) : Contr
 
         return Ok(updated);
     }
+
+    [HttpDelete("{id:guid}")]
+    public async Task<IActionResult> Delete(Guid id, CancellationToken cancellationToken)
+    {
+        var item = await dbContext.ItemSubcategories.FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
+        if (item is null)
+        {
+            return NotFound();
+        }
+
+        dbContext.ItemSubcategories.Remove(item);
+        try
+        {
+            await dbContext.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateException)
+        {
+            return Conflict("Item subcategory is in use and cannot be deleted. Reassign dependent items or mark inactive.");
+        }
+
+        return NoContent();
+    }
 }

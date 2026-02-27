@@ -45,5 +45,18 @@ public sealed class ReorderSettingsController(IIssDbContext dbContext) : Control
         await dbContext.SaveChangesAsync(cancellationToken);
         return Ok(new ReorderSettingDto(existing.Id, existing.WarehouseId, existing.ItemId, existing.ReorderPoint, existing.ReorderQuantity));
     }
-}
 
+    [HttpDelete("{id:guid}")]
+    public async Task<IActionResult> Delete(Guid id, CancellationToken cancellationToken)
+    {
+        var setting = await dbContext.ReorderSettings.FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
+        if (setting is null)
+        {
+            return NotFound();
+        }
+
+        dbContext.ReorderSettings.Remove(setting);
+        await dbContext.SaveChangesAsync(cancellationToken);
+        return NoContent();
+    }
+}

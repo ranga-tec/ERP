@@ -61,4 +61,26 @@ public sealed class ReferenceFormsController(IIssDbContext dbContext) : Controll
         await dbContext.SaveChangesAsync(cancellationToken);
         return await Get(id, cancellationToken);
     }
+
+    [HttpDelete("{id:guid}")]
+    public async Task<IActionResult> Delete(Guid id, CancellationToken cancellationToken)
+    {
+        var item = await dbContext.ReferenceForms.FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
+        if (item is null)
+        {
+            return NotFound();
+        }
+
+        dbContext.ReferenceForms.Remove(item);
+        try
+        {
+            await dbContext.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateException)
+        {
+            return Conflict("Reference form is in use and cannot be deleted. Mark it inactive instead.");
+        }
+
+        return NoContent();
+    }
 }

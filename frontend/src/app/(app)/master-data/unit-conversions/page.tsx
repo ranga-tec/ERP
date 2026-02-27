@@ -1,6 +1,7 @@
 import { backendFetchJson } from "@/lib/backend.server";
 import { Card, Table } from "@/components/ui";
 import { UnitConversionCreateForm } from "./UnitConversionCreateForm";
+import { UnitConversionRow } from "./UnitConversionRow";
 
 type UomDto = { id: string; code: string; name: string; isActive: boolean };
 type UnitConversionDto = {
@@ -45,21 +46,16 @@ export default async function UnitConversionsPage() {
                 <th className="py-2 pr-3">Factor</th>
                 <th className="py-2 pr-3">Notes</th>
                 <th className="py-2 pr-3">Active</th>
+                <th className="py-2 pr-3">Actions</th>
               </tr>
             </thead>
             <tbody>
               {conversions.map((conversion) => (
-                <tr key={conversion.id} className="border-b border-zinc-100 dark:border-zinc-900">
-                  <td className="py-2 pr-3 font-mono text-xs">{conversion.fromUnitOfMeasureCode}</td>
-                  <td className="py-2 pr-3 font-mono text-xs">{conversion.toUnitOfMeasureCode}</td>
-                  <td className="py-2 pr-3">{conversion.factor}</td>
-                  <td className="py-2 pr-3 text-zinc-500">{conversion.notes ?? "-"}</td>
-                  <td className="py-2 pr-3">{conversion.isActive ? "Yes" : "No"}</td>
-                </tr>
+                <UnitConversionRow key={conversion.id} conversion={conversion} uoms={uoms} />
               ))}
               {conversions.length === 0 ? (
                 <tr>
-                  <td className="py-6 text-sm text-zinc-500" colSpan={5}>
+                  <td className="py-6 text-sm text-zinc-500" colSpan={6}>
                     No UoM conversions yet.
                   </td>
                 </tr>

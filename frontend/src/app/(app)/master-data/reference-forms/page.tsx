@@ -1,6 +1,7 @@
 import { backendFetchJson } from "@/lib/backend.server";
 import { Card, Table } from "@/components/ui";
 import { ReferenceFormCreateForm } from "./ReferenceFormCreateForm";
+import { ReferenceFormRow } from "./ReferenceFormRow";
 
 type ReferenceFormDto = {
   id: string;
@@ -37,21 +38,14 @@ export default async function ReferenceFormsPage() {
                 <th className="py-2 pr-3">Module</th>
                 <th className="py-2 pr-3">Route</th>
                 <th className="py-2 pr-3">Active</th>
+                <th className="py-2 pr-3">Actions</th>
               </tr>
             </thead>
             <tbody>
-              {forms.map((form) => (
-                <tr key={form.id} className="border-b border-zinc-100 dark:border-zinc-900">
-                  <td className="py-2 pr-3 font-mono text-xs">{form.code}</td>
-                  <td className="py-2 pr-3">{form.name}</td>
-                  <td className="py-2 pr-3">{form.module}</td>
-                  <td className="py-2 pr-3 font-mono text-xs text-zinc-500">{form.routeTemplate ?? "-"}</td>
-                  <td className="py-2 pr-3">{form.isActive ? "Yes" : "No"}</td>
-                </tr>
-              ))}
+              {forms.map((form) => <ReferenceFormRow key={form.id} form={form} />)}
               {forms.length === 0 ? (
                 <tr>
-                  <td className="py-6 text-sm text-zinc-500" colSpan={5}>
+                  <td className="py-6 text-sm text-zinc-500" colSpan={6}>
                     No reference forms yet.
                   </td>
                 </tr>

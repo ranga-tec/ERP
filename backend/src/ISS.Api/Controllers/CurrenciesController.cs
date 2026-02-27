@@ -83,6 +83,33 @@ public sealed class CurrenciesController(IIssDbContext dbContext) : ControllerBa
         return await Get(id, cancellationToken);
     }
 
+    [HttpDelete("{id:guid}")]
+    public async Task<IActionResult> Delete(Guid id, CancellationToken cancellationToken)
+    {
+        var item = await dbContext.Currencies.FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
+        if (item is null)
+        {
+            return NotFound();
+        }
+
+        if (item.IsBase)
+        {
+            return Conflict("Base currency cannot be deleted. Reassign base currency first.");
+        }
+
+        dbContext.Currencies.Remove(item);
+        try
+        {
+            await dbContext.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateException)
+        {
+            return Conflict("Currency is in use and cannot be deleted. Mark it inactive instead.");
+        }
+
+        return NoContent();
+    }
+
     [HttpPost("convert")]
     public async Task<ActionResult<ConvertCurrencyResponse>> Convert(ConvertCurrencyRequest request, CancellationToken cancellationToken)
     {

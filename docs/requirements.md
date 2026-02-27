@@ -30,6 +30,7 @@ Source: `c:\Users\ASUS\Downloads\ERP System Proposal - C-Com Equipment.pdf` (dat
 - Reference forms
 - Costing report (weighted average and valuation view)
 - Line-level edit/delete actions on all draft line-document grids
+- Master-data row-level edit/delete actions across all maintenance grids
 
 ## Non-functional / inclusions
 

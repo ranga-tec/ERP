@@ -2,6 +2,8 @@ import { backendFetchJson } from "@/lib/backend.server";
 import { Card, Table } from "@/components/ui";
 import { ItemCategoryCreateForm } from "./ItemCategoryCreateForm";
 import { ItemSubcategoryCreateForm } from "./ItemSubcategoryCreateForm";
+import { ItemCategoryRow } from "./ItemCategoryRow";
+import { ItemSubcategoryRow } from "./ItemSubcategoryRow";
 
 type CategoryDto = { id: string; code: string; name: string; isActive: boolean };
 type SubcategoryDto = {
@@ -31,9 +33,7 @@ export default async function ItemCategoriesPage() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-semibold">Item Categories</h1>
-        <p className="mt-1 text-sm text-zinc-500">
-          Category and subcategory masters used to classify items.
-        </p>
+        <p className="mt-1 text-sm text-zinc-500">Category and subcategory masters used to classify items.</p>
       </div>
 
       <Card>
@@ -44,7 +44,7 @@ export default async function ItemCategoriesPage() {
       <Card>
         <div className="mb-3 text-sm font-semibold">Create Subcategory</div>
         <ItemSubcategoryCreateForm
-          categories={categories.map((c) => ({ id: c.id, code: c.code, name: c.name }))}
+          categories={categories.map((category) => ({ id: category.id, code: category.code, name: category.name }))}
         />
       </Card>
 
@@ -58,6 +58,7 @@ export default async function ItemCategoriesPage() {
                 <th className="py-2 pr-3">Name</th>
                 <th className="py-2 pr-3">Subcategories</th>
                 <th className="py-2 pr-3">Active</th>
+                <th className="py-2 pr-3">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -65,31 +66,18 @@ export default async function ItemCategoriesPage() {
                 const subs = (subcategoriesByCategory.get(category.id) ?? [])
                   .slice()
                   .sort((a, b) => a.code.localeCompare(b.code));
+
                 return (
-                  <tr key={category.id} className="border-b border-zinc-100 align-top dark:border-zinc-900">
-                    <td className="py-2 pr-3 font-mono text-xs">{category.code}</td>
-                    <td className="py-2 pr-3">{category.name}</td>
-                    <td className="py-2 pr-3">
-                      {subs.length > 0 ? (
-                        <div className="space-y-1">
-                          {subs.map((sub) => (
-                            <div key={sub.id} className="text-sm">
-                              <span className="font-mono text-xs">{sub.code}</span>{" "}
-                              <span className="text-zinc-500">{sub.name}</span>
-                            </div>
-                          ))}
-                        </div>
-                      ) : (
-                        <span className="text-zinc-500">None</span>
-                      )}
-                    </td>
-                    <td className="py-2 pr-3">{category.isActive ? "Yes" : "No"}</td>
-                  </tr>
+                  <ItemCategoryRow
+                    key={category.id}
+                    category={category}
+                    subcategories={subs.map((sub) => ({ id: sub.id, code: sub.code, name: sub.name }))}
+                  />
                 );
               })}
               {categories.length === 0 ? (
                 <tr>
-                  <td className="py-6 text-sm text-zinc-500" colSpan={4}>
+                  <td className="py-6 text-sm text-zinc-500" colSpan={5}>
                     No categories yet.
                   </td>
                 </tr>
@@ -109,6 +97,7 @@ export default async function ItemCategoriesPage() {
                 <th className="py-2 pr-3">Subcategory</th>
                 <th className="py-2 pr-3">Name</th>
                 <th className="py-2 pr-3">Active</th>
+                <th className="py-2 pr-3">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -119,16 +108,11 @@ export default async function ItemCategoriesPage() {
                   a.code.localeCompare(b.code),
                 )
                 .map((sub) => (
-                  <tr key={sub.id} className="border-b border-zinc-100 dark:border-zinc-900">
-                    <td className="py-2 pr-3 font-mono text-xs">{sub.categoryCode ?? "-"}</td>
-                    <td className="py-2 pr-3 font-mono text-xs">{sub.code}</td>
-                    <td className="py-2 pr-3">{sub.name}</td>
-                    <td className="py-2 pr-3">{sub.isActive ? "Yes" : "No"}</td>
-                  </tr>
+                  <ItemSubcategoryRow key={sub.id} subcategory={sub} categories={categories} />
                 ))}
               {subcategories.length === 0 ? (
                 <tr>
-                  <td className="py-6 text-sm text-zinc-500" colSpan={4}>
+                  <td className="py-6 text-sm text-zinc-500" colSpan={5}>
                     No subcategories yet.
                   </td>
                 </tr>

@@ -1,6 +1,7 @@
 import { backendFetchJson } from "@/lib/backend.server";
 import { Card, Table } from "@/components/ui";
 import { UomCreateForm } from "./UomCreateForm";
+import { UomRow } from "./UomRow";
 
 type UomDto = { id: string; code: string; name: string; isActive: boolean };
 
@@ -11,9 +12,7 @@ export default async function UomsPage() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-semibold">Unit Of Measure</h1>
-        <p className="mt-1 text-sm text-zinc-500">
-          Master list used for item UoM selection.
-        </p>
+        <p className="mt-1 text-sm text-zinc-500">Master list used for item UoM selection.</p>
       </div>
 
       <Card>
@@ -30,19 +29,16 @@ export default async function UomsPage() {
                 <th className="py-2 pr-3">Code</th>
                 <th className="py-2 pr-3">Name</th>
                 <th className="py-2 pr-3">Active</th>
+                <th className="py-2 pr-3">Actions</th>
               </tr>
             </thead>
             <tbody>
-              {uoms.map((u) => (
-                <tr key={u.id} className="border-b border-zinc-100 dark:border-zinc-900">
-                  <td className="py-2 pr-3 font-mono text-xs">{u.code}</td>
-                  <td className="py-2 pr-3">{u.name}</td>
-                  <td className="py-2 pr-3">{u.isActive ? "Yes" : "No"}</td>
-                </tr>
+              {uoms.map((uom) => (
+                <UomRow key={uom.id} uom={uom} />
               ))}
               {uoms.length === 0 ? (
                 <tr>
-                  <td className="py-6 text-sm text-zinc-500" colSpan={3}>
+                  <td className="py-6 text-sm text-zinc-500" colSpan={4}>
                     No UoMs yet.
                   </td>
                 </tr>

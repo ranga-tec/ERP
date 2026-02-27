@@ -1,6 +1,7 @@
 import { backendFetchJson } from "@/lib/backend.server";
 import { Card, Table } from "@/components/ui";
 import { TaxCreateForm } from "./TaxCreateForm";
+import { TaxRow } from "./TaxRow";
 
 type TaxDto = {
   id: string;
@@ -12,8 +13,6 @@ type TaxDto = {
   description?: string | null;
   isActive: boolean;
 };
-
-const scopeLabel: Record<number, string> = { 1: "Sales", 2: "Purchase", 3: "Both" };
 
 export default async function TaxesPage() {
   const taxes = await backendFetchJson<TaxDto[]>("/taxes");
@@ -42,22 +41,15 @@ export default async function TaxesPage() {
                 <th className="py-2 pr-3">Scope</th>
                 <th className="py-2 pr-3">Inclusive</th>
                 <th className="py-2 pr-3">Active</th>
+                <th className="py-2 pr-3">Description</th>
+                <th className="py-2 pr-3">Actions</th>
               </tr>
             </thead>
             <tbody>
-              {taxes.map((tax) => (
-                <tr key={tax.id} className="border-b border-zinc-100 dark:border-zinc-900">
-                  <td className="py-2 pr-3 font-mono text-xs">{tax.code}</td>
-                  <td className="py-2 pr-3">{tax.name}</td>
-                  <td className="py-2 pr-3">{tax.ratePercent}</td>
-                  <td className="py-2 pr-3">{scopeLabel[tax.scope] ?? tax.scope}</td>
-                  <td className="py-2 pr-3">{tax.isInclusive ? "Yes" : "No"}</td>
-                  <td className="py-2 pr-3">{tax.isActive ? "Yes" : "No"}</td>
-                </tr>
-              ))}
+              {taxes.map((tax) => <TaxRow key={tax.id} tax={tax} />)}
               {taxes.length === 0 ? (
                 <tr>
-                  <td className="py-6 text-sm text-zinc-500" colSpan={6}>
+                  <td className="py-6 text-sm text-zinc-500" colSpan={8}>
                     No tax codes yet.
                   </td>
                 </tr>

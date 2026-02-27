@@ -13,6 +13,7 @@ Use this hub first, then jump into the specialized docs linked below.
 - Major ERP/service modules are implemented across backend + frontend.
 - Production-hardening work is active (auth, reverse-proxy safety, retries, migration discipline, test coverage).
 - Line-level editing/deleting is now implemented across all draft document detail grids.
+- Master-data list maintenance now includes row-level edit/delete actions and backend delete APIs.
 - Master data now includes UoM conversions, payment types, taxes/tax conversions, currencies/rates, and reference forms.
 - Reporting now includes costing in addition to dashboard, stock-ledger, aging, tax summary, and service KPIs.
 - The system is close to full CSV closure but still requires final UAT/responsive verification and workflow-depth validation.
@@ -38,6 +39,7 @@ Typical local runtime:
   - taxes, tax conversions
   - currencies, currency rates
   - payment types, reference forms
+  - row-level edit/delete actions on all master-data maintenance grids (items via edit panel)
 - Procurement:
   - RFQ, purchase requisition, purchase order, goods receipt, direct purchase, supplier invoice, supplier return
 - Sales:

@@ -58,5 +58,26 @@ public sealed class CustomersController(IIssDbContext dbContext) : ControllerBas
         await dbContext.SaveChangesAsync(cancellationToken);
         return Ok(new CustomerDto(customer.Id, customer.Code, customer.Name, customer.Phone, customer.Email, customer.Address, customer.IsActive));
     }
-}
 
+    [HttpDelete("{id:guid}")]
+    public async Task<IActionResult> Delete(Guid id, CancellationToken cancellationToken)
+    {
+        var customer = await dbContext.Customers.FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
+        if (customer is null)
+        {
+            return NotFound();
+        }
+
+        dbContext.Customers.Remove(customer);
+        try
+        {
+            await dbContext.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateException)
+        {
+            return Conflict("Customer is in use and cannot be deleted. Mark it inactive instead.");
+        }
+
+        return NoContent();
+    }
+}

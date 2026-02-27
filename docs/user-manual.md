@@ -32,6 +32,14 @@ Recommended setup sequence:
   - Upload `.xlsx`
 - Import runs as one transaction (all-or-nothing).
 
+## Master data maintenance actions
+
+- Master-data list pages support row actions:
+  - `Edit` -> `Save/Cancel`
+  - `Delete` (with confirmation)
+- If a record is referenced by transactions, delete may be blocked and you should set it inactive instead.
+- Items are maintained in `Master Data -> Items -> Edit Item` where you can update and delete the selected item.
+
 ## Procurement workflows
 
 - RFQ:

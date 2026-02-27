@@ -1,6 +1,7 @@
 import { backendFetchJson } from "@/lib/backend.server";
 import { Card, Table } from "@/components/ui";
 import { TaxConversionCreateForm } from "./TaxConversionCreateForm";
+import { TaxConversionRow } from "./TaxConversionRow";
 
 type TaxDto = { id: string; code: string; name: string; isActive: boolean };
 type TaxConversionDto = {
@@ -45,21 +46,16 @@ export default async function TaxConversionsPage() {
                 <th className="py-2 pr-3">Multiplier</th>
                 <th className="py-2 pr-3">Notes</th>
                 <th className="py-2 pr-3">Active</th>
+                <th className="py-2 pr-3">Actions</th>
               </tr>
             </thead>
             <tbody>
               {taxConversions.map((conversion) => (
-                <tr key={conversion.id} className="border-b border-zinc-100 dark:border-zinc-900">
-                  <td className="py-2 pr-3 font-mono text-xs">{conversion.sourceTaxCode}</td>
-                  <td className="py-2 pr-3 font-mono text-xs">{conversion.targetTaxCode}</td>
-                  <td className="py-2 pr-3">{conversion.multiplier}</td>
-                  <td className="py-2 pr-3 text-zinc-500">{conversion.notes ?? "-"}</td>
-                  <td className="py-2 pr-3">{conversion.isActive ? "Yes" : "No"}</td>
-                </tr>
+                <TaxConversionRow key={conversion.id} conversion={conversion} taxes={taxes} />
               ))}
               {taxConversions.length === 0 ? (
                 <tr>
-                  <td className="py-6 text-sm text-zinc-500" colSpan={5}>
+                  <td className="py-6 text-sm text-zinc-500" colSpan={6}>
                     No tax conversion rules yet.
                   </td>
                 </tr>

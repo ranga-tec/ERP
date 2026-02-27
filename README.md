@@ -35,6 +35,9 @@
   - dashboard, stock ledger, aging, tax summary, service KPIs, costing
 - Draft document detail pages with line grids now support row actions:
   - `Edit`, `Save/Cancel`, and `Delete` (PO/GRN and all other line-based documents)
+- Master-data maintenance grids now support row actions:
+  - `Edit`, `Save/Cancel`, and `Delete` across brands/customers/suppliers/warehouses/UoMs/conversions/taxes/currencies/payment types/reference forms/categories/subcategories/reorder settings
+  - items use the dedicated edit panel for `Save` and `Delete`
 
 ## Local infrastructure (PostgreSQL)
 From the repo root:

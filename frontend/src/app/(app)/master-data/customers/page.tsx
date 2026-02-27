@@ -1,6 +1,7 @@
 import { backendFetchJson } from "@/lib/backend.server";
 import { Card, Table } from "@/components/ui";
 import { CustomerCreateForm } from "./CustomerCreateForm";
+import { CustomerRow } from "./CustomerRow";
 
 type CustomerDto = {
   id: string;
@@ -37,22 +38,18 @@ export default async function CustomersPage() {
                 <th className="py-2 pr-3">Name</th>
                 <th className="py-2 pr-3">Phone</th>
                 <th className="py-2 pr-3">Email</th>
+                <th className="py-2 pr-3">Address</th>
                 <th className="py-2 pr-3">Active</th>
+                <th className="py-2 pr-3">Actions</th>
               </tr>
             </thead>
             <tbody>
-              {customers.map((c) => (
-                <tr key={c.id} className="border-b border-zinc-100 dark:border-zinc-900">
-                  <td className="py-2 pr-3 font-mono text-xs">{c.code}</td>
-                  <td className="py-2 pr-3">{c.name}</td>
-                  <td className="py-2 pr-3 text-zinc-500">{c.phone ?? "—"}</td>
-                  <td className="py-2 pr-3 text-zinc-500">{c.email ?? "—"}</td>
-                  <td className="py-2 pr-3">{c.isActive ? "Yes" : "No"}</td>
-                </tr>
+              {customers.map((customer) => (
+                <CustomerRow key={customer.id} customer={customer} />
               ))}
               {customers.length === 0 ? (
                 <tr>
-                  <td className="py-6 text-sm text-zinc-500" colSpan={5}>
+                  <td className="py-6 text-sm text-zinc-500" colSpan={7}>
                     No customers yet.
                   </td>
                 </tr>
@@ -64,4 +61,3 @@ export default async function CustomersPage() {
     </div>
   );
 }
-

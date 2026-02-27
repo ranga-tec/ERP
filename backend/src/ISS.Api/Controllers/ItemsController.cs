@@ -278,6 +278,51 @@ public sealed class ItemsController(IIssDbContext dbContext, IDocumentPdfService
         return Ok(updated);
     }
 
+    [HttpDelete("{id:guid}")]
+    public async Task<IActionResult> Delete(Guid id, CancellationToken cancellationToken)
+    {
+        var item = await dbContext.Items.FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
+        if (item is null)
+        {
+            return NotFound();
+        }
+
+        var attachmentStoragePaths = await dbContext.ItemAttachments.AsNoTracking()
+            .Where(x => x.ItemId == id && x.StoragePath != null)
+            .Select(x => x.StoragePath!)
+            .ToListAsync(cancellationToken);
+
+        dbContext.Items.Remove(item);
+        try
+        {
+            await dbContext.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateException)
+        {
+            return Conflict("Item is in use and cannot be deleted. Mark it inactive instead.");
+        }
+
+        foreach (var storagePath in attachmentStoragePaths)
+        {
+            var fullPath = Path.GetFullPath(Path.Combine(hostEnvironment.ContentRootPath, storagePath));
+            if (!System.IO.File.Exists(fullPath))
+            {
+                continue;
+            }
+
+            try
+            {
+                System.IO.File.Delete(fullPath);
+            }
+            catch
+            {
+                // Keep DB deletion successful even if filesystem cleanup fails.
+            }
+        }
+
+        return NoContent();
+    }
+
     [HttpGet("{id:guid}/attachments")]
     public async Task<ActionResult<IReadOnlyList<ItemAttachmentDto>>> ListAttachments(Guid id, CancellationToken cancellationToken)
     {

@@ -128,6 +128,28 @@ public sealed class CurrencyRatesController(IIssDbContext dbContext) : Controlle
         return await Get(id, cancellationToken);
     }
 
+    [HttpDelete("{id:guid}")]
+    public async Task<IActionResult> Delete(Guid id, CancellationToken cancellationToken)
+    {
+        var item = await dbContext.CurrencyRates.FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
+        if (item is null)
+        {
+            return NotFound();
+        }
+
+        dbContext.CurrencyRates.Remove(item);
+        try
+        {
+            await dbContext.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateException)
+        {
+            return Conflict("Currency rate is in use and cannot be deleted. Mark it inactive instead.");
+        }
+
+        return NoContent();
+    }
+
     private async Task ValidateCurrenciesAsync(Guid fromCurrencyId, Guid toCurrencyId, CancellationToken cancellationToken)
     {
         var existingIds = await dbContext.Currencies.AsNoTracking()

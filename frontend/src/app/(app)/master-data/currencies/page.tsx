@@ -1,6 +1,7 @@
 import { backendFetchJson } from "@/lib/backend.server";
 import { Card, Table } from "@/components/ui";
 import { CurrencyCreateForm } from "./CurrencyCreateForm";
+import { CurrencyRow } from "./CurrencyRow";
 
 type CurrencyDto = {
   id: string;
@@ -39,22 +40,14 @@ export default async function CurrenciesPage() {
                 <th className="py-2 pr-3">Minor</th>
                 <th className="py-2 pr-3">Base</th>
                 <th className="py-2 pr-3">Active</th>
+                <th className="py-2 pr-3">Actions</th>
               </tr>
             </thead>
             <tbody>
-              {currencies.map((c) => (
-                <tr key={c.id} className="border-b border-zinc-100 dark:border-zinc-900">
-                  <td className="py-2 pr-3 font-mono text-xs">{c.code}</td>
-                  <td className="py-2 pr-3">{c.name}</td>
-                  <td className="py-2 pr-3">{c.symbol}</td>
-                  <td className="py-2 pr-3">{c.minorUnits}</td>
-                  <td className="py-2 pr-3">{c.isBase ? "Yes" : "No"}</td>
-                  <td className="py-2 pr-3">{c.isActive ? "Yes" : "No"}</td>
-                </tr>
-              ))}
+              {currencies.map((c) => <CurrencyRow key={c.id} currency={c} />)}
               {currencies.length === 0 ? (
                 <tr>
-                  <td className="py-6 text-sm text-zinc-500" colSpan={6}>
+                  <td className="py-6 text-sm text-zinc-500" colSpan={7}>
                     No currencies yet.
                   </td>
                 </tr>

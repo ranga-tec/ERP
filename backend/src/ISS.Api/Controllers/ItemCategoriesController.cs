@@ -59,4 +59,26 @@ public sealed class ItemCategoriesController(IIssDbContext dbContext) : Controll
         await dbContext.SaveChangesAsync(cancellationToken);
         return Ok(new ItemCategoryDto(item.Id, item.Code, item.Name, item.IsActive));
     }
+
+    [HttpDelete("{id:guid}")]
+    public async Task<IActionResult> Delete(Guid id, CancellationToken cancellationToken)
+    {
+        var item = await dbContext.ItemCategories.FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
+        if (item is null)
+        {
+            return NotFound();
+        }
+
+        dbContext.ItemCategories.Remove(item);
+        try
+        {
+            await dbContext.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateException)
+        {
+            return Conflict("Item category is in use and cannot be deleted. Remove dependent subcategories/items or mark inactive.");
+        }
+
+        return NoContent();
+    }
 }

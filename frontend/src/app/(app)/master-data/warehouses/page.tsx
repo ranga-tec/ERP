@@ -1,6 +1,7 @@
 import { backendFetchJson } from "@/lib/backend.server";
 import { Card, Table } from "@/components/ui";
 import { WarehouseCreateForm } from "./WarehouseCreateForm";
+import { WarehouseRow } from "./WarehouseRow";
 
 type WarehouseDto = {
   id: string;
@@ -35,20 +36,16 @@ export default async function WarehousesPage() {
                 <th className="py-2 pr-3">Name</th>
                 <th className="py-2 pr-3">Address</th>
                 <th className="py-2 pr-3">Active</th>
+                <th className="py-2 pr-3">Actions</th>
               </tr>
             </thead>
             <tbody>
-              {warehouses.map((w) => (
-                <tr key={w.id} className="border-b border-zinc-100 dark:border-zinc-900">
-                  <td className="py-2 pr-3 font-mono text-xs">{w.code}</td>
-                  <td className="py-2 pr-3">{w.name}</td>
-                  <td className="py-2 pr-3 text-zinc-500">{w.address ?? "—"}</td>
-                  <td className="py-2 pr-3">{w.isActive ? "Yes" : "No"}</td>
-                </tr>
+              {warehouses.map((warehouse) => (
+                <WarehouseRow key={warehouse.id} warehouse={warehouse} />
               ))}
               {warehouses.length === 0 ? (
                 <tr>
-                  <td className="py-6 text-sm text-zinc-500" colSpan={4}>
+                  <td className="py-6 text-sm text-zinc-500" colSpan={5}>
                     No warehouses yet.
                   </td>
                 </tr>
@@ -60,4 +57,3 @@ export default async function WarehousesPage() {
     </div>
   );
 }
-

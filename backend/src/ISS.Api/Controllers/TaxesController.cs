@@ -90,6 +90,28 @@ public sealed class TaxesController(IIssDbContext dbContext) : ControllerBase
         return await Get(id, cancellationToken);
     }
 
+    [HttpDelete("{id:guid}")]
+    public async Task<IActionResult> Delete(Guid id, CancellationToken cancellationToken)
+    {
+        var item = await dbContext.TaxCodes.FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
+        if (item is null)
+        {
+            return NotFound();
+        }
+
+        dbContext.TaxCodes.Remove(item);
+        try
+        {
+            await dbContext.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateException)
+        {
+            return Conflict("Tax code is in use and cannot be deleted. Mark it inactive instead.");
+        }
+
+        return NoContent();
+    }
+
     [HttpPost("convert")]
     public async Task<ActionResult<ConvertTaxResponse>> Convert(ConvertTaxRequest request, CancellationToken cancellationToken)
     {

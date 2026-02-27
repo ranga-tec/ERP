@@ -54,6 +54,10 @@ Required `.env.local` value:
 - For draft line-document detail pages, follow the row-action standard:
   - show line `Actions` column in draft state
   - support `Edit`, `Save/Cancel`, and `Delete` on each row
+- For master-data maintenance pages, follow the row-action standard:
+  - include `Actions` column in list grids
+  - support inline `Edit`, `Save/Cancel`, and `Delete` per row
+  - return clear inline errors when delete is blocked by backend references
 
 ## Build Validation
 

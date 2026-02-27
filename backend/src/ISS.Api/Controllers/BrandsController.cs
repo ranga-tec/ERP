@@ -59,5 +59,26 @@ public sealed class BrandsController(IIssDbContext dbContext) : ControllerBase
         await dbContext.SaveChangesAsync(cancellationToken);
         return Ok(new BrandDto(brand.Id, brand.Code, brand.Name, brand.IsActive));
     }
-}
 
+    [HttpDelete("{id:guid}")]
+    public async Task<IActionResult> Delete(Guid id, CancellationToken cancellationToken)
+    {
+        var brand = await dbContext.Brands.FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
+        if (brand is null)
+        {
+            return NotFound();
+        }
+
+        dbContext.Brands.Remove(brand);
+        try
+        {
+            await dbContext.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateException)
+        {
+            return Conflict("Brand is in use and cannot be deleted. Mark it inactive instead.");
+        }
+
+        return NoContent();
+    }
+}

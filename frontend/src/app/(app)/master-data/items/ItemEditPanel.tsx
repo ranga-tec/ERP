@@ -2,8 +2,8 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { apiPut } from "@/lib/api-client";
-import { Button, Input, Select } from "@/components/ui";
+import { apiDeleteNoContent, apiPut } from "@/lib/api-client";
+import { Button, Input, SecondaryButton, Select } from "@/components/ui";
 
 type BrandRef = { id: string; code: string; name: string };
 type UomRef = { id: string; code: string; name: string; isActive: boolean };
@@ -159,6 +159,22 @@ export function ItemEditPanel({
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
+      setBusy(false);
+    }
+  }
+
+  async function deleteItem() {
+    if (!selectedItemId) return;
+    if (!window.confirm("Delete this item?")) return;
+
+    setError(null);
+    setBusy(true);
+    try {
+      await apiDeleteNoContent(`items/${selectedItemId}`);
+      setSelectedItemId("");
+      router.refresh();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
       setBusy(false);
     }
   }
@@ -323,9 +339,14 @@ export function ItemEditPanel({
             </div>
           ) : null}
 
-          <Button type="submit" disabled={busy || !selectedItemId}>
-            {busy ? "Saving..." : "Save Item Changes"}
-          </Button>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button type="submit" disabled={busy || !selectedItemId}>
+              {busy ? "Saving..." : "Save Item Changes"}
+            </Button>
+            <SecondaryButton type="button" disabled={busy || !selectedItemId} onClick={deleteItem}>
+              Delete Item
+            </SecondaryButton>
+          </div>
         </form>
       )}
     </div>

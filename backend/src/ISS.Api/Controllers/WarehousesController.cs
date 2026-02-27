@@ -58,5 +58,26 @@ public sealed class WarehousesController(IIssDbContext dbContext) : ControllerBa
         await dbContext.SaveChangesAsync(cancellationToken);
         return Ok(new WarehouseDto(warehouse.Id, warehouse.Code, warehouse.Name, warehouse.Address, warehouse.IsActive));
     }
-}
 
+    [HttpDelete("{id:guid}")]
+    public async Task<IActionResult> Delete(Guid id, CancellationToken cancellationToken)
+    {
+        var warehouse = await dbContext.Warehouses.FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
+        if (warehouse is null)
+        {
+            return NotFound();
+        }
+
+        dbContext.Warehouses.Remove(warehouse);
+        try
+        {
+            await dbContext.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateException)
+        {
+            return Conflict("Warehouse is in use and cannot be deleted. Mark it inactive instead.");
+        }
+
+        return NoContent();
+    }
+}

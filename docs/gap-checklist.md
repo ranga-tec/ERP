@@ -78,4 +78,5 @@ Note:
 ## Workflow depth and usability closure notes
 
 - [x] Draft line grids now support full row actions (`Edit`, `Save/Cancel`, `Delete`) across all line-based document modules.
+- [x] Master-data maintenance grids now support row actions (`Edit`, `Save/Cancel`, `Delete`) with backend delete compatibility.
 - [ ] Final end-user acceptance and regression walkthrough on all responsive breakpoints.

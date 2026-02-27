@@ -216,6 +216,14 @@ Master data API surface (current):
 - Finance-related masters: `/api/taxes`, `/api/tax-conversions`, `/api/currencies`, `/api/currency-rates`, `/api/payment-types`
 - Operational metadata: `/api/reference-forms`, `/api/reorder-settings`
 
+Master-data API action standard:
+
+- Core master data controllers now expose `GET`, `POST`, `PUT`, and `DELETE` actions for maintainable row-level operations.
+- Delete actions return `409 Conflict` for in-use records, with guidance to mark records inactive instead.
+- Reorder settings follow upsert + delete semantics:
+  - `POST /api/reorder-settings` (upsert by warehouse+item)
+  - `DELETE /api/reorder-settings/{id}`
+
 Line item API standard:
 
 - For line-based draft documents, controllers now expose:

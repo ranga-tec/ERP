@@ -4,69 +4,54 @@
 
 - Repo: `D:\VScode Projects\ISS`
 - Branch: `main`
-- Status at authoring: broad backend/frontend/docs changes staged for commit and push
-- Purpose: fast restart context after terminal/session interruption
+- Purpose: quick resume context for the latest master-data and UI action-standard closure work
+- Status at authoring: code + docs updates ready for commit/push (excluding local-only files)
 
-## What Was Completed In This Session
+## What Was Completed (Latest)
 
-### Functional coverage added
-- Master data modules: `unit conversions`, `taxes`, `tax conversions`, `currencies`, `currency rates`, `payment types`, `reference forms`
-- New costing report endpoint/UI added under reporting
-- Line-level editing and deletion support implemented across draft document grids in procurement, sales, inventory, and service
+### UI action consistency
 
-### Reliability fix
-- Direct Purchase creation failure (`NpgsqlRetryingExecutionStrategy` with user transaction) addressed by wrapping document-number generation logic with EF execution strategy in `DocumentNumberService`
-- Related redundant manual transaction usage was removed from import path to stay retry-strategy-safe
+- Added row-level action support to remaining master-data maintenance pages:
+  - brands, customers, suppliers, warehouses, UoMs
+  - item categories and subcategories
+  - reorder settings
+  - previously added pages (currencies, rates, taxes, conversions, payment types, reference forms) remain covered
+- Added delete action to item maintenance in `Master Data -> Items -> Edit Item`
+- Normalized transaction line-grid action button sizing to compact table style
 
-### UI and API behavior alignment
-- Added row action buttons for line grids where add-only behavior existed before
-- Standardized draft line endpoints to support create/update/delete consistently
+### Backend API compatibility
+
+- Added `DELETE` endpoints for master-data controllers where missing:
+  - brands, customers, suppliers, warehouses, uoms
+  - item categories, item subcategories, reorder settings
+  - items
+  - plus earlier-added masters (currencies, currency-rates, payment-types, reference-forms, taxes, tax-conversions, uom-conversions)
+- Delete endpoints return conflict-safe responses for in-use entities where applicable
 
 ## Documentation Updated
 
 - `README.md`
-- `frontend/README.md`
 - `docs/system-technical-maintainer-guide.md`
 - `docs/backend-architecture.md`
 - `docs/frontend-architecture.md`
 - `docs/user-manual.md`
-- `docs/gap-checklist.md`
-- `docs/requirements.md`
-- `docs/master-data-costing-best-practice-notes.md`
+- `docs/next-session-notes.md`
+- `frontend/README.md`
 - `frontend/docs/iss-system-technical-documentation.md`
 
-## Validation Summary (This Workstream)
+## Validation Summary
 
-- Backend build: passed
-- Unit tests: passed
-- Integration tests: passed
-- Frontend production build: passed
+- Frontend build: passed (`npm run build`)
+- Backend build: passed (`dotnet build backend/src/ISS.Api/ISS.Api.csproj -c Release`)
+- Unit tests: passed (`26/26`)
+- Integration tests: `32/34` passed
+  - failing tests currently:
+    - `Sales_Dispatch_Reduces_Stock_Invoice_Creates_AR_And_Payment_Marks_Paid`
+    - `Pdf_Export_Endpoints_Return_Pdf_Content`
+  - current failure detail: `POST /api/finance/payments` -> `Selected currency is invalid or inactive.`
 
-## Runbook
+## Immediate Next Checks
 
-### Start infra
-```powershell
-cd D:\VScode Projects\ISS
-docker compose up -d
-```
-
-### Backend
-```powershell
-cd D:\VScode Projects\ISS
-dotnet run --project backend/src/ISS.Api/ISS.Api.csproj
-```
-
-### Frontend
-```powershell
-cd D:\VScode Projects\ISS\frontend
-copy .env.example .env.local
-npm install
-npm run dev
-```
-
-## Priority Next Checks
-
-1. Full UAT pass on all line-edit/delete flows (focus: validation and totals refresh)
-2. Role/permission verification for new master-data screens
-3. Reporting accuracy checks for costing output against expected calculation samples
-4. Final responsive pass and CSV closure review
+1. Validate end-to-end master-data row edit/delete flows in UI (role + conflict handling)
+2. Investigate integration test currency setup for payment creation failures
+3. Final UAT pass on responsive layouts and action-column usability across modules
