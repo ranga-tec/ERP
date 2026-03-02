@@ -17,7 +17,7 @@ export function Card(props: ComponentProps<"div">) {
   return (
     <div
       className={[
-        "rounded-2xl border border-[var(--card-border)] bg-[var(--card-bg)] p-4 shadow-[0_24px_54px_-36px_rgba(15,23,42,0.55)] backdrop-blur-sm transition-colors",
+        "rounded-2xl border border-[var(--card-border)] bg-[var(--card-bg)] p-4 shadow-[0_24px_54px_-38px_rgba(15,23,42,0.58)] backdrop-blur-sm transition-colors",
         className ?? "",
       ].join(" ")}
       {...rest}
@@ -30,7 +30,7 @@ export function Button(props: ComponentProps<"button">) {
   return (
     <button
       className={[
-        "inline-flex items-center justify-center rounded-xl bg-gradient-to-r from-cyan-600 via-sky-600 to-blue-600 px-3.5 py-2 text-sm font-semibold text-white shadow-[0_16px_30px_-20px_rgba(2,132,199,0.95)] transition-all duration-200 hover:-translate-y-px hover:from-cyan-500 hover:to-blue-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring-accent)] disabled:cursor-not-allowed disabled:opacity-55",
+        "inline-flex items-center justify-center rounded-xl bg-[var(--accent)] px-3.5 py-2 text-sm font-semibold text-[var(--accent-contrast)] shadow-[0_14px_30px_-22px_rgba(15,23,42,0.9)] transition-all duration-200 hover:-translate-y-px hover:bg-[var(--accent-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring-accent)] disabled:cursor-not-allowed disabled:opacity-55",
         className ?? "",
       ].join(" ")}
       {...rest}
@@ -45,10 +45,10 @@ export function SecondaryButton(props: ComponentProps<"button">) {
   return (
     <button
       className={[
-        "inline-flex items-center justify-center rounded-xl border border-[var(--input-border)] bg-[var(--surface)] px-3.5 py-2 text-sm font-medium text-[var(--foreground)] shadow-[0_8px_16px_-14px_rgba(15,23,42,0.65)] transition-all duration-200 hover:-translate-y-px hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring-accent)] disabled:cursor-not-allowed disabled:opacity-55 dark:hover:bg-[var(--surface)]",
+        "inline-flex items-center justify-center rounded-xl border border-[var(--input-border)] bg-[var(--surface)] px-3.5 py-2 text-sm font-medium text-[var(--foreground)] shadow-[0_8px_16px_-14px_rgba(15,23,42,0.65)] transition-all duration-200 hover:-translate-y-px hover:bg-[var(--surface-soft)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring-accent)] disabled:cursor-not-allowed disabled:opacity-55",
         className ?? "",
         isInlineAction
-          ? "h-auto rounded-none border-0 bg-transparent p-0 text-xs font-semibold text-cyan-700 underline underline-offset-2 shadow-none hover:bg-transparent hover:text-cyan-600 dark:text-sky-300 dark:hover:text-sky-200"
+          ? "h-auto rounded-none border-0 bg-transparent p-0 text-xs font-semibold text-[var(--link)] underline underline-offset-2 shadow-none hover:bg-transparent hover:text-[var(--link-hover)]"
           : "",
       ].join(" ")}
       {...rest}
@@ -61,7 +61,7 @@ export function SecondaryLink(props: ComponentProps<"a">) {
   return (
     <a
       className={[
-        "inline-flex items-center justify-center rounded-xl border border-[var(--input-border)] bg-[var(--surface)] px-3.5 py-2 text-sm font-medium text-[var(--foreground)] shadow-[0_8px_16px_-14px_rgba(15,23,42,0.65)] transition-all duration-200 hover:-translate-y-px hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring-accent)] disabled:cursor-not-allowed disabled:opacity-55 dark:hover:bg-[var(--surface)]",
+        "inline-flex items-center justify-center rounded-xl border border-[var(--input-border)] bg-[var(--surface)] px-3.5 py-2 text-sm font-medium text-[var(--foreground)] shadow-[0_8px_16px_-14px_rgba(15,23,42,0.65)] transition-all duration-200 hover:-translate-y-px hover:bg-[var(--surface-soft)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring-accent)] disabled:cursor-not-allowed disabled:opacity-55",
         className ?? "",
       ].join(" ")}
       {...rest}

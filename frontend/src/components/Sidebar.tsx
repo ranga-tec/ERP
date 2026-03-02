@@ -218,8 +218,8 @@ export function Sidebar({ collapsed = false, onNavigate, onToggleCollapse }: Sid
                         "block rounded-xl px-2.5 py-2 text-sm transition-all duration-200",
                         collapsed ? "text-center font-medium" : "",
                         active
-                          ? "bg-gradient-to-r from-cyan-600 to-sky-600 text-white shadow-[0_14px_24px_-16px_rgba(2,132,199,0.95)]"
-                          : "text-[var(--foreground)]/85 hover:-translate-y-px hover:bg-white/65 hover:text-[var(--foreground)] dark:hover:bg-slate-900/55",
+                          ? "bg-[var(--accent)] text-[var(--accent-contrast)] shadow-[0_14px_24px_-16px_rgba(15,23,42,0.95)]"
+                          : "text-[var(--foreground)]/85 hover:-translate-y-px hover:bg-[var(--accent-muted)] hover:text-[var(--foreground)]",
                       ].join(" ")}
                     >
                       {collapsed ? compactLabel(item.label) : item.label}

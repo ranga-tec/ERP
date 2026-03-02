@@ -3,18 +3,26 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 :root {
-  --background: #f2f6fc;
+  --background: #f5f7fc;
   --foreground: #0f172a;
-  --muted-foreground: #475569;
+  --muted-foreground: #51607a;
   --surface: #ffffff;
-  --surface-soft: rgba(255, 255, 255, 0.76);
-  --card-bg: rgba(255, 255, 255, 0.88);
-  --card-border: rgba(15, 23, 42, 0.11);
-  --input-border: rgba(15, 23, 42, 0.16);
-  --ring-accent: rgba(14, 116, 144, 0.32);
-  --orb-a: rgba(14, 165, 233, 0.22);
-  --orb-b: rgba(13, 148, 136, 0.18);
-  --orb-c: rgba(56, 189, 248, 0.16);
+  --surface-soft: rgba(255, 255, 255, 0.8);
+  --card-bg: rgba(255, 255, 255, 0.9);
+  --card-border: rgba(15, 23, 42, 0.12);
+  --input-border: rgba(15, 23, 42, 0.2);
+  --ring-accent: rgba(37, 99, 235, 0.35);
+  --accent: #1d4ed8;
+  --accent-hover: #1e40af;
+  --accent-contrast: #f8fafc;
+  --accent-muted: rgba(29, 78, 216, 0.12);
+  --link: #1d4ed8;
+  --link-hover: #1e3a8a;
+  --danger: #b91c1c;
+  --danger-muted: rgba(220, 38, 38, 0.12);
+  --orb-a: rgba(37, 99, 235, 0.16);
+  --orb-b: rgba(59, 130, 246, 0.1);
+  --orb-c: rgba(99, 102, 241, 0.08);
   color-scheme: light;
 }
 
@@ -26,18 +34,26 @@
 }
 
 .dark {
-  --background: #060d19;
-  --foreground: #e2e8f0;
-  --muted-foreground: #94a3b8;
-  --surface: #0b1528;
-  --surface-soft: rgba(8, 20, 40, 0.72);
-  --card-bg: rgba(8, 22, 42, 0.76);
-  --card-border: rgba(148, 163, 184, 0.2);
-  --input-border: rgba(148, 163, 184, 0.26);
-  --ring-accent: rgba(56, 189, 248, 0.42);
-  --orb-a: rgba(14, 165, 233, 0.2);
-  --orb-b: rgba(45, 212, 191, 0.14);
-  --orb-c: rgba(59, 130, 246, 0.15);
+  --background: #0b1220;
+  --foreground: #e5ecf8;
+  --muted-foreground: #97a8c2;
+  --surface: #121b2f;
+  --surface-soft: rgba(11, 18, 32, 0.8);
+  --card-bg: rgba(16, 26, 44, 0.84);
+  --card-border: rgba(148, 163, 184, 0.24);
+  --input-border: rgba(148, 163, 184, 0.35);
+  --ring-accent: rgba(96, 165, 250, 0.45);
+  --accent: #60a5fa;
+  --accent-hover: #93c5fd;
+  --accent-contrast: #0b1220;
+  --accent-muted: rgba(96, 165, 250, 0.2);
+  --link: #93c5fd;
+  --link-hover: #bfdbfe;
+  --danger: #fca5a5;
+  --danger-muted: rgba(239, 68, 68, 0.2);
+  --orb-a: rgba(30, 64, 175, 0.22);
+  --orb-b: rgba(37, 99, 235, 0.16);
+  --orb-c: rgba(59, 130, 246, 0.14);
   color-scheme: dark;
 }
 
@@ -51,9 +67,9 @@ body {
   min-height: 100vh;
   background: var(--background);
   background-image:
-    radial-gradient(1100px 520px at -8% -20%, var(--orb-a), transparent 65%),
-    radial-gradient(1200px 560px at 110% -12%, var(--orb-b), transparent 63%),
-    radial-gradient(860px 520px at 50% 122%, var(--orb-c), transparent 74%);
+    radial-gradient(1000px 480px at -8% -20%, var(--orb-a), transparent 66%),
+    radial-gradient(1080px 520px at 110% -12%, var(--orb-b), transparent 65%),
+    radial-gradient(820px 520px at 50% 122%, var(--orb-c), transparent 76%);
   color: var(--foreground);
   font-family: var(--font-geist-sans), "Segoe UI", sans-serif;
   text-rendering: optimizeLegibility;
@@ -61,7 +77,7 @@ body {
 }
 
 ::selection {
-  background: rgba(2, 132, 199, 0.25);
+  background: var(--accent-muted);
   color: var(--foreground);
 }
 

@@ -62,11 +62,11 @@ function LoginPageInner() {
 
   return (
     <div className="relative flex min-h-screen items-center justify-center overflow-hidden px-4 py-8">
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(900px_420px_at_50%_-20%,rgba(14,165,233,0.25),transparent_66%),radial-gradient(900px_440px_at_110%_120%,rgba(16,185,129,0.16),transparent_72%)]" />
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(920px_420px_at_50%_-20%,var(--orb-a),transparent_66%),radial-gradient(900px_440px_at_110%_120%,var(--orb-b),transparent_72%)]" />
 
       <div className="relative w-full max-w-md rounded-3xl border border-[var(--card-border)] bg-[var(--card-bg)] p-7 shadow-[0_34px_80px_-42px_rgba(15,23,42,0.85)] backdrop-blur-xl sm:p-8">
         <div className="mb-6">
-          <div className="mb-1 inline-flex rounded-full border border-cyan-500/35 bg-cyan-500/10 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-cyan-700 dark:text-cyan-200">
+          <div className="mb-1 inline-flex rounded-full border border-[var(--input-border)] bg-[var(--accent-muted)] px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--link)]">
             ISS ERP Portal
           </div>
           <h1 className="text-2xl font-semibold tracking-tight">
@@ -117,7 +117,7 @@ function LoginPageInner() {
           </div>
 
           {error ? (
-            <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-700 dark:text-red-200">
+            <div className="rounded-xl border border-[var(--danger)]/35 bg-[var(--danger-muted)] p-3 text-sm text-[var(--danger)]">
               {error}
             </div>
           ) : null}
@@ -125,7 +125,7 @@ function LoginPageInner() {
           <button
             type="submit"
             disabled={busy}
-            className="inline-flex w-full items-center justify-center rounded-xl bg-gradient-to-r from-cyan-600 via-sky-600 to-blue-600 px-3.5 py-2.5 text-sm font-semibold text-white shadow-[0_18px_34px_-22px_rgba(2,132,199,0.95)] transition-all duration-200 hover:-translate-y-px hover:from-cyan-500 hover:to-blue-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring-accent)] disabled:cursor-not-allowed disabled:opacity-55"
+            className="inline-flex w-full items-center justify-center rounded-xl bg-[var(--accent)] px-3.5 py-2.5 text-sm font-semibold text-[var(--accent-contrast)] shadow-[0_18px_34px_-22px_rgba(15,23,42,0.9)] transition-all duration-200 hover:-translate-y-px hover:bg-[var(--accent-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring-accent)] disabled:cursor-not-allowed disabled:opacity-55"
           >
             {busy
               ? mode === "login"
@@ -141,7 +141,7 @@ function LoginPageInner() {
           {mode === "login" && selfRegistrationEnabled ? (
             <button
               type="button"
-              className="font-semibold text-cyan-700 underline underline-offset-2 transition-colors hover:text-cyan-600 dark:text-sky-300 dark:hover:text-sky-200"
+              className="font-semibold text-[var(--link)] underline underline-offset-2 transition-colors hover:text-[var(--link-hover)]"
               onClick={() => setMode("register")}
             >
               Create an account
@@ -149,7 +149,7 @@ function LoginPageInner() {
           ) : mode === "register" ? (
             <button
               type="button"
-              className="font-semibold text-cyan-700 underline underline-offset-2 transition-colors hover:text-cyan-600 dark:text-sky-300 dark:hover:text-sky-200"
+              className="font-semibold text-[var(--link)] underline underline-offset-2 transition-colors hover:text-[var(--link-hover)]"
               onClick={() => setMode("login")}
             >
               Back to sign in

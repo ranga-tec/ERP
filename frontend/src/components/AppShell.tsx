@@ -60,7 +60,7 @@ export function AppShell({ children, email, roles }: AppShellProps) {
             <div className="flex min-w-0 items-center gap-2">
               <button
                 type="button"
-                className="inline-flex items-center justify-center rounded-xl border border-[var(--input-border)] bg-[var(--surface)] px-3 py-1.5 text-sm font-medium text-[var(--foreground)] shadow-[0_8px_16px_-14px_rgba(15,23,42,0.65)] transition-all duration-200 hover:-translate-y-px hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring-accent)] lg:hidden dark:hover:bg-[var(--surface)]"
+                className="inline-flex items-center justify-center rounded-xl border border-[var(--input-border)] bg-[var(--surface)] px-3 py-1.5 text-sm font-medium text-[var(--foreground)] shadow-[0_8px_16px_-14px_rgba(15,23,42,0.65)] transition-all duration-200 hover:-translate-y-px hover:bg-[var(--surface-soft)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring-accent)] lg:hidden"
                 onClick={() => setMobileSidebarOpen(true)}
               >
                 Menu
@@ -76,7 +76,7 @@ export function AppShell({ children, email, roles }: AppShellProps) {
             <div className="ml-3 flex items-center gap-2">
               <Link
                 href="/settings"
-                className="inline-flex items-center justify-center rounded-xl border border-[var(--input-border)] bg-[var(--surface)] px-3.5 py-2 text-sm font-medium text-[var(--foreground)] shadow-[0_8px_16px_-14px_rgba(15,23,42,0.65)] transition-all duration-200 hover:-translate-y-px hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring-accent)] dark:hover:bg-[var(--surface)]"
+                className="inline-flex items-center justify-center rounded-xl border border-[var(--input-border)] bg-[var(--surface)] px-3.5 py-2 text-sm font-medium text-[var(--foreground)] shadow-[0_8px_16px_-14px_rgba(15,23,42,0.65)] transition-all duration-200 hover:-translate-y-px hover:bg-[var(--surface-soft)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring-accent)]"
               >
                 Settings
               </Link>
