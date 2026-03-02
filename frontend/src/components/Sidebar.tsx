@@ -114,6 +114,7 @@ const sections: NavSection[] = [
 type SidebarProps = {
   collapsed?: boolean;
   onNavigate?: () => void;
+  onToggleCollapse?: () => void;
 };
 
 function itemIsActive(pathname: string, href: string): boolean {
@@ -132,8 +133,35 @@ function compactLabel(label: string): string {
   return `${words[0][0]}${words[1][0]}`.toUpperCase();
 }
 
-export function Sidebar({ collapsed = false, onNavigate }: SidebarProps) {
+function PinIcon({ pinned }: { pinned: boolean }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      className={["h-4 w-4", pinned ? "" : "-rotate-45"].join(" ")}
+      fill="none"
+      aria-hidden="true"
+    >
+      <path
+        d="M9 5h6l-1 7 3 3H7l3-3-1-7Z"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M12 15v6"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
+export function Sidebar({ collapsed = false, onNavigate, onToggleCollapse }: SidebarProps) {
   const pathname = usePathname();
+  const canToggle = typeof onToggleCollapse === "function";
+  const pinned = !collapsed;
 
   return (
     <aside
@@ -142,12 +170,26 @@ export function Sidebar({ collapsed = false, onNavigate }: SidebarProps) {
         collapsed ? "w-20" : "w-72",
       ].join(" ")}
     >
-      <div className="mb-4">
-        <div className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
-          {collapsed ? "ISS" : "ISS ERP"}
+      <div className="mb-4 flex items-start justify-between gap-2">
+        <div>
+          <div className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+            {collapsed ? "ISS" : "ISS ERP"}
+          </div>
+          {!collapsed ? (
+            <div className="text-xs text-zinc-500">Service + Inventory + Sales</div>
+          ) : null}
         </div>
-        {!collapsed ? (
-          <div className="text-xs text-zinc-500">Service + Inventory + Sales</div>
+        {canToggle ? (
+          <button
+            type="button"
+            onClick={onToggleCollapse}
+            aria-pressed={pinned}
+            aria-label={pinned ? "Unpin sidebar" : "Pin sidebar"}
+            title={pinned ? "Unpin sidebar" : "Pin sidebar"}
+            className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-zinc-200 text-zinc-600 transition hover:bg-zinc-100 hover:text-zinc-900 dark:border-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-900 dark:hover:text-zinc-100"
+          >
+            <PinIcon pinned={pinned} />
+          </button>
         ) : null}
       </div>
 

@@ -49,7 +49,10 @@ export function AppShell({ children, email, roles }: AppShellProps) {
 
       <div className="flex min-h-screen">
         <div className="hidden lg:block">
-          <Sidebar collapsed={sidebarCollapsed} />
+          <Sidebar
+            collapsed={sidebarCollapsed}
+            onToggleCollapse={toggleDesktopSidebar}
+          />
         </div>
 
         <div className="flex min-w-0 flex-1 flex-col">
@@ -61,13 +64,6 @@ export function AppShell({ children, email, roles }: AppShellProps) {
                 onClick={() => setMobileSidebarOpen(true)}
               >
                 Menu
-              </button>
-              <button
-                type="button"
-                className="hidden rounded-md border border-zinc-300 bg-white px-3 py-1.5 text-sm font-medium hover:bg-zinc-50 lg:inline-flex dark:border-zinc-700 dark:bg-zinc-900 dark:hover:bg-zinc-800"
-                onClick={toggleDesktopSidebar}
-              >
-                {sidebarCollapsed ? "Expand Menu" : "Collapse Menu"}
               </button>
               <div className="min-w-0">
                 <div className="truncate text-sm font-medium">{email}</div>
