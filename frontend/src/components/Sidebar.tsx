@@ -166,17 +166,17 @@ export function Sidebar({ collapsed = false, onNavigate, onToggleCollapse }: Sid
   return (
     <aside
       className={[
-        "h-full shrink-0 border-r border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950",
-        collapsed ? "w-20" : "w-72",
+        "h-full shrink-0 border-r border-[var(--card-border)] bg-[var(--surface-soft)] p-4 shadow-[0_26px_44px_-38px_rgba(15,23,42,0.85)] backdrop-blur-xl transition-all duration-200",
+        collapsed ? "w-20" : "w-[18.5rem]",
       ].join(" ")}
     >
       <div className="mb-4 flex items-start justify-between gap-2">
         <div>
-          <div className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+          <div className="text-sm font-semibold tracking-tight text-[var(--foreground)]">
             {collapsed ? "ISS" : "ISS ERP"}
           </div>
           {!collapsed ? (
-            <div className="text-xs text-zinc-500">Service + Inventory + Sales</div>
+            <div className="text-xs text-[var(--muted-foreground)]">Service + Inventory + Sales</div>
           ) : null}
         </div>
         {canToggle ? (
@@ -186,7 +186,7 @@ export function Sidebar({ collapsed = false, onNavigate, onToggleCollapse }: Sid
             aria-pressed={pinned}
             aria-label={pinned ? "Unpin sidebar" : "Pin sidebar"}
             title={pinned ? "Unpin sidebar" : "Pin sidebar"}
-            className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-zinc-200 text-zinc-600 transition hover:bg-zinc-100 hover:text-zinc-900 dark:border-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-900 dark:hover:text-zinc-100"
+            className="inline-flex h-8 w-8 items-center justify-center rounded-xl border border-[var(--input-border)] bg-[var(--surface)] text-[var(--muted-foreground)] transition-all duration-200 hover:-translate-y-px hover:text-[var(--foreground)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring-accent)]"
           >
             <PinIcon pinned={pinned} />
           </button>
@@ -197,11 +197,11 @@ export function Sidebar({ collapsed = false, onNavigate, onToggleCollapse }: Sid
         {sections.map((section) => (
           <div key={section.title}>
             {!collapsed ? (
-              <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-zinc-500">
+              <div className="mb-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--muted-foreground)]">
                 {section.title}
               </div>
             ) : (
-              <div className="mb-2 border-t border-zinc-200 pt-2 dark:border-zinc-800" />
+              <div className="mb-2 border-t border-[var(--card-border)] pt-2" />
             )}
             <ul className="space-y-1">
               {section.items.map((item) => {
@@ -215,11 +215,11 @@ export function Sidebar({ collapsed = false, onNavigate, onToggleCollapse }: Sid
                       title={collapsed ? item.label : undefined}
                       aria-label={item.label}
                       className={[
-                        "block rounded-md px-2 py-1.5 text-sm transition-colors",
+                        "block rounded-xl px-2.5 py-2 text-sm transition-all duration-200",
                         collapsed ? "text-center font-medium" : "",
                         active
-                          ? "bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900"
-                          : "text-zinc-700 hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-900 dark:hover:text-zinc-100",
+                          ? "bg-gradient-to-r from-cyan-600 to-sky-600 text-white shadow-[0_14px_24px_-16px_rgba(2,132,199,0.95)]"
+                          : "text-[var(--foreground)]/85 hover:-translate-y-px hover:bg-white/65 hover:text-[var(--foreground)] dark:hover:bg-slate-900/55",
                       ].join(" ")}
                     >
                       {collapsed ? compactLabel(item.label) : item.label}

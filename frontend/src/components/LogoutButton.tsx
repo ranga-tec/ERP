@@ -23,10 +23,9 @@ export function LogoutButton() {
       type="button"
       onClick={onLogout}
       disabled={busy}
-      className="rounded-md border border-zinc-300 bg-white px-3 py-1.5 text-sm font-medium text-zinc-900 hover:bg-zinc-50 disabled:opacity-50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100 dark:hover:bg-zinc-800"
+      className="inline-flex items-center justify-center rounded-xl border border-[var(--input-border)] bg-[var(--surface)] px-3.5 py-2 text-sm font-medium text-[var(--foreground)] shadow-[0_8px_16px_-14px_rgba(15,23,42,0.65)] transition-all duration-200 hover:-translate-y-px hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring-accent)] disabled:cursor-not-allowed disabled:opacity-55 dark:hover:bg-[var(--surface)]"
     >
-      {busy ? "Signing out…" : "Sign out"}
+      {busy ? "Signing out..." : "Sign out"}
     </button>
   );
 }
-

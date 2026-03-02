@@ -33,11 +33,11 @@ export function AppShell({ children, email, roles }: AppShellProps) {
   }
 
   return (
-    <div className="min-h-screen bg-zinc-50 text-zinc-900 dark:bg-black dark:text-zinc-100">
+    <div className="relative min-h-screen overflow-x-clip bg-[var(--background)] text-[var(--foreground)]">
       {mobileSidebarOpen ? (
         <button
           type="button"
-          className="fixed inset-0 z-30 bg-black/40 lg:hidden"
+          className="fixed inset-0 z-30 bg-slate-950/45 backdrop-blur-sm lg:hidden"
           aria-label="Close menu"
           onClick={() => setMobileSidebarOpen(false)}
         />
@@ -47,7 +47,7 @@ export function AppShell({ children, email, roles }: AppShellProps) {
         <Sidebar onNavigate={() => setMobileSidebarOpen(false)} />
       </div>
 
-      <div className="flex min-h-screen">
+      <div className="relative flex min-h-screen">
         <div className="hidden lg:block">
           <Sidebar
             collapsed={sidebarCollapsed}
@@ -56,18 +56,18 @@ export function AppShell({ children, email, roles }: AppShellProps) {
         </div>
 
         <div className="flex min-w-0 flex-1 flex-col">
-          <header className="flex items-center justify-between border-b border-zinc-200 bg-white px-4 py-4 sm:px-6 dark:border-zinc-800 dark:bg-zinc-950">
+          <header className="sticky top-0 z-20 flex items-center justify-between border-b border-[var(--card-border)] bg-[var(--surface-soft)] px-4 py-4 shadow-[0_16px_34px_-28px_rgba(15,23,42,0.8)] backdrop-blur-xl sm:px-6">
             <div className="flex min-w-0 items-center gap-2">
               <button
                 type="button"
-                className="inline-flex rounded-md border border-zinc-300 bg-white px-3 py-1.5 text-sm font-medium hover:bg-zinc-50 lg:hidden dark:border-zinc-700 dark:bg-zinc-900 dark:hover:bg-zinc-800"
+                className="inline-flex items-center justify-center rounded-xl border border-[var(--input-border)] bg-[var(--surface)] px-3 py-1.5 text-sm font-medium text-[var(--foreground)] shadow-[0_8px_16px_-14px_rgba(15,23,42,0.65)] transition-all duration-200 hover:-translate-y-px hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring-accent)] lg:hidden dark:hover:bg-[var(--surface)]"
                 onClick={() => setMobileSidebarOpen(true)}
               >
                 Menu
               </button>
               <div className="min-w-0">
-                <div className="truncate text-sm font-medium">{email}</div>
-                <div className="truncate text-xs text-zinc-500">
+                <div className="truncate text-sm font-semibold">{email}</div>
+                <div className="truncate text-xs text-[var(--muted-foreground)]">
                   {roles.length > 0 ? roles.join(", ") : "-"}
                 </div>
               </div>
@@ -76,7 +76,7 @@ export function AppShell({ children, email, roles }: AppShellProps) {
             <div className="ml-3 flex items-center gap-2">
               <Link
                 href="/settings"
-                className="inline-block rounded-md border border-zinc-300 bg-white px-3 py-1.5 text-sm font-medium text-zinc-900 hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100 dark:hover:bg-zinc-800"
+                className="inline-flex items-center justify-center rounded-xl border border-[var(--input-border)] bg-[var(--surface)] px-3.5 py-2 text-sm font-medium text-[var(--foreground)] shadow-[0_8px_16px_-14px_rgba(15,23,42,0.65)] transition-all duration-200 hover:-translate-y-px hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring-accent)] dark:hover:bg-[var(--surface)]"
               >
                 Settings
               </Link>
@@ -84,7 +84,9 @@ export function AppShell({ children, email, roles }: AppShellProps) {
             </div>
           </header>
 
-          <main className="flex-1 p-4 sm:p-6">{children}</main>
+          <main className="flex-1 animate-[pageFade_.28s_ease-out] p-4 sm:p-6 lg:p-8">
+            {children}
+          </main>
         </div>
       </div>
     </div>

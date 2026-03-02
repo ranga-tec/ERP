@@ -61,13 +61,18 @@ function LoginPageInner() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 px-4 dark:bg-black">
-      <div className="w-full max-w-md rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-950">
+    <div className="relative flex min-h-screen items-center justify-center overflow-hidden px-4 py-8">
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(900px_420px_at_50%_-20%,rgba(14,165,233,0.25),transparent_66%),radial-gradient(900px_440px_at_110%_120%,rgba(16,185,129,0.16),transparent_72%)]" />
+
+      <div className="relative w-full max-w-md rounded-3xl border border-[var(--card-border)] bg-[var(--card-bg)] p-7 shadow-[0_34px_80px_-42px_rgba(15,23,42,0.85)] backdrop-blur-xl sm:p-8">
         <div className="mb-6">
-          <h1 className="text-xl font-semibold">
+          <div className="mb-1 inline-flex rounded-full border border-cyan-500/35 bg-cyan-500/10 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-cyan-700 dark:text-cyan-200">
+            ISS ERP Portal
+          </div>
+          <h1 className="text-2xl font-semibold tracking-tight">
             {mode === "login" ? "Sign in" : "Create account"}
           </h1>
-          <p className="mt-1 text-sm text-zinc-500">
+          <p className="mt-1 text-sm text-[var(--muted-foreground)]">
             {mode === "login"
               ? "Use your ISS ERP credentials."
               : "The first registered user becomes Admin."}
@@ -81,7 +86,7 @@ function LoginPageInner() {
               <input
                 value={displayName}
                 onChange={(e) => setDisplayName(e.target.value)}
-                className="w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-zinc-900/10 dark:border-zinc-700 dark:bg-zinc-900 dark:focus:ring-zinc-100/10"
+                className="w-full rounded-xl border border-[var(--input-border)] bg-[var(--surface)] px-3 py-2.5 text-sm text-[var(--foreground)] outline-none transition focus-visible:ring-2 focus-visible:ring-[var(--ring-accent)] placeholder:text-[var(--muted-foreground)]/80"
                 placeholder="Admin"
               />
             </div>
@@ -94,8 +99,8 @@ function LoginPageInner() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
-              className="w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-zinc-900/10 dark:border-zinc-700 dark:bg-zinc-900 dark:focus:ring-zinc-100/10"
-              placeholder="admin@local"
+              className="w-full rounded-xl border border-[var(--input-border)] bg-[var(--surface)] px-3 py-2.5 text-sm text-[var(--foreground)] outline-none transition focus-visible:ring-2 focus-visible:ring-[var(--ring-accent)] placeholder:text-[var(--muted-foreground)]/80"
+              placeholder="admin@company.lk"
             />
           </div>
 
@@ -106,13 +111,13 @@ function LoginPageInner() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
-              className="w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-zinc-900/10 dark:border-zinc-700 dark:bg-zinc-900 dark:focus:ring-zinc-100/10"
+              className="w-full rounded-xl border border-[var(--input-border)] bg-[var(--surface)] px-3 py-2.5 text-sm text-[var(--foreground)] outline-none transition focus-visible:ring-2 focus-visible:ring-[var(--ring-accent)] placeholder:text-[var(--muted-foreground)]/80"
               placeholder="Passw0rd1"
             />
           </div>
 
           {error ? (
-            <div className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-900 dark:border-red-900/40 dark:bg-red-950/40 dark:text-red-100">
+            <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-700 dark:text-red-200">
               {error}
             </div>
           ) : null}
@@ -120,23 +125,23 @@ function LoginPageInner() {
           <button
             type="submit"
             disabled={busy}
-            className="w-full rounded-md bg-zinc-900 px-3 py-2 text-sm font-semibold text-white hover:bg-zinc-800 disabled:opacity-50 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-white"
+            className="inline-flex w-full items-center justify-center rounded-xl bg-gradient-to-r from-cyan-600 via-sky-600 to-blue-600 px-3.5 py-2.5 text-sm font-semibold text-white shadow-[0_18px_34px_-22px_rgba(2,132,199,0.95)] transition-all duration-200 hover:-translate-y-px hover:from-cyan-500 hover:to-blue-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring-accent)] disabled:cursor-not-allowed disabled:opacity-55"
           >
             {busy
               ? mode === "login"
-                ? "Signing in…"
-                : "Creating…"
+                ? "Signing in..."
+                : "Creating..."
               : mode === "login"
                 ? "Sign in"
                 : "Create account"}
           </button>
         </form>
 
-        <div className="mt-4 text-center text-sm text-zinc-500">
+        <div className="mt-4 text-center text-sm text-[var(--muted-foreground)]">
           {mode === "login" && selfRegistrationEnabled ? (
             <button
               type="button"
-              className="font-medium text-zinc-900 hover:underline dark:text-zinc-100"
+              className="font-semibold text-cyan-700 underline underline-offset-2 transition-colors hover:text-cyan-600 dark:text-sky-300 dark:hover:text-sky-200"
               onClick={() => setMode("register")}
             >
               Create an account
@@ -144,7 +149,7 @@ function LoginPageInner() {
           ) : mode === "register" ? (
             <button
               type="button"
-              className="font-medium text-zinc-900 hover:underline dark:text-zinc-100"
+              className="font-semibold text-cyan-700 underline underline-offset-2 transition-colors hover:text-cyan-600 dark:text-sky-300 dark:hover:text-sky-200"
               onClick={() => setMode("login")}
             >
               Back to sign in
@@ -162,9 +167,9 @@ export default function LoginPage() {
   return (
     <Suspense
       fallback={
-        <div className="flex min-h-screen items-center justify-center bg-zinc-50 px-4 dark:bg-black">
-          <div className="w-full max-w-md rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-950">
-            <div className="text-sm text-zinc-500">Loading...</div>
+        <div className="flex min-h-screen items-center justify-center px-4">
+          <div className="w-full max-w-md rounded-3xl border border-[var(--card-border)] bg-[var(--card-bg)] p-6 shadow-[0_34px_80px_-42px_rgba(15,23,42,0.85)] backdrop-blur-xl">
+            <div className="text-sm text-[var(--muted-foreground)]">Loading...</div>
           </div>
         </div>
       }
