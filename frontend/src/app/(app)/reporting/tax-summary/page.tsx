@@ -1,5 +1,6 @@
 import { backendFetchJson } from "@/lib/backend.server";
 import { Card, Table } from "@/components/ui";
+import { userSettingsFromCookies } from "@/lib/user-settings.server";
 
 type TaxSummaryReport = {
   from: string;
@@ -13,16 +14,27 @@ type TaxSummaryReport = {
   supplierInvoiceCount: number;
 };
 
-function money(value: number) {
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
-    maximumFractionDigits: 2,
-  }).format(value);
-}
-
 export default async function TaxSummaryPage() {
+  const settings = await userSettingsFromCookies();
   const report = await backendFetchJson<TaxSummaryReport>("/reporting/tax-summary");
+  const money = (value: number) => {
+    try {
+      return new Intl.NumberFormat(settings.locale, {
+        style: "currency",
+        currency: settings.baseCurrencyCode,
+        maximumFractionDigits: 2,
+      }).format(value);
+    } catch {
+      return new Intl.NumberFormat("en-LK", {
+        style: "currency",
+        currency: "LKR",
+        maximumFractionDigits: 2,
+      }).format(value);
+    }
+  };
+
+  const dateFormat = (iso: string) =>
+    new Date(iso).toLocaleDateString(settings.locale, { timeZone: settings.timeZone });
 
   const rows = [
     {
@@ -45,8 +57,8 @@ export default async function TaxSummaryPage() {
         <h1 className="text-2xl font-semibold">Tax Summary</h1>
         <p className="mt-1 text-sm text-zinc-500">
           Posted sales and supplier invoice tax totals from{" "}
-          {new Date(report.from).toLocaleDateString()} to{" "}
-          {new Date(report.to).toLocaleDateString()}.
+          {dateFormat(report.from)} to{" "}
+          {dateFormat(report.to)}.
         </p>
       </div>
 

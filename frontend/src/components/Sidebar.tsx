@@ -1,4 +1,7 @@
+"use client";
+
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 
 type NavItem = { href: string; label: string };
 type NavSection = { title: string; items: NavItem[] };
@@ -103,37 +106,85 @@ const sections: NavSection[] = [
       { href: "/admin/import", label: "Import (Excel)" },
       { href: "/admin/notifications", label: "Notifications" },
       { href: "/admin/users", label: "Users" },
+      { href: "/settings", label: "Settings" },
     ],
   },
 ];
 
-export function Sidebar() {
+type SidebarProps = {
+  collapsed?: boolean;
+  onNavigate?: () => void;
+};
+
+function itemIsActive(pathname: string, href: string): boolean {
+  if (href === "/") return pathname === "/";
+  return pathname === href || pathname.startsWith(`${href}/`);
+}
+
+function compactLabel(label: string): string {
+  const words = label
+    .split(/[\s/().-]+/)
+    .map((w) => w.trim())
+    .filter((w) => w.length > 0);
+
+  if (words.length === 0) return "?";
+  if (words.length === 1) return words[0].slice(0, 2).toUpperCase();
+  return `${words[0][0]}${words[1][0]}`.toUpperCase();
+}
+
+export function Sidebar({ collapsed = false, onNavigate }: SidebarProps) {
+  const pathname = usePathname();
+
   return (
-    <aside className="w-72 shrink-0 border-r border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950">
+    <aside
+      className={[
+        "h-full shrink-0 border-r border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950",
+        collapsed ? "w-20" : "w-72",
+      ].join(" ")}
+    >
       <div className="mb-4">
         <div className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
-          ISS ERP
+          {collapsed ? "ISS" : "ISS ERP"}
         </div>
-        <div className="text-xs text-zinc-500">Service + Inventory + Sales</div>
+        {!collapsed ? (
+          <div className="text-xs text-zinc-500">Service + Inventory + Sales</div>
+        ) : null}
       </div>
 
-      <nav className="space-y-6">
+      <nav className={collapsed ? "space-y-3" : "space-y-6"}>
         {sections.map((section) => (
           <div key={section.title}>
-            <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-zinc-500">
-              {section.title}
-            </div>
+            {!collapsed ? (
+              <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-zinc-500">
+                {section.title}
+              </div>
+            ) : (
+              <div className="mb-2 border-t border-zinc-200 pt-2 dark:border-zinc-800" />
+            )}
             <ul className="space-y-1">
-              {section.items.map((item) => (
-                <li key={item.href}>
-                  <Link
-                    href={item.href}
-                    className="block rounded-md px-2 py-1.5 text-sm text-zinc-700 hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-900 dark:hover:text-zinc-100"
-                  >
-                    {item.label}
-                  </Link>
-                </li>
-              ))}
+              {section.items.map((item) => {
+                const active = itemIsActive(pathname, item.href);
+
+                return (
+                  <li key={item.href}>
+                    <Link
+                      href={item.href}
+                      onClick={onNavigate}
+                      title={collapsed ? item.label : undefined}
+                      aria-label={item.label}
+                      className={[
+                        "block rounded-md px-2 py-1.5 text-sm transition-colors",
+                        collapsed ? "text-center font-medium" : "",
+                        active
+                          ? "bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900"
+                          : "text-zinc-700 hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-900 dark:hover:text-zinc-100",
+                      ].join(" ")}
+                    >
+                      {collapsed ? compactLabel(item.label) : item.label}
+                    </Link>
+                  </li>
+                );
+              })}
             </ul>
           </div>
         ))}

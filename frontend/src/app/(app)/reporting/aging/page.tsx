@@ -1,5 +1,6 @@
 import { backendFetchJson } from "@/lib/backend.server";
 import { Card, Table } from "@/components/ui";
+import { userSettingsFromCookies } from "@/lib/user-settings.server";
 
 type AgingBuckets = {
   current: number;
@@ -32,20 +33,18 @@ type AgingReport = {
   apTotals: AgingBuckets;
 };
 
-function money(value: number) {
-  return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 2 }).format(value);
-}
-
 function AgingTable({
   title,
   codeLabel,
   rows,
   totals,
+  money,
 }: {
   title: string;
   codeLabel: string;
   rows: Array<{ code: string; name: string; buckets: AgingBuckets }>;
   totals: AgingBuckets;
+  money: (value: number) => string;
 }) {
   const renderBuckets = (b: AgingBuckets) => (
     <>
@@ -100,14 +99,34 @@ function AgingTable({
 }
 
 export default async function AgingPage() {
+  const settings = await userSettingsFromCookies();
   const report = await backendFetchJson<AgingReport>("/reporting/aging");
+  const money = (value: number) => {
+    try {
+      return new Intl.NumberFormat(settings.locale, {
+        style: "currency",
+        currency: settings.baseCurrencyCode,
+        maximumFractionDigits: 2,
+      }).format(value);
+    } catch {
+      return new Intl.NumberFormat("en-LK", {
+        style: "currency",
+        currency: "LKR",
+        maximumFractionDigits: 2,
+      }).format(value);
+    }
+  };
+
+  const asOf = new Date(report.asOf).toLocaleString(settings.locale, {
+    timeZone: settings.timeZone,
+  });
 
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-semibold">AR/AP Aging</h1>
         <p className="mt-1 text-sm text-zinc-500">
-          Outstanding balances bucketed by entry age as of {new Date(report.asOf).toLocaleString()}.
+          Outstanding balances bucketed by entry age as of {asOf}.
         </p>
       </div>
 
@@ -127,6 +146,7 @@ export default async function AgingPage() {
         codeLabel="Customer"
         rows={report.accountsReceivable.map((row) => ({ code: row.customerCode, name: row.customerName, buckets: row.buckets }))}
         totals={report.arTotals}
+        money={money}
       />
 
       <AgingTable
@@ -134,6 +154,7 @@ export default async function AgingPage() {
         codeLabel="Supplier"
         rows={report.accountsPayable.map((row) => ({ code: row.supplierCode, name: row.supplierName, buckets: row.buckets }))}
         totals={report.apTotals}
+        money={money}
       />
     </div>
   );

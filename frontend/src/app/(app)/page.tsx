@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { backendFetchJson } from "@/lib/backend.server";
+import { userSettingsFromCookies } from "@/lib/user-settings.server";
 
 type DashboardDto = {
   openServiceJobs: number;
@@ -8,16 +9,24 @@ type DashboardDto = {
   reorderAlerts: number;
 };
 
-function money(value: number) {
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
-    maximumFractionDigits: 2,
-  }).format(value);
-}
-
 export default async function DashboardPage() {
+  const settings = await userSettingsFromCookies();
   const dashboard = await backendFetchJson<DashboardDto>("/reporting/dashboard");
+  const formatMoney = (value: number) => {
+    try {
+      return new Intl.NumberFormat(settings.locale, {
+        style: "currency",
+        currency: settings.baseCurrencyCode,
+        maximumFractionDigits: 2,
+      }).format(value);
+    } catch {
+      return new Intl.NumberFormat("en-LK", {
+        style: "currency",
+        currency: "LKR",
+        maximumFractionDigits: 2,
+      }).format(value);
+    }
+  };
 
   const cards = [
     {
@@ -25,8 +34,8 @@ export default async function DashboardPage() {
       value: dashboard.openServiceJobs.toString(),
       href: "/service/jobs",
     },
-    { label: "AR Outstanding", value: money(dashboard.arOutstanding), href: "/finance/ar" },
-    { label: "AP Outstanding", value: money(dashboard.apOutstanding), href: "/finance/ap" },
+    { label: "AR Outstanding", value: formatMoney(dashboard.arOutstanding), href: "/finance/ar" },
+    { label: "AP Outstanding", value: formatMoney(dashboard.apOutstanding), href: "/finance/ap" },
     {
       label: "Reorder Alerts",
       value: dashboard.reorderAlerts.toString(),
