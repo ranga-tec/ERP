@@ -1,4 +1,16 @@
-import type { ComponentProps } from "react";
+import type { ComponentProps, ReactNode } from "react";
+
+function buttonLabelText(children: ReactNode): string {
+  if (typeof children === "string" || typeof children === "number") {
+    return String(children);
+  }
+
+  if (Array.isArray(children)) {
+    return children.map((child) => buttonLabelText(child)).join(" ");
+  }
+
+  return "";
+}
 
 export function Card(props: ComponentProps<"div">) {
   const { className, ...rest } = props;
@@ -28,11 +40,16 @@ export function Button(props: ComponentProps<"button">) {
 
 export function SecondaryButton(props: ComponentProps<"button">) {
   const { className, ...rest } = props;
+  const label = buttonLabelText(rest.children).replace(/\s+/g, " ").trim().toLowerCase();
+  const isInlineAction = label === "edit" || label === "delete";
   return (
     <button
       className={[
         "rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm font-medium text-zinc-900 hover:bg-zinc-50 disabled:opacity-50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100 dark:hover:bg-zinc-800",
         className ?? "",
+        isInlineAction
+          ? "h-auto rounded-none border-0 bg-transparent p-0 text-xs font-medium text-zinc-700 underline underline-offset-2 hover:bg-transparent hover:text-zinc-900 dark:text-zinc-300 dark:hover:text-zinc-100"
+          : "",
       ].join(" ")}
       {...rest}
     />
