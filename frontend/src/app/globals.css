@@ -57,6 +57,18 @@
   color-scheme: dark;
 }
 
+.dark .text-zinc-500 {
+  color: #b0bfd6 !important;
+}
+
+.dark .text-zinc-600 {
+  color: #c0ccde !important;
+}
+
+.dark .text-zinc-700 {
+  color: #d2dceb !important;
+}
+
 *,
 *::before,
 *::after {
