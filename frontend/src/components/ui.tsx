@@ -17,7 +17,7 @@ export function Card(props: ComponentProps<"div">) {
   return (
     <div
       className={[
-        "rounded-2xl border border-[var(--card-border)] bg-[var(--card-bg)] p-4 shadow-[0_24px_54px_-38px_rgba(15,23,42,0.58)] backdrop-blur-sm transition-colors",
+        "rounded-2xl border border-[var(--card-border)] bg-[var(--card-bg)] p-4 shadow-[var(--shadow-card)] backdrop-blur-sm transition-all duration-200",
         className ?? "",
       ].join(" ")}
       {...rest}
@@ -30,7 +30,7 @@ export function Button(props: ComponentProps<"button">) {
   return (
     <button
       className={[
-        "inline-flex items-center justify-center rounded-xl bg-[var(--accent)] px-3.5 py-2 text-sm font-semibold text-[var(--accent-contrast)] shadow-[0_14px_30px_-22px_rgba(15,23,42,0.9)] transition-all duration-200 hover:-translate-y-px hover:bg-[var(--accent-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring-accent)] disabled:cursor-not-allowed disabled:opacity-55",
+        "inline-flex items-center justify-center rounded-xl bg-[var(--accent)] px-3.5 py-2 text-sm font-semibold text-[var(--accent-contrast)] shadow-[var(--shadow-button)] transition-all duration-200 hover:-translate-y-px hover:bg-[var(--accent-hover)] hover:shadow-[var(--shadow-button)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring-accent)] disabled:cursor-not-allowed disabled:opacity-55",
         className ?? "",
       ].join(" ")}
       {...rest}
@@ -45,7 +45,7 @@ export function SecondaryButton(props: ComponentProps<"button">) {
   return (
     <button
       className={[
-        "inline-flex items-center justify-center rounded-xl border border-[var(--input-border)] bg-[var(--surface)] px-3.5 py-2 text-sm font-medium text-[var(--foreground)] shadow-[0_8px_16px_-14px_rgba(15,23,42,0.65)] transition-all duration-200 hover:-translate-y-px hover:bg-[var(--surface-soft)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring-accent)] disabled:cursor-not-allowed disabled:opacity-55",
+        "inline-flex items-center justify-center rounded-xl border border-[var(--input-border)] bg-[var(--surface)] px-3.5 py-2 text-sm font-medium text-[var(--foreground)] shadow-[var(--shadow-control)] transition-all duration-200 hover:-translate-y-px hover:bg-[var(--surface-soft)] hover:shadow-[var(--shadow-soft)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring-accent)] disabled:cursor-not-allowed disabled:opacity-55",
         className ?? "",
         isInlineAction
           ? "h-auto rounded-none border-0 bg-transparent p-0 text-xs font-semibold text-[var(--link)] underline underline-offset-2 shadow-none hover:bg-transparent hover:text-[var(--link-hover)]"
@@ -61,7 +61,7 @@ export function SecondaryLink(props: ComponentProps<"a">) {
   return (
     <a
       className={[
-        "inline-flex items-center justify-center rounded-xl border border-[var(--input-border)] bg-[var(--surface)] px-3.5 py-2 text-sm font-medium text-[var(--foreground)] shadow-[0_8px_16px_-14px_rgba(15,23,42,0.65)] transition-all duration-200 hover:-translate-y-px hover:bg-[var(--surface-soft)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring-accent)] disabled:cursor-not-allowed disabled:opacity-55",
+        "inline-flex items-center justify-center rounded-xl border border-[var(--input-border)] bg-[var(--surface)] px-3.5 py-2 text-sm font-medium text-[var(--foreground)] shadow-[var(--shadow-control)] transition-all duration-200 hover:-translate-y-px hover:bg-[var(--surface-soft)] hover:shadow-[var(--shadow-soft)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring-accent)] disabled:cursor-not-allowed disabled:opacity-55",
         className ?? "",
       ].join(" ")}
       {...rest}
@@ -74,7 +74,7 @@ export function Input(props: ComponentProps<"input">) {
   return (
     <input
       className={[
-        "w-full rounded-xl border border-[var(--input-border)] bg-[var(--surface)] px-3 py-2 text-sm text-[var(--foreground)] outline-none transition focus-visible:ring-2 focus-visible:ring-[var(--ring-accent)] placeholder:text-[var(--muted-foreground)]/80",
+        "w-full rounded-xl border border-[var(--input-border)] bg-[var(--surface)] px-3 py-2 text-sm text-[var(--foreground)] shadow-[var(--shadow-control)] outline-none transition focus-visible:border-[var(--link)] focus-visible:ring-2 focus-visible:ring-[var(--ring-accent)] placeholder:text-[var(--muted-foreground)]/80",
         className ?? "",
       ].join(" ")}
       {...rest}
@@ -87,7 +87,7 @@ export function Textarea(props: ComponentProps<"textarea">) {
   return (
     <textarea
       className={[
-        "w-full min-h-24 rounded-xl border border-[var(--input-border)] bg-[var(--surface)] px-3 py-2 text-sm text-[var(--foreground)] outline-none transition focus-visible:ring-2 focus-visible:ring-[var(--ring-accent)] placeholder:text-[var(--muted-foreground)]/80",
+        "w-full min-h-24 rounded-xl border border-[var(--input-border)] bg-[var(--surface)] px-3 py-2 text-sm text-[var(--foreground)] shadow-[var(--shadow-control)] outline-none transition focus-visible:border-[var(--link)] focus-visible:ring-2 focus-visible:ring-[var(--ring-accent)] placeholder:text-[var(--muted-foreground)]/80",
         className ?? "",
       ].join(" ")}
       {...rest}
@@ -100,7 +100,7 @@ export function Select(props: ComponentProps<"select">) {
   return (
     <select
       className={[
-        "w-full rounded-xl border border-[var(--input-border)] bg-[var(--surface)] px-3 py-2 text-sm text-[var(--foreground)] outline-none transition focus-visible:ring-2 focus-visible:ring-[var(--ring-accent)]",
+        "w-full rounded-xl border border-[var(--input-border)] bg-[var(--surface)] px-3 py-2 text-sm text-[var(--foreground)] shadow-[var(--shadow-control)] outline-none transition focus-visible:border-[var(--link)] focus-visible:ring-2 focus-visible:ring-[var(--ring-accent)]",
         className ?? "",
       ].join(" ")}
       {...rest}

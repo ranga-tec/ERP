@@ -56,11 +56,11 @@ export function AppShell({ children, email, roles }: AppShellProps) {
         </div>
 
         <div className="flex min-w-0 flex-1 flex-col">
-          <header className="sticky top-0 z-20 flex items-center justify-between border-b border-[var(--card-border)] bg-[var(--surface-soft)] px-4 py-4 shadow-[0_16px_34px_-28px_rgba(15,23,42,0.8)] backdrop-blur-xl sm:px-6">
+          <header className="sticky top-0 z-20 flex items-center justify-between border-b border-[var(--card-border)] bg-[var(--surface-soft)] px-4 py-4 shadow-[var(--shadow-soft)] backdrop-blur-xl sm:px-6">
             <div className="flex min-w-0 items-center gap-2">
               <button
                 type="button"
-                className="inline-flex items-center justify-center rounded-xl border border-[var(--input-border)] bg-[var(--surface)] px-3 py-1.5 text-sm font-medium text-[var(--foreground)] shadow-[0_8px_16px_-14px_rgba(15,23,42,0.65)] transition-all duration-200 hover:-translate-y-px hover:bg-[var(--surface-soft)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring-accent)] lg:hidden"
+                className="inline-flex items-center justify-center rounded-xl border border-[var(--input-border)] bg-[var(--surface)] px-3 py-1.5 text-sm font-medium text-[var(--foreground)] shadow-[var(--shadow-control)] transition-all duration-200 hover:-translate-y-px hover:bg-[var(--surface-soft)] hover:shadow-[var(--shadow-soft)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring-accent)] lg:hidden"
                 onClick={() => setMobileSidebarOpen(true)}
               >
                 Menu
@@ -76,7 +76,7 @@ export function AppShell({ children, email, roles }: AppShellProps) {
             <div className="ml-3 flex items-center gap-2">
               <Link
                 href="/settings"
-                className="inline-flex items-center justify-center rounded-xl border border-[var(--input-border)] bg-[var(--surface)] px-3.5 py-2 text-sm font-medium text-[var(--foreground)] shadow-[0_8px_16px_-14px_rgba(15,23,42,0.65)] transition-all duration-200 hover:-translate-y-px hover:bg-[var(--surface-soft)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring-accent)]"
+                className="inline-flex items-center justify-center rounded-xl border border-[var(--input-border)] bg-[var(--surface)] px-3.5 py-2 text-sm font-medium text-[var(--foreground)] shadow-[var(--shadow-control)] transition-all duration-200 hover:-translate-y-px hover:bg-[var(--surface-soft)] hover:shadow-[var(--shadow-soft)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring-accent)]"
               >
                 Settings
               </Link>

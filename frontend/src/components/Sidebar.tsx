@@ -166,7 +166,7 @@ export function Sidebar({ collapsed = false, onNavigate, onToggleCollapse }: Sid
   return (
     <aside
       className={[
-        "h-full shrink-0 border-r border-[var(--card-border)] bg-[var(--surface-soft)] p-4 shadow-[0_26px_44px_-38px_rgba(15,23,42,0.85)] backdrop-blur-xl transition-all duration-200",
+        "h-full shrink-0 border-r border-[var(--card-border)] bg-[var(--surface-soft)] p-4 shadow-[var(--shadow-soft)] backdrop-blur-xl transition-all duration-200",
         collapsed ? "w-20" : "w-[18.5rem]",
       ].join(" ")}
     >
@@ -186,7 +186,7 @@ export function Sidebar({ collapsed = false, onNavigate, onToggleCollapse }: Sid
             aria-pressed={pinned}
             aria-label={pinned ? "Unpin sidebar" : "Pin sidebar"}
             title={pinned ? "Unpin sidebar" : "Pin sidebar"}
-            className="inline-flex h-8 w-8 items-center justify-center rounded-xl border border-[var(--input-border)] bg-[var(--surface)] text-[var(--muted-foreground)] transition-all duration-200 hover:-translate-y-px hover:text-[var(--foreground)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring-accent)]"
+            className="inline-flex h-8 w-8 items-center justify-center rounded-xl border border-[var(--input-border)] bg-[var(--surface)] text-[var(--muted-foreground)] shadow-[var(--shadow-control)] transition-all duration-200 hover:-translate-y-px hover:text-[var(--foreground)] hover:shadow-[var(--shadow-soft)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring-accent)]"
           >
             <PinIcon pinned={pinned} />
           </button>
@@ -218,8 +218,8 @@ export function Sidebar({ collapsed = false, onNavigate, onToggleCollapse }: Sid
                         "block rounded-xl px-2.5 py-2 text-sm transition-all duration-200",
                         collapsed ? "text-center font-medium" : "",
                         active
-                          ? "bg-[var(--accent)] text-[var(--accent-contrast)] shadow-[0_14px_24px_-16px_rgba(15,23,42,0.95)]"
-                          : "text-[var(--foreground)]/85 hover:-translate-y-px hover:bg-[var(--accent-muted)] hover:text-[var(--foreground)]",
+                          ? "bg-[var(--accent)] text-[var(--accent-contrast)] shadow-[var(--shadow-button)]"
+                          : "text-[var(--foreground)]/85 hover:-translate-y-px hover:bg-[var(--accent-muted)] hover:text-[var(--foreground)] hover:shadow-[var(--shadow-control)]",
                       ].join(" ")}
                     >
                       {collapsed ? compactLabel(item.label) : item.label}
