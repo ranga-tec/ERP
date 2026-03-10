@@ -28,6 +28,7 @@ public sealed class EndToEndTests(IssApiFixture fixture) : IClassFixture<IssApiF
     private sealed record CurrencyDto(Guid Id, string Code, string Name, string Symbol, int MinorUnits, bool IsBase, bool IsActive);
     private sealed record PaymentTypeDto(Guid Id, string Code, string Name, string? Description, bool IsActive);
     private sealed record ReferenceFormDto(Guid Id, string Code, string Name, string Module, string? RouteTemplate, bool IsActive);
+    private sealed record AuthCapabilitiesDto(bool RegistrationAllowed, bool BootstrapRegistrationOnly, bool SelfRegistrationEnabled, bool HasUsers);
 
     [Fact]
     public async Task MasterData_Can_Create_Core_Entities()
@@ -66,6 +67,17 @@ public sealed class EndToEndTests(IssApiFixture fixture) : IClassFixture<IssApiF
 
         var referenceForms = await Get<List<ReferenceFormDto>>("/api/reference-forms");
         Assert.Contains(referenceForms, form => form.Code == "PAY" && form.RouteTemplate == "/finance/payments/{id}" && form.IsActive);
+    }
+
+    [Fact]
+    public async Task Auth_Capabilities_Disable_Registration_After_Bootstrap_Admin_Exists()
+    {
+        var capabilities = await Get<AuthCapabilitiesDto>("/api/auth/capabilities");
+
+        Assert.True(capabilities.HasUsers);
+        Assert.False(capabilities.SelfRegistrationEnabled);
+        Assert.False(capabilities.RegistrationAllowed);
+        Assert.False(capabilities.BootstrapRegistrationOnly);
     }
 
     [Fact]

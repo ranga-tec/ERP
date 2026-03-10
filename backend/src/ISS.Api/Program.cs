@@ -176,6 +176,8 @@ await using (var scope = app.Services.CreateAsyncScope())
     }
 
     var roleManager = scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole<Guid>>>();
+    var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ISS.Infrastructure.Identity.ApplicationUser>>();
+    var authOptions = scope.ServiceProvider.GetRequiredService<IOptions<AuthOptions>>().Value;
     foreach (var role in ISS.Api.Security.Roles.All)
     {
         if (!await roleManager.RoleExistsAsync(role))
@@ -185,6 +187,7 @@ await using (var scope = app.Services.CreateAsyncScope())
     }
 
     await ReferenceDataSeeder.SeedAsync(db);
+    await ISS.Api.Security.BootstrapAdminSeeder.SeedAsync(userManager, authOptions, app.Logger);
 }
 
 app.UseMiddleware<ISS.Api.Middleware.ExceptionHandlingMiddleware>();

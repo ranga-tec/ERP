@@ -1,11 +1,18 @@
 "use client";
 
 import { useRouter, useSearchParams } from "next/navigation";
-import { Suspense, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 
 type Mode = "login" | "register";
 
-const selfRegistrationEnabled = (() => {
+type AuthCapabilities = {
+  registrationAllowed: boolean;
+  bootstrapRegistrationOnly: boolean;
+  selfRegistrationEnabled: boolean;
+  hasUsers: boolean;
+};
+
+const defaultSelfRegistrationEnabled = (() => {
   const configured = process.env.NEXT_PUBLIC_ISS_ALLOW_SELF_REGISTRATION;
   if (configured === "true") return true;
   if (configured === "false") return false;
@@ -23,6 +30,51 @@ function LoginPageInner() {
   const [displayName, setDisplayName] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [capabilities, setCapabilities] = useState<AuthCapabilities | null>(null);
+  const [capabilitiesBusy, setCapabilitiesBusy] = useState(true);
+
+  const registrationAllowed =
+    capabilities?.registrationAllowed ?? defaultSelfRegistrationEnabled;
+  const bootstrapRegistrationOnly = capabilities?.bootstrapRegistrationOnly ?? false;
+  const hasUsers = capabilities?.hasUsers ?? true;
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadCapabilities() {
+      try {
+        const resp = await fetch("/api/auth/capabilities", { cache: "no-store" });
+        if (!resp.ok) {
+          throw new Error(await readError(resp));
+        }
+
+        const data = (await resp.json()) as AuthCapabilities;
+        if (!cancelled) {
+          setCapabilities(data);
+        }
+      } catch {
+        if (!cancelled) {
+          setCapabilities(null);
+        }
+      } finally {
+        if (!cancelled) {
+          setCapabilitiesBusy(false);
+        }
+      }
+    }
+
+    void loadCapabilities();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (mode === "register" && !registrationAllowed) {
+      setMode("login");
+    }
+  }, [mode, registrationAllowed]);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -30,7 +82,7 @@ function LoginPageInner() {
     setBusy(true);
 
     try {
-      if (mode === "register" && !selfRegistrationEnabled) {
+      if (mode === "register" && !registrationAllowed) {
         throw new Error("Registration is disabled. Contact an administrator.");
       }
 
@@ -47,8 +99,7 @@ function LoginPageInner() {
       });
 
       if (!resp.ok) {
-        const text = await resp.text();
-        throw new Error(text || `${resp.status} ${resp.statusText}`);
+        throw new Error(await readError(resp));
       }
 
       router.replace(nextUrl);
@@ -75,7 +126,9 @@ function LoginPageInner() {
           <p className="mt-1 text-sm text-[var(--muted-foreground)]">
             {mode === "login"
               ? "Use your ISS ERP credentials."
-              : "The first registered user becomes Admin."}
+              : bootstrapRegistrationOnly
+                ? "Create the first admin account for this system."
+                : "Create your account."}
           </p>
         </div>
 
@@ -122,6 +175,12 @@ function LoginPageInner() {
             </div>
           ) : null}
 
+          {!hasUsers && !registrationAllowed && !capabilitiesBusy ? (
+            <div className="rounded-xl border border-[var(--danger)]/35 bg-[var(--danger-muted)] p-3 text-sm text-[var(--danger)]">
+              No users exist yet, and bootstrap registration is disabled on the server.
+            </div>
+          ) : null}
+
           <button
             type="submit"
             disabled={busy}
@@ -138,13 +197,15 @@ function LoginPageInner() {
         </form>
 
         <div className="mt-4 text-center text-sm text-[var(--muted-foreground)]">
-          {mode === "login" && selfRegistrationEnabled ? (
+          {capabilitiesBusy ? (
+            <span>Checking account options...</span>
+          ) : mode === "login" && registrationAllowed ? (
             <button
               type="button"
               className="font-semibold text-[var(--link)] underline underline-offset-2 transition-colors hover:text-[var(--link-hover)]"
               onClick={() => setMode("register")}
             >
-              Create an account
+              {bootstrapRegistrationOnly ? "Create first admin account" : "Create an account"}
             </button>
           ) : mode === "register" ? (
             <button
@@ -177,4 +238,22 @@ export default function LoginPage() {
       <LoginPageInner />
     </Suspense>
   );
+}
+
+async function readError(resp: Response) {
+  if (resp.status === 401) {
+    return "Incorrect email or password.";
+  }
+
+  const text = await resp.text();
+  if (!text) {
+    return `${resp.status} ${resp.statusText}`;
+  }
+
+  try {
+    const data = JSON.parse(text) as { error?: string; detail?: string; title?: string };
+    return data.detail || data.error || data.title || text;
+  } catch {
+    return text;
+  }
 }

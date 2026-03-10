@@ -21,6 +21,27 @@ public sealed class AuthController(
 {
     public sealed record RegisterRequest(string Email, string Password, string? DisplayName);
     public sealed record LoginRequest(string Email, string Password);
+    public sealed record CapabilitiesResponse(
+        bool RegistrationAllowed,
+        bool BootstrapRegistrationOnly,
+        bool SelfRegistrationEnabled,
+        bool HasUsers);
+
+    [HttpGet("capabilities")]
+    public async Task<ActionResult<CapabilitiesResponse>> GetCapabilities(CancellationToken cancellationToken)
+    {
+        var hasUsers = await userManager.Users.AnyAsync(cancellationToken);
+        var allowSelfRegistration = ResolveAllowSelfRegistration();
+        var registrationAllowed = hasUsers
+            ? allowSelfRegistration
+            : authOptions.Value.AllowFirstUserBootstrapRegistration || allowSelfRegistration;
+
+        return Ok(new CapabilitiesResponse(
+            RegistrationAllowed: registrationAllowed,
+            BootstrapRegistrationOnly: !hasUsers && !allowSelfRegistration && authOptions.Value.AllowFirstUserBootstrapRegistration,
+            SelfRegistrationEnabled: allowSelfRegistration,
+            HasUsers: hasUsers));
+    }
 
     [HttpPost("register")]
     [EnableRateLimiting("auth-register")]
@@ -139,8 +160,7 @@ public sealed class AuthController(
 
     private bool IsRegistrationAllowed(bool isFirstUser)
     {
-        var configured = authOptions.Value.AllowSelfRegistration;
-        var allowSelfRegistration = configured ?? hostEnvironment.IsDevelopment();
+        var allowSelfRegistration = ResolveAllowSelfRegistration();
 
         if (isFirstUser)
         {
@@ -148,5 +168,11 @@ public sealed class AuthController(
         }
 
         return allowSelfRegistration;
+    }
+
+    private bool ResolveAllowSelfRegistration()
+    {
+        var configured = authOptions.Value.AllowSelfRegistration;
+        return configured ?? hostEnvironment.IsDevelopment();
     }
 }

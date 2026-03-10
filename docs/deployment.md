@@ -81,6 +81,7 @@ Optional:
 - `Database__MaxRetryDelaySeconds` (default `10`)
 - `Auth__AllowSelfRegistration` (`true` | `false`; default is `true` in Development and `false` in non-Development)
 - `Auth__AllowFirstUserBootstrapRegistration` (`true` | `false`; default `true`)
+- `Auth__BootstrapAdminEmail` / `Auth__BootstrapAdminPassword` / `Auth__BootstrapAdminDisplayName` (optional recovery/bootstrap admin seeded on startup)
 - `ReverseProxy__Enabled` (`true` | `false`; default `false`)
 - `ReverseProxy__ForwardLimit` (default `1`)
 - `ReverseProxy__KnownProxies__0`, `ReverseProxy__KnownProxies__1`, ...

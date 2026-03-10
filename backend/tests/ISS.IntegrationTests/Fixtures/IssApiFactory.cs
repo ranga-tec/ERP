@@ -21,6 +21,8 @@ public sealed class IssApiFactory(string connectionString) : WebApplicationFacto
                 ["Jwt:Issuer"] = "ISS",
                 ["Jwt:Audience"] = "ISS",
                 ["Jwt:Key"] = "integration-tests-key-please-change",
+                ["Auth:AllowSelfRegistration"] = "false",
+                ["Auth:AllowFirstUserBootstrapRegistration"] = "true",
                 ["Notifications:Enabled"] = "true",
                 ["Notifications:EmailEnabled"] = "true",
                 ["Notifications:SmsEnabled"] = "true",

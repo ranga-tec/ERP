@@ -19,8 +19,9 @@ export async function POST(req: Request) {
   });
 
   if (!resp.ok) {
+    const text = await resp.text();
     return NextResponse.json(
-      { error: "Login failed." },
+      { error: "Login failed.", detail: text },
       { status: resp.status },
     );
   }
