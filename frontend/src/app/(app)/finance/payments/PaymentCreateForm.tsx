@@ -51,7 +51,8 @@ export function PaymentCreateForm({
         .sort((a, b) => a.code.localeCompare(b.code)),
     [currencies],
   );
-  const baseCurrencyCode = currencyOptions.find((c) => c.isBase)?.code ?? currencyOptions[0]?.code ?? "USD";
+  const hasActiveCurrencies = currencyOptions.length > 0;
+  const baseCurrencyCode = currencyOptions.find((c) => c.isBase)?.code ?? currencyOptions[0]?.code ?? "";
 
   const [direction, setDirection] = useState("1");
   const [counterpartyType, setCounterpartyType] = useState("1");
@@ -71,10 +72,19 @@ export function PaymentCreateForm({
     setError(null);
     setBusy(true);
     try {
+      if (!hasActiveCurrencies) {
+        throw new Error("No active currencies are configured. Go to Master Data > Currencies and activate a base currency.");
+      }
+
       const amt = Number(amount);
       if (Number.isNaN(amt) || amt <= 0) {
         throw new Error("Amount must be positive.");
       }
+
+      if (!currencyCode) {
+        throw new Error("Select a currency.");
+      }
+
       const rate = Number(exchangeRate);
       if (Number.isNaN(rate) || rate <= 0) {
         throw new Error("Exchange rate must be positive.");
@@ -148,7 +158,9 @@ export function PaymentCreateForm({
                 setExchangeRate("1");
               }
             }}
+            disabled={!hasActiveCurrencies}
           >
+            {!hasActiveCurrencies ? <option value="">No active currencies</option> : null}
             {currencyOptions.map((c) => (
               <option key={c.id} value={c.code}>
                 {c.code} - {c.name}
@@ -162,7 +174,7 @@ export function PaymentCreateForm({
             value={exchangeRate}
             onChange={(e) => setExchangeRate(e.target.value)}
             inputMode="decimal"
-            disabled={currencyCode === baseCurrencyCode}
+            disabled={!hasActiveCurrencies || currencyCode === baseCurrencyCode}
           />
         </div>
       </div>
@@ -192,13 +204,19 @@ export function PaymentCreateForm({
         <Input value={notes} onChange={(e) => setNotes(e.target.value)} />
       </div>
 
+      {!hasActiveCurrencies ? (
+        <div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-900/40 dark:bg-amber-950/40 dark:text-amber-100">
+          No active currencies are available. Configure an active base currency in Master Data - Currencies before creating payments.
+        </div>
+      ) : null}
+
       {error ? (
         <div className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-900 dark:border-red-900/40 dark:bg-red-950/40 dark:text-red-100">
           {error}
         </div>
       ) : null}
 
-      <Button type="submit" disabled={busy}>
+      <Button type="submit" disabled={busy || !hasActiveCurrencies}>
         {busy ? "Creating..." : "Create Payment"}
       </Button>
     </form>

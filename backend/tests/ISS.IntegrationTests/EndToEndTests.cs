@@ -25,6 +25,9 @@ public sealed class EndToEndTests(IssApiFixture fixture) : IClassFixture<IssApiF
     private sealed record SupplierDto(Guid Id, string Code, string Name, string? Phone, string? Email, string? Address, bool IsActive);
     private sealed record CustomerDto(Guid Id, string Code, string Name, string? Phone, string? Email, string? Address, bool IsActive);
     private sealed record ItemDto(Guid Id, string Sku, string Name, ItemType Type, TrackingType TrackingType, string UnitOfMeasure, Guid? BrandId, string? Barcode, decimal DefaultUnitCost, bool IsActive);
+    private sealed record CurrencyDto(Guid Id, string Code, string Name, string Symbol, int MinorUnits, bool IsBase, bool IsActive);
+    private sealed record PaymentTypeDto(Guid Id, string Code, string Name, string? Description, bool IsActive);
+    private sealed record ReferenceFormDto(Guid Id, string Code, string Name, string Module, string? RouteTemplate, bool IsActive);
 
     [Fact]
     public async Task MasterData_Can_Create_Core_Entities()
@@ -50,6 +53,19 @@ public sealed class EndToEndTests(IssApiFixture fixture) : IClassFixture<IssApiF
         Assert.NotEqual(Guid.Empty, supplier.Id);
         Assert.NotEqual(Guid.Empty, customer.Id);
         Assert.NotEqual(Guid.Empty, item.Id);
+    }
+
+    [Fact]
+    public async Task MasterData_Default_Reference_Data_Is_Bootstrapped_On_Fresh_System()
+    {
+        var currencies = await Get<List<CurrencyDto>>("/api/currencies");
+        Assert.Contains(currencies, currency => currency.Code == "USD" && currency.IsBase && currency.IsActive);
+
+        var paymentTypes = await Get<List<PaymentTypeDto>>("/api/payment-types");
+        Assert.Contains(paymentTypes, paymentType => paymentType.Code == "CASH" && paymentType.IsActive);
+
+        var referenceForms = await Get<List<ReferenceFormDto>>("/api/reference-forms");
+        Assert.Contains(referenceForms, form => form.Code == "PAY" && form.RouteTemplate == "/finance/payments/{id}" && form.IsActive);
     }
 
     [Fact]

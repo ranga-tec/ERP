@@ -8,6 +8,7 @@
 - Gap checklist (proposal mapping): `docs/gap-checklist.md`
 - User manual (quick): `docs/user-manual.md`
 - Deployment / installation: `docs/deployment.md`
+- Manual UAT / test script: `docs/manual-uat-guide.md`
 - System + technical maintainer guide: `docs/system-technical-maintainer-guide.md`
 - Backend architecture + operations: `docs/backend-architecture.md`
 - Frontend architecture + UI integration: `docs/frontend-architecture.md`
@@ -57,6 +58,7 @@ dotnet run --project backend/src/ISS.Api/ISS.Api.csproj
 
 - API base URL (launch profile): `http://localhost:5257`
 - Auth: the **first registered user becomes Admin**
+- Fresh databases auto-seed default currencies, payment types, tax codes, and reference forms needed for core finance/reporting flows
 - Startup DB initialization is controlled by `Database__InitializationMode`:
   - `EnsureCreated` (default in Development)
   - `Migrate` (recommended for controlled environments)

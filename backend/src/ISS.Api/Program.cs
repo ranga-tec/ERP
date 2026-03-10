@@ -183,6 +183,8 @@ await using (var scope = app.Services.CreateAsyncScope())
             await roleManager.CreateAsync(new IdentityRole<Guid>(role));
         }
     }
+
+    await ReferenceDataSeeder.SeedAsync(db);
 }
 
 app.UseMiddleware<ISS.Api.Middleware.ExceptionHandlingMiddleware>();

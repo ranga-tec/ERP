@@ -85,6 +85,7 @@ public sealed class IssApiFixture : IAsyncLifetime
         }
 
         await db.Database.EnsureCreatedAsync(cts.Token);
+        await ReferenceDataSeeder.SeedAsync(db, cts.Token);
     }
 
     private static bool ReadBooleanEnvironmentVariable(string name)

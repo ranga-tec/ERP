@@ -12,6 +12,9 @@
 
 Recommended setup sequence:
 
+Note:
+- fresh databases auto-seed default currencies, payment types, tax codes, and reference forms so finance/reporting screens can work immediately
+
 1. Warehouses
 2. Brands (optional)
 3. UoMs

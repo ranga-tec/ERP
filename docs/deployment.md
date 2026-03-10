@@ -32,6 +32,7 @@ Notes:
   - `Migrate` (recommended for new environments / controlled deployments)
   - `None` (default in non-Development)
 - Roles are seeded on startup.
+- Fresh databases also seed default currencies, payment types, tax codes, and reference forms required by core finance/reporting screens.
 - The first registered user becomes `Admin`.
 - Health endpoint: `GET /health` (now includes a DB connectivity check, not just process liveness)
 
