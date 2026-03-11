@@ -195,6 +195,46 @@ Fix:
 Get-Content -LiteralPath '..\frontend\src\app\(app)\inventory\reorder-alerts\page.tsx'
 ```
 
+### 6. Railway deploy fails because the wrong monorepo root is uploaded
+
+Symptom:
+
+- `railway up` appears to work, but the build fails immediately
+- Railpack logs say it `could not determine how to build the app`
+- build-log tree shows the repo root instead of the intended service root
+
+Working deployment commands from repo root:
+
+```powershell
+railway up .\backend\src --path-as-root -s iss-api -e production -c
+railway up .\frontend --path-as-root -s iss-web -e production -c
+```
+
+Notes:
+
+- `backend/src` now has an explicit `Dockerfile` and `.dockerignore`
+- `frontend` already has a `Dockerfile`
+- successful Railway status should show:
+  - `serviceManifest.build.builder = "DOCKERFILE"`
+  - latest deployment `status = "SUCCESS"`
+
+Fast diagnosis flow:
+
+1. Run:
+
+```powershell
+railway status --json
+```
+
+2. Read the latest deployment id for the failing service.
+3. If CLI log streaming is unhelpful, query Railway GraphQL `buildLogs` / `deploymentLogs` for that deployment id.
+4. If build logs show the repo root, redeploy with explicit `--path-as-root` from the repo root.
+
+Operational auth note:
+
+- The live Railway API may use temporary `Auth__BootstrapAdmin*` vars for emergency access recovery.
+- Treat those as temporary operator-only settings and remove them after the real admin account/password is rotated.
+
 ## Documentation Maintenance Rules (for Future Agents)
 
 When you change behavior, also update documentation in the same checkpoint.

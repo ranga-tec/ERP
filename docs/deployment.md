@@ -256,3 +256,30 @@ Compress-Archive -Path .\backend\src\ISS.Api\App_Data\* `
 1. Stop new app version.
 2. Re-deploy previous app build.
 3. If schema changes were applied and rollback is not backward compatible, restore DB backup (and matching `App_Data/`) instead of only rolling back binaries.
+
+## Railway Deployment Notes
+
+For this repo, Railway deploys are most reliable when the service root is uploaded explicitly from the repo root.
+
+Use:
+
+```powershell
+railway up .\backend\src --path-as-root -s iss-api -e production -c
+railway up .\frontend --path-as-root -s iss-web -e production -c
+```
+
+Notes:
+
+- `backend/src` now includes:
+  - `Dockerfile`
+  - `.dockerignore`
+- `frontend` already includes a `Dockerfile`
+- successful Railway status should show:
+  - latest deployment `status = SUCCESS`
+  - build builder `DOCKERFILE`
+
+Troubleshooting:
+
+- If Railway build logs say it cannot determine how to build the app, inspect whether Railpack analyzed the repo root instead of the intended service root.
+- `railway status --json` is the fastest way to confirm the latest deployment id and builder used by each service.
+- If emergency recovery access is provisioned with `Auth__BootstrapAdmin*`, rotate/remove those variables after admin access is restored. Do not store the recovery password in repo documentation.
