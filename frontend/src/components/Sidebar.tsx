@@ -125,6 +125,10 @@ function itemIsActive(pathname: string, href: string): boolean {
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
+function sectionIsActive(pathname: string, section: NavSection): boolean {
+  return section.items.some((item) => itemIsActive(pathname, item.href));
+}
+
 function compactLabel(label: string): string {
   const words = label
     .split(/[\s/().-]+/)
@@ -260,51 +264,106 @@ export function Sidebar({ collapsed = false, onNavigate, onToggleCollapse }: Sid
       <nav
         className={[
           "flex-1 overflow-y-auto overscroll-contain pr-1",
-          collapsed ? "space-y-3" : "space-y-6",
+          collapsed ? "space-y-3" : "space-y-4",
         ].join(" ")}
       >
-        {sections.map((section) => (
-          <div key={section.title}>
-            {!collapsed ? (
-              <button
-                type="button"
-                onClick={() => toggleSection(section.title)}
-                aria-expanded={expandedSectionSet.has(section.title)}
-                className="mb-2 flex w-full items-center justify-between gap-2 rounded-lg px-1 py-1 text-left text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--muted-foreground)] transition-colors duration-200 hover:text-[var(--foreground)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring-accent)]"
-              >
-                <span>{section.title}</span>
-                <ChevronIcon expanded={expandedSectionSet.has(section.title)} />
-              </button>
-            ) : (
-              <div className="mb-2 border-t border-[var(--card-border)] pt-2" />
-            )}
-            <ul className={collapsed || expandedSectionSet.has(section.title) ? "space-y-1" : "hidden"}>
-              {section.items.map((item) => {
-                const active = itemIsActive(pathname, item.href);
+        {sections.map((section) => {
+          const expanded = collapsed || expandedSectionSet.has(section.title);
+          const activeSection = sectionIsActive(pathname, section);
 
-                return (
-                  <li key={item.href}>
-                    <Link
-                      href={item.href}
-                      onClick={onNavigate}
-                      title={collapsed ? item.label : undefined}
-                      aria-label={item.label}
-                      className={[
-                        "block rounded-xl px-2.5 py-2 text-sm transition-all duration-200",
-                        collapsed ? "text-center font-medium" : "",
-                        active
-                          ? "bg-[var(--accent)] text-[var(--accent-contrast)] shadow-[var(--shadow-button)]"
-                          : "text-[var(--foreground)]/85 hover:-translate-y-px hover:bg-[var(--accent-muted)] hover:text-[var(--foreground)] hover:shadow-[var(--shadow-control)]",
-                      ].join(" ")}
-                    >
-                      {collapsed ? compactLabel(item.label) : item.label}
-                    </Link>
-                  </li>
-                );
-              })}
-            </ul>
-          </div>
-        ))}
+          return (
+            <div key={section.title} className={collapsed ? "" : "rounded-[1.65rem]"}>
+              {!collapsed ? (
+                <button
+                  type="button"
+                  onClick={() => toggleSection(section.title)}
+                  aria-expanded={expanded}
+                  className={[
+                    "group relative flex w-full items-center justify-between gap-3 overflow-hidden rounded-[1.35rem] border px-3.5 py-3 text-left transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring-accent)]",
+                    activeSection
+                      ? "border-[var(--accent)] bg-[linear-gradient(180deg,var(--accent-muted)_0%,var(--surface)_100%)] text-[var(--foreground)] shadow-[0_18px_30px_-24px_rgba(15,23,42,0.72),0_8px_0_0_rgba(29,78,216,0.18)]"
+                      : "border-[var(--input-border)] bg-[linear-gradient(180deg,var(--surface)_0%,var(--surface-soft)_100%)] text-[var(--foreground)] shadow-[0_18px_30px_-24px_rgba(15,23,42,0.6),0_8px_0_0_rgba(148,163,184,0.12)] hover:-translate-y-px hover:shadow-[0_24px_34px_-24px_rgba(15,23,42,0.72),0_10px_0_0_rgba(29,78,216,0.14)]",
+                    expanded ? "translate-y-0.5" : "",
+                  ].join(" ")}
+                >
+                  <div
+                    className={[
+                      "flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border text-[11px] font-black uppercase tracking-[0.18em] shadow-[inset_0_1px_0_rgba(255,255,255,0.65)] transition-colors duration-200",
+                      activeSection
+                        ? "border-[var(--accent)] bg-[var(--accent)] text-[var(--accent-contrast)]"
+                        : "border-[var(--card-border)] bg-[var(--surface)] text-[var(--link)] group-hover:text-[var(--foreground)]",
+                    ].join(" ")}
+                  >
+                    {compactLabel(section.title)}
+                  </div>
+
+                  <div className="min-w-0 flex-1">
+                    <div className="truncate text-sm font-semibold tracking-tight">{section.title}</div>
+                    <div className="mt-0.5 text-[11px] text-[var(--muted-foreground)]">
+                      {section.items.length} {section.items.length === 1 ? "menu item" : "menu items"}
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <span className="rounded-full border border-[var(--card-border)] bg-[var(--surface)] px-2 py-0.5 text-[10px] font-semibold text-[var(--muted-foreground)] shadow-[var(--shadow-control)]">
+                      {section.items.length}
+                    </span>
+                    <span className="inline-flex h-8 w-8 items-center justify-center rounded-xl border border-[var(--card-border)] bg-[var(--surface)] text-[var(--muted-foreground)] shadow-[var(--shadow-control)] transition-colors duration-200 group-hover:text-[var(--foreground)]">
+                      <ChevronIcon expanded={expanded} />
+                    </span>
+                  </div>
+                </button>
+              ) : (
+                <div className="mb-2 border-t border-[var(--card-border)] pt-2" />
+              )}
+
+              <div
+                className={
+                  collapsed
+                    ? "mt-2"
+                    : [
+                        "grid overflow-hidden transition-[grid-template-rows,opacity,margin] duration-200 ease-out",
+                        expanded ? "mt-2 grid-rows-[1fr] opacity-100" : "mt-0 grid-rows-[0fr] opacity-0",
+                      ].join(" ")
+                }
+              >
+                <div className={collapsed ? "" : "min-h-0 overflow-hidden"}>
+                  <ul
+                    className={[
+                      collapsed
+                        ? "space-y-1"
+                        : "space-y-1 rounded-[1.25rem] border border-[var(--card-border)] bg-[var(--card-bg)] p-2.5 shadow-[0_18px_30px_-28px_rgba(15,23,42,0.85),inset_0_1px_0_rgba(255,255,255,0.45)] backdrop-blur-md",
+                    ].join(" ")}
+                  >
+                    {section.items.map((item) => {
+                      const active = itemIsActive(pathname, item.href);
+
+                      return (
+                        <li key={item.href}>
+                          <Link
+                            href={item.href}
+                            onClick={onNavigate}
+                            title={collapsed ? item.label : undefined}
+                            aria-label={item.label}
+                            className={[
+                              "block rounded-xl border px-2.5 py-2.5 text-sm transition-all duration-200",
+                              collapsed ? "text-center font-medium" : "px-3.5",
+                              active
+                                ? "border-[var(--accent)] bg-[var(--accent)] text-[var(--accent-contrast)] shadow-[var(--shadow-button)]"
+                                : "border-transparent bg-transparent text-[var(--foreground)]/85 hover:-translate-y-px hover:border-[var(--card-border)] hover:bg-[var(--surface)] hover:text-[var(--foreground)] hover:shadow-[var(--shadow-control)]",
+                            ].join(" ")}
+                          >
+                            {collapsed ? compactLabel(item.label) : item.label}
+                          </Link>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </div>
+              </div>
+            </div>
+          );
+        })}
       </nav>
     </aside>
   );
