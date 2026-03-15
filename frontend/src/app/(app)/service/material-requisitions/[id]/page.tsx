@@ -1,5 +1,7 @@
 import Link from "next/link";
 import { backendFetchJson } from "@/lib/backend.server";
+import { ItemInlineLink } from "@/components/InlineLink";
+import { TransactionLink } from "@/components/TransactionLink";
 import { Card, SecondaryLink, Table } from "@/components/ui";
 import { MaterialRequisitionActions } from "../MaterialRequisitionActions";
 import { MaterialRequisitionLineAddForm } from "../MaterialRequisitionLineAddForm";
@@ -53,7 +55,10 @@ export default async function MaterialRequisitionDetailPage({ params }: { params
         <h1 className="mt-1 text-2xl font-semibold">Requisition {mr.number}</h1>
         <div className="mt-2 flex flex-wrap gap-3 text-sm text-zinc-600 dark:text-zinc-400">
           <div>
-            Job: <span className="font-mono text-xs">{jobById.get(mr.serviceJobId)?.number ?? mr.serviceJobId}</span>
+            Job:{" "}
+            <TransactionLink referenceType="SJ" referenceId={mr.serviceJobId} monospace>
+              {jobById.get(mr.serviceJobId)?.number ?? mr.serviceJobId}
+            </TransactionLink>
           </div>
           <div>Warehouse: {warehouseById.get(mr.warehouseId)?.code ?? mr.warehouseId}</div>
           <div>Status: {statusLabel[mr.status] ?? mr.status}</div>
@@ -98,7 +103,11 @@ export default async function MaterialRequisitionDetailPage({ params }: { params
             <tbody>
               {mr.lines.map((l) => {
                 const item = itemById.get(l.itemId);
-                const itemLabel = item ? `${item.sku} - ${item.name}` : l.itemId;
+                const itemLabel = (
+                  <ItemInlineLink itemId={l.itemId}>
+                    {item ? `${item.sku} - ${item.name}` : l.itemId}
+                  </ItemInlineLink>
+                );
                 return (
                   <MaterialRequisitionLineRow
                     key={l.id}

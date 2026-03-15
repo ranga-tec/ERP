@@ -1,4 +1,5 @@
 import { backendFetchJson } from "@/lib/backend.server";
+import { ItemInlineLink } from "@/components/InlineLink";
 import { Card, Table } from "@/components/ui";
 import { ReorderSettingUpsertForm } from "./ReorderSettingUpsertForm";
 import { ReorderSettingRow } from "./ReorderSettingRow";
@@ -54,7 +55,11 @@ export default async function ReorderSettingsPage() {
             <tbody>
               {settings.map((setting) => {
                 const warehouseLabel = warehouseById.get(setting.warehouseId)?.code ?? setting.warehouseId;
-                const itemLabel = itemById.get(setting.itemId)?.sku ?? setting.itemId;
+                const itemLabel = (
+                  <ItemInlineLink itemId={setting.itemId}>
+                    {itemById.get(setting.itemId)?.sku ?? setting.itemId}
+                  </ItemInlineLink>
+                );
 
                 return (
                   <ReorderSettingRow

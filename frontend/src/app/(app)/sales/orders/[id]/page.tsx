@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { backendFetchJson } from "@/lib/backend.server";
+import { ItemInlineLink } from "@/components/InlineLink";
 import { Card, SecondaryLink, Table } from "@/components/ui";
 import { SalesOrderActions } from "../SalesOrderActions";
 import { SalesOrderLineAddForm } from "../SalesOrderLineAddForm";
@@ -100,7 +101,11 @@ export default async function SalesOrderDetailPage({ params }: { params: Promise
             <tbody>
               {order.lines.map((l) => {
                 const item = itemById.get(l.itemId);
-                const itemLabel = item ? `${item.sku} - ${item.name}` : l.itemId;
+                const itemLabel = (
+                  <ItemInlineLink itemId={l.itemId}>
+                    {item ? `${item.sku} - ${item.name}` : l.itemId}
+                  </ItemInlineLink>
+                );
                 return <SalesOrderLineRow key={l.id} salesOrderId={order.id} line={l} itemLabel={itemLabel} canEdit={isDraft} />;
               })}
               {order.lines.length === 0 ? (

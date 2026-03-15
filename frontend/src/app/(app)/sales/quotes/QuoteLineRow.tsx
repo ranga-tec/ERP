@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { apiDeleteNoContent, apiPutNoContent } from "@/lib/api-client";
 import { Button, Input, SecondaryButton } from "@/components/ui";
 
@@ -20,7 +20,7 @@ export function QuoteLineRow({
 }: {
   quoteId: string;
   line: QuoteLineDto;
-  itemLabel: string;
+  itemLabel: ReactNode;
   canEdit: boolean;
 }) {
   const router = useRouter();

@@ -46,12 +46,18 @@ function toClientAttachmentUrl(url: string): string {
   return url;
 }
 
-export function ItemManagementPanel({ items }: { items: ItemRef[] }) {
+export function ItemManagementPanel({
+  initialSelectedItemId,
+  items,
+}: {
+  initialSelectedItemId?: string;
+  items: ItemRef[];
+}) {
   const sortedItems = useMemo(
     () => items.slice().sort((a, b) => a.sku.localeCompare(b.sku)),
     [items],
   );
-  const [itemId, setItemId] = useState(sortedItems[0]?.id ?? "");
+  const [itemId, setItemId] = useState(initialSelectedItemId || sortedItems[0]?.id || "");
   const [attachments, setAttachments] = useState<AttachmentDto[]>([]);
   const [priceHistory, setPriceHistory] = useState<PriceHistoryDto[]>([]);
   const [loading, setLoading] = useState(false);
@@ -61,6 +67,25 @@ export function ItemManagementPanel({ items }: { items: ItemRef[] }) {
   const [notes, setNotes] = useState("");
   const [saving, setSaving] = useState(false);
   const [deleteBusyId, setDeleteBusyId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!sortedItems.length) {
+      setItemId("");
+      return;
+    }
+
+    setItemId((currentItemId) => {
+      if (initialSelectedItemId && sortedItems.some((item) => item.id === initialSelectedItemId)) {
+        return initialSelectedItemId;
+      }
+
+      if (currentItemId && sortedItems.some((item) => item.id === currentItemId)) {
+        return currentItemId;
+      }
+
+      return sortedItems[0]?.id ?? "";
+    });
+  }, [initialSelectedItemId, sortedItems]);
 
   async function loadForSelectedItem(selectedItemId: string) {
     if (!selectedItemId) {

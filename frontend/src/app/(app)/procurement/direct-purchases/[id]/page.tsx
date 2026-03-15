@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { backendFetchJson } from "@/lib/backend.server";
+import { ItemInlineLink } from "@/components/InlineLink";
 import { Card, SecondaryLink, Table } from "@/components/ui";
 import { DirectPurchaseActions } from "../DirectPurchaseActions";
 import { DirectPurchaseLineAddForm } from "../DirectPurchaseLineAddForm";
@@ -120,7 +121,11 @@ export default async function DirectPurchaseDetailPage({ params }: { params: Pro
             <tbody>
               {dp.lines.map((l) => {
                 const item = itemById.get(l.itemId);
-                const itemLabel = item ? `${item.sku} - ${item.name}` : l.itemId;
+                const itemLabel = (
+                  <ItemInlineLink itemId={l.itemId}>
+                    {item ? `${item.sku} - ${item.name}` : l.itemId}
+                  </ItemInlineLink>
+                );
                 return (
                   <DirectPurchaseLineRow
                     key={l.id}

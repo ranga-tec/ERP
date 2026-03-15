@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { backendFetchJson } from "@/lib/backend.server";
+import { TransactionLink } from "@/components/TransactionLink";
 import { Card, Table } from "@/components/ui";
 import { WorkOrderCreateForm } from "./WorkOrderCreateForm";
 
@@ -61,7 +62,9 @@ export default async function WorkOrdersPage() {
                     </Link>
                   </td>
                   <td className="py-2 pr-3 font-mono text-xs text-zinc-600 dark:text-zinc-400">
-                    {jobById.get(w.serviceJobId)?.number ?? w.serviceJobId}
+                    <TransactionLink referenceType="SJ" referenceId={w.serviceJobId} monospace>
+                      {jobById.get(w.serviceJobId)?.number ?? w.serviceJobId}
+                    </TransactionLink>
                   </td>
                   <td className="py-2 pr-3">{statusLabel[w.status] ?? w.status}</td>
                   <td className="py-2 pr-3 text-zinc-500">{w.description}</td>
@@ -81,4 +84,3 @@ export default async function WorkOrdersPage() {
     </div>
   );
 }
-

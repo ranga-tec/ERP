@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { buildItemAnchorId } from "@/lib/item-routing";
 import { Input, SecondaryLink, Select, Table } from "@/components/ui";
 
 type BrandRef = { id: string; code: string; name: string };
@@ -40,10 +41,12 @@ export function ItemListPanel({
   items,
   brands,
   categories,
+  highlightItemId,
 }: {
   items: ItemDto[];
   brands: BrandRef[];
   categories: CategoryRef[];
+  highlightItemId?: string;
 }) {
   const [query, setQuery] = useState("");
   const [typeFilter, setTypeFilter] = useState("");
@@ -207,7 +210,14 @@ export function ItemListPanel({
           </thead>
           <tbody>
             {filteredItems.map((i) => (
-              <tr key={i.id} className="border-b border-zinc-100 dark:border-zinc-900">
+              <tr
+                key={i.id}
+                id={buildItemAnchorId(i.id)}
+                className={[
+                  "border-b border-zinc-100 dark:border-zinc-900",
+                  highlightItemId === i.id ? "bg-[var(--surface-soft)]" : "",
+                ].join(" ")}
+              >
                 <td className="py-2 pr-3 font-mono text-xs">{i.sku}</td>
                 <td className="py-2 pr-3">{i.name}</td>
                 <td className="py-2 pr-3">{itemTypeLabel[i.type] ?? i.type}</td>

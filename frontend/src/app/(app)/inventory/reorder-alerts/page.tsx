@@ -1,4 +1,5 @@
 import { backendFetchJson } from "@/lib/backend.server";
+import { ItemInlineLink } from "@/components/InlineLink";
 import { Button, Card, Select, Table } from "@/components/ui";
 import { ReorderAlertsCreatePrButton } from "./ReorderAlertsCreatePrButton";
 
@@ -24,8 +25,8 @@ export default async function ReorderAlertsPage({ searchParams }: { searchParams
     ),
   ]);
 
-  const warehouseById = new Map(warehouses.map((w) => [w.id, w]));
-  const itemById = new Map(items.map((i) => [i.id, i]));
+  const warehouseById = new Map(warehouses.map((warehouse) => [warehouse.id, warehouse]));
+  const itemById = new Map(items.map((item) => [item.id, item]));
 
   return (
     <div className="space-y-6">
@@ -44,9 +45,9 @@ export default async function ReorderAlertsPage({ searchParams }: { searchParams
               {warehouses
                 .slice()
                 .sort((a, b) => a.code.localeCompare(b.code))
-                .map((w) => (
-                  <option key={w.id} value={w.id}>
-                    {w.code} — {w.name}
+                .map((warehouse) => (
+                  <option key={warehouse.id} value={warehouse.id}>
+                    {warehouse.code} - {warehouse.name}
                   </option>
                 ))}
             </Select>
@@ -81,13 +82,17 @@ export default async function ReorderAlertsPage({ searchParams }: { searchParams
               </tr>
             </thead>
             <tbody>
-              {alerts.map((a) => (
-                <tr key={`${a.warehouseId}-${a.itemId}`} className="border-b border-zinc-100 dark:border-zinc-900">
-                  <td className="py-2 pr-3">{warehouseById.get(a.warehouseId)?.code ?? a.warehouseId}</td>
-                  <td className="py-2 pr-3">{itemById.get(a.itemId)?.sku ?? a.itemId}</td>
-                  <td className="py-2 pr-3">{a.onHand}</td>
-                  <td className="py-2 pr-3">{a.reorderPoint}</td>
-                  <td className="py-2 pr-3">{a.reorderQuantity}</td>
+              {alerts.map((alert) => (
+                <tr key={`${alert.warehouseId}-${alert.itemId}`} className="border-b border-zinc-100 dark:border-zinc-900">
+                  <td className="py-2 pr-3">{warehouseById.get(alert.warehouseId)?.code ?? alert.warehouseId}</td>
+                  <td className="py-2 pr-3">
+                    <ItemInlineLink itemId={alert.itemId}>
+                      {itemById.get(alert.itemId)?.sku ?? alert.itemId}
+                    </ItemInlineLink>
+                  </td>
+                  <td className="py-2 pr-3">{alert.onHand}</td>
+                  <td className="py-2 pr-3">{alert.reorderPoint}</td>
+                  <td className="py-2 pr-3">{alert.reorderQuantity}</td>
                 </tr>
               ))}
               {alerts.length === 0 ? (

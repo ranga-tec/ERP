@@ -1,4 +1,5 @@
 import { backendFetchJson } from "@/lib/backend.server";
+import { TransactionLink } from "@/components/TransactionLink";
 import { Card, Table } from "@/components/ui";
 import { NotificationRetryButton } from "./NotificationRetryButton";
 
@@ -33,7 +34,7 @@ export default async function AdminNotificationsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold">Admin · Notifications</h1>
+        <h1 className="text-2xl font-semibold">Admin - Notifications</h1>
         <p className="mt-1 text-sm text-zinc-500">Notification outbox (email/SMS) with retry controls.</p>
       </div>
 
@@ -54,31 +55,39 @@ export default async function AdminNotificationsPage() {
               </tr>
             </thead>
             <tbody>
-              {items.map((n) => (
-                <tr key={n.id} className="border-b border-zinc-100 align-top dark:border-zinc-900">
-                  <td className="py-2 pr-3 text-zinc-500">{new Date(n.createdAt).toLocaleString()}</td>
-                  <td className="py-2 pr-3">{channelLabel[n.channel] ?? n.channel}</td>
+              {items.map((notification) => (
+                <tr key={notification.id} className="border-b border-zinc-100 align-top dark:border-zinc-900">
+                  <td className="py-2 pr-3 text-zinc-500">{new Date(notification.createdAt).toLocaleString()}</td>
+                  <td className="py-2 pr-3">{channelLabel[notification.channel] ?? notification.channel}</td>
                   <td className="py-2 pr-3">
-                    <div className="font-mono text-xs">{n.recipient}</div>
-                    {n.subject ? <div className="text-xs text-zinc-500">{n.subject}</div> : null}
+                    <div className="font-mono text-xs">{notification.recipient}</div>
+                    {notification.subject ? <div className="text-xs text-zinc-500">{notification.subject}</div> : null}
                   </td>
                   <td className="py-2 pr-3">
-                    <div>{statusLabel[n.status] ?? n.status}</div>
-                    {n.lastError ? (
+                    <div>{statusLabel[notification.status] ?? notification.status}</div>
+                    {notification.lastError ? (
                       <div className="mt-1 max-w-md whitespace-pre-wrap text-xs text-red-600 dark:text-red-400">
-                        {n.lastError}
+                        {notification.lastError}
                       </div>
                     ) : null}
                   </td>
-                  <td className="py-2 pr-3">{n.attempts}</td>
-                  <td className="py-2 pr-3 text-zinc-500">
-                    {new Date(n.nextAttemptAt).toLocaleString()}
-                  </td>
+                  <td className="py-2 pr-3">{notification.attempts}</td>
+                  <td className="py-2 pr-3 text-zinc-500">{new Date(notification.nextAttemptAt).toLocaleString()}</td>
                   <td className="py-2 pr-3 font-mono text-xs">
-                    {n.referenceType ? `${n.referenceType}:${n.referenceId ?? ""}` : "—"}
+                    {notification.referenceType ? (
+                      <TransactionLink
+                        referenceType={notification.referenceType}
+                        referenceId={notification.referenceId}
+                        monospace
+                      >
+                        {`${notification.referenceType}:${notification.referenceId ?? ""}`}
+                      </TransactionLink>
+                    ) : (
+                      "-"
+                    )}
                   </td>
                   <td className="py-2 pr-3">
-                    <NotificationRetryButton id={n.id} />
+                    <NotificationRetryButton id={notification.id} />
                   </td>
                 </tr>
               ))}
@@ -96,4 +105,3 @@ export default async function AdminNotificationsPage() {
     </div>
   );
 }
-

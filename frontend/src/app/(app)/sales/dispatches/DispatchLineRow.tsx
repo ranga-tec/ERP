@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { apiDeleteNoContent, apiPutNoContent } from "@/lib/api-client";
 import { Button, Input, SecondaryButton, Textarea } from "@/components/ui";
 
@@ -27,7 +27,7 @@ export function DispatchLineRow({
 }: {
   dispatchId: string;
   line: DispatchLineDto;
-  itemLabel: string;
+  itemLabel: ReactNode;
   canEdit: boolean;
 }) {
   const router = useRouter();

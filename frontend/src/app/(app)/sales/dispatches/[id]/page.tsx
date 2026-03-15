@@ -1,5 +1,7 @@
 import Link from "next/link";
 import { backendFetchJson } from "@/lib/backend.server";
+import { ItemInlineLink } from "@/components/InlineLink";
+import { TransactionLink } from "@/components/TransactionLink";
 import { Card, SecondaryLink, Table } from "@/components/ui";
 import { DispatchActions } from "../DispatchActions";
 import { DispatchLineAddForm } from "../DispatchLineAddForm";
@@ -54,9 +56,9 @@ export default async function DispatchDetailPage({ params }: { params: Promise<{
         <div className="mt-2 flex flex-wrap gap-3 text-sm text-zinc-600 dark:text-zinc-400">
           <div>
             Order:{" "}
-            <span className="font-mono text-xs">
+            <TransactionLink referenceType="SO" referenceId={dispatch.salesOrderId} monospace>
               {orderById.get(dispatch.salesOrderId)?.number ?? dispatch.salesOrderId}
-            </span>
+            </TransactionLink>
           </div>
           <div>Warehouse: {warehouseById.get(dispatch.warehouseId)?.code ?? dispatch.warehouseId}</div>
           <div>Status: {statusLabel[dispatch.status] ?? dispatch.status}</div>
@@ -101,7 +103,11 @@ export default async function DispatchDetailPage({ params }: { params: Promise<{
             <tbody>
               {dispatch.lines.map((l) => {
                 const item = itemById.get(l.itemId);
-                const itemLabel = item ? `${item.sku} - ${item.name}` : l.itemId;
+                const itemLabel = (
+                  <ItemInlineLink itemId={l.itemId}>
+                    {item ? `${item.sku} - ${item.name}` : l.itemId}
+                  </ItemInlineLink>
+                );
                 return (
                   <DispatchLineRow
                     key={l.id}

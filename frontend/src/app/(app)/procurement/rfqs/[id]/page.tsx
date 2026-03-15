@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { backendFetchJson } from "@/lib/backend.server";
+import { ItemInlineLink } from "@/components/InlineLink";
 import { Card, SecondaryLink, Table } from "@/components/ui";
 import { RfqActions } from "../RfqActions";
 import { RfqLineAddForm } from "../RfqLineAddForm";
@@ -96,7 +97,11 @@ export default async function RfqDetailPage({ params }: { params: Promise<{ id: 
             <tbody>
               {rfq.lines.map((l) => {
                 const item = itemById.get(l.itemId);
-                const itemLabel = item ? `${item.sku} - ${item.name}` : l.itemId;
+                const itemLabel = (
+                  <ItemInlineLink itemId={l.itemId}>
+                    {item ? `${item.sku} - ${item.name}` : l.itemId}
+                  </ItemInlineLink>
+                );
                 return <RfqLineRow key={l.id} rfqId={rfq.id} line={l} itemLabel={itemLabel} canEdit={isDraft} />;
               })}
               {rfq.lines.length === 0 ? (

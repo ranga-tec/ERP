@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { backendFetchJson } from "@/lib/backend.server";
+import { TransactionLink } from "@/components/TransactionLink";
 import { Card, Table } from "@/components/ui";
 import { SupplierInvoiceCreateForm } from "./SupplierInvoiceCreateForm";
 
@@ -50,10 +51,31 @@ export default async function SupplierInvoicesPage() {
   const grnById = new Map(goodsReceipts.map((grn) => [grn.id, grn]));
   const dpById = new Map(directPurchases.map((dp) => [dp.id, dp]));
 
-  function sourceLabel(invoice: SupplierInvoiceDto): string {
-    if (invoice.directPurchaseId) return `DP ${dpById.get(invoice.directPurchaseId)?.number ?? invoice.directPurchaseId}`;
-    if (invoice.goodsReceiptId) return `GRN ${grnById.get(invoice.goodsReceiptId)?.number ?? invoice.goodsReceiptId}`;
-    if (invoice.purchaseOrderId) return `PO ${poById.get(invoice.purchaseOrderId)?.number ?? invoice.purchaseOrderId}`;
+  function sourceLabel(invoice: SupplierInvoiceDto) {
+    if (invoice.directPurchaseId) {
+      return (
+        <TransactionLink referenceType="DPR" referenceId={invoice.directPurchaseId}>
+          DP {dpById.get(invoice.directPurchaseId)?.number ?? invoice.directPurchaseId}
+        </TransactionLink>
+      );
+    }
+
+    if (invoice.goodsReceiptId) {
+      return (
+        <TransactionLink referenceType="GRN" referenceId={invoice.goodsReceiptId}>
+          GRN {grnById.get(invoice.goodsReceiptId)?.number ?? invoice.goodsReceiptId}
+        </TransactionLink>
+      );
+    }
+
+    if (invoice.purchaseOrderId) {
+      return (
+        <TransactionLink referenceType="PO" referenceId={invoice.purchaseOrderId}>
+          PO {poById.get(invoice.purchaseOrderId)?.number ?? invoice.purchaseOrderId}
+        </TransactionLink>
+      );
+    }
+
     return "-";
   }
 

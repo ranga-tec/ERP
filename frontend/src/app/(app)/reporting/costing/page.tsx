@@ -1,4 +1,5 @@
 import { backendFetchJson } from "@/lib/backend.server";
+import { ItemInlineLink } from "@/components/InlineLink";
 import { Button, Card, Select, Table } from "@/components/ui";
 
 type WarehouseDto = { id: string; code: string; name: string };
@@ -150,8 +151,12 @@ export default async function CostingPage({
             {report.rows.map((row) => (
               <tr key={row.itemId} className="border-b border-zinc-100 dark:border-zinc-900">
                 <td className="py-2 pr-3 text-xs">
-                  <div className="font-medium">{row.itemSku}</div>
-                  <div className="text-zinc-500">{row.itemName}</div>
+                  <div className="font-medium">
+                    <ItemInlineLink itemId={row.itemId}>{row.itemSku}</ItemInlineLink>
+                  </div>
+                  <div className="text-zinc-500">
+                    <ItemInlineLink itemId={row.itemId}>{row.itemName}</ItemInlineLink>
+                  </div>
                 </td>
                 <td className="py-2 pr-3">{row.unitOfMeasure}</td>
                 <td className="py-2 pr-3">{number(row.onHandQuantity)}</td>

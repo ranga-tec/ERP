@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { backendFetchJson } from "@/lib/backend.server";
+import { TransactionLink } from "@/components/TransactionLink";
 import { Card, Table } from "@/components/ui";
 import { DirectDispatchCreateForm } from "./DirectDispatchCreateForm";
 
@@ -69,7 +70,15 @@ export default async function DirectDispatchesPage() {
                     </Link>
                   </td>
                   <td className="py-2 pr-3">{r.customerId ? customerById.get(r.customerId)?.code ?? r.customerId : "-"}</td>
-                  <td className="py-2 pr-3 font-mono text-xs">{r.serviceJobId ? jobById.get(r.serviceJobId)?.number ?? r.serviceJobId : "-"}</td>
+                  <td className="py-2 pr-3 font-mono text-xs">
+                    {r.serviceJobId ? (
+                      <TransactionLink referenceType="SJ" referenceId={r.serviceJobId} monospace>
+                        {jobById.get(r.serviceJobId)?.number ?? r.serviceJobId}
+                      </TransactionLink>
+                    ) : (
+                      "-"
+                    )}
+                  </td>
                   <td className="py-2 pr-3">{warehouseById.get(r.warehouseId)?.code ?? r.warehouseId}</td>
                   <td className="py-2 pr-3 text-zinc-500">{new Date(r.dispatchedAt).toLocaleString()}</td>
                   <td className="py-2 pr-3">{statusLabel[r.status] ?? r.status}</td>

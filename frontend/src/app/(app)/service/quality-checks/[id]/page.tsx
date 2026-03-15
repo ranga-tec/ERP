@@ -2,6 +2,7 @@ import Link from "next/link";
 import { backendFetchJson } from "@/lib/backend.server";
 import { Card, SecondaryLink } from "@/components/ui";
 import { DocumentCollaborationPanel } from "@/components/DocumentCollaborationPanel";
+import { TransactionLink } from "@/components/TransactionLink";
 
 type QualityCheckDto = {
   id: string;
@@ -35,7 +36,10 @@ export default async function QualityCheckDetailPage({ params }: { params: Promi
         <h1 className="mt-1 text-2xl font-semibold">Quality Check</h1>
         <div className="mt-2 flex flex-wrap gap-3 text-sm text-zinc-600 dark:text-zinc-400">
           <div>
-            Job: <span className="font-mono text-xs">{jobById.get(qc.serviceJobId)?.number ?? qc.serviceJobId}</span>
+            Job:{" "}
+            <TransactionLink referenceType="SJ" referenceId={qc.serviceJobId} monospace>
+              {jobById.get(qc.serviceJobId)?.number ?? qc.serviceJobId}
+            </TransactionLink>
           </div>
           <div>Checked: {new Date(qc.checkedAt).toLocaleString()}</div>
           <div>Result: {qc.passed ? "Passed" : "Failed"}</div>

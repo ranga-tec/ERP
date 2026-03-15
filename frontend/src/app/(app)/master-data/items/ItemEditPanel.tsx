@@ -44,12 +44,14 @@ const trackingTypes = [
 ];
 
 export function ItemEditPanel({
+  initialSelectedItemId,
   items,
   brands,
   uoms,
   categories,
   subcategories,
 }: {
+  initialSelectedItemId?: string;
   items: ItemDto[];
   brands: BrandRef[];
   uoms: UomRef[];
@@ -61,7 +63,7 @@ export function ItemEditPanel({
     () => items.slice().sort((a, b) => a.sku.localeCompare(b.sku)),
     [items],
   );
-  const [selectedItemId, setSelectedItemId] = useState(sortedItems[0]?.id ?? "");
+  const [selectedItemId, setSelectedItemId] = useState(initialSelectedItemId || sortedItems[0]?.id || "");
 
   const [sku, setSku] = useState("");
   const [name, setName] = useState("");
@@ -79,6 +81,25 @@ export function ItemEditPanel({
   const [error, setError] = useState<string | null>(null);
 
   const selectedItem = sortedItems.find((i) => i.id === selectedItemId);
+
+  useEffect(() => {
+    if (!sortedItems.length) {
+      setSelectedItemId("");
+      return;
+    }
+
+    setSelectedItemId((currentSelectedItemId) => {
+      if (initialSelectedItemId && sortedItems.some((item) => item.id === initialSelectedItemId)) {
+        return initialSelectedItemId;
+      }
+
+      if (currentSelectedItemId && sortedItems.some((item) => item.id === currentSelectedItemId)) {
+        return currentSelectedItemId;
+      }
+
+      return sortedItems[0]?.id ?? "";
+    });
+  }, [initialSelectedItemId, sortedItems]);
 
   useEffect(() => {
     if (!selectedItem) {

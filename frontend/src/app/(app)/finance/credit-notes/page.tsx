@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { backendFetchJson } from "@/lib/backend.server";
+import { TransactionLink } from "@/components/TransactionLink";
 import { Card, Table } from "@/components/ui";
 import { CreditNoteCreateForm } from "./CreditNoteCreateForm";
 
@@ -28,8 +29,8 @@ export default async function CreditNotesPage() {
     backendFetchJson<SupplierDto[]>("/suppliers"),
   ]);
 
-  const customerById = new Map(customers.map((c) => [c.id, c]));
-  const supplierById = new Map(suppliers.map((s) => [s.id, s]));
+  const customerById = new Map(customers.map((customer) => [customer.id, customer]));
+  const supplierById = new Map(suppliers.map((supplier) => [supplier.id, supplier]));
 
   function counterpartyCode(type: number, id: string): string {
     if (type === 1) return customerById.get(id)?.code ?? id;
@@ -65,24 +66,30 @@ export default async function CreditNotesPage() {
               </tr>
             </thead>
             <tbody>
-              {notes.map((n) => (
-                <tr key={n.id} className="border-b border-zinc-100 dark:border-zinc-900">
+              {notes.map((note) => (
+                <tr key={note.id} className="border-b border-zinc-100 dark:border-zinc-900">
                   <td className="py-2 pr-3 font-mono text-xs">
-                    <Link className="hover:underline" href={`/finance/credit-notes/${n.id}`}>
-                      {n.referenceNumber}
+                    <Link className="hover:underline" href={`/finance/credit-notes/${note.id}`}>
+                      {note.referenceNumber}
                     </Link>
                   </td>
                   <td className="py-2 pr-3">
-                    {counterpartyLabel[n.counterpartyType] ?? n.counterpartyType}:{" "}
-                    {counterpartyCode(n.counterpartyType, n.counterpartyId)}
+                    {counterpartyLabel[note.counterpartyType] ?? note.counterpartyType}:{" "}
+                    {counterpartyCode(note.counterpartyType, note.counterpartyId)}
                   </td>
-                  <td className="py-2 pr-3 text-zinc-500">{new Date(n.issuedAt).toLocaleString()}</td>
-                  <td className="py-2 pr-3">{n.amount}</td>
-                  <td className="py-2 pr-3">{n.remainingAmount}</td>
+                  <td className="py-2 pr-3 text-zinc-500">{new Date(note.issuedAt).toLocaleString()}</td>
+                  <td className="py-2 pr-3">{note.amount}</td>
+                  <td className="py-2 pr-3">{note.remainingAmount}</td>
                   <td className="py-2 pr-3 font-mono text-xs text-zinc-500">
-                    {n.sourceReferenceType ? `${n.sourceReferenceType}:${n.sourceReferenceId ?? ""}` : "—"}
+                    {note.sourceReferenceType ? (
+                      <TransactionLink referenceType={note.sourceReferenceType} referenceId={note.sourceReferenceId} monospace>
+                        {`${note.sourceReferenceType}:${note.sourceReferenceId ?? ""}`}
+                      </TransactionLink>
+                    ) : (
+                      "-"
+                    )}
                   </td>
-                  <td className="py-2 pr-3 text-zinc-500">{n.notes ?? "—"}</td>
+                  <td className="py-2 pr-3 text-zinc-500">{note.notes ?? "-"}</td>
                 </tr>
               ))}
               {notes.length === 0 ? (
@@ -99,4 +106,3 @@ export default async function CreditNotesPage() {
     </div>
   );
 }
-

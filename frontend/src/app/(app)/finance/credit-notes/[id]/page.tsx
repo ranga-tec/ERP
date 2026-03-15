@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { backendFetchJson } from "@/lib/backend.server";
+import { TransactionLink } from "@/components/TransactionLink";
 import { Card, SecondaryLink, Table } from "@/components/ui";
 import { CreditNoteActions } from "../CreditNoteActions";
 import { DocumentCollaborationPanel } from "@/components/DocumentCollaborationPanel";
@@ -64,8 +65,8 @@ export default async function CreditNoteDetailPage({ params }: { params: Promise
   ]);
 
   const note = detail.creditNote;
-  const customerById = new Map(customers.map((c) => [c.id, c]));
-  const supplierById = new Map(suppliers.map((s) => [s.id, s]));
+  const customerById = new Map(customers.map((customer) => [customer.id, customer]));
+  const supplierById = new Map(suppliers.map((supplier) => [supplier.id, supplier]));
 
   const allocateMode = note.counterpartyType === 1 ? "ar" : "ap";
 
@@ -75,15 +76,10 @@ export default async function CreditNoteDetailPage({ params }: { params: Promise
 
   const filteredEntries =
     note.counterpartyType === 1
-      ? (entries as ArDto[]).filter((e) => e.customerId === note.counterpartyId)
-      : (entries as ApDto[]).filter((e) => e.supplierId === note.counterpartyId);
+      ? (entries as ArDto[]).filter((entry) => entry.customerId === note.counterpartyId)
+      : (entries as ApDto[]).filter((entry) => entry.supplierId === note.counterpartyId);
 
-  const entryRefById = new Map(
-    filteredEntries.map((e) => [
-      e.id,
-      `${e.referenceType}:${e.referenceId} (outstanding ${e.outstanding})`,
-    ]),
-  );
+  const entryById = new Map(filteredEntries.map((entry) => [entry.id, entry]));
 
   const counterpartyCode =
     note.counterpartyType === 1
@@ -112,8 +108,15 @@ export default async function CreditNoteDetailPage({ params }: { params: Promise
           <div>Remaining: {note.remainingAmount}</div>
         </div>
         <div className="mt-2 text-sm text-zinc-500">
-          Source: {note.sourceReferenceType ? `${note.sourceReferenceType}:${note.sourceReferenceId ?? ""}` : "—"} · Notes:{" "}
-          {note.notes ?? "—"}
+          Source:{" "}
+          {note.sourceReferenceType ? (
+            <TransactionLink referenceType={note.sourceReferenceType} referenceId={note.sourceReferenceId}>
+              {`${note.sourceReferenceType}:${note.sourceReferenceId ?? ""}`}
+            </TransactionLink>
+          ) : (
+            "-"
+          )}{" "}
+          - Notes: {note.notes ?? "-"}
         </div>
       </div>
 
@@ -142,13 +145,21 @@ export default async function CreditNoteDetailPage({ params }: { params: Promise
               </tr>
             </thead>
             <tbody>
-              {detail.allocations.map((a) => {
-                const entryId = a.accountsReceivableEntryId ?? a.accountsPayableEntryId ?? "";
-                const entry = entryRefById.get(entryId) ?? entryId;
+              {detail.allocations.map((allocation) => {
+                const entryId = allocation.accountsReceivableEntryId ?? allocation.accountsPayableEntryId ?? "";
+                const entry = entryById.get(entryId);
                 return (
-                  <tr key={a.id} className="border-b border-zinc-100 dark:border-zinc-900">
-                    <td className="py-2 pr-3 font-mono text-xs">{entry || "—"}</td>
-                    <td className="py-2 pr-3">{a.amount}</td>
+                  <tr key={allocation.id} className="border-b border-zinc-100 dark:border-zinc-900">
+                    <td className="py-2 pr-3 font-mono text-xs">
+                      {entry ? (
+                        <TransactionLink referenceType={entry.referenceType} referenceId={entry.referenceId} monospace>
+                          {`${entry.referenceType}:${entry.referenceId} (outstanding ${entry.outstanding})`}
+                        </TransactionLink>
+                      ) : (
+                        entryId || "-"
+                      )}
+                    </td>
+                    <td className="py-2 pr-3">{allocation.amount}</td>
                   </tr>
                 );
               })}

@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { backendFetchJson } from "@/lib/backend.server";
+import { TransactionLink } from "@/components/TransactionLink";
 import { Card, Table } from "@/components/ui";
 import { QualityCheckCreateForm } from "./QualityCheckCreateForm";
 
@@ -54,7 +55,9 @@ export default async function QualityChecksPage() {
                     </Link>
                   </td>
                   <td className="py-2 pr-3 font-mono text-xs text-zinc-600 dark:text-zinc-400">
-                    {jobById.get(q.serviceJobId)?.number ?? q.serviceJobId}
+                    <TransactionLink referenceType="SJ" referenceId={q.serviceJobId} monospace>
+                      {jobById.get(q.serviceJobId)?.number ?? q.serviceJobId}
+                    </TransactionLink>
                   </td>
                   <td className="py-2 pr-3">{q.passed ? "Passed" : "Failed"}</td>
                   <td className="py-2 pr-3 text-zinc-500">{q.notes ?? "—"}</td>
@@ -74,4 +77,3 @@ export default async function QualityChecksPage() {
     </div>
   );
 }
-

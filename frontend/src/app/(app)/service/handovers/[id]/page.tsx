@@ -2,6 +2,7 @@ import Link from "next/link";
 import { backendFetchJson } from "@/lib/backend.server";
 import { Card, SecondaryLink } from "@/components/ui";
 import { DocumentCollaborationPanel } from "@/components/DocumentCollaborationPanel";
+import { TransactionLink } from "@/components/TransactionLink";
 import { ServiceHandoverActions } from "../ServiceHandoverActions";
 import { ServiceHandoverConvertInvoiceForm } from "../ServiceHandoverConvertInvoiceForm";
 
@@ -76,7 +77,10 @@ export default async function ServiceHandoverDetailPage({ params }: { params: Pr
         <h1 className="mt-1 text-2xl font-semibold">Handover {handover.number}</h1>
         <div className="mt-2 flex flex-wrap gap-3 text-sm text-zinc-600 dark:text-zinc-400">
           <div>
-            Job: <span className="font-mono text-xs">{job?.number ?? handover.serviceJobId}</span>
+            Job:{" "}
+            <TransactionLink referenceType="SJ" referenceId={handover.serviceJobId} monospace>
+              {job?.number ?? handover.serviceJobId}
+            </TransactionLink>
           </div>
           <div>Customer: {customer ? customer.code : "-"}</div>
           <div>Status: {statusLabel[handover.status] ?? handover.status}</div>
@@ -90,9 +94,9 @@ export default async function ServiceHandoverDetailPage({ params }: { params: Pr
           <div>
             Invoice:{" "}
             {handover.salesInvoiceId ? (
-              <Link className="underline" href={`/sales/invoices/${handover.salesInvoiceId}`}>
+              <TransactionLink referenceType="INV" referenceId={handover.salesInvoiceId}>
                 {linkedInvoice?.number ?? handover.salesInvoiceId}
-              </Link>
+              </TransactionLink>
             ) : (
               "-"
             )}

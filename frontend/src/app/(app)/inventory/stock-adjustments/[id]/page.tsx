@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { backendFetchJson } from "@/lib/backend.server";
+import { ItemInlineLink } from "@/components/InlineLink";
 import { Card, SecondaryLink, Table } from "@/components/ui";
 import { StockAdjustmentActions } from "../StockAdjustmentActions";
 import { StockAdjustmentLineAddForm } from "../StockAdjustmentLineAddForm";
@@ -94,7 +95,11 @@ export default async function StockAdjustmentDetailPage({ params }: { params: Pr
             <tbody>
               {adj.lines.map((l) => {
                 const item = itemById.get(l.itemId);
-                const itemLabel = item ? `${item.sku} - ${item.name}` : l.itemId;
+                const itemLabel = (
+                  <ItemInlineLink itemId={l.itemId}>
+                    {item ? `${item.sku} - ${item.name}` : l.itemId}
+                  </ItemInlineLink>
+                );
                 return (
                   <StockAdjustmentLineRow
                     key={l.id}

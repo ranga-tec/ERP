@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { backendFetchJson } from "@/lib/backend.server";
+import { TransactionLink } from "@/components/TransactionLink";
 import { Card, Table } from "@/components/ui";
 import { GoodsReceiptCreateForm } from "./GoodsReceiptCreateForm";
 
@@ -65,7 +66,9 @@ export default async function GoodsReceiptsPage() {
                     </Link>
                   </td>
                   <td className="py-2 pr-3 font-mono text-xs text-zinc-600 dark:text-zinc-400">
-                    {poById.get(g.purchaseOrderId)?.number ?? g.purchaseOrderId}
+                    <TransactionLink referenceType="PO" referenceId={g.purchaseOrderId} monospace>
+                      {poById.get(g.purchaseOrderId)?.number ?? g.purchaseOrderId}
+                    </TransactionLink>
                   </td>
                   <td className="py-2 pr-3">{warehouseById.get(g.warehouseId)?.code ?? g.warehouseId}</td>
                   <td className="py-2 pr-3 text-zinc-500">{new Date(g.receivedAt).toLocaleString()}</td>
@@ -86,4 +89,3 @@ export default async function GoodsReceiptsPage() {
     </div>
   );
 }
-

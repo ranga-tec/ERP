@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { backendFetchJson } from "@/lib/backend.server";
+import { TransactionLink } from "@/components/TransactionLink";
 import { Card, Table } from "@/components/ui";
 import { ServiceHandoverCreateForm } from "./ServiceHandoverCreateForm";
 
@@ -74,7 +75,9 @@ export default async function ServiceHandoversPage() {
                       </Link>
                     </td>
                     <td className="py-2 pr-3 font-mono text-xs text-zinc-600 dark:text-zinc-400">
-                      {job?.number ?? r.serviceJobId}
+                      <TransactionLink referenceType="SJ" referenceId={r.serviceJobId} monospace>
+                        {job?.number ?? r.serviceJobId}
+                      </TransactionLink>
                     </td>
                     <td className="py-2 pr-3">{customer ? customer.code : "-"}</td>
                     <td className="py-2 pr-3 text-zinc-500">{new Date(r.handoverDate).toLocaleString()}</td>

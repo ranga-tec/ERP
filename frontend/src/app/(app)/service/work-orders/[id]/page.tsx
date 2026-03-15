@@ -2,6 +2,7 @@ import Link from "next/link";
 import { backendFetchJson } from "@/lib/backend.server";
 import { Card, SecondaryLink } from "@/components/ui";
 import { DocumentCollaborationPanel } from "@/components/DocumentCollaborationPanel";
+import { TransactionLink } from "@/components/TransactionLink";
 
 type WorkOrderDto = {
   id: string;
@@ -42,7 +43,10 @@ export default async function WorkOrderDetailPage({ params }: { params: Promise<
         <h1 className="mt-1 text-2xl font-semibold">Work Order {wo.id.slice(0, 8)}</h1>
         <div className="mt-2 flex flex-wrap gap-3 text-sm text-zinc-600 dark:text-zinc-400">
           <div>
-            Job: <span className="font-mono text-xs">{jobById.get(wo.serviceJobId)?.number ?? wo.serviceJobId}</span>
+            Job:{" "}
+            <TransactionLink referenceType="SJ" referenceId={wo.serviceJobId} monospace>
+              {jobById.get(wo.serviceJobId)?.number ?? wo.serviceJobId}
+            </TransactionLink>
           </div>
           <div>Status: {statusLabel[wo.status] ?? wo.status}</div>
         </div>

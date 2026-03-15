@@ -1,5 +1,7 @@
 import Link from "next/link";
 import { backendFetchJson } from "@/lib/backend.server";
+import { ItemInlineLink } from "@/components/InlineLink";
+import { TransactionLink } from "@/components/TransactionLink";
 import { Card, SecondaryLink, Table } from "@/components/ui";
 import { CustomerReturnActions } from "../CustomerReturnActions";
 import { CustomerReturnLineAddForm } from "../CustomerReturnLineAddForm";
@@ -30,7 +32,7 @@ const statusLabel: Record<number, string> = { 0: "Draft", 1: "Posted", 2: "Voide
 export default async function CustomerReturnDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
 
-  const [cr, customers, warehouses, items, invoices, dispatches] = await Promise.all([
+  const [customerReturn, customers, warehouses, items, invoices, dispatches] = await Promise.all([
     backendFetchJson<CustomerReturnDto>(`/sales/customer-returns/${id}`),
     backendFetchJson<CustomerDto[]>("/customers"),
     backendFetchJson<WarehouseDto[]>("/warehouses"),
@@ -39,12 +41,12 @@ export default async function CustomerReturnDetailPage({ params }: { params: Pro
     backendFetchJson<DispatchSummaryDto[]>("/sales/dispatches?take=200"),
   ]);
 
-  const customerById = new Map(customers.map((c) => [c.id, c]));
-  const warehouseById = new Map(warehouses.map((w) => [w.id, w]));
-  const itemById = new Map(items.map((i) => [i.id, i]));
-  const invoiceById = new Map(invoices.map((i) => [i.id, i]));
-  const dispatchById = new Map(dispatches.map((d) => [d.id, d]));
-  const isDraft = cr.status === 0;
+  const customerById = new Map(customers.map((customer) => [customer.id, customer]));
+  const warehouseById = new Map(warehouses.map((warehouse) => [warehouse.id, warehouse]));
+  const itemById = new Map(items.map((item) => [item.id, item]));
+  const invoiceById = new Map(invoices.map((invoice) => [invoice.id, invoice]));
+  const dispatchById = new Map(dispatches.map((dispatch) => [dispatch.id, dispatch]));
+  const isDraft = customerReturn.status === 0;
 
   return (
     <div className="space-y-6">
@@ -53,40 +55,54 @@ export default async function CustomerReturnDetailPage({ params }: { params: Pro
           <Link href="/sales/customer-returns" className="hover:underline">
             Customer Returns
           </Link>{" "}
-          / <span className="font-mono text-xs">{cr.number}</span>
+          / <span className="font-mono text-xs">{customerReturn.number}</span>
         </div>
-        <h1 className="mt-1 text-2xl font-semibold">Customer Return {cr.number}</h1>
+        <h1 className="mt-1 text-2xl font-semibold">Customer Return {customerReturn.number}</h1>
         <div className="mt-2 flex flex-wrap gap-3 text-sm text-zinc-600 dark:text-zinc-400">
-          <div>Customer: {customerById.get(cr.customerId)?.code ?? cr.customerId}</div>
-          <div>Warehouse: {warehouseById.get(cr.warehouseId)?.code ?? cr.warehouseId}</div>
-          <div>Status: {statusLabel[cr.status] ?? cr.status}</div>
-          <div>Date: {new Date(cr.returnDate).toLocaleString()}</div>
+          <div>Customer: {customerById.get(customerReturn.customerId)?.code ?? customerReturn.customerId}</div>
+          <div>Warehouse: {warehouseById.get(customerReturn.warehouseId)?.code ?? customerReturn.warehouseId}</div>
+          <div>Status: {statusLabel[customerReturn.status] ?? customerReturn.status}</div>
+          <div>Date: {new Date(customerReturn.returnDate).toLocaleString()}</div>
         </div>
         <div className="mt-2 text-sm text-zinc-500">
-          Invoice: {cr.salesInvoiceId ? invoiceById.get(cr.salesInvoiceId)?.number ?? cr.salesInvoiceId : "-"} · Dispatch:{" "}
-          {cr.dispatchNoteId ? dispatchById.get(cr.dispatchNoteId)?.number ?? cr.dispatchNoteId : "-"}
+          Invoice:{" "}
+          {customerReturn.salesInvoiceId ? (
+            <TransactionLink referenceType="INV" referenceId={customerReturn.salesInvoiceId}>
+              {invoiceById.get(customerReturn.salesInvoiceId)?.number ?? customerReturn.salesInvoiceId}
+            </TransactionLink>
+          ) : (
+            "-"
+          )}{" "}
+          - Dispatch:{" "}
+          {customerReturn.dispatchNoteId ? (
+            <TransactionLink referenceType="DN" referenceId={customerReturn.dispatchNoteId}>
+              {dispatchById.get(customerReturn.dispatchNoteId)?.number ?? customerReturn.dispatchNoteId}
+            </TransactionLink>
+          ) : (
+            "-"
+          )}
         </div>
-        {cr.reason ? <div className="mt-2 text-sm text-zinc-500">Reason: {cr.reason}</div> : null}
+        {customerReturn.reason ? <div className="mt-2 text-sm text-zinc-500">Reason: {customerReturn.reason}</div> : null}
       </div>
 
       <Card>
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
           <div className="text-sm font-semibold">Actions</div>
           <SecondaryLink
-            href={`/api/backend/sales/customer-returns/${cr.id}/pdf`}
+            href={`/api/backend/sales/customer-returns/${customerReturn.id}/pdf`}
             target="_blank"
             rel="noopener noreferrer"
           >
             Download PDF
           </SecondaryLink>
         </div>
-        <CustomerReturnActions customerReturnId={cr.id} canPost={isDraft && cr.lines.length > 0} />
+        <CustomerReturnActions customerReturnId={customerReturn.id} canPost={isDraft && customerReturn.lines.length > 0} />
       </Card>
 
       {isDraft ? (
         <Card>
           <div className="mb-3 text-sm font-semibold">Add line</div>
-          <CustomerReturnLineAddForm customerReturnId={cr.id} items={items} />
+          <CustomerReturnLineAddForm customerReturnId={customerReturn.id} items={items} />
         </Card>
       ) : null}
 
@@ -105,20 +121,25 @@ export default async function CustomerReturnDetailPage({ params }: { params: Pro
               </tr>
             </thead>
             <tbody>
-              {cr.lines.map((l) => {
-                const item = itemById.get(l.itemId);
-                const itemLabel = item ? `${item.sku} - ${item.name}` : l.itemId;
+              {customerReturn.lines.map((line) => {
+                const item = itemById.get(line.itemId);
+                const itemLabel = (
+                  <ItemInlineLink itemId={line.itemId}>
+                    {item ? `${item.sku} - ${item.name}` : line.itemId}
+                  </ItemInlineLink>
+                );
+
                 return (
                   <CustomerReturnLineRow
-                    key={l.id}
-                    customerReturnId={cr.id}
-                    line={l}
+                    key={line.id}
+                    customerReturnId={customerReturn.id}
+                    line={line}
                     itemLabel={itemLabel}
                     canEdit={isDraft}
                   />
                 );
               })}
-              {cr.lines.length === 0 ? (
+              {customerReturn.lines.length === 0 ? (
                 <tr>
                   <td className="py-6 text-sm text-zinc-500" colSpan={isDraft ? 6 : 5}>
                     No lines yet.
@@ -134,4 +155,3 @@ export default async function CustomerReturnDetailPage({ params }: { params: Pro
     </div>
   );
 }
-

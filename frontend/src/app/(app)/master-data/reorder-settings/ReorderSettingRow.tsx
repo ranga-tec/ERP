@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { apiDeleteNoContent, apiPost } from "@/lib/api-client";
 import { Button, Input, SecondaryButton } from "@/components/ui";
 
@@ -22,7 +22,7 @@ export function ReorderSettingRow({
 }: {
   setting: ReorderSettingDto;
   warehouseLabel: string;
-  itemLabel: string;
+  itemLabel: ReactNode;
 }) {
   const router = useRouter();
   const [isEditing, setIsEditing] = useState(false);

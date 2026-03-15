@@ -1,4 +1,6 @@
 import { backendFetchJson } from "@/lib/backend.server";
+import { ItemInlineLink } from "@/components/InlineLink";
+import { TransactionLink } from "@/components/TransactionLink";
 import { Card, Table } from "@/components/ui";
 
 type StockLedgerRow = {
@@ -74,15 +76,22 @@ export default async function StockLedgerPage() {
           </thead>
           <tbody>
             {report.rows.map((row) => (
-              <tr key={`${row.referenceId}-${row.occurredAt}-${row.itemId}-${row.warehouseId}`} className="border-b border-zinc-100 align-top dark:border-zinc-900">
+              <tr
+                key={`${row.referenceId}-${row.occurredAt}-${row.itemId}-${row.warehouseId}`}
+                className="border-b border-zinc-100 align-top dark:border-zinc-900"
+              >
                 <td className="py-2 pr-3 text-xs">{new Date(row.occurredAt).toLocaleString()}</td>
                 <td className="py-2 pr-3 text-xs">
                   <div className="font-medium">{row.warehouseCode}</div>
                   <div className="text-zinc-500">{row.warehouseName}</div>
                 </td>
                 <td className="py-2 pr-3 text-xs">
-                  <div className="font-medium">{row.itemSku}</div>
-                  <div className="text-zinc-500">{row.itemName}</div>
+                  <div className="font-medium">
+                    <ItemInlineLink itemId={row.itemId}>{row.itemSku}</ItemInlineLink>
+                  </div>
+                  <div className="text-zinc-500">
+                    <ItemInlineLink itemId={row.itemId}>{row.itemName}</ItemInlineLink>
+                  </div>
                 </td>
                 <td className="py-2 pr-3 text-xs text-zinc-500">{row.movementType}</td>
                 <td className="py-2 pr-3 text-xs">{number(row.quantity)}</td>
@@ -91,7 +100,11 @@ export default async function StockLedgerPage() {
                 <td className="py-2 pr-3 text-xs">{number(row.lineValue)}</td>
                 <td className="py-2 pr-3 text-xs">
                   <div className="font-mono">{row.referenceType}</div>
-                  <div className="text-zinc-500">{row.referenceId.slice(0, 8)}</div>
+                  <div className="text-zinc-500">
+                    <TransactionLink referenceType={row.referenceType} referenceId={row.referenceId} monospace>
+                      {row.referenceId.slice(0, 8)}
+                    </TransactionLink>
+                  </div>
                 </td>
               </tr>
             ))}

@@ -125,6 +125,19 @@ When adding/removing modules or report pages:
 - ensure page route exists
 - verify role access (frontend may still render link even if backend denies)
 
+### Cross-Document Navigation
+
+Related document references should use the shared routing helpers instead of hardcoded cross-module URLs.
+
+- Document-to-document links should resolve through `ReferenceForms` route templates so navigation stays aligned with the master-data route map.
+- Server-rendered pages should use the shared transaction link helper rather than rebuilding route resolution ad hoc.
+- Item references should deep-link into `Master Data -> Items` using the shared item-routing helper so the target row is highlighted and the edit/management panels preselect the same item.
+
+Maintainer rule:
+
+- When adding a new transactional reference to the UI, prefer the shared link helpers first.
+- When introducing a new document type, add or update its `ReferenceForm` route template so cross-navigation works everywhere consistently.
+
 ### Implemented Module Coverage (UI)
 
 Master data pages include:

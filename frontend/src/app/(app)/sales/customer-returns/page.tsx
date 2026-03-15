@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { backendFetchJson } from "@/lib/backend.server";
+import { TransactionLink } from "@/components/TransactionLink";
 import { Card, Table } from "@/components/ui";
 import { CustomerReturnCreateForm } from "./CustomerReturnCreateForm";
 
@@ -82,8 +83,24 @@ export default async function CustomerReturnsPage() {
                   <td className="py-2 pr-3">{customerById.get(r.customerId)?.code ?? r.customerId}</td>
                   <td className="py-2 pr-3">{warehouseById.get(r.warehouseId)?.code ?? r.warehouseId}</td>
                   <td className="py-2 pr-3 text-zinc-500">{new Date(r.returnDate).toLocaleString()}</td>
-                  <td className="py-2 pr-3 font-mono text-xs">{r.salesInvoiceId ? invoiceById.get(r.salesInvoiceId)?.number ?? r.salesInvoiceId : "-"}</td>
-                  <td className="py-2 pr-3 font-mono text-xs">{r.dispatchNoteId ? dispatchById.get(r.dispatchNoteId)?.number ?? r.dispatchNoteId : "-"}</td>
+                  <td className="py-2 pr-3 font-mono text-xs">
+                    {r.salesInvoiceId ? (
+                      <TransactionLink referenceType="INV" referenceId={r.salesInvoiceId} monospace>
+                        {invoiceById.get(r.salesInvoiceId)?.number ?? r.salesInvoiceId}
+                      </TransactionLink>
+                    ) : (
+                      "-"
+                    )}
+                  </td>
+                  <td className="py-2 pr-3 font-mono text-xs">
+                    {r.dispatchNoteId ? (
+                      <TransactionLink referenceType="DN" referenceId={r.dispatchNoteId} monospace>
+                        {dispatchById.get(r.dispatchNoteId)?.number ?? r.dispatchNoteId}
+                      </TransactionLink>
+                    ) : (
+                      "-"
+                    )}
+                  </td>
                   <td className="py-2 pr-3">{statusLabel[r.status] ?? r.status}</td>
                 </tr>
               ))}

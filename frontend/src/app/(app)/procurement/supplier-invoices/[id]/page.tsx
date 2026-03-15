@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { backendFetchJson } from "@/lib/backend.server";
+import { TransactionLink } from "@/components/TransactionLink";
 import { Card, SecondaryLink } from "@/components/ui";
 import { SupplierInvoiceActions } from "../SupplierInvoiceActions";
 import { DocumentCollaborationPanel } from "@/components/DocumentCollaborationPanel";
@@ -76,9 +77,36 @@ export default async function SupplierInvoiceDetailPage({ params }: { params: Pr
 
       <Card>
         <div className="grid gap-2 text-sm sm:grid-cols-2">
-          <div>PO: {invoice.purchaseOrderId ? poById.get(invoice.purchaseOrderId)?.number ?? invoice.purchaseOrderId : "-"}</div>
-          <div>GRN: {invoice.goodsReceiptId ? grnById.get(invoice.goodsReceiptId)?.number ?? invoice.goodsReceiptId : "-"}</div>
-          <div>Direct Purchase: {invoice.directPurchaseId ? dpById.get(invoice.directPurchaseId)?.number ?? invoice.directPurchaseId : "-"}</div>
+          <div>
+            PO:{" "}
+            {invoice.purchaseOrderId ? (
+              <TransactionLink referenceType="PO" referenceId={invoice.purchaseOrderId}>
+                {poById.get(invoice.purchaseOrderId)?.number ?? invoice.purchaseOrderId}
+              </TransactionLink>
+            ) : (
+              "-"
+            )}
+          </div>
+          <div>
+            GRN:{" "}
+            {invoice.goodsReceiptId ? (
+              <TransactionLink referenceType="GRN" referenceId={invoice.goodsReceiptId}>
+                {grnById.get(invoice.goodsReceiptId)?.number ?? invoice.goodsReceiptId}
+              </TransactionLink>
+            ) : (
+              "-"
+            )}
+          </div>
+          <div>
+            Direct Purchase:{" "}
+            {invoice.directPurchaseId ? (
+              <TransactionLink referenceType="DPR" referenceId={invoice.directPurchaseId}>
+                {dpById.get(invoice.directPurchaseId)?.number ?? invoice.directPurchaseId}
+              </TransactionLink>
+            ) : (
+              "-"
+            )}
+          </div>
           <div>AP Entry: {invoice.accountsPayableEntryId ?? "-"}</div>
           <div>Posted At: {invoice.postedAt ? new Date(invoice.postedAt).toLocaleString() : "-"}</div>
           <div>Notes: {invoice.notes ?? "-"}</div>

@@ -3,6 +3,7 @@ import { backendFetchJson } from "@/lib/backend.server";
 import { Card, SecondaryLink } from "@/components/ui";
 import { ServiceJobActions } from "../ServiceJobActions";
 import { DocumentCollaborationPanel } from "@/components/DocumentCollaborationPanel";
+import { TransactionLink } from "@/components/TransactionLink";
 
 type ServiceJobDto = {
   id: string;
@@ -55,9 +56,9 @@ export default async function ServiceJobDetailPage({ params }: { params: Promise
         <div className="mt-2 flex flex-wrap gap-3 text-sm text-zinc-600 dark:text-zinc-400">
           <div>
             Equipment:{" "}
-            <span className="font-mono text-xs">
+            <TransactionLink referenceType="EUNIT" referenceId={job.equipmentUnitId} monospace>
               {unitById.get(job.equipmentUnitId)?.serialNumber ?? job.equipmentUnitId}
-            </span>
+            </TransactionLink>
           </div>
           <div>Customer: {customerById.get(job.customerId)?.code ?? job.customerId}</div>
           <div>Status: {statusLabel[job.status] ?? job.status}</div>

@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { backendFetchJson } from "@/lib/backend.server";
+import { ItemInlineLink } from "@/components/InlineLink";
 import { Card, Table } from "@/components/ui";
 import { PurchaseRequisitionActions } from "../PurchaseRequisitionActions";
 import { PurchaseRequisitionConvertToPoForm } from "../PurchaseRequisitionConvertToPoForm";
@@ -121,7 +122,11 @@ export default async function PurchaseRequisitionDetailPage({
             <tbody>
               {pr.lines.map((line) => {
                 const item = itemById.get(line.itemId);
-                const itemLabel = item ? `${item.sku} - ${item.name}` : line.itemId;
+                const itemLabel = (
+                  <ItemInlineLink itemId={line.itemId}>
+                    {item ? `${item.sku} - ${item.name}` : line.itemId}
+                  </ItemInlineLink>
+                );
                 return (
                   <PurchaseRequisitionLineRow
                     key={line.id}

@@ -37,7 +37,12 @@ type ItemDto = {
   isActive: boolean;
 };
 
-export default async function ItemsPage() {
+export default async function ItemsPage({
+  searchParams,
+}: {
+  searchParams?: Promise<{ itemId?: string }>;
+}) {
+  const sp = await searchParams;
   const [items, brands, uoms, categories, subcategories] = await Promise.all([
     backendFetchJson<ItemDto[]>("/items"),
     backendFetchJson<BrandDto[]>("/brands"),
@@ -45,6 +50,10 @@ export default async function ItemsPage() {
     backendFetchJson<CategoryDto[]>("/item-categories"),
     backendFetchJson<SubcategoryDto[]>("/item-subcategories"),
   ]);
+  const requestedItemId = sp?.itemId?.trim() ?? "";
+  const initialSelectedItemId = items.some((item) => item.id === requestedItemId)
+    ? requestedItemId
+    : "";
 
   return (
     <div className="space-y-6">
@@ -65,14 +74,15 @@ export default async function ItemsPage() {
         />
       </Card>
 
-      <Card>
+      <Card id="item-list">
         <div className="mb-3 text-sm font-semibold">List / Search</div>
-        <ItemListPanel items={items} brands={brands} categories={categories} />
+        <ItemListPanel items={items} brands={brands} categories={categories} highlightItemId={initialSelectedItemId} />
       </Card>
 
-      <Card>
+      <Card id="item-edit">
         <div className="mb-3 text-sm font-semibold">Edit Item</div>
         <ItemEditPanel
+          initialSelectedItemId={initialSelectedItemId}
           items={items}
           brands={brands.map((b) => ({ id: b.id, code: b.code, name: b.name }))}
           uoms={uoms}
@@ -87,9 +97,12 @@ export default async function ItemsPage() {
         />
       </Card>
 
-      <Card>
+      <Card id="item-manage">
         <div className="mb-3 text-sm font-semibold">Attachments + Price History</div>
-        <ItemManagementPanel items={items.map((i) => ({ id: i.id, sku: i.sku, name: i.name }))} />
+        <ItemManagementPanel
+          initialSelectedItemId={initialSelectedItemId}
+          items={items.map((i) => ({ id: i.id, sku: i.sku, name: i.name }))}
+        />
       </Card>
     </div>
   );

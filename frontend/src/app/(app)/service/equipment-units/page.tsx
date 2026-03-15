@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { backendFetchJson } from "@/lib/backend.server";
+import { ItemInlineLink } from "@/components/InlineLink";
 import { Card, Table } from "@/components/ui";
 import { EquipmentUnitCreateForm } from "./EquipmentUnitCreateForm";
 
@@ -22,10 +23,10 @@ export default async function EquipmentUnitsPage() {
     backendFetchJson<CustomerDto[]>("/customers"),
   ]);
 
-  const itemById = new Map(items.map((i) => [i.id, i]));
-  const customerById = new Map(customers.map((c) => [c.id, c]));
+  const itemById = new Map(items.map((item) => [item.id, item]));
+  const customerById = new Map(customers.map((customer) => [customer.id, customer]));
 
-  const equipmentItems = items.filter((i) => i.type === 1).map((i) => ({ id: i.id, sku: i.sku, name: i.name }));
+  const equipmentItems = items.filter((item) => item.type === 1).map((item) => ({ id: item.id, sku: item.sku, name: item.name }));
 
   return (
     <div className="space-y-6">
@@ -53,20 +54,24 @@ export default async function EquipmentUnitsPage() {
               </tr>
             </thead>
             <tbody>
-              {units.map((u) => (
-                <tr key={u.id} className="border-b border-zinc-100 dark:border-zinc-900">
+              {units.map((unit) => (
+                <tr key={unit.id} className="border-b border-zinc-100 dark:border-zinc-900">
                   <td className="py-2 pr-3 font-mono text-xs">
-                    <Link className="hover:underline" href={`/service/equipment-units/${u.id}`}>
-                      {u.serialNumber}
+                    <Link className="hover:underline" href={`/service/equipment-units/${unit.id}`}>
+                      {unit.serialNumber}
                     </Link>
                   </td>
-                  <td className="py-2 pr-3">{itemById.get(u.itemId)?.sku ?? u.itemId}</td>
-                  <td className="py-2 pr-3">{customerById.get(u.customerId)?.code ?? u.customerId}</td>
+                  <td className="py-2 pr-3">
+                    <ItemInlineLink itemId={unit.itemId}>
+                      {itemById.get(unit.itemId)?.sku ?? unit.itemId}
+                    </ItemInlineLink>
+                  </td>
+                  <td className="py-2 pr-3">{customerById.get(unit.customerId)?.code ?? unit.customerId}</td>
                   <td className="py-2 pr-3 text-zinc-500">
-                    {u.purchasedAt ? new Date(u.purchasedAt).toLocaleDateString() : "—"}
+                    {unit.purchasedAt ? new Date(unit.purchasedAt).toLocaleDateString() : "-"}
                   </td>
                   <td className="py-2 pr-3 text-zinc-500">
-                    {u.warrantyUntil ? new Date(u.warrantyUntil).toLocaleDateString() : "—"}
+                    {unit.warrantyUntil ? new Date(unit.warrantyUntil).toLocaleDateString() : "-"}
                   </td>
                 </tr>
               ))}
@@ -84,4 +89,3 @@ export default async function EquipmentUnitsPage() {
     </div>
   );
 }
-

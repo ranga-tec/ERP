@@ -1,5 +1,7 @@
 import Link from "next/link";
 import { backendFetchJson } from "@/lib/backend.server";
+import { ItemInlineLink } from "@/components/InlineLink";
+import { TransactionLink } from "@/components/TransactionLink";
 import { Card, SecondaryLink, Table } from "@/components/ui";
 import { DirectDispatchActions } from "../DirectDispatchActions";
 import { DirectDispatchLineAddForm } from "../DirectDispatchLineAddForm";
@@ -54,7 +56,16 @@ export default async function DirectDispatchDetailPage({ params }: { params: Pro
         <h1 className="mt-1 text-2xl font-semibold">Direct Dispatch {dispatch.number}</h1>
         <div className="mt-2 flex flex-wrap gap-3 text-sm text-zinc-600 dark:text-zinc-400">
           <div>Customer: {dispatch.customerId ? customerById.get(dispatch.customerId)?.code ?? dispatch.customerId : "-"}</div>
-          <div>Service Job: {dispatch.serviceJobId ? jobById.get(dispatch.serviceJobId)?.number ?? dispatch.serviceJobId : "-"}</div>
+          <div>
+            Service Job:{" "}
+            {dispatch.serviceJobId ? (
+              <TransactionLink referenceType="SJ" referenceId={dispatch.serviceJobId}>
+                {jobById.get(dispatch.serviceJobId)?.number ?? dispatch.serviceJobId}
+              </TransactionLink>
+            ) : (
+              "-"
+            )}
+          </div>
           <div>Warehouse: {warehouseById.get(dispatch.warehouseId)?.code ?? dispatch.warehouseId}</div>
           <div>Status: {statusLabel[dispatch.status] ?? dispatch.status}</div>
           <div>Date: {new Date(dispatch.dispatchedAt).toLocaleString()}</div>
@@ -99,7 +110,11 @@ export default async function DirectDispatchDetailPage({ params }: { params: Pro
             <tbody>
               {dispatch.lines.map((l) => {
                 const item = itemById.get(l.itemId);
-                const itemLabel = item ? `${item.sku} - ${item.name}` : l.itemId;
+                const itemLabel = (
+                  <ItemInlineLink itemId={l.itemId}>
+                    {item ? `${item.sku} - ${item.name}` : l.itemId}
+                  </ItemInlineLink>
+                );
                 return (
                   <DirectDispatchLineRow
                     key={l.id}

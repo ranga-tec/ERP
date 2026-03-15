@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { backendFetchJson } from "@/lib/backend.server";
+import { TransactionLink } from "@/components/TransactionLink";
 import { Card, Table } from "@/components/ui";
 import { DispatchCreateForm } from "./DispatchCreateForm";
 
@@ -67,7 +68,9 @@ export default async function DispatchesPage() {
                     </Link>
                   </td>
                   <td className="py-2 pr-3 font-mono text-xs text-zinc-600 dark:text-zinc-400">
-                    {orderById.get(d.salesOrderId)?.number ?? d.salesOrderId}
+                    <TransactionLink referenceType="SO" referenceId={d.salesOrderId} monospace>
+                      {orderById.get(d.salesOrderId)?.number ?? d.salesOrderId}
+                    </TransactionLink>
                   </td>
                   <td className="py-2 pr-3">{warehouseById.get(d.warehouseId)?.code ?? d.warehouseId}</td>
                   <td className="py-2 pr-3 text-zinc-500">{new Date(d.dispatchedAt).toLocaleString()}</td>
@@ -89,4 +92,3 @@ export default async function DispatchesPage() {
     </div>
   );
 }
-

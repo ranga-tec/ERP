@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { ItemInlineLink } from "@/components/InlineLink";
 import { apiGet } from "@/lib/api-client";
 import { Button, Input, Select } from "@/components/ui";
 
@@ -25,6 +26,9 @@ export function OnHandQuery({ warehouses, items }: { warehouses: WarehouseRef[];
   const [result, setResult] = useState<OnHandDto | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const resultWarehouse = result ? warehouseOptions.find((warehouse) => warehouse.id === result.warehouseId) : null;
+  const resultItem = result ? itemOptions.find((item) => item.id === result.itemId) : null;
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -55,9 +59,9 @@ export function OnHandQuery({ warehouses, items }: { warehouses: WarehouseRef[];
               <option value="" disabled>
                 Select...
               </option>
-              {warehouseOptions.map((w) => (
-                <option key={w.id} value={w.id}>
-                  {w.code} — {w.name}
+              {warehouseOptions.map((warehouse) => (
+                <option key={warehouse.id} value={warehouse.id}>
+                  {warehouse.code} - {warehouse.name}
                 </option>
               ))}
             </Select>
@@ -68,9 +72,9 @@ export function OnHandQuery({ warehouses, items }: { warehouses: WarehouseRef[];
               <option value="" disabled>
                 Select...
               </option>
-              {itemOptions.map((i) => (
-                <option key={i.id} value={i.id}>
-                  {i.sku} — {i.name}
+              {itemOptions.map((item) => (
+                <option key={item.id} value={item.id}>
+                  {item.sku} - {item.name}
                 </option>
               ))}
             </Select>
@@ -97,11 +101,14 @@ export function OnHandQuery({ warehouses, items }: { warehouses: WarehouseRef[];
           <div className="text-xs uppercase tracking-wide text-zinc-500">On hand</div>
           <div className="mt-2 text-3xl font-semibold">{result.onHand}</div>
           <div className="mt-2 text-xs text-zinc-500">
-            Warehouse: {result.warehouseId} · Item: {result.itemId} · Batch: {result.batchNumber ?? "—"}
+            Warehouse: {resultWarehouse ? `${resultWarehouse.code} - ${resultWarehouse.name}` : result.warehouseId} - Item:{" "}
+            <ItemInlineLink itemId={result.itemId}>
+              {resultItem ? `${resultItem.sku} - ${resultItem.name}` : result.itemId}
+            </ItemInlineLink>{" "}
+            - Batch: {result.batchNumber ?? "-"}
           </div>
         </div>
       ) : null}
     </div>
   );
 }
-

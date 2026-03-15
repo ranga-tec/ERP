@@ -148,6 +148,11 @@ This applies across procurement, sales, inventory, and service document detail p
   - comments
   - attachments
 
+## Cross-navigation
+
+- Related transaction numbers on detail, list, finance, and reporting pages open the linked source document when clicked.
+- Item references on transaction and reporting pages open `Master Data -> Items` and focus the selected item.
+
 ## Notifications
 
 - Notification outbox and retries are available at `Admin -> Notifications`.

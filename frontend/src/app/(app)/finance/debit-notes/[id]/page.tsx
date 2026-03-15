@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { backendFetchJson } from "@/lib/backend.server";
+import { TransactionLink } from "@/components/TransactionLink";
 import { Card, SecondaryLink } from "@/components/ui";
 import { DocumentCollaborationPanel } from "@/components/DocumentCollaborationPanel";
 
@@ -29,8 +30,8 @@ export default async function DebitNoteDetailPage({ params }: { params: Promise<
     backendFetchJson<SupplierDto[]>("/suppliers"),
   ]);
 
-  const customerById = new Map(customers.map((c) => [c.id, c]));
-  const supplierById = new Map(suppliers.map((s) => [s.id, s]));
+  const customerById = new Map(customers.map((customer) => [customer.id, customer]));
+  const supplierById = new Map(suppliers.map((supplier) => [supplier.id, supplier]));
 
   const counterpartyCode =
     note.counterpartyType === 1
@@ -58,8 +59,15 @@ export default async function DebitNoteDetailPage({ params }: { params: Promise<
           <div>Amount: {note.amount}</div>
         </div>
         <div className="mt-2 text-sm text-zinc-500">
-          Source: {note.sourceReferenceType ? `${note.sourceReferenceType}:${note.sourceReferenceId ?? ""}` : "—"} · Notes:{" "}
-          {note.notes ?? "—"}
+          Source:{" "}
+          {note.sourceReferenceType ? (
+            <TransactionLink referenceType={note.sourceReferenceType} referenceId={note.sourceReferenceId}>
+              {`${note.sourceReferenceType}:${note.sourceReferenceId ?? ""}`}
+            </TransactionLink>
+          ) : (
+            "-"
+          )}{" "}
+          - Notes: {note.notes ?? "-"}
         </div>
       </div>
 

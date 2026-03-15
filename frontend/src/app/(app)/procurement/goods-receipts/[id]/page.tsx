@@ -1,5 +1,7 @@
 import Link from "next/link";
 import { backendFetchJson } from "@/lib/backend.server";
+import { ItemInlineLink } from "@/components/InlineLink";
+import { TransactionLink } from "@/components/TransactionLink";
 import { Card, SecondaryLink, Table } from "@/components/ui";
 import { GoodsReceiptActions } from "../GoodsReceiptActions";
 import { GoodsReceiptLineAddForm } from "../GoodsReceiptLineAddForm";
@@ -54,9 +56,9 @@ export default async function GoodsReceiptDetailPage({ params }: { params: Promi
         <div className="mt-2 flex flex-wrap gap-3 text-sm text-zinc-600 dark:text-zinc-400">
           <div>
             PO:{" "}
-            <span className="font-mono text-xs">
+            <TransactionLink referenceType="PO" referenceId={grn.purchaseOrderId} monospace>
               {poById.get(grn.purchaseOrderId)?.number ?? grn.purchaseOrderId}
-            </span>
+            </TransactionLink>
           </div>
           <div>Warehouse: {warehouseById.get(grn.warehouseId)?.code ?? grn.warehouseId}</div>
           <div>Status: {statusLabel[grn.status] ?? grn.status}</div>
@@ -102,7 +104,11 @@ export default async function GoodsReceiptDetailPage({ params }: { params: Promi
             <tbody>
               {grn.lines.map((l) => {
                 const item = itemById.get(l.itemId);
-                const itemLabel = item ? `${item.sku} - ${item.name}` : l.itemId;
+                const itemLabel = (
+                  <ItemInlineLink itemId={l.itemId}>
+                    {item ? `${item.sku} - ${item.name}` : l.itemId}
+                  </ItemInlineLink>
+                );
                 return (
                   <GoodsReceiptLineRow
                     key={l.id}
@@ -129,4 +135,3 @@ export default async function GoodsReceiptDetailPage({ params }: { params: Promi
     </div>
   );
 }
-

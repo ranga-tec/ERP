@@ -1,5 +1,7 @@
 import Link from "next/link";
 import { backendFetchJson } from "@/lib/backend.server";
+import { ItemInlineLink } from "@/components/InlineLink";
+import { TransactionLink } from "@/components/TransactionLink";
 import { Card, SecondaryLink, Table } from "@/components/ui";
 import { DocumentCollaborationPanel } from "@/components/DocumentCollaborationPanel";
 import { ServiceEstimateActions } from "../ServiceEstimateActions";
@@ -77,7 +79,10 @@ export default async function ServiceEstimateDetailPage({ params }: { params: Pr
         <h1 className="mt-1 text-2xl font-semibold">Estimate {estimate.number}</h1>
         <div className="mt-2 flex flex-wrap gap-3 text-sm text-zinc-600 dark:text-zinc-400">
           <div>
-            Job: <span className="font-mono text-xs">{job?.number ?? estimate.serviceJobId}</span>
+            Job:{" "}
+            <TransactionLink referenceType="SJ" referenceId={estimate.serviceJobId} monospace>
+              {job?.number ?? estimate.serviceJobId}
+            </TransactionLink>
           </div>
           <div>Customer: {customer ? customer.code : "-"}</div>
           <div>Status: {statusLabel[estimate.status] ?? estimate.status}</div>
@@ -138,7 +143,13 @@ export default async function ServiceEstimateDetailPage({ params }: { params: Pr
             <tbody>
               {estimate.lines.map((line) => {
                 const item = line.itemId ? itemById.get(line.itemId) : null;
-                const itemLabel = item ? `${item.sku} - ${item.name}` : (line.itemId ?? "-");
+                const itemLabel = line.itemId ? (
+                  <ItemInlineLink itemId={line.itemId}>
+                    {item ? `${item.sku} - ${item.name}` : line.itemId}
+                  </ItemInlineLink>
+                ) : (
+                  "-"
+                );
                 return (
                   <ServiceEstimateLineRow
                     key={line.id}
