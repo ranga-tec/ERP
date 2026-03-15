@@ -263,7 +263,7 @@ export function Sidebar({ collapsed = false, onNavigate, onToggleCollapse }: Sid
 
       <nav
         className={[
-          "flex-1 overflow-y-auto overscroll-contain pr-1",
+          "sidebar-scrollbar flex-1 overflow-y-auto overscroll-contain pr-2",
           collapsed ? "space-y-3" : "space-y-4",
         ].join(" ")}
       >

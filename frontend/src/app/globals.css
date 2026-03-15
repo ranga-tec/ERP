@@ -29,6 +29,9 @@
   --shadow-button: 0 20px 38px -22px rgba(29, 78, 216, 0.55);
   --grid-line: rgba(15, 23, 42, 0.035);
   --page-wash: rgba(255, 255, 255, 0.52);
+  --sidebar-scrollbar-track: rgba(37, 99, 235, 0.08);
+  --sidebar-scrollbar-thumb: rgba(29, 78, 216, 0.34);
+  --sidebar-scrollbar-thumb-hover: rgba(29, 78, 216, 0.52);
   color-scheme: light;
 }
 
@@ -66,6 +69,9 @@
   --shadow-button: 0 24px 44px -26px rgba(8, 47, 73, 0.8);
   --grid-line: rgba(148, 163, 184, 0.04);
   --page-wash: rgba(2, 6, 23, 0.22);
+  --sidebar-scrollbar-track: rgba(96, 165, 250, 0.1);
+  --sidebar-scrollbar-thumb: rgba(96, 165, 250, 0.34);
+  --sidebar-scrollbar-thumb-hover: rgba(147, 197, 253, 0.5);
   color-scheme: dark;
 }
 
@@ -144,4 +150,42 @@ body::after {
     opacity: 1;
     transform: translateY(0);
   }
+}
+
+.sidebar-scrollbar {
+  scrollbar-gutter: stable;
+  scrollbar-width: thin;
+  scrollbar-color: var(--sidebar-scrollbar-thumb) transparent;
+}
+
+.sidebar-scrollbar::-webkit-scrollbar {
+  width: 12px;
+}
+
+.sidebar-scrollbar::-webkit-scrollbar-track {
+  margin-block: 6px;
+  border-radius: 999px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.48) 0%, transparent 100%),
+    var(--sidebar-scrollbar-track);
+}
+
+.sidebar-scrollbar::-webkit-scrollbar-thumb {
+  border: 3px solid transparent;
+  border-radius: 999px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.35) 0%, rgba(255, 255, 255, 0.08) 100%),
+    var(--sidebar-scrollbar-thumb);
+  background-clip: padding-box, border-box;
+  min-height: 48px;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.32),
+    0 8px 16px -12px rgba(15, 23, 42, 0.72);
+}
+
+.sidebar-scrollbar:hover::-webkit-scrollbar-thumb {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.42) 0%, rgba(255, 255, 255, 0.12) 100%),
+    var(--sidebar-scrollbar-thumb-hover);
+  background-clip: padding-box, border-box;
 }
