@@ -1,10 +1,13 @@
 "use client";
 
 import Link from "next/link";
+import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 
 type NavItem = { href: string; label: string };
 type NavSection = { title: string; items: NavItem[] };
+
+const SIDEBAR_SECTION_STORAGE_KEY = "iss_sidebar_sections_v1";
 
 const sections: NavSection[] = [
   {
@@ -133,6 +136,29 @@ function compactLabel(label: string): string {
   return `${words[0][0]}${words[1][0]}`.toUpperCase();
 }
 
+function allSectionTitles(): string[] {
+  return sections.map((section) => section.title);
+}
+
+function readExpandedSectionPreference(): string[] {
+  const fallback = allSectionTitles();
+
+  if (typeof window === "undefined") return fallback;
+
+  try {
+    const raw = window.localStorage.getItem(SIDEBAR_SECTION_STORAGE_KEY);
+    if (!raw) return fallback;
+
+    const allowed = new Set(fallback);
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return fallback;
+
+    return parsed.filter((value): value is string => typeof value === "string" && allowed.has(value));
+  } catch {
+    return fallback;
+  }
+}
+
 function PinIcon({ pinned }: { pinned: boolean }) {
   return (
     <svg
@@ -158,19 +184,57 @@ function PinIcon({ pinned }: { pinned: boolean }) {
   );
 }
 
+function ChevronIcon({ expanded }: { expanded: boolean }) {
+  return (
+    <svg
+      viewBox="0 0 20 20"
+      className={["h-4 w-4 transition-transform duration-200", expanded ? "rotate-0" : "-rotate-90"].join(" ")}
+      fill="none"
+      aria-hidden="true"
+    >
+      <path
+        d="m5 7.5 5 5 5-5"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
 export function Sidebar({ collapsed = false, onNavigate, onToggleCollapse }: SidebarProps) {
   const pathname = usePathname();
   const canToggle = typeof onToggleCollapse === "function";
   const pinned = !collapsed;
+  const [expandedSections, setExpandedSections] = useState<string[]>(() => readExpandedSectionPreference());
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    window.localStorage.setItem(
+      SIDEBAR_SECTION_STORAGE_KEY,
+      JSON.stringify(expandedSections),
+    );
+  }, [expandedSections]);
+
+  function toggleSection(title: string) {
+    setExpandedSections((current) =>
+      current.includes(title)
+        ? current.filter((value) => value !== title)
+        : [...current, title],
+    );
+  }
+
+  const expandedSectionSet = new Set(expandedSections);
 
   return (
     <aside
       className={[
-        "h-full shrink-0 border-r border-[var(--card-border)] bg-[var(--surface-soft)] p-4 shadow-[var(--shadow-soft)] backdrop-blur-xl transition-all duration-200",
+        "flex h-full max-h-screen shrink-0 flex-col overflow-hidden border-r border-[var(--card-border)] bg-[var(--surface-soft)] p-4 shadow-[var(--shadow-soft)] backdrop-blur-xl transition-all duration-200",
         collapsed ? "w-20" : "w-[18.5rem]",
       ].join(" ")}
     >
-      <div className="mb-4 flex items-start justify-between gap-2">
+      <div className="mb-4 flex shrink-0 items-start justify-between gap-2">
         <div>
           <div className="text-sm font-semibold tracking-tight text-[var(--foreground)]">
             {collapsed ? "ISS" : "ISS ERP"}
@@ -193,17 +257,28 @@ export function Sidebar({ collapsed = false, onNavigate, onToggleCollapse }: Sid
         ) : null}
       </div>
 
-      <nav className={collapsed ? "space-y-3" : "space-y-6"}>
+      <nav
+        className={[
+          "flex-1 overflow-y-auto overscroll-contain pr-1",
+          collapsed ? "space-y-3" : "space-y-6",
+        ].join(" ")}
+      >
         {sections.map((section) => (
           <div key={section.title}>
             {!collapsed ? (
-              <div className="mb-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--muted-foreground)]">
-                {section.title}
-              </div>
+              <button
+                type="button"
+                onClick={() => toggleSection(section.title)}
+                aria-expanded={expandedSectionSet.has(section.title)}
+                className="mb-2 flex w-full items-center justify-between gap-2 rounded-lg px-1 py-1 text-left text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--muted-foreground)] transition-colors duration-200 hover:text-[var(--foreground)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring-accent)]"
+              >
+                <span>{section.title}</span>
+                <ChevronIcon expanded={expandedSectionSet.has(section.title)} />
+              </button>
             ) : (
               <div className="mb-2 border-t border-[var(--card-border)] pt-2" />
             )}
-            <ul className="space-y-1">
+            <ul className={collapsed || expandedSectionSet.has(section.title) ? "space-y-1" : "hidden"}>
               {section.items.map((item) => {
                 const active = itemIsActive(pathname, item.href);
 

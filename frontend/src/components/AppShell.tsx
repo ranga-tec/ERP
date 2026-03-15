@@ -33,7 +33,7 @@ export function AppShell({ children, email, roles }: AppShellProps) {
   }
 
   return (
-    <div className="relative min-h-screen overflow-x-clip bg-[var(--background)] text-[var(--foreground)]">
+    <div className="relative h-screen overflow-hidden bg-[var(--background)] text-[var(--foreground)]">
       {mobileSidebarOpen ? (
         <button
           type="button"
@@ -43,20 +43,23 @@ export function AppShell({ children, email, roles }: AppShellProps) {
         />
       ) : null}
 
-      <div className="fixed inset-y-0 left-0 z-40 -translate-x-full transition-transform duration-200 lg:hidden data-[open=true]:translate-x-0" data-open={mobileSidebarOpen}>
+      <div
+        className="fixed inset-y-0 left-0 z-40 w-[18.5rem] max-w-[86vw] -translate-x-full transition-transform duration-200 lg:hidden data-[open=true]:translate-x-0"
+        data-open={mobileSidebarOpen}
+      >
         <Sidebar onNavigate={() => setMobileSidebarOpen(false)} />
       </div>
 
-      <div className="relative flex min-h-screen">
-        <div className="hidden lg:block">
+      <div className="relative flex h-full min-h-0">
+        <div className="hidden h-full lg:block">
           <Sidebar
             collapsed={sidebarCollapsed}
             onToggleCollapse={toggleDesktopSidebar}
           />
         </div>
 
-        <div className="flex min-w-0 flex-1 flex-col">
-          <header className="sticky top-0 z-20 flex items-center justify-between border-b border-[var(--card-border)] bg-[var(--surface-soft)] px-4 py-4 shadow-[var(--shadow-soft)] backdrop-blur-xl sm:px-6">
+        <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+          <header className="z-20 shrink-0 flex items-center justify-between border-b border-[var(--card-border)] bg-[var(--surface-soft)] px-4 py-4 shadow-[var(--shadow-soft)] backdrop-blur-xl sm:px-6">
             <div className="flex min-w-0 items-center gap-2">
               <button
                 type="button"
@@ -84,7 +87,7 @@ export function AppShell({ children, email, roles }: AppShellProps) {
             </div>
           </header>
 
-          <main className="flex-1 animate-[pageFade_.28s_ease-out] p-4 sm:p-6 lg:p-8">
+          <main className="min-h-0 flex-1 overflow-y-auto overscroll-contain animate-[pageFade_.28s_ease-out] p-4 sm:p-6 lg:p-8">
             {children}
           </main>
         </div>
