@@ -208,6 +208,7 @@ body::after {
 
 .app-table :is(th, td) {
   border-bottom: 1px solid var(--table-grid);
+  padding-inline-start: 0.75rem;
 }
 
 .app-table :is(th, td) + :is(th, td) {
