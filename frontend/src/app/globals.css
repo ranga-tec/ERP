@@ -29,6 +29,11 @@
   --shadow-button: 0 20px 38px -22px rgba(29, 78, 216, 0.55);
   --grid-line: rgba(15, 23, 42, 0.035);
   --page-wash: rgba(255, 255, 255, 0.52);
+  --table-grid: rgba(37, 99, 235, 0.24);
+  --table-grid-strong: rgba(37, 99, 235, 0.38);
+  --table-header-bg: rgba(255, 255, 255, 0.82);
+  --table-row-alt: rgba(59, 130, 246, 0.032);
+  --table-row-hover: rgba(59, 130, 246, 0.072);
   --sidebar-scrollbar-track: rgba(37, 99, 235, 0.08);
   --sidebar-scrollbar-thumb: rgba(29, 78, 216, 0.34);
   --sidebar-scrollbar-thumb-hover: rgba(29, 78, 216, 0.52);
@@ -69,6 +74,11 @@
   --shadow-button: 0 24px 44px -26px rgba(8, 47, 73, 0.8);
   --grid-line: rgba(148, 163, 184, 0.04);
   --page-wash: rgba(2, 6, 23, 0.22);
+  --table-grid: rgba(148, 163, 184, 0.32);
+  --table-grid-strong: rgba(148, 163, 184, 0.46);
+  --table-header-bg: rgba(14, 23, 39, 0.9);
+  --table-row-alt: rgba(148, 163, 184, 0.05);
+  --table-row-hover: rgba(96, 165, 250, 0.11);
   --sidebar-scrollbar-track: rgba(96, 165, 250, 0.1);
   --sidebar-scrollbar-thumb: rgba(96, 165, 250, 0.34);
   --sidebar-scrollbar-thumb-hover: rgba(147, 197, 253, 0.5);
@@ -188,4 +198,36 @@ body::after {
     linear-gradient(180deg, rgba(255, 255, 255, 0.42) 0%, rgba(255, 255, 255, 0.12) 100%),
     var(--sidebar-scrollbar-thumb-hover);
   background-clip: padding-box, border-box;
+}
+
+.app-table {
+  border-radius: 1rem;
+  outline: 1px solid var(--table-grid-strong);
+  outline-offset: -1px;
+}
+
+.app-table :is(th, td) {
+  border-bottom: 1px solid var(--table-grid);
+}
+
+.app-table :is(th, td) + :is(th, td) {
+  border-left: 1px solid var(--table-grid);
+}
+
+.app-table thead th {
+  background: var(--table-header-bg);
+  border-bottom-color: var(--table-grid-strong);
+  box-shadow: inset 0 -1px 0 var(--table-grid-strong);
+}
+
+.app-table tbody tr:nth-child(even) td {
+  background: var(--table-row-alt);
+}
+
+.app-table tbody tr:hover td {
+  background: var(--table-row-hover);
+}
+
+.app-table tbody tr:last-child td {
+  border-bottom-color: transparent;
 }

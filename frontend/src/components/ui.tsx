@@ -113,7 +113,7 @@ export function Table(props: ComponentProps<"table">) {
   return (
     <table
       className={[
-        "w-full border-separate border-spacing-0 text-sm",
+        "app-table w-full border-separate border-spacing-0 text-sm",
         className ?? "",
       ].join(" ")}
       {...rest}
