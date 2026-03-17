@@ -1,41 +1,105 @@
 "use client";
 
+import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
+import { apiDeleteNoContent } from "@/lib/api-client";
 import { buildItemAnchorId } from "@/lib/item-routing";
-import { Input, SecondaryLink, Select, Table } from "@/components/ui";
+import { Input, SecondaryButton, SecondaryLink, Select, Table } from "@/components/ui";
+import { itemTypeLabel, trackingLabel, type BrandDto, type CategoryDto, type ItemDto } from "./item-definitions";
 
-type BrandRef = { id: string; code: string; name: string };
-type CategoryRef = { id: string; code: string; name: string };
-type ItemDto = {
-  id: string;
-  sku: string;
-  name: string;
-  type: number;
-  trackingType: number;
-  unitOfMeasure: string;
-  brandId?: string | null;
-  categoryId?: string | null;
-  categoryCode?: string | null;
-  categoryName?: string | null;
-  subcategoryId?: string | null;
-  subcategoryCode?: string | null;
-  subcategoryName?: string | null;
-  barcode?: string | null;
-  defaultUnitCost: number;
-  isActive: boolean;
-};
+const actionLinkClassName = "text-xs font-semibold text-[var(--link)] underline underline-offset-2 transition-colors hover:text-[var(--link-hover)]";
+const actionButtonClass = "px-2 py-1 text-xs";
 
-const itemTypeLabel: Record<number, string> = {
-  1: "Equipment",
-  2: "Spare Part",
-  3: "Service",
-};
+function ItemListRow({
+  item,
+  brandCode,
+  highlight,
+}: {
+  item: ItemDto;
+  brandCode: string;
+  highlight: boolean;
+}) {
+  const router = useRouter();
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-const trackingLabel: Record<number, string> = {
-  0: "None",
-  1: "Serial",
-  2: "Batch",
-};
+  async function deleteItem() {
+    if (!window.confirm(`Delete item ${item.sku}?`)) return;
+
+    setError(null);
+    setBusy(true);
+    try {
+      await apiDeleteNoContent(`items/${item.id}`);
+      router.refresh();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+      setBusy(false);
+    }
+  }
+
+  return (
+    <tr
+      id={buildItemAnchorId(item.id)}
+      className={[
+        "border-b border-zinc-100 align-top dark:border-zinc-900",
+        highlight ? "bg-[var(--surface-soft)]" : "",
+      ].join(" ")}
+    >
+      <td className="py-2 pr-3 font-mono text-xs">{item.sku}</td>
+      <td className="py-2 pr-3">{item.name}</td>
+      <td className="py-2 pr-3">{itemTypeLabel[item.type] ?? item.type}</td>
+      <td className="py-2 pr-3">{trackingLabel[item.trackingType] ?? item.trackingType}</td>
+      <td className="py-2 pr-3">{item.unitOfMeasure}</td>
+      <td className="py-2 pr-3 text-zinc-500">
+        {item.categoryCode ? (
+          <>
+            <span className="font-mono text-xs">{item.categoryCode}</span> {item.categoryName ?? ""}
+          </>
+        ) : (
+          "-"
+        )}
+      </td>
+      <td className="py-2 pr-3 text-zinc-500">
+        {item.subcategoryCode ? (
+          <>
+            <span className="font-mono text-xs">{item.subcategoryCode}</span> {item.subcategoryName ?? ""}
+          </>
+        ) : (
+          "-"
+        )}
+      </td>
+      <td className="py-2 pr-3 text-zinc-500">{brandCode || "-"}</td>
+      <td className="py-2 pr-3 font-mono text-xs text-zinc-500">{item.barcode ?? "-"}</td>
+      <td className="py-2 pr-3">{item.defaultUnitCost}</td>
+      <td className="py-2 pr-3">{item.isActive ? "Yes" : "No"}</td>
+      <td className="py-2 pr-3">
+        <div className="flex flex-wrap items-center gap-2">
+          <Link href={`/master-data/items/${item.id}`} className={actionLinkClassName}>
+            View
+          </Link>
+          <Link href={`/master-data/items/${item.id}/edit`} className={actionLinkClassName}>
+            Edit
+          </Link>
+          <SecondaryButton type="button" className={actionButtonClass} onClick={() => void deleteItem()} disabled={busy}>
+            {busy ? "Deleting..." : "Delete"}
+          </SecondaryButton>
+        </div>
+        {error ? <div className="mt-2 text-xs text-red-700 dark:text-red-300">{error}</div> : null}
+      </td>
+      <td className="py-2 pr-3">
+        <SecondaryLink
+          href={`/api/backend/items/${item.id}/label/pdf`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="px-2 py-1 text-xs"
+        >
+          PDF
+        </SecondaryLink>
+      </td>
+    </tr>
+  );
+}
 
 export function ItemListPanel({
   items,
@@ -44,8 +108,8 @@ export function ItemListPanel({
   highlightItemId,
 }: {
   items: ItemDto[];
-  brands: BrandRef[];
-  categories: CategoryRef[];
+  brands: BrandDto[];
+  categories: CategoryDto[];
   highlightItemId?: string;
 }) {
   const [query, setQuery] = useState("");
@@ -56,11 +120,11 @@ export function ItemListPanel({
   const [categoryFilter, setCategoryFilter] = useState("");
   const [uomFilter, setUomFilter] = useState("");
 
-  const brandById = useMemo(() => new Map(brands.map((b) => [b.id, b])), [brands]);
+  const brandById = useMemo(() => new Map(brands.map((brand) => [brand.id, brand])), [brands]);
 
   const uomOptions = useMemo(
     () =>
-      Array.from(new Set(items.map((i) => i.unitOfMeasure).filter((v) => v?.length > 0)))
+      Array.from(new Set(items.map((item) => item.unitOfMeasure).filter((value) => value?.length > 0)))
         .sort((a, b) => a.localeCompare(b)),
     [items],
   );
@@ -152,9 +216,9 @@ export function ItemListPanel({
             {brands
               .slice()
               .sort((a, b) => a.code.localeCompare(b.code))
-              .map((b) => (
-                <option key={b.id} value={b.id}>
-                  {b.code}
+              .map((brand) => (
+                <option key={brand.id} value={brand.id}>
+                  {brand.code}
                 </option>
               ))}
           </Select>
@@ -166,9 +230,9 @@ export function ItemListPanel({
             {categories
               .slice()
               .sort((a, b) => a.code.localeCompare(b.code))
-              .map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.code}
+              .map((category) => (
+                <option key={category.id} value={category.id}>
+                  {category.code}
                 </option>
               ))}
           </Select>
@@ -177,9 +241,9 @@ export function ItemListPanel({
           <label className="mb-1 block text-sm font-medium">UoM</label>
           <Select value={uomFilter} onChange={(e) => setUomFilter(e.target.value)}>
             <option value="">All</option>
-            {uomOptions.map((u) => (
-              <option key={u} value={u}>
-                {u}
+            {uomOptions.map((uom) => (
+              <option key={uom} value={uom}>
+                {uom}
               </option>
             ))}
           </Select>
@@ -205,63 +269,22 @@ export function ItemListPanel({
               <th className="py-2 pr-3">Barcode</th>
               <th className="py-2 pr-3">Default Cost</th>
               <th className="py-2 pr-3">Active</th>
-              <th className="py-2 pr-3">Label</th>
+              <th className="py-2 pr-3">Actions</th>
+              <th className="py-2 pr-3">Links</th>
             </tr>
           </thead>
           <tbody>
-            {filteredItems.map((i) => (
-              <tr
-                key={i.id}
-                id={buildItemAnchorId(i.id)}
-                className={[
-                  "border-b border-zinc-100 dark:border-zinc-900",
-                  highlightItemId === i.id ? "bg-[var(--surface-soft)]" : "",
-                ].join(" ")}
-              >
-                <td className="py-2 pr-3 font-mono text-xs">{i.sku}</td>
-                <td className="py-2 pr-3">{i.name}</td>
-                <td className="py-2 pr-3">{itemTypeLabel[i.type] ?? i.type}</td>
-                <td className="py-2 pr-3">{trackingLabel[i.trackingType] ?? i.trackingType}</td>
-                <td className="py-2 pr-3">{i.unitOfMeasure}</td>
-                <td className="py-2 pr-3 text-zinc-500">
-                  {i.categoryCode ? (
-                    <>
-                      <span className="font-mono text-xs">{i.categoryCode}</span> {i.categoryName ?? ""}
-                    </>
-                  ) : (
-                    "-"
-                  )}
-                </td>
-                <td className="py-2 pr-3 text-zinc-500">
-                  {i.subcategoryCode ? (
-                    <>
-                      <span className="font-mono text-xs">{i.subcategoryCode}</span> {i.subcategoryName ?? ""}
-                    </>
-                  ) : (
-                    "-"
-                  )}
-                </td>
-                <td className="py-2 pr-3 text-zinc-500">
-                  {i.brandId ? brandById.get(i.brandId)?.code ?? "-" : "-"}
-                </td>
-                <td className="py-2 pr-3 font-mono text-xs text-zinc-500">{i.barcode ?? "-"}</td>
-                <td className="py-2 pr-3">{i.defaultUnitCost}</td>
-                <td className="py-2 pr-3">{i.isActive ? "Yes" : "No"}</td>
-                <td className="py-2 pr-3">
-                  <SecondaryLink
-                    href={`/api/backend/items/${i.id}/label/pdf`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="px-2 py-1 text-xs"
-                  >
-                    PDF
-                  </SecondaryLink>
-                </td>
-              </tr>
+            {filteredItems.map((item) => (
+              <ItemListRow
+                key={item.id}
+                item={item}
+                brandCode={item.brandId ? brandById.get(item.brandId)?.code ?? "" : ""}
+                highlight={highlightItemId === item.id}
+              />
             ))}
             {filteredItems.length === 0 ? (
               <tr>
-                <td className="py-6 text-sm text-zinc-500" colSpan={12}>
+                <td className="py-6 text-sm text-zinc-500" colSpan={13}>
                   No items match the current filters.
                 </td>
               </tr>

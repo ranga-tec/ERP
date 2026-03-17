@@ -5,6 +5,5 @@ export function buildItemAnchorId(itemId: string): string {
 }
 
 export function buildItemHref(itemId: string): string {
-  const searchParams = new URLSearchParams({ itemId });
-  return `/master-data/items?${searchParams.toString()}#${buildItemAnchorId(itemId)}`;
+  return `/master-data/items/${itemId}`;
 }

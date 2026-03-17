@@ -1,41 +1,10 @@
+import Link from "next/link";
 import { backendFetchJson } from "@/lib/backend.server";
 import { Card } from "@/components/ui";
-import { ItemCreateForm } from "./ItemCreateForm";
-import { ItemEditPanel } from "./ItemEditPanel";
 import { ItemListPanel } from "./ItemListPanel";
-import { ItemManagementPanel } from "./ItemManagementPanel";
+import type { BrandDto, CategoryDto, ItemDto } from "./item-definitions";
 
-type BrandDto = { id: string; code: string; name: string; isActive: boolean };
-type UomDto = { id: string; code: string; name: string; isActive: boolean };
-type CategoryDto = { id: string; code: string; name: string; isActive: boolean };
-type SubcategoryDto = {
-  id: string;
-  categoryId: string;
-  categoryCode?: string | null;
-  categoryName?: string | null;
-  code: string;
-  name: string;
-  isActive: boolean;
-};
-
-type ItemDto = {
-  id: string;
-  sku: string;
-  name: string;
-  type: number;
-  trackingType: number;
-  unitOfMeasure: string;
-  brandId?: string | null;
-  categoryId?: string | null;
-  categoryCode?: string | null;
-  categoryName?: string | null;
-  subcategoryId?: string | null;
-  subcategoryCode?: string | null;
-  subcategoryName?: string | null;
-  barcode?: string | null;
-  defaultUnitCost: number;
-  isActive: boolean;
-};
+const primaryLinkClassName = "inline-flex items-center justify-center rounded-xl bg-[var(--accent)] px-3.5 py-2 text-sm font-semibold text-[var(--accent-contrast)] shadow-[var(--shadow-button)] transition-all duration-200 hover:-translate-y-px hover:bg-[var(--accent-hover)] hover:shadow-[var(--shadow-button)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring-accent)]";
 
 export default async function ItemsPage({
   searchParams,
@@ -43,12 +12,10 @@ export default async function ItemsPage({
   searchParams?: Promise<{ itemId?: string }>;
 }) {
   const sp = await searchParams;
-  const [items, brands, uoms, categories, subcategories] = await Promise.all([
+  const [items, brands, categories] = await Promise.all([
     backendFetchJson<ItemDto[]>("/items"),
     backendFetchJson<BrandDto[]>("/brands"),
-    backendFetchJson<UomDto[]>("/uoms"),
     backendFetchJson<CategoryDto[]>("/item-categories"),
-    backendFetchJson<SubcategoryDto[]>("/item-subcategories"),
   ]);
   const requestedItemId = sp?.itemId?.trim() ?? "";
   const initialSelectedItemId = items.some((item) => item.id === requestedItemId)
@@ -57,51 +24,25 @@ export default async function ItemsPage({
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold">Items</h1>
-        <p className="mt-1 text-sm text-zinc-500">
-          Items, equipment, and services with tracking, classification, and metadata.
-        </p>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <h1 className="text-2xl font-semibold">Items</h1>
+          <p className="mt-1 text-sm text-zinc-500">
+            Search the full item master and open separate view and edit screens from the grid.
+          </p>
+        </div>
+        <Link href="/master-data/items/create" className={primaryLinkClassName}>
+          Create Item
+        </Link>
       </div>
 
-      <Card>
-        <div className="mb-3 text-sm font-semibold">Create</div>
-        <ItemCreateForm
-          brands={brands.map((b) => ({ id: b.id, code: b.code, name: b.name }))}
-          uoms={uoms}
-          categories={categories}
-          subcategories={subcategories}
-        />
-      </Card>
-
       <Card id="item-list">
-        <div className="mb-3 text-sm font-semibold">List / Search</div>
-        <ItemListPanel items={items} brands={brands} categories={categories} highlightItemId={initialSelectedItemId} />
-      </Card>
-
-      <Card id="item-edit">
-        <div className="mb-3 text-sm font-semibold">Edit Item</div>
-        <ItemEditPanel
-          initialSelectedItemId={initialSelectedItemId}
+        <div className="mb-3 text-sm font-semibold">Item List</div>
+        <ItemListPanel
           items={items}
-          brands={brands.map((b) => ({ id: b.id, code: b.code, name: b.name }))}
-          uoms={uoms}
+          brands={brands}
           categories={categories}
-          subcategories={subcategories.map((s) => ({
-            id: s.id,
-            categoryId: s.categoryId,
-            code: s.code,
-            name: s.name,
-            isActive: s.isActive,
-          }))}
-        />
-      </Card>
-
-      <Card id="item-manage">
-        <div className="mb-3 text-sm font-semibold">Attachments + Price History</div>
-        <ItemManagementPanel
-          initialSelectedItemId={initialSelectedItemId}
-          items={items.map((i) => ({ id: i.id, sku: i.sku, name: i.name }))}
+          highlightItemId={initialSelectedItemId}
         />
       </Card>
     </div>

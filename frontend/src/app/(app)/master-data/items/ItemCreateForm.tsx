@@ -4,50 +4,15 @@ import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { apiPost } from "@/lib/api-client";
 import { Button, Input, Select } from "@/components/ui";
-
-type BrandRef = { id: string; code: string; name: string };
-type UomRef = { id: string; code: string; name: string; isActive: boolean };
-type CategoryRef = { id: string; code: string; name: string; isActive: boolean };
-type SubcategoryRef = {
-  id: string;
-  categoryId: string;
-  categoryCode?: string | null;
-  categoryName?: string | null;
-  code: string;
-  name: string;
-  isActive: boolean;
-};
-
-type ItemDto = {
-  id: string;
-  sku: string;
-  name: string;
-  type: number;
-  trackingType: number;
-  unitOfMeasure: string;
-  brandId?: string | null;
-  categoryId?: string | null;
-  categoryCode?: string | null;
-  categoryName?: string | null;
-  subcategoryId?: string | null;
-  subcategoryCode?: string | null;
-  subcategoryName?: string | null;
-  barcode?: string | null;
-  defaultUnitCost: number;
-  isActive: boolean;
-};
-
-const itemTypes = [
-  { value: 1, label: "Equipment" },
-  { value: 2, label: "Spare Part" },
-  { value: 3, label: "Service" },
-];
-
-const trackingTypes = [
-  { value: 0, label: "None" },
-  { value: 1, label: "Serial" },
-  { value: 2, label: "Batch" },
-];
+import {
+  itemTypes,
+  trackingTypes,
+  type BrandDto,
+  type CategoryDto,
+  type ItemDto,
+  type SubcategoryDto,
+  type UomDto,
+} from "./item-definitions";
 
 export function ItemCreateForm({
   brands,
@@ -55,10 +20,10 @@ export function ItemCreateForm({
   categories,
   subcategories,
 }: {
-  brands: BrandRef[];
-  uoms: UomRef[];
-  categories: CategoryRef[];
-  subcategories: SubcategoryRef[];
+  brands: BrandDto[];
+  uoms: UomDto[];
+  categories: CategoryDto[];
+  subcategories: SubcategoryDto[];
 }) {
   const router = useRouter();
 
@@ -106,7 +71,7 @@ export function ItemCreateForm({
         throw new Error("Default unit cost must be a non-negative number.");
       }
 
-      await apiPost<ItemDto>("items", {
+      const created = await apiPost<ItemDto>("items", {
         sku,
         name,
         type,
@@ -119,11 +84,7 @@ export function ItemCreateForm({
         defaultUnitCost: cost,
       });
 
-      setSku("");
-      setName("");
-      setSubcategoryId("");
-      setBarcode("");
-      setDefaultUnitCost("0");
+      router.push(`/master-data/items/${created.id}`);
       router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
