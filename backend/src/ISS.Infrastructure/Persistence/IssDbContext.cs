@@ -1,4 +1,3 @@
-using ISS.Domain.Assistant;
 using ISS.Application.Abstractions;
 using ISS.Application.Persistence;
 using ISS.Domain.Audit;
@@ -80,9 +79,6 @@ public sealed class IssDbContext(
     public DbSet<DocumentComment> DocumentComments => Set<DocumentComment>();
     public DbSet<DocumentAttachment> DocumentAttachments => Set<DocumentAttachment>();
     public DbSet<NotificationOutboxItem> NotificationOutboxItems => Set<NotificationOutboxItem>();
-    public DbSet<AssistantAccessPolicy> AssistantAccessPolicies => Set<AssistantAccessPolicy>();
-    public DbSet<AssistantProviderProfile> AssistantProviderProfiles => Set<AssistantProviderProfile>();
-    public DbSet<AssistantUserPreference> AssistantUserPreferences => Set<AssistantUserPreference>();
 
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
     public DbSet<DocumentSequence> DocumentSequences => Set<DocumentSequence>();
@@ -634,31 +630,6 @@ public sealed class IssDbContext(
             entity.Property(x => x.LastError).HasMaxLength(2000);
             entity.Property(x => x.ReferenceType).HasMaxLength(64);
             entity.HasIndex(x => new { x.Status, x.NextAttemptAt });
-        });
-
-        builder.Entity<AssistantAccessPolicy>(entity =>
-        {
-            entity.HasIndex(x => x.ScopeKey).IsUnique();
-            entity.Property(x => x.ScopeKey).HasMaxLength(32);
-            entity.Property(x => x.AllowedRolesCsv).HasMaxLength(512);
-        });
-
-        builder.Entity<AssistantProviderProfile>(entity =>
-        {
-            entity.HasIndex(x => new { x.UserId, x.Name }).IsUnique();
-            entity.Property(x => x.Name).HasMaxLength(128);
-            entity.Property(x => x.BaseUrl).HasMaxLength(512);
-            entity.Property(x => x.Model).HasMaxLength(256);
-            entity.Property(x => x.ApiKeyCiphertext).HasMaxLength(4000);
-        });
-
-        builder.Entity<AssistantUserPreference>(entity =>
-        {
-            entity.HasIndex(x => x.UserId).IsUnique();
-            entity.HasOne<AssistantProviderProfile>()
-                .WithMany()
-                .HasForeignKey(x => x.ActiveProviderProfileId)
-                .OnDelete(DeleteBehavior.SetNull);
         });
 
         builder.Entity<AuditLog>(entity =>
