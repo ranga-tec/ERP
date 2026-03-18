@@ -4,8 +4,10 @@ import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { apiPostNoContent } from "@/lib/api-client";
 import { Button, Input, Select, Textarea } from "@/components/ui";
+import { LineStockInsight } from "@/components/LineStockInsight";
 
 type ItemRef = { id: string; sku: string; name: string; trackingType: number; defaultUnitCost: number };
+type WarehouseRef = { id: string; code: string; name: string };
 
 function parseList(text: string): string[] {
   return text
@@ -17,9 +19,13 @@ function parseList(text: string): string[] {
 export function StockTransferLineAddForm({
   transferId,
   items,
+  warehouses,
+  warehouseId,
 }: {
   transferId: string;
   items: ItemRef[];
+  warehouses: WarehouseRef[];
+  warehouseId: string;
 }) {
   const router = useRouter();
   const itemOptions = useMemo(
@@ -85,14 +91,15 @@ export function StockTransferLineAddForm({
             </option>
             {itemOptions.map((i) => (
               <option key={i.id} value={i.id}>
-                {i.sku} — {i.name}
+                {i.sku} - {i.name}
               </option>
             ))}
           </Select>
         </div>
         <div>
-          <label className="mb-1 block text-sm font-medium">Qty</label>
+          <label className="mb-1 block text-sm font-medium">Move qty</label>
           <Input value={quantity} onChange={(e) => setQuantity(e.target.value)} inputMode="decimal" required />
+          <div className="mt-1 text-xs text-zinc-500">Enter the quantity to move out of the source warehouse.</div>
         </div>
         <div>
           <label className="mb-1 block text-sm font-medium">Unit cost</label>
@@ -116,6 +123,8 @@ export function StockTransferLineAddForm({
         </div>
       </div>
 
+      <LineStockInsight warehouses={warehouses} warehouseId={warehouseId} itemId={itemId} batchNumber={batchNumber} />
+
       {error ? (
         <div className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-900 dark:border-red-900/40 dark:bg-red-950/40 dark:text-red-100">
           {error}
@@ -128,4 +137,3 @@ export function StockTransferLineAddForm({
     </form>
   );
 }
-

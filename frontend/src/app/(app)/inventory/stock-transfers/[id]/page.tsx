@@ -6,6 +6,7 @@ import { StockTransferActions } from "../StockTransferActions";
 import { StockTransferLineAddForm } from "../StockTransferLineAddForm";
 import { StockTransferLineRow } from "../StockTransferLineRow";
 import { DocumentCollaborationPanel } from "@/components/DocumentCollaborationPanel";
+import { StockAvailabilityExplorer } from "@/components/StockAvailabilityExplorer";
 
 type StockTransferDto = {
   id: string;
@@ -74,10 +75,22 @@ export default async function StockTransferDetailPage({ params }: { params: Prom
       </Card>
 
       {isDraft ? (
-        <Card>
+        <>
+          <Card>
           <div className="mb-3 text-sm font-semibold">Add line</div>
-          <StockTransferLineAddForm transferId={transfer.id} items={items} />
+          <StockTransferLineAddForm
+            transferId={transfer.id}
+            items={items}
+            warehouses={warehouses}
+            warehouseId={transfer.fromWarehouseId}
+          />
         </Card>
+
+          <Card>
+            <div className="mb-3 text-sm font-semibold">Source stock visibility</div>
+            <StockAvailabilityExplorer warehouses={warehouses} items={items} initialWarehouseId={transfer.fromWarehouseId} />
+          </Card>
+        </>
       ) : null}
 
       <Card>
@@ -87,7 +100,7 @@ export default async function StockTransferDetailPage({ params }: { params: Prom
             <thead>
               <tr className="border-b border-zinc-200 text-left text-xs uppercase tracking-wide text-zinc-500 dark:border-zinc-800">
                 <th className="py-2 pr-3">Item</th>
-                <th className="py-2 pr-3">Qty</th>
+                <th className="py-2 pr-3">Move Qty</th>
                 <th className="py-2 pr-3">Unit Cost</th>
                 <th className="py-2 pr-3">Batch</th>
                 <th className="py-2 pr-3">Serials</th>
@@ -107,6 +120,9 @@ export default async function StockTransferDetailPage({ params }: { params: Prom
                     key={l.id}
                     transferId={transfer.id}
                     line={l}
+                    itemId={l.itemId}
+                    warehouseId={transfer.fromWarehouseId}
+                    warehouses={warehouses}
                     itemLabel={itemLabel}
                     canEdit={isDraft}
                   />

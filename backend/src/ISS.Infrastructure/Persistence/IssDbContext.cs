@@ -1,3 +1,4 @@
+using ISS.Domain.Assistant;
 using ISS.Application.Abstractions;
 using ISS.Application.Persistence;
 using ISS.Domain.Audit;
@@ -79,6 +80,9 @@ public sealed class IssDbContext(
     public DbSet<DocumentComment> DocumentComments => Set<DocumentComment>();
     public DbSet<DocumentAttachment> DocumentAttachments => Set<DocumentAttachment>();
     public DbSet<NotificationOutboxItem> NotificationOutboxItems => Set<NotificationOutboxItem>();
+    public DbSet<AssistantAccessPolicy> AssistantAccessPolicies => Set<AssistantAccessPolicy>();
+    public DbSet<AssistantProviderProfile> AssistantProviderProfiles => Set<AssistantProviderProfile>();
+    public DbSet<AssistantUserPreference> AssistantUserPreferences => Set<AssistantUserPreference>();
 
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
     public DbSet<DocumentSequence> DocumentSequences => Set<DocumentSequence>();
@@ -257,6 +261,8 @@ public sealed class IssDbContext(
         builder.Entity<StockAdjustmentLine>(entity =>
         {
             entity.Property(x => x.QuantityDelta).HasPrecision(18, 4);
+            entity.Property(x => x.CountedQuantity).HasPrecision(18, 4);
+            entity.Property(x => x.SystemQuantity).HasPrecision(18, 4);
             entity.Property(x => x.UnitCost).HasPrecision(18, 4);
             entity.Property(x => x.BatchNumber).HasMaxLength(128);
             entity.HasMany(x => x.Serials).WithOne().HasForeignKey(x => x.StockAdjustmentLineId).OnDelete(DeleteBehavior.Cascade);
@@ -630,6 +636,31 @@ public sealed class IssDbContext(
             entity.HasIndex(x => new { x.Status, x.NextAttemptAt });
         });
 
+        builder.Entity<AssistantAccessPolicy>(entity =>
+        {
+            entity.HasIndex(x => x.ScopeKey).IsUnique();
+            entity.Property(x => x.ScopeKey).HasMaxLength(32);
+            entity.Property(x => x.AllowedRolesCsv).HasMaxLength(512);
+        });
+
+        builder.Entity<AssistantProviderProfile>(entity =>
+        {
+            entity.HasIndex(x => new { x.UserId, x.Name }).IsUnique();
+            entity.Property(x => x.Name).HasMaxLength(128);
+            entity.Property(x => x.BaseUrl).HasMaxLength(512);
+            entity.Property(x => x.Model).HasMaxLength(256);
+            entity.Property(x => x.ApiKeyCiphertext).HasMaxLength(4000);
+        });
+
+        builder.Entity<AssistantUserPreference>(entity =>
+        {
+            entity.HasIndex(x => x.UserId).IsUnique();
+            entity.HasOne<AssistantProviderProfile>()
+                .WithMany()
+                .HasForeignKey(x => x.ActiveProviderProfileId)
+                .OnDelete(DeleteBehavior.SetNull);
+        });
+
         builder.Entity<AuditLog>(entity =>
         {
             entity.Property(x => x.TableName).HasMaxLength(256);
@@ -722,17 +753,22 @@ public sealed class IssDbContext(
                     continue;
                 }
 
+                var propertyInfo = prop.Metadata.PropertyInfo;
+                var isSensitive = propertyInfo?.GetCustomAttributes(typeof(AuditSensitiveAttribute), inherit: true).Any() == true;
+                object? currentValue = isSensitive && prop.CurrentValue is not null ? "[REDACTED]" : prop.CurrentValue;
+                object? originalValue = isSensitive && prop.OriginalValue is not null ? "[REDACTED]" : prop.OriginalValue;
+
                 if (entry.State == EntityState.Added)
                 {
-                    changes[prop.Metadata.Name] = new { old = (object?)null, @new = prop.CurrentValue };
+                    changes[prop.Metadata.Name] = new { old = (object?)null, @new = currentValue };
                 }
                 else if (entry.State == EntityState.Deleted)
                 {
-                    changes[prop.Metadata.Name] = new { old = prop.OriginalValue, @new = (object?)null };
+                    changes[prop.Metadata.Name] = new { old = originalValue, @new = (object?)null };
                 }
                 else if (entry.State == EntityState.Modified && prop.IsModified)
                 {
-                    changes[prop.Metadata.Name] = new { old = prop.OriginalValue, @new = prop.CurrentValue };
+                    changes[prop.Metadata.Name] = new { old = originalValue, @new = currentValue };
                 }
             }
 

@@ -11,13 +11,11 @@ Use this hub first, then jump into the specialized docs linked below.
 ## Current Project Status (Practical Summary)
 
 - Major ERP/service modules are implemented across backend + frontend.
-- Production-hardening work is active (auth, reverse-proxy safety, retries, migration discipline, test coverage).
 - Line-level editing/deleting is now implemented across all draft document detail grids.
 - Master-data list maintenance now includes row-level edit/delete actions and backend delete APIs.
 - Master data now includes UoM conversions, payment types, taxes/tax conversions, currencies/rates, and reference forms.
 - Reporting now includes costing in addition to dashboard, stock-ledger, aging, tax summary, and service KPIs.
-- The system is close to full CSV closure but still requires final UAT/responsive verification and workflow-depth validation.
-- Use `docs/csv-closure-audit.md` as the working status baseline for closure planning.
+- Inventory currently supports warehouse/batch on-hand breakdown, stock-adjustment physical counts, stock-transfer move quantities, and signed stock-ledger history with batch/serial detail.
 
 ## Stack and Runtime Topology
 
@@ -96,11 +94,13 @@ Ops scripts:
   - document collaboration UI integration and navigation conventions
 - `docs/agent-change-playbook.md`
   - how to add/modify/remove features safely
-  - reporting/attachment/change playbooks, closure planning, troubleshooting, onboarding
+  - reporting/attachment/change playbooks, troubleshooting, onboarding
 
 ## Core Supporting Docs
 
 - `README.md` -> quick local setup/run/test commands
+- `docs/iss-tester-trainer-handbook.md` -> zero-knowledge tester/trainer onboarding, screenshots, and regression guidance
+- `docs/role-based-test-checklists.md` -> role-by-role manual access and workflow verification
 - `frontend/README.md` -> frontend-specific quick start and integration entry points
 - `docs/deployment.md` -> deployment/migrations/env vars/smoke checks/backup-restore runbook
 - `docs/csv-closure-audit.md` -> requirements traceability and remaining gaps
@@ -110,7 +110,6 @@ Ops scripts:
 
 1. Read `README.md` for local setup and run commands.
 2. Read this hub doc for system scope and documentation map.
-3. Read `docs/csv-closure-audit.md` to understand what is still partial/missing.
-4. Read the relevant detailed guide(s) for the area you will change.
-5. Implement one focused checkpoint with code + tests + docs updates together.
+3. Read the relevant detailed guide(s) for the area you will change.
+4. Implement one focused checkpoint with code + tests + docs updates together.
 

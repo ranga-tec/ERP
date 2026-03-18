@@ -7,6 +7,7 @@ import { DispatchActions } from "../DispatchActions";
 import { DispatchLineAddForm } from "../DispatchLineAddForm";
 import { DispatchLineRow } from "../DispatchLineRow";
 import { DocumentCollaborationPanel } from "@/components/DocumentCollaborationPanel";
+import { StockAvailabilityExplorer } from "@/components/StockAvailabilityExplorer";
 
 type DispatchDto = {
   id: string;
@@ -81,10 +82,17 @@ export default async function DispatchDetailPage({ params }: { params: Promise<{
       </Card>
 
       {isDraft ? (
-        <Card>
+        <>
+          <Card>
           <div className="mb-3 text-sm font-semibold">Add line</div>
-          <DispatchLineAddForm dispatchId={dispatch.id} items={items} />
+          <DispatchLineAddForm dispatchId={dispatch.id} items={items} warehouses={warehouses} warehouseId={dispatch.warehouseId} />
         </Card>
+
+          <Card>
+            <div className="mb-3 text-sm font-semibold">Stock visibility</div>
+            <StockAvailabilityExplorer warehouses={warehouses} items={items} initialWarehouseId={dispatch.warehouseId} />
+          </Card>
+        </>
       ) : null}
 
       <Card>
@@ -113,6 +121,9 @@ export default async function DispatchDetailPage({ params }: { params: Promise<{
                     key={l.id}
                     dispatchId={dispatch.id}
                     line={l}
+                    itemId={l.itemId}
+                    warehouseId={dispatch.warehouseId}
+                    warehouses={warehouses}
                     itemLabel={itemLabel}
                     canEdit={isDraft}
                   />

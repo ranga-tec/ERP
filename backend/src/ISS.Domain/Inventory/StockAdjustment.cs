@@ -30,6 +30,22 @@ public sealed class StockAdjustment : AuditableEntity
 
     public List<StockAdjustmentLine> Lines { get; private set; } = new();
 
+    public StockAdjustmentLine AddCountedLine(Guid itemId, decimal countedQuantity, decimal unitCost, string? batchNumber)
+    {
+        EnsureDraftEditable();
+
+        var line = new StockAdjustmentLine(
+            Id,
+            itemId,
+            quantityDelta: 0m,
+            countedQuantity: Guard.NotNegative(countedQuantity, nameof(countedQuantity)),
+            systemQuantity: null,
+            unitCost: Guard.NotNegative(unitCost, nameof(unitCost)),
+            batchNumber);
+        Lines.Add(line);
+        return line;
+    }
+
     public StockAdjustmentLine AddLine(Guid itemId, decimal quantityDelta, decimal unitCost, string? batchNumber)
     {
         EnsureDraftEditable();
@@ -39,9 +55,32 @@ public sealed class StockAdjustment : AuditableEntity
             throw new DomainValidationException("Quantity delta cannot be zero.");
         }
 
-        var line = new StockAdjustmentLine(Id, itemId, quantityDelta, Guard.NotNegative(unitCost, nameof(unitCost)), batchNumber);
+        var line = new StockAdjustmentLine(
+            Id,
+            itemId,
+            quantityDelta,
+            countedQuantity: null,
+            systemQuantity: null,
+            Guard.NotNegative(unitCost, nameof(unitCost)),
+            batchNumber);
         Lines.Add(line);
         return line;
+    }
+
+    public void UpdateLineCounted(
+        Guid lineId,
+        decimal countedQuantity,
+        decimal unitCost,
+        string? batchNumber,
+        IReadOnlyCollection<string>? serialNumbers)
+    {
+        EnsureDraftEditable();
+
+        var line = Lines.FirstOrDefault(x => x.Id == lineId)
+            ?? throw new DomainValidationException("Stock adjustment line not found.");
+
+        line.UpdateFromCount(countedQuantity, unitCost, batchNumber);
+        line.ReplaceSerials(serialNumbers);
     }
 
     public void UpdateLine(
@@ -113,11 +152,20 @@ public sealed class StockAdjustmentLine : Entity
 {
     private StockAdjustmentLine() { }
 
-    public StockAdjustmentLine(Guid stockAdjustmentId, Guid itemId, decimal quantityDelta, decimal unitCost, string? batchNumber)
+    public StockAdjustmentLine(
+        Guid stockAdjustmentId,
+        Guid itemId,
+        decimal quantityDelta,
+        decimal? countedQuantity,
+        decimal? systemQuantity,
+        decimal unitCost,
+        string? batchNumber)
     {
         StockAdjustmentId = stockAdjustmentId;
         ItemId = itemId;
         QuantityDelta = quantityDelta;
+        CountedQuantity = countedQuantity;
+        SystemQuantity = systemQuantity;
         UnitCost = unitCost;
         BatchNumber = batchNumber?.Trim();
     }
@@ -125,10 +173,21 @@ public sealed class StockAdjustmentLine : Entity
     public Guid StockAdjustmentId { get; private set; }
     public Guid ItemId { get; private set; }
     public decimal QuantityDelta { get; private set; }
+    public decimal? CountedQuantity { get; private set; }
+    public decimal? SystemQuantity { get; private set; }
     public decimal UnitCost { get; private set; }
     public string? BatchNumber { get; private set; }
 
     public List<StockAdjustmentLineSerial> Serials { get; private set; } = new();
+
+    public void UpdateFromCount(decimal countedQuantity, decimal unitCost, string? batchNumber)
+    {
+        CountedQuantity = Guard.NotNegative(countedQuantity, nameof(countedQuantity));
+        SystemQuantity = null;
+        QuantityDelta = 0m;
+        UnitCost = Guard.NotNegative(unitCost, nameof(unitCost));
+        BatchNumber = batchNumber?.Trim();
+    }
 
     public void Update(decimal quantityDelta, decimal unitCost, string? batchNumber)
     {
@@ -137,9 +196,22 @@ public sealed class StockAdjustmentLine : Entity
             throw new DomainValidationException("Quantity delta cannot be zero.");
         }
 
+        CountedQuantity = null;
+        SystemQuantity = null;
         QuantityDelta = quantityDelta;
         UnitCost = Guard.NotNegative(unitCost, nameof(unitCost));
         BatchNumber = batchNumber?.Trim();
+    }
+
+    public void RefreshVariance(decimal systemQuantity)
+    {
+        if (CountedQuantity is null)
+        {
+            throw new DomainValidationException("Counted quantity is not set on this stock adjustment line.");
+        }
+
+        SystemQuantity = Guard.NotNegative(systemQuantity, nameof(systemQuantity));
+        QuantityDelta = CountedQuantity.Value - systemQuantity;
     }
 
     public void AddSerial(string serialNumber)

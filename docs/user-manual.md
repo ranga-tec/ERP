@@ -68,13 +68,16 @@ Note:
 
 - On hand:
   - query stock by warehouse/item/batch
+  - review balances as all together, warehouse wise, batch wise, or warehouse + batch
 - Reorder alerts:
   - uses reorder settings and current on-hand
   - supports creating PR draft from reorder results
 - Stock adjustment:
-  - create -> add lines -> post/void
+  - create -> enter counted quantity -> post/void
+  - system shows system quantity and posts only the signed variance to stock history
 - Stock transfer:
-  - create -> add lines -> post/void
+  - create -> enter move quantity -> post/void
+  - source warehouse stock remains visible while adding or editing lines
 
 ## Sales workflows
 

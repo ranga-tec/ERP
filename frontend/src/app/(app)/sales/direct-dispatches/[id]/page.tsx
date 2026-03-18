@@ -7,6 +7,7 @@ import { DirectDispatchActions } from "../DirectDispatchActions";
 import { DirectDispatchLineAddForm } from "../DirectDispatchLineAddForm";
 import { DirectDispatchLineRow } from "../DirectDispatchLineRow";
 import { DocumentCollaborationPanel } from "@/components/DocumentCollaborationPanel";
+import { StockAvailabilityExplorer } from "@/components/StockAvailabilityExplorer";
 
 type DirectDispatchDto = {
   id: string;
@@ -88,10 +89,22 @@ export default async function DirectDispatchDetailPage({ params }: { params: Pro
       </Card>
 
       {isDraft ? (
-        <Card>
+        <>
+          <Card>
           <div className="mb-3 text-sm font-semibold">Add line</div>
-          <DirectDispatchLineAddForm directDispatchId={dispatch.id} items={items} />
+          <DirectDispatchLineAddForm
+            directDispatchId={dispatch.id}
+            items={items}
+            warehouses={warehouses}
+            warehouseId={dispatch.warehouseId}
+          />
         </Card>
+
+          <Card>
+            <div className="mb-3 text-sm font-semibold">Stock visibility</div>
+            <StockAvailabilityExplorer warehouses={warehouses} items={items} initialWarehouseId={dispatch.warehouseId} />
+          </Card>
+        </>
       ) : null}
 
       <Card>
@@ -120,6 +133,9 @@ export default async function DirectDispatchDetailPage({ params }: { params: Pro
                     key={l.id}
                     directDispatchId={dispatch.id}
                     line={l}
+                    itemId={l.itemId}
+                    warehouseId={dispatch.warehouseId}
+                    warehouses={warehouses}
                     itemLabel={itemLabel}
                     canEdit={isDraft}
                   />

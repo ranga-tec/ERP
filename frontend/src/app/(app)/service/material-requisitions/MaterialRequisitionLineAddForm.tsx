@@ -4,8 +4,10 @@ import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { apiPostNoContent } from "@/lib/api-client";
 import { Button, Input, Select, Textarea } from "@/components/ui";
+import { LineStockInsight } from "@/components/LineStockInsight";
 
 type ItemRef = { id: string; sku: string; name: string; trackingType: number };
+type WarehouseRef = { id: string; code: string; name: string };
 
 function parseList(text: string): string[] {
   return text
@@ -17,9 +19,13 @@ function parseList(text: string): string[] {
 export function MaterialRequisitionLineAddForm({
   requisitionId,
   items,
+  warehouses,
+  warehouseId,
 }: {
   requisitionId: string;
   items: ItemRef[];
+  warehouses: WarehouseRef[];
+  warehouseId: string;
 }) {
   const router = useRouter();
   const itemOptions = useMemo(
@@ -96,6 +102,8 @@ export function MaterialRequisitionLineAddForm({
         <Textarea value={serials} onChange={(e) => setSerials(e.target.value)} placeholder="One per line or comma-separated" />
       </div>
 
+      <LineStockInsight warehouses={warehouses} warehouseId={warehouseId} itemId={itemId} batchNumber={batchNumber} />
+
       {error ? (
         <div className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-900 dark:border-red-900/40 dark:bg-red-950/40 dark:text-red-100">
           {error}
@@ -108,4 +116,3 @@ export function MaterialRequisitionLineAddForm({
     </form>
   );
 }
-

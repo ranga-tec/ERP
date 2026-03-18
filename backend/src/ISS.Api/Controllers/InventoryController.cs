@@ -16,10 +16,14 @@ public sealed class InventoryController(IIssDbContext dbContext, InventoryServic
     public sealed record OnHandDto(Guid WarehouseId, Guid ItemId, string? BatchNumber, decimal OnHand);
 
     [HttpGet("onhand")]
-    public async Task<ActionResult<OnHandDto>> GetOnHand([FromQuery] Guid warehouseId, [FromQuery] Guid itemId, [FromQuery] string? batchNumber, CancellationToken cancellationToken)
+    public async Task<ActionResult<IReadOnlyList<OnHandDto>>> GetOnHand(
+        [FromQuery] Guid? warehouseId,
+        [FromQuery] Guid? itemId,
+        [FromQuery] string? batchNumber,
+        CancellationToken cancellationToken)
     {
-        var onHand = await inventoryService.GetOnHandAsync(warehouseId, itemId, batchNumber, cancellationToken);
-        return Ok(new OnHandDto(warehouseId, itemId, batchNumber?.Trim(), onHand));
+        var rows = await inventoryService.GetOnHandBreakdownAsync(warehouseId, itemId, batchNumber, cancellationToken);
+        return Ok(rows.Select(row => new OnHandDto(row.WarehouseId, row.ItemId, row.BatchNumber, row.OnHand)).ToList());
     }
 
     public sealed record ReorderAlertDto(Guid WarehouseId, Guid ItemId, decimal ReorderPoint, decimal ReorderQuantity, decimal OnHand);

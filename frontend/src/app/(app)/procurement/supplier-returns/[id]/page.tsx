@@ -6,6 +6,7 @@ import { SupplierReturnActions } from "../SupplierReturnActions";
 import { SupplierReturnLineAddForm } from "../SupplierReturnLineAddForm";
 import { SupplierReturnLineRow } from "../SupplierReturnLineRow";
 import { DocumentCollaborationPanel } from "@/components/DocumentCollaborationPanel";
+import { StockAvailabilityExplorer } from "@/components/StockAvailabilityExplorer";
 
 type SupplierReturnDto = {
   id: string;
@@ -82,10 +83,17 @@ export default async function SupplierReturnDetailPage({ params }: { params: Pro
       </Card>
 
       {isDraft ? (
-        <Card>
+        <>
+          <Card>
           <div className="mb-3 text-sm font-semibold">Add line</div>
-          <SupplierReturnLineAddForm supplierReturnId={sr.id} items={items} />
+          <SupplierReturnLineAddForm supplierReturnId={sr.id} items={items} warehouses={warehouses} warehouseId={sr.warehouseId} />
         </Card>
+
+          <Card>
+            <div className="mb-3 text-sm font-semibold">Stock visibility</div>
+            <StockAvailabilityExplorer warehouses={warehouses} items={items} initialWarehouseId={sr.warehouseId} />
+          </Card>
+        </>
       ) : null}
 
       <Card>
@@ -115,6 +123,9 @@ export default async function SupplierReturnDetailPage({ params }: { params: Pro
                     key={l.id}
                     supplierReturnId={sr.id}
                     line={l}
+                    itemId={l.itemId}
+                    warehouseId={sr.warehouseId}
+                    warehouses={warehouses}
                     itemLabel={itemLabel}
                     canEdit={isDraft}
                   />

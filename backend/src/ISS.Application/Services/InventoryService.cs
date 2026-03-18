@@ -8,6 +8,8 @@ namespace ISS.Application.Services;
 
 public sealed class InventoryService(IIssDbContext dbContext)
 {
+    public sealed record OnHandBreakdownRow(Guid WarehouseId, Guid ItemId, string? BatchNumber, decimal OnHand);
+
     public async Task<decimal> GetOnHandAsync(Guid warehouseId, Guid itemId, string? batchNumber = null, CancellationToken cancellationToken = default)
     {
         var query = dbContext.InventoryMovements.AsNoTracking()
@@ -22,6 +24,50 @@ public sealed class InventoryService(IIssDbContext dbContext)
         return await query.SumAsync(m => m.Quantity, cancellationToken);
     }
 
+    public async Task<IReadOnlyList<OnHandBreakdownRow>> GetOnHandBreakdownAsync(
+        Guid? warehouseId = null,
+        Guid? itemId = null,
+        string? batchNumber = null,
+        CancellationToken cancellationToken = default)
+    {
+        var query = dbContext.InventoryMovements.AsNoTracking().AsQueryable();
+
+        if (warehouseId is not null && warehouseId != Guid.Empty)
+        {
+            query = query.Where(m => m.WarehouseId == warehouseId);
+        }
+
+        if (itemId is not null && itemId != Guid.Empty)
+        {
+            query = query.Where(m => m.ItemId == itemId);
+        }
+
+        if (!string.IsNullOrWhiteSpace(batchNumber))
+        {
+            var trimmed = batchNumber.Trim();
+            query = query.Where(m => m.BatchNumber == trimmed);
+        }
+
+        var rows = await query
+            .GroupBy(m => new { m.WarehouseId, m.ItemId, m.BatchNumber })
+            .Select(g => new
+            {
+                g.Key.WarehouseId,
+                g.Key.ItemId,
+                g.Key.BatchNumber,
+                OnHand = g.Sum(m => m.Quantity),
+            })
+            .Where(x => x.OnHand != 0m)
+            .OrderBy(x => x.WarehouseId)
+            .ThenBy(x => x.ItemId)
+            .ThenBy(x => x.BatchNumber)
+            .ToListAsync(cancellationToken);
+
+        return rows
+            .Select(row => new OnHandBreakdownRow(row.WarehouseId, row.ItemId, row.BatchNumber, row.OnHand))
+            .ToList();
+    }
+
     public async Task<bool> IsSerialInStockAsync(Guid warehouseId, Guid itemId, string serialNumber, CancellationToken cancellationToken = default)
     {
         serialNumber = serialNumber.Trim();
@@ -29,6 +75,23 @@ public sealed class InventoryService(IIssDbContext dbContext)
             .Where(m => m.WarehouseId == warehouseId && m.ItemId == itemId && m.SerialNumber == serialNumber)
             .SumAsync(m => m.Quantity, cancellationToken);
         return qty > 0;
+    }
+
+    public async Task<IReadOnlyList<string>> GetSerialsOnHandAsync(Guid warehouseId, Guid itemId, CancellationToken cancellationToken = default)
+    {
+        var serialRows = await dbContext.InventoryMovements.AsNoTracking()
+            .Where(m => m.WarehouseId == warehouseId && m.ItemId == itemId && m.SerialNumber != null)
+            .GroupBy(m => m.SerialNumber!)
+            .Select(g => new
+            {
+                SerialNumber = g.Key,
+                OnHand = g.Sum(m => m.Quantity),
+            })
+            .Where(x => x.OnHand > 0m)
+            .OrderBy(x => x.SerialNumber)
+            .ToListAsync(cancellationToken);
+
+        return serialRows.Select(x => x.SerialNumber).ToList();
     }
 
     public async Task RecordReceiptAsync(

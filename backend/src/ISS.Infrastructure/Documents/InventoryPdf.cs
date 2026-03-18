@@ -42,13 +42,17 @@ public sealed partial class DocumentPdfService
                         cols.RelativeColumn(2);
                         cols.RelativeColumn(2);
                         cols.RelativeColumn(2);
+                        cols.RelativeColumn(2);
+                        cols.RelativeColumn(2);
                         cols.RelativeColumn(4);
                     });
 
                     table.Header(h =>
                     {
                         h.Cell().Element(CellHeader).Text("Item");
-                        h.Cell().Element(CellHeader).AlignRight().Text("Qty Delta");
+                        h.Cell().Element(CellHeader).AlignRight().Text("Counted");
+                        h.Cell().Element(CellHeader).AlignRight().Text("System");
+                        h.Cell().Element(CellHeader).AlignRight().Text("Variance");
                         h.Cell().Element(CellHeader).AlignRight().Text("Unit Cost");
                         h.Cell().Element(CellHeader).Text("Batch");
                         h.Cell().Element(CellHeader).Text("Serials");
@@ -58,6 +62,8 @@ public sealed partial class DocumentPdfService
                     {
                         var item = itemById.GetValueOrDefault(line.ItemId);
                         table.Cell().Element(CellBody).Text(ItemLabel(item, line.ItemId));
+                        table.Cell().Element(CellBody).AlignRight().Text(line.CountedQuantity is null ? "" : FormatQty(line.CountedQuantity.Value));
+                        table.Cell().Element(CellBody).AlignRight().Text(line.SystemQuantity is null ? "" : FormatQty(line.SystemQuantity.Value));
                         table.Cell().Element(CellBody).AlignRight().Text(FormatQty(line.QuantityDelta));
                         table.Cell().Element(CellBody).AlignRight().Text(FormatMoney(line.UnitCost));
                         table.Cell().Element(CellBody).Text(line.BatchNumber ?? "");

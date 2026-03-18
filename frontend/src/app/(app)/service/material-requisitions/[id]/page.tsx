@@ -7,6 +7,7 @@ import { MaterialRequisitionActions } from "../MaterialRequisitionActions";
 import { MaterialRequisitionLineAddForm } from "../MaterialRequisitionLineAddForm";
 import { MaterialRequisitionLineRow } from "../MaterialRequisitionLineRow";
 import { DocumentCollaborationPanel } from "@/components/DocumentCollaborationPanel";
+import { StockAvailabilityExplorer } from "@/components/StockAvailabilityExplorer";
 
 type MaterialRequisitionDto = {
   id: string;
@@ -81,10 +82,17 @@ export default async function MaterialRequisitionDetailPage({ params }: { params
       </Card>
 
       {isDraft ? (
-        <Card>
+        <>
+          <Card>
           <div className="mb-3 text-sm font-semibold">Add line</div>
-          <MaterialRequisitionLineAddForm requisitionId={mr.id} items={items} />
+          <MaterialRequisitionLineAddForm requisitionId={mr.id} items={items} warehouses={warehouses} warehouseId={mr.warehouseId} />
         </Card>
+
+          <Card>
+            <div className="mb-3 text-sm font-semibold">Stock visibility</div>
+            <StockAvailabilityExplorer warehouses={warehouses} items={items} initialWarehouseId={mr.warehouseId} />
+          </Card>
+        </>
       ) : null}
 
       <Card>
@@ -113,6 +121,9 @@ export default async function MaterialRequisitionDetailPage({ params }: { params
                     key={l.id}
                     requisitionId={mr.id}
                     line={l}
+                    itemId={l.itemId}
+                    warehouseId={mr.warehouseId}
+                    warehouses={warehouses}
                     itemLabel={itemLabel}
                     canEdit={isDraft}
                   />

@@ -4,8 +4,10 @@ import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { apiPostNoContent } from "@/lib/api-client";
 import { Button, Input, Select, Textarea } from "@/components/ui";
+import { LineStockInsight } from "@/components/LineStockInsight";
 
 type ItemRef = { id: string; sku: string; name: string; trackingType: number };
+type WarehouseRef = { id: string; code: string; name: string };
 
 function parseList(text: string): string[] {
   return text
@@ -14,7 +16,17 @@ function parseList(text: string): string[] {
     .filter((s) => s.length > 0);
 }
 
-export function DispatchLineAddForm({ dispatchId, items }: { dispatchId: string; items: ItemRef[] }) {
+export function DispatchLineAddForm({
+  dispatchId,
+  items,
+  warehouses,
+  warehouseId,
+}: {
+  dispatchId: string;
+  items: ItemRef[];
+  warehouses: WarehouseRef[];
+  warehouseId: string;
+}) {
   const router = useRouter();
   const itemOptions = useMemo(
     () => items.slice().sort((a, b) => a.sku.localeCompare(b.sku)),
@@ -90,6 +102,8 @@ export function DispatchLineAddForm({ dispatchId, items }: { dispatchId: string;
         <Textarea value={serials} onChange={(e) => setSerials(e.target.value)} placeholder="One per line or comma-separated" />
       </div>
 
+      <LineStockInsight warehouses={warehouses} warehouseId={warehouseId} itemId={itemId} batchNumber={batchNumber} />
+
       {error ? (
         <div className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-900 dark:border-red-900/40 dark:bg-red-950/40 dark:text-red-100">
           {error}
@@ -102,4 +116,3 @@ export function DispatchLineAddForm({ dispatchId, items }: { dispatchId: string;
     </form>
   );
 }
-

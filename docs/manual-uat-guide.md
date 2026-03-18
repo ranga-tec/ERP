@@ -176,13 +176,14 @@ Expected:
 2. Create an adjustment for warehouse `MAIN`.
 3. Add one line:
    - Item: `SKU1`
-   - Qty Delta: `-1`
+   - Counted Qty: `5`
    - Unit Cost: `5`
 4. Post the adjustment.
 
 Expected:
 
 - Adjustment posts successfully.
+- Stock ledger shows a signed adjustment movement of `-1`.
 
 5. Go to `Inventory -> On Hand` and query `MAIN` + `SKU1`.
 

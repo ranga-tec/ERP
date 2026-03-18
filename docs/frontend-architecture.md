@@ -5,7 +5,6 @@ This guide is focused on the Next.js frontend structure, auth/proxy flow, UI com
 Primary references:
 - `docs/system-technical-maintainer-guide.md` (hub)
 - `frontend/README.md` (frontend quick start)
-- `docs/csv-closure-audit.md` (module closure status)
 
 ## Frontend Architecture
 
@@ -131,7 +130,7 @@ Related document references should use the shared routing helpers instead of har
 
 - Document-to-document links should resolve through `ReferenceForms` route templates so navigation stays aligned with the master-data route map.
 - Server-rendered pages should use the shared transaction link helper rather than rebuilding route resolution ad hoc.
-- Item references should deep-link into `Master Data -> Items` using the shared item-routing helper so the target row is highlighted and the edit/management panels preselect the same item.
+- Item references should deep-link into `Master Data -> Items` using the shared item-routing helper so users land on the dedicated item detail screen.
 
 Maintainer rule:
 
@@ -157,6 +156,16 @@ Transactional module pages include:
 - finance: AR/AP, payments, credit notes, debit notes
 - reporting: dashboard, stock-ledger, aging, tax summary, service KPIs, costing
 
+### Inventory UI Behavior
+
+Current inventory interaction pattern:
+
+- `On Hand` uses warehouse and batch breakdown rows instead of a single merged balance
+- draft stock transaction pages reuse the shared stock visibility explorer and inline live stock widget
+- stock adjustment lines are entered as `counted quantity`; the UI shows current system quantity and expected variance
+- stock transfer lines are entered as `move quantity`; the source warehouse stock widget stays visible while editing
+- stock ledger renders signed movement quantities plus batch and serial detail for history review
+
 ### Line Grid Action Standard (Draft Documents)
 
 The detail pages for line-based documents use a common behavior:
@@ -177,7 +186,7 @@ Master-data list pages now follow the same maintainability pattern:
 - destructive actions use explicit confirmation prompts
 
 This standard is now implemented across brands, customers, suppliers, warehouses, UoMs, UoM conversions, taxes, tax conversions, currencies, currency rates, payment types, reference forms, item categories/subcategories, and reorder settings.
-Items support `Save` and `Delete` through the dedicated edit panel.
+Items now use a separate list/search page plus dedicated create, view, and edit pages. The item list grid exposes `View`, `Edit`, `Delete`, and item label links.
 
 ### Costing Reporting UI
 

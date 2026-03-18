@@ -4,8 +4,10 @@ import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { apiPostNoContent } from "@/lib/api-client";
 import { Button, Input, Select, Textarea } from "@/components/ui";
+import { LineStockInsight } from "@/components/LineStockInsight";
 
 type ItemRef = { id: string; sku: string; name: string; trackingType: number; defaultUnitCost: number };
+type WarehouseRef = { id: string; code: string; name: string };
 
 function parseList(text: string): string[] {
   return text
@@ -17,9 +19,13 @@ function parseList(text: string): string[] {
 export function StockAdjustmentLineAddForm({
   adjustmentId,
   items,
+  warehouses,
+  warehouseId,
 }: {
   adjustmentId: string;
   items: ItemRef[];
+  warehouses: WarehouseRef[];
+  warehouseId: string;
 }) {
   const router = useRouter();
   const itemOptions = useMemo(
@@ -28,7 +34,7 @@ export function StockAdjustmentLineAddForm({
   );
 
   const [itemId, setItemId] = useState("");
-  const [quantityDelta, setQuantityDelta] = useState("1");
+  const [countedQuantity, setCountedQuantity] = useState("");
   const [unitCost, setUnitCost] = useState("");
   const [batchNumber, setBatchNumber] = useState("");
   const [serials, setSerials] = useState("");
@@ -42,9 +48,9 @@ export function StockAdjustmentLineAddForm({
     setError(null);
     setBusy(true);
     try {
-      const delta = Number(quantityDelta);
-      if (Number.isNaN(delta) || delta === 0) {
-        throw new Error("Quantity delta cannot be 0.");
+      const counted = Number(countedQuantity);
+      if (countedQuantity.trim() === "" || Number.isNaN(counted) || counted < 0) {
+        throw new Error("Counted quantity must be 0 or greater.");
       }
       const cost = Number(unitCost || selectedItem?.defaultUnitCost || 0);
       if (Number.isNaN(cost) || cost < 0) {
@@ -55,14 +61,14 @@ export function StockAdjustmentLineAddForm({
 
       await apiPostNoContent(`inventory/stock-adjustments/${adjustmentId}/lines`, {
         itemId,
-        quantityDelta: delta,
+        countedQuantity: counted,
         unitCost: cost,
         batchNumber: batchNumber.trim() || null,
         serials: serialList.length ? serialList : null,
       });
 
       setItemId("");
-      setQuantityDelta("1");
+      setCountedQuantity("");
       setUnitCost("");
       setBatchNumber("");
       setSerials("");
@@ -85,15 +91,15 @@ export function StockAdjustmentLineAddForm({
             </option>
             {itemOptions.map((i) => (
               <option key={i.id} value={i.id}>
-                {i.sku} — {i.name}
+                {i.sku} - {i.name}
               </option>
             ))}
           </Select>
         </div>
         <div>
-          <label className="mb-1 block text-sm font-medium">Qty delta</label>
-          <Input value={quantityDelta} onChange={(e) => setQuantityDelta(e.target.value)} inputMode="decimal" required />
-          <div className="mt-1 text-xs text-zinc-500">Positive adds stock, negative removes stock.</div>
+          <label className="mb-1 block text-sm font-medium">Counted qty</label>
+          <Input value={countedQuantity} onChange={(e) => setCountedQuantity(e.target.value)} inputMode="decimal" required />
+          <div className="mt-1 text-xs text-zinc-500">Enter the real counted stock. The system will calculate the variance.</div>
         </div>
         <div>
           <label className="mb-1 block text-sm font-medium">Unit cost</label>
@@ -117,6 +123,14 @@ export function StockAdjustmentLineAddForm({
         </div>
       </div>
 
+      <LineStockInsight
+        warehouses={warehouses}
+        warehouseId={warehouseId}
+        itemId={itemId}
+        batchNumber={batchNumber}
+        countedQuantity={countedQuantity}
+      />
+
       {error ? (
         <div className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-900 dark:border-red-900/40 dark:bg-red-950/40 dark:text-red-100">
           {error}
@@ -129,4 +143,3 @@ export function StockAdjustmentLineAddForm({
     </form>
   );
 }
-

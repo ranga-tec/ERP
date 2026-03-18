@@ -3,6 +3,7 @@ using ISS.Application.Common;
 using ISS.Application.Persistence;
 using ISS.Domain.Common;
 using ISS.Domain.Inventory;
+using ISS.Domain.MasterData;
 using Microsoft.EntityFrameworkCore;
 
 namespace ISS.Application.Services;
@@ -22,10 +23,18 @@ public sealed class InventoryOperationsService(
         return adjustment.Id;
     }
 
+    public Task<decimal> GetStockAdjustmentPreviewQuantityAsync(
+        Guid warehouseId,
+        Guid itemId,
+        string? batchNumber,
+        CancellationToken cancellationToken = default)
+        => inventoryService.GetOnHandAsync(warehouseId, itemId, batchNumber, cancellationToken);
+
     public async Task AddStockAdjustmentLineAsync(
         Guid stockAdjustmentId,
         Guid itemId,
-        decimal quantityDelta,
+        decimal? countedQuantity,
+        decimal? quantityDelta,
         decimal unitCost,
         string? batchNumber,
         IReadOnlyCollection<string>? serialNumbers,
@@ -35,15 +44,16 @@ public sealed class InventoryOperationsService(
                              .FirstOrDefaultAsync(x => x.Id == stockAdjustmentId, cancellationToken)
                          ?? throw new NotFoundException("Stock adjustment not found.");
 
-        var line = adjustment.AddLine(itemId, quantityDelta, unitCost, batchNumber);
-
-        if (serialNumbers is { Count: > 0 })
-        {
-            foreach (var serial in serialNumbers)
-            {
-                line.AddSerial(serial);
-            }
-        }
+        var line = await AddOrUpdateStockAdjustmentLineAsync(
+            adjustment,
+            existingLineId: null,
+            itemId,
+            countedQuantity,
+            quantityDelta,
+            unitCost,
+            batchNumber,
+            serialNumbers,
+            cancellationToken);
 
         dbContext.DbContext.Add(line);
         await dbContext.SaveChangesAsync(cancellationToken);
@@ -52,7 +62,8 @@ public sealed class InventoryOperationsService(
     public async Task UpdateStockAdjustmentLineAsync(
         Guid stockAdjustmentId,
         Guid lineId,
-        decimal quantityDelta,
+        decimal? countedQuantity,
+        decimal? quantityDelta,
         decimal unitCost,
         string? batchNumber,
         IReadOnlyCollection<string>? serialNumbers,
@@ -67,7 +78,16 @@ public sealed class InventoryOperationsService(
             throw new NotFoundException("Stock adjustment line not found.");
         }
 
-        adjustment.UpdateLine(lineId, quantityDelta, unitCost, batchNumber, serialNumbers);
+        await AddOrUpdateStockAdjustmentLineAsync(
+            adjustment,
+            lineId,
+            itemId: null,
+            countedQuantity,
+            quantityDelta,
+            unitCost,
+            batchNumber,
+            serialNumbers,
+            cancellationToken);
         await dbContext.SaveChangesAsync(cancellationToken);
     }
 
@@ -102,6 +122,87 @@ public sealed class InventoryOperationsService(
             if (!itemById.TryGetValue(line.ItemId, out var item))
             {
                 throw new DomainValidationException("Invalid item on stock adjustment.");
+            }
+
+            if (line.CountedQuantity is null)
+            {
+                await inventoryService.RecordAdjustmentAsync(
+                    adjustment.AdjustedAt,
+                    adjustment.WarehouseId,
+                    item,
+                    line.QuantityDelta,
+                    line.UnitCost,
+                    ReferenceTypes.StockAdjustment,
+                    adjustment.Id,
+                    line.Id,
+                    line.BatchNumber,
+                    line.Serials.Select(s => s.SerialNumber).ToList(),
+                    cancellationToken);
+                continue;
+            }
+
+            if (item.TrackingType == TrackingType.Serial)
+            {
+                var countedSerials = line.Serials
+                    .Select(s => s.SerialNumber.Trim())
+                    .Where(s => s.Length > 0)
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .ToList();
+
+                if (line.CountedQuantity.Value != countedSerials.Count)
+                {
+                    throw new DomainValidationException("Counted quantity must match serial count for serial-tracked stock adjustments.");
+                }
+
+                var currentSerials = await inventoryService.GetSerialsOnHandAsync(adjustment.WarehouseId, item.Id, cancellationToken);
+                line.RefreshVariance(currentSerials.Count);
+
+                var serialsToRemove = currentSerials
+                    .Except(countedSerials, StringComparer.OrdinalIgnoreCase)
+                    .ToList();
+                if (serialsToRemove.Count > 0)
+                {
+                    await inventoryService.RecordAdjustmentAsync(
+                        adjustment.AdjustedAt,
+                        adjustment.WarehouseId,
+                        item,
+                        -serialsToRemove.Count,
+                        line.UnitCost,
+                        ReferenceTypes.StockAdjustment,
+                        adjustment.Id,
+                        line.Id,
+                        line.BatchNumber,
+                        serialsToRemove,
+                        cancellationToken);
+                }
+
+                var serialsToAdd = countedSerials
+                    .Except(currentSerials, StringComparer.OrdinalIgnoreCase)
+                    .ToList();
+                if (serialsToAdd.Count > 0)
+                {
+                    await inventoryService.RecordAdjustmentAsync(
+                        adjustment.AdjustedAt,
+                        adjustment.WarehouseId,
+                        item,
+                        serialsToAdd.Count,
+                        line.UnitCost,
+                        ReferenceTypes.StockAdjustment,
+                        adjustment.Id,
+                        line.Id,
+                        line.BatchNumber,
+                        serialsToAdd,
+                        cancellationToken);
+                }
+
+                continue;
+            }
+
+            var currentOnHand = await inventoryService.GetOnHandAsync(adjustment.WarehouseId, item.Id, line.BatchNumber, cancellationToken);
+            line.RefreshVariance(currentOnHand);
+            if (line.QuantityDelta == 0m)
+            {
+                continue;
             }
 
             await inventoryService.RecordAdjustmentAsync(
@@ -260,5 +361,85 @@ public sealed class InventoryOperationsService(
 
         transfer.Void();
         await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    private async Task<StockAdjustmentLine> AddOrUpdateStockAdjustmentLineAsync(
+        StockAdjustment adjustment,
+        Guid? existingLineId,
+        Guid? itemId,
+        decimal? countedQuantity,
+        decimal? quantityDelta,
+        decimal unitCost,
+        string? batchNumber,
+        IReadOnlyCollection<string>? serialNumbers,
+        CancellationToken cancellationToken)
+    {
+        if (countedQuantity is not null)
+        {
+            var effectiveItemId = itemId
+                ?? adjustment.Lines.FirstOrDefault(x => x.Id == existingLineId)?.ItemId
+                ?? throw new DomainValidationException("Stock adjustment line not found.");
+
+            EnsureCountedLineKeyIsUnique(adjustment, effectiveItemId, batchNumber, existingLineId);
+
+            StockAdjustmentLine line;
+            if (existingLineId is null)
+            {
+                line = adjustment.AddCountedLine(effectiveItemId, countedQuantity.Value, unitCost, batchNumber);
+            }
+            else
+            {
+                adjustment.UpdateLineCounted(existingLineId.Value, countedQuantity.Value, unitCost, batchNumber, serialNumbers);
+                line = adjustment.Lines.First(x => x.Id == existingLineId.Value);
+            }
+
+            var currentOnHand = await inventoryService.GetOnHandAsync(adjustment.WarehouseId, effectiveItemId, batchNumber, cancellationToken);
+            line.RefreshVariance(currentOnHand);
+            if (existingLineId is null && serialNumbers is { Count: > 0 })
+            {
+                foreach (var serial in serialNumbers)
+                {
+                    line.AddSerial(serial);
+                }
+            }
+
+            return line;
+        }
+
+        if (quantityDelta is null)
+        {
+            throw new DomainValidationException("Either counted quantity or quantity delta is required.");
+        }
+
+        if (existingLineId is null)
+        {
+            var line = adjustment.AddLine(itemId ?? throw new DomainValidationException("Item is required."), quantityDelta.Value, unitCost, batchNumber);
+            if (serialNumbers is { Count: > 0 })
+            {
+                foreach (var serial in serialNumbers)
+                {
+                    line.AddSerial(serial);
+                }
+            }
+
+            return line;
+        }
+
+        adjustment.UpdateLine(existingLineId.Value, quantityDelta.Value, unitCost, batchNumber, serialNumbers);
+        return adjustment.Lines.First(x => x.Id == existingLineId.Value);
+    }
+
+    private static void EnsureCountedLineKeyIsUnique(StockAdjustment adjustment, Guid itemId, string? batchNumber, Guid? existingLineId)
+    {
+        var normalizedBatch = batchNumber?.Trim() ?? string.Empty;
+        var duplicateExists = adjustment.Lines.Any(line =>
+            line.Id != existingLineId
+            && line.ItemId == itemId
+            && string.Equals(line.BatchNumber ?? string.Empty, normalizedBatch, StringComparison.OrdinalIgnoreCase));
+
+        if (duplicateExists)
+        {
+            throw new DomainValidationException("Only one counted line is allowed per item and batch on a stock adjustment.");
+        }
     }
 }

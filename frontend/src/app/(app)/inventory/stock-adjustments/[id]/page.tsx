@@ -6,6 +6,7 @@ import { StockAdjustmentActions } from "../StockAdjustmentActions";
 import { StockAdjustmentLineAddForm } from "../StockAdjustmentLineAddForm";
 import { StockAdjustmentLineRow } from "../StockAdjustmentLineRow";
 import { DocumentCollaborationPanel } from "@/components/DocumentCollaborationPanel";
+import { StockAvailabilityExplorer } from "@/components/StockAvailabilityExplorer";
 
 type StockAdjustmentDto = {
   id: string;
@@ -14,7 +15,16 @@ type StockAdjustmentDto = {
   adjustedAt: string;
   status: number;
   reason?: string | null;
-  lines: { id: string; itemId: string; quantityDelta: number; unitCost: number; batchNumber?: string | null; serials: string[] }[];
+  lines: {
+    id: string;
+    itemId: string;
+    countedQuantity?: number | null;
+    systemQuantity?: number | null;
+    quantityDelta: number;
+    unitCost: number;
+    batchNumber?: string | null;
+    serials: string[];
+  }[];
 };
 
 type WarehouseDto = { id: string; code: string; name: string };
@@ -72,10 +82,17 @@ export default async function StockAdjustmentDetailPage({ params }: { params: Pr
       </Card>
 
       {isDraft ? (
-        <Card>
+        <>
+          <Card>
           <div className="mb-3 text-sm font-semibold">Add line</div>
-          <StockAdjustmentLineAddForm adjustmentId={adj.id} items={items} />
+          <StockAdjustmentLineAddForm adjustmentId={adj.id} items={items} warehouses={warehouses} warehouseId={adj.warehouseId} />
         </Card>
+
+          <Card>
+            <div className="mb-3 text-sm font-semibold">Stock visibility</div>
+            <StockAvailabilityExplorer warehouses={warehouses} items={items} initialWarehouseId={adj.warehouseId} />
+          </Card>
+        </>
       ) : null}
 
       <Card>
@@ -85,7 +102,9 @@ export default async function StockAdjustmentDetailPage({ params }: { params: Pr
             <thead>
               <tr className="border-b border-zinc-200 text-left text-xs uppercase tracking-wide text-zinc-500 dark:border-zinc-800">
                 <th className="py-2 pr-3">Item</th>
-                <th className="py-2 pr-3">Qty delta</th>
+                <th className="py-2 pr-3">Counted Qty</th>
+                <th className="py-2 pr-3">System Qty</th>
+                <th className="py-2 pr-3">Variance</th>
                 <th className="py-2 pr-3">Unit Cost</th>
                 <th className="py-2 pr-3">Batch</th>
                 <th className="py-2 pr-3">Serials</th>
@@ -105,6 +124,9 @@ export default async function StockAdjustmentDetailPage({ params }: { params: Pr
                     key={l.id}
                     adjustmentId={adj.id}
                     line={l}
+                    itemId={l.itemId}
+                    warehouseId={adj.warehouseId}
+                    warehouses={warehouses}
                     itemLabel={itemLabel}
                     canEdit={isDraft}
                   />
@@ -112,7 +134,7 @@ export default async function StockAdjustmentDetailPage({ params }: { params: Pr
               })}
               {adj.lines.length === 0 ? (
                 <tr>
-                  <td className="py-6 text-sm text-zinc-500" colSpan={isDraft ? 6 : 5}>
+                  <td className="py-6 text-sm text-zinc-500" colSpan={isDraft ? 8 : 7}>
                     No lines yet.
                   </td>
                 </tr>

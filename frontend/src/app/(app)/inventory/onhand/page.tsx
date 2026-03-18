@@ -15,7 +15,7 @@ export default async function OnHandPage() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-semibold">On Hand</h1>
-        <p className="mt-1 text-sm text-zinc-500">Query current inventory balance by warehouse + item (+ optional batch).</p>
+        <p className="mt-1 text-sm text-zinc-500">Query current inventory balance split by warehouse and batch for the selected item.</p>
       </div>
 
       <Card>
@@ -25,4 +25,3 @@ export default async function OnHandPage() {
     </div>
   );
 }
-

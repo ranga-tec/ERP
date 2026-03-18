@@ -6,6 +6,8 @@
 
 ## Docs
 - Gap checklist (proposal mapping): `docs/gap-checklist.md`
+- Tester + trainer handbook: `docs/iss-tester-trainer-handbook.md`
+- Role-based test checklists: `docs/role-based-test-checklists.md`
 - User manual (quick): `docs/user-manual.md`
 - Deployment / installation: `docs/deployment.md`
 - Manual UAT / test script: `docs/manual-uat-guide.md`
@@ -38,7 +40,7 @@
   - `Edit`, `Save/Cancel`, and `Delete` (PO/GRN and all other line-based documents)
 - Master-data maintenance grids now support row actions:
   - `Edit`, `Save/Cancel`, and `Delete` across brands/customers/suppliers/warehouses/UoMs/conversions/taxes/currencies/payment types/reference forms/categories/subcategories/reorder settings
-  - items use the dedicated edit panel for `Save` and `Delete`
+  - items use separate list, create, view, and edit screens; the list grid exposes `View`, `Edit`, `Delete`, and label links
 
 ## Local infrastructure (PostgreSQL)
 From the repo root:

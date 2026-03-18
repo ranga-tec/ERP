@@ -34,5 +34,17 @@ public sealed class InventoryTests
         transfer.Post();
         Assert.Equal(StockTransferStatus.Posted, transfer.Status);
     }
-}
 
+    [Fact]
+    public void StockAdjustment_Counted_Line_Tracks_System_Quantity_And_Variance()
+    {
+        var adj = new StockAdjustment("ADJ0002", Guid.NewGuid(), DateTimeOffset.UtcNow, reason: "Physical count");
+
+        var line = adj.AddCountedLine(Guid.NewGuid(), countedQuantity: 5m, unitCost: 1m, batchNumber: null);
+        line.RefreshVariance(systemQuantity: 7m);
+
+        Assert.Equal(5m, line.CountedQuantity);
+        Assert.Equal(7m, line.SystemQuantity);
+        Assert.Equal(-2m, line.QuantityDelta);
+    }
+}

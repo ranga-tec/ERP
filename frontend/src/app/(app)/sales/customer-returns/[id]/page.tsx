@@ -7,6 +7,7 @@ import { CustomerReturnActions } from "../CustomerReturnActions";
 import { CustomerReturnLineAddForm } from "../CustomerReturnLineAddForm";
 import { CustomerReturnLineRow } from "../CustomerReturnLineRow";
 import { DocumentCollaborationPanel } from "@/components/DocumentCollaborationPanel";
+import { StockAvailabilityExplorer } from "@/components/StockAvailabilityExplorer";
 
 type CustomerReturnDto = {
   id: string;
@@ -100,10 +101,22 @@ export default async function CustomerReturnDetailPage({ params }: { params: Pro
       </Card>
 
       {isDraft ? (
-        <Card>
+        <>
+          <Card>
           <div className="mb-3 text-sm font-semibold">Add line</div>
-          <CustomerReturnLineAddForm customerReturnId={customerReturn.id} items={items} />
+          <CustomerReturnLineAddForm
+            customerReturnId={customerReturn.id}
+            items={items}
+            warehouses={warehouses}
+            warehouseId={customerReturn.warehouseId}
+          />
         </Card>
+
+          <Card>
+            <div className="mb-3 text-sm font-semibold">Stock visibility</div>
+            <StockAvailabilityExplorer warehouses={warehouses} items={items} initialWarehouseId={customerReturn.warehouseId} />
+          </Card>
+        </>
       ) : null}
 
       <Card>
@@ -134,6 +147,9 @@ export default async function CustomerReturnDetailPage({ params }: { params: Pro
                     key={line.id}
                     customerReturnId={customerReturn.id}
                     line={line}
+                    itemId={line.itemId}
+                    warehouseId={customerReturn.warehouseId}
+                    warehouses={warehouses}
                     itemLabel={itemLabel}
                     canEdit={isDraft}
                   />

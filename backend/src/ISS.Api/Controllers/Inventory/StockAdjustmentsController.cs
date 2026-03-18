@@ -28,14 +28,16 @@ public sealed class StockAdjustmentsController(IIssDbContext dbContext, Inventor
     public sealed record StockAdjustmentLineDto(
         Guid Id,
         Guid ItemId,
+        decimal? CountedQuantity,
+        decimal? SystemQuantity,
         decimal QuantityDelta,
         decimal UnitCost,
         string? BatchNumber,
         IReadOnlyList<string> Serials);
 
     public sealed record CreateStockAdjustmentRequest(Guid WarehouseId, string? Reason);
-    public sealed record AddStockAdjustmentLineRequest(Guid ItemId, decimal QuantityDelta, decimal UnitCost, string? BatchNumber, IReadOnlyList<string>? Serials);
-    public sealed record UpdateStockAdjustmentLineRequest(decimal QuantityDelta, decimal UnitCost, string? BatchNumber, IReadOnlyList<string>? Serials);
+    public sealed record AddStockAdjustmentLineRequest(Guid ItemId, decimal? CountedQuantity, decimal? QuantityDelta, decimal UnitCost, string? BatchNumber, IReadOnlyList<string>? Serials);
+    public sealed record UpdateStockAdjustmentLineRequest(decimal? CountedQuantity, decimal? QuantityDelta, decimal UnitCost, string? BatchNumber, IReadOnlyList<string>? Serials);
 
     [HttpGet]
     public async Task<ActionResult<IReadOnlyList<StockAdjustmentSummaryDto>>> List([FromQuery] int skip = 0, [FromQuery] int take = 100, CancellationToken cancellationToken = default)
@@ -73,6 +75,46 @@ public sealed class StockAdjustmentsController(IIssDbContext dbContext, Inventor
             return NotFound();
         }
 
+        var lines = new List<StockAdjustmentLineDto>(adj.Lines.Count);
+        foreach (var line in adj.Lines)
+        {
+            decimal? systemQuantity = line.SystemQuantity;
+            var countedQuantity = line.CountedQuantity;
+            var quantityDelta = line.QuantityDelta;
+
+            if (adj.Status == StockAdjustmentStatus.Draft)
+            {
+                systemQuantity = await inventoryOperationsService.GetStockAdjustmentPreviewQuantityAsync(
+                    adj.WarehouseId,
+                    line.ItemId,
+                    line.BatchNumber,
+                    cancellationToken);
+
+                if (countedQuantity is null)
+                {
+                    countedQuantity = systemQuantity + line.QuantityDelta;
+                }
+                else
+                {
+                    quantityDelta = countedQuantity.Value - systemQuantity.Value;
+                }
+            }
+            else if (countedQuantity is null && systemQuantity is not null)
+            {
+                countedQuantity = systemQuantity + quantityDelta;
+            }
+
+            lines.Add(new StockAdjustmentLineDto(
+                line.Id,
+                line.ItemId,
+                countedQuantity,
+                systemQuantity,
+                quantityDelta,
+                line.UnitCost,
+                line.BatchNumber,
+                line.Serials.Select(s => s.SerialNumber).ToList()));
+        }
+
         return Ok(new StockAdjustmentDto(
             adj.Id,
             adj.Number,
@@ -80,14 +122,7 @@ public sealed class StockAdjustmentsController(IIssDbContext dbContext, Inventor
             adj.AdjustedAt,
             adj.Status,
             adj.Reason,
-            adj.Lines.Select(l => new StockAdjustmentLineDto(
-                l.Id,
-                l.ItemId,
-                l.QuantityDelta,
-                l.UnitCost,
-                l.BatchNumber,
-                l.Serials.Select(s => s.SerialNumber).ToList()))
-                .ToList()));
+            lines));
     }
 
     [HttpGet("{id:guid}/pdf")]
@@ -103,6 +138,7 @@ public sealed class StockAdjustmentsController(IIssDbContext dbContext, Inventor
         await inventoryOperationsService.AddStockAdjustmentLineAsync(
             id,
             request.ItemId,
+            request.CountedQuantity,
             request.QuantityDelta,
             request.UnitCost,
             request.BatchNumber,
@@ -118,6 +154,7 @@ public sealed class StockAdjustmentsController(IIssDbContext dbContext, Inventor
         await inventoryOperationsService.UpdateStockAdjustmentLineAsync(
             id,
             lineId,
+            request.CountedQuantity,
             request.QuantityDelta,
             request.UnitCost,
             request.BatchNumber,

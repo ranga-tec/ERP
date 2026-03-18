@@ -105,8 +105,8 @@ public sealed class EndToEndTests(IssApiFixture fixture) : IClassFixture<IssApiF
         await PostNoContent($"/api/procurement/goods-receipts/{grn.Id}/lines", new { itemId = item.Id, quantity = 10m, unitCost = 5m, batchNumber = (string?)null, serials = (string[]?)null });
         await PostNoContent($"/api/procurement/goods-receipts/{grn.Id}/post", new { });
 
-        var onHand = await Get<OnHandDto>($"/api/inventory/onhand?warehouseId={warehouse.Id}&itemId={item.Id}");
-        Assert.Equal(10m, onHand.OnHand);
+        var onHand = await GetOnHandQuantityAsync(warehouse.Id, item.Id);
+        Assert.Equal(10m, onHand);
 
         var apEntries = await Get<List<ApDto>>("/api/finance/ap?outstandingOnly=true");
         Assert.Contains(apEntries, e => e.ReferenceType == "GRN" && e.ReferenceId == grn.Id && e.Outstanding == 50m);
@@ -168,8 +168,8 @@ public sealed class EndToEndTests(IssApiFixture fixture) : IClassFixture<IssApiF
         await PostNoContent($"/api/procurement/supplier-returns/{sr.Id}/lines", new { itemId = item.Id, quantity = 3m, unitCost = 5m, batchNumber = (string?)null, serials = (string[]?)null });
         await PostNoContent($"/api/procurement/supplier-returns/{sr.Id}/post", new { });
 
-        var onHand = await Get<OnHandDto>($"/api/inventory/onhand?warehouseId={warehouse.Id}&itemId={item.Id}");
-        Assert.Equal(7m, onHand.OnHand);
+        var onHand = await GetOnHandQuantityAsync(warehouse.Id, item.Id);
+        Assert.Equal(7m, onHand);
 
         var apEntries = await Get<List<ApDto>>("/api/finance/ap?outstandingOnly=false");
         Assert.Contains(apEntries, e => e.ReferenceType == "GRN" && e.ReferenceId == grn.Id && e.Amount == 50m && e.Outstanding == 35m);
@@ -219,8 +219,8 @@ public sealed class EndToEndTests(IssApiFixture fixture) : IClassFixture<IssApiF
         Assert.Equal(50m, postedDp.GrandTotal);
         Assert.Single(postedDp.Lines);
 
-        var onHand = await Get<OnHandDto>($"/api/inventory/onhand?warehouseId={warehouse.Id}&itemId={item.Id}");
-        Assert.Equal(5m, onHand.OnHand);
+        var onHand = await GetOnHandQuantityAsync(warehouse.Id, item.Id);
+        Assert.Equal(5m, onHand);
 
         var supplierInvoice = await Post<SupplierInvoiceApiDto>("/api/procurement/supplier-invoices", new
         {
@@ -813,8 +813,8 @@ public sealed class EndToEndTests(IssApiFixture fixture) : IClassFixture<IssApiF
         await PostNoContent($"/api/sales/dispatches/{dispatch.Id}/lines", new { itemId = item.Id, quantity = 4m, batchNumber = (string?)null, serials = (string[]?)null });
         await PostNoContent($"/api/sales/dispatches/{dispatch.Id}/post", new { });
 
-        var afterDispatch = await Get<OnHandDto>($"/api/inventory/onhand?warehouseId={warehouse.Id}&itemId={item.Id}");
-        Assert.Equal(6m, afterDispatch.OnHand);
+        var afterDispatch = await GetOnHandQuantityAsync(warehouse.Id, item.Id);
+        Assert.Equal(6m, afterDispatch);
 
         var invoice = await Post<InvoiceDto>("/api/sales/invoices", new { customerId = customer.Id, dueDate = (DateTimeOffset?)null });
         await PostNoContent($"/api/sales/invoices/{invoice.Id}/lines", new { itemId = item.Id, quantity = 4m, unitPrice = 3m, discountPercent = 0m, taxPercent = 0m });
@@ -892,7 +892,7 @@ public sealed class EndToEndTests(IssApiFixture fixture) : IClassFixture<IssApiF
         await PostNoContent($"/api/inventory/stock-adjustments/{adj.Id}/lines", new
         {
             itemId = item.Id,
-            quantityDelta = 10m,
+            countedQuantity = 10m,
             unitCost = 5m,
             batchNumber = (string?)null,
             serials = (string[]?)null
@@ -956,8 +956,8 @@ public sealed class EndToEndTests(IssApiFixture fixture) : IClassFixture<IssApiF
         Assert.Equal(CustomerReturnStatus.Posted, postedReturn.Status);
         Assert.Single(postedReturn.Lines);
 
-        var onHand = await Get<OnHandDto>($"/api/inventory/onhand?warehouseId={warehouse.Id}&itemId={item.Id}");
-        Assert.Equal(8m, onHand.OnHand); // 10 seed - 4 dispatch + 2 return
+        var onHand = await GetOnHandQuantityAsync(warehouse.Id, item.Id);
+        Assert.Equal(8m, onHand); // 10 seed - 4 dispatch + 2 return
 
         var arAfterReturn = await Get<List<ArDto>>("/api/finance/ar?outstandingOnly=false");
         var invoiceArAfterReturn = Assert.Single(arAfterReturn, e => e.ReferenceType == "INV" && e.ReferenceId == invoice.Id);
@@ -991,7 +991,7 @@ public sealed class EndToEndTests(IssApiFixture fixture) : IClassFixture<IssApiF
         await PostNoContent($"/api/inventory/stock-adjustments/{adj.Id}/lines", new
         {
             itemId = item.Id,
-            quantityDelta = 2m,
+            countedQuantity = 2m,
             unitCost = 5m,
             batchNumber = (string?)null,
             serials = (string[]?)null
@@ -1042,7 +1042,7 @@ public sealed class EndToEndTests(IssApiFixture fixture) : IClassFixture<IssApiF
         await PostNoContent($"/api/inventory/stock-adjustments/{adj.Id}/lines", new
         {
             itemId = item.Id,
-            quantityDelta = 5m,
+            countedQuantity = 5m,
             unitCost = 5m,
             batchNumber = (string?)null,
             serials = (string[]?)null
@@ -1139,8 +1139,8 @@ public sealed class EndToEndTests(IssApiFixture fixture) : IClassFixture<IssApiF
         await PostNoContent($"/api/service/material-requisitions/{mr.Id}/lines", new { itemId = sparePart.Id, quantity = 2m, batchNumber = (string?)null, serials = (string[]?)null });
         await PostNoContent($"/api/service/material-requisitions/{mr.Id}/post", new { });
 
-        var onHand = await Get<OnHandDto>($"/api/inventory/onhand?warehouseId={warehouse.Id}&itemId={sparePart.Id}");
-        Assert.Equal(3m, onHand.OnHand);
+        var onHand = await GetOnHandQuantityAsync(warehouse.Id, sparePart.Id);
+        Assert.Equal(3m, onHand);
     }
 
     [Fact]
@@ -1706,29 +1706,46 @@ public sealed class EndToEndTests(IssApiFixture fixture) : IClassFixture<IssApiF
         await PostNoContent($"/api/inventory/stock-adjustments/{adjIn.Id}/lines", new
         {
             itemId = item.Id,
-            quantityDelta = 5m,
+            countedQuantity = 5m,
             unitCost = 1m,
             batchNumber = (string?)null,
             serials = (string[]?)null
         });
         await PostNoContent($"/api/inventory/stock-adjustments/{adjIn.Id}/post", new { });
 
-        var onHandAfterIn = await Get<OnHandDto>($"/api/inventory/onhand?warehouseId={warehouse.Id}&itemId={item.Id}");
-        Assert.Equal(5m, onHandAfterIn.OnHand);
+        var onHandAfterIn = await GetOnHandQuantityAsync(warehouse.Id, item.Id);
+        Assert.Equal(5m, onHandAfterIn);
 
         var adjOut = await Post<StockAdjustmentDto>("/api/inventory/stock-adjustments", new { warehouseId = warehouse.Id, reason = "Damage" });
         await PostNoContent($"/api/inventory/stock-adjustments/{adjOut.Id}/lines", new
         {
             itemId = item.Id,
-            quantityDelta = -2m,
+            countedQuantity = 3m,
             unitCost = 1m,
             batchNumber = (string?)null,
             serials = (string[]?)null
         });
         await PostNoContent($"/api/inventory/stock-adjustments/{adjOut.Id}/post", new { });
 
-        var onHandAfterOut = await Get<OnHandDto>($"/api/inventory/onhand?warehouseId={warehouse.Id}&itemId={item.Id}");
-        Assert.Equal(3m, onHandAfterOut.OnHand);
+        var onHandAfterOut = await GetOnHandQuantityAsync(warehouse.Id, item.Id);
+        Assert.Equal(3m, onHandAfterOut);
+
+        var stockLedger = await Get<StockLedgerReportDto>($"/api/reporting/stock-ledger?warehouseId={warehouse.Id}&itemId={item.Id}&take=10");
+        Assert.Equal(2, stockLedger.Count);
+        Assert.Collection(
+            stockLedger.Rows,
+            row =>
+            {
+                Assert.Equal((int)InventoryMovementType.Adjustment, row.MovementType);
+                Assert.Equal(5m, row.Quantity);
+                Assert.Equal(5m, row.RunningQuantity);
+            },
+            row =>
+            {
+                Assert.Equal((int)InventoryMovementType.Adjustment, row.MovementType);
+                Assert.Equal(-2m, row.Quantity);
+                Assert.Equal(3m, row.RunningQuantity);
+            });
     }
 
     [Fact]
@@ -1753,7 +1770,7 @@ public sealed class EndToEndTests(IssApiFixture fixture) : IClassFixture<IssApiF
         await PostNoContent($"/api/inventory/stock-adjustments/{adj.Id}/lines", new
         {
             itemId = item.Id,
-            quantityDelta = 5m,
+            countedQuantity = 5m,
             unitCost = 1m,
             batchNumber = (string?)null,
             serials = (string[]?)null
@@ -1771,10 +1788,10 @@ public sealed class EndToEndTests(IssApiFixture fixture) : IClassFixture<IssApiF
         });
         await PostNoContent($"/api/inventory/stock-transfers/{transfer.Id}/post", new { });
 
-        var fromOnHand = await Get<OnHandDto>($"/api/inventory/onhand?warehouseId={fromWarehouse.Id}&itemId={item.Id}");
-        var toOnHand = await Get<OnHandDto>($"/api/inventory/onhand?warehouseId={toWarehouse.Id}&itemId={item.Id}");
-        Assert.Equal(2m, fromOnHand.OnHand);
-        Assert.Equal(3m, toOnHand.OnHand);
+        var fromOnHand = await GetOnHandQuantityAsync(fromWarehouse.Id, item.Id);
+        var toOnHand = await GetOnHandQuantityAsync(toWarehouse.Id, item.Id);
+        Assert.Equal(2m, fromOnHand);
+        Assert.Equal(3m, toOnHand);
     }
 
     [Fact]
@@ -1960,6 +1977,18 @@ public sealed class EndToEndTests(IssApiFixture fixture) : IClassFixture<IssApiF
             throw new InvalidOperationException($"GET {url} failed: {(int)resp.StatusCode} {resp.ReasonPhrase}. Body: {text}");
         }
         return (await resp.Content.ReadFromJsonAsync<T>())!;
+    }
+
+    private async Task<decimal> GetOnHandQuantityAsync(Guid warehouseId, Guid itemId, string? batchNumber = null)
+    {
+        var url = $"/api/inventory/onhand?warehouseId={warehouseId}&itemId={itemId}";
+        if (!string.IsNullOrWhiteSpace(batchNumber))
+        {
+            url += $"&batchNumber={Uri.EscapeDataString(batchNumber)}";
+        }
+
+        var rows = await Get<List<OnHandDto>>(url);
+        return rows.Sum(row => row.OnHand);
     }
 
     private async Task Delete(string url)

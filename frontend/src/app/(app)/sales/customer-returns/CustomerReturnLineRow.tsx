@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useState, type ReactNode } from "react";
 import { apiDeleteNoContent, apiPutNoContent } from "@/lib/api-client";
 import { Button, Input, SecondaryButton, Textarea } from "@/components/ui";
+import { LineStockInsight } from "@/components/LineStockInsight";
 
 type CustomerReturnLineDto = {
   id: string;
@@ -12,6 +13,7 @@ type CustomerReturnLineDto = {
   batchNumber?: string | null;
   serials: string[];
 };
+type WarehouseRef = { id: string; code: string; name: string };
 
 function parseList(text: string): string[] {
   return text
@@ -23,11 +25,17 @@ function parseList(text: string): string[] {
 export function CustomerReturnLineRow({
   customerReturnId,
   line,
+  itemId,
+  warehouseId,
+  warehouses,
   itemLabel,
   canEdit,
 }: {
   customerReturnId: string;
   line: CustomerReturnLineDto;
+  itemId: string;
+  warehouseId: string;
+  warehouses: WarehouseRef[];
   itemLabel: ReactNode;
   canEdit: boolean;
 }) {
@@ -95,8 +103,11 @@ export function CustomerReturnLineRow({
     }
   }
 
+  const colSpan = canEdit ? 6 : 5;
+
   return (
-    <tr className="border-b border-zinc-100 align-top dark:border-zinc-900">
+    <>
+      <tr className="border-b border-zinc-100 align-top dark:border-zinc-900">
       <td className="py-2 pr-3">{itemLabel}</td>
       <td className="py-2 pr-3">
         {isEditing ? (
@@ -163,7 +174,15 @@ export function CustomerReturnLineRow({
           {error ? <div className="mt-2 text-xs text-red-700 dark:text-red-300">{error}</div> : null}
         </td>
       ) : null}
-    </tr>
+      </tr>
+      {isEditing ? (
+        <tr className="border-b border-zinc-100 dark:border-zinc-900">
+          <td className="pb-3 pr-3" colSpan={colSpan}>
+            <LineStockInsight warehouses={warehouses} warehouseId={warehouseId} itemId={itemId} batchNumber={batchNumber} />
+          </td>
+        </tr>
+      ) : null}
+    </>
   );
 }
 
