@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { Button, Card, Select } from "@/components/ui";
+import { AssistantSettingsCard } from "./AssistantSettingsCard";
 import {
   DEFAULT_USER_SETTINGS,
   applyThemePreference,
@@ -299,6 +300,8 @@ export function SettingsPanel(props: SettingsPanelProps) {
       {status ? (
         <div className="text-sm text-zinc-600 dark:text-zinc-300">{status}</div>
       ) : null}
+
+      <AssistantSettingsCard />
     </div>
   );
 }

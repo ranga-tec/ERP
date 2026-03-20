@@ -13,7 +13,7 @@ From the repo root:
 docker compose up -d
 ```
 
-- PostgreSQL: `localhost:5433` (db `iss`, user `pgadmin`, password `vesper`)
+- PostgreSQL: `localhost:5432` (db `iss`, user `pgadmin`, password `vesper`)
 - Note: the current repo `docker-compose.yml` starts PostgreSQL only (no pgAdmin service)
 
 ## Backend (API)
@@ -21,15 +21,15 @@ docker compose up -d
 The API requires a connection string. Example (PowerShell):
 
 ```powershell
-$env:ConnectionStrings__Default="Host=localhost;Port=5433;Database=iss;Username=pgadmin;Password=vesper"
+$env:ConnectionStrings__Default="Host=localhost;Port=5432;Database=iss;Username=pgadmin;Password=vesper"
 dotnet run --project backend/src/ISS.Api/ISS.Api.csproj
 ```
 
 Notes:
 
 - Startup DB initialization is controlled by `Database__InitializationMode`:
-  - `EnsureCreated` (default in Development)
-  - `Migrate` (recommended for new environments / controlled deployments)
+  - `EnsureCreated`
+  - `Migrate` (default in Development and recommended for new environments / controlled deployments)
   - `None` (default in non-Development)
 - Roles are seeded on startup.
 - Fresh databases also seed default currencies, payment types, tax codes, and reference forms required by core finance/reporting screens.
@@ -52,7 +52,7 @@ dotnet ef migrations add <Name> `
 Apply migrations:
 
 ```powershell
-$env:ConnectionStrings__Default="Host=localhost;Port=5433;Database=iss;Username=pgadmin;Password=vesper"
+$env:ConnectionStrings__Default="Host=localhost;Port=5432;Database=iss;Username=pgadmin;Password=vesper"
 dotnet ef database update `
   --project backend/src/ISS.Infrastructure/ISS.Infrastructure.csproj `
   --startup-project backend/src/ISS.Api/ISS.Api.csproj
@@ -96,7 +96,7 @@ Optional:
 If Docker/Testcontainers cannot access the Docker daemon from your shell/session, the integration tests can run against an existing PostgreSQL instance:
 
 ```powershell
-$env:ISS_INTEGRATIONTESTS_CONNECTION_STRING="Host=localhost;Port=5433;Database=iss_integration_local;Username=pgadmin;Password=vesper"
+$env:ISS_INTEGRATIONTESTS_CONNECTION_STRING="Host=localhost;Port=5432;Database=iss_integration_local;Username=pgadmin;Password=vesper"
 $env:ISS_INTEGRATIONTESTS_RESET_EXISTING_DB="1"
 $env:ISS_INTEGRATIONTESTS_HTTP_TIMEOUT_SECONDS="60"
 $env:ISS_INTEGRATIONTESTS_DB_READY_TIMEOUT_SECONDS="60"
@@ -218,14 +218,14 @@ Database backup:
 
 ```powershell
 pg_dump --format=custom --file .\backup\iss-$(Get-Date -Format yyyyMMdd-HHmmss).dump `
-  --host localhost --port 5433 --username pgadmin --dbname iss
+  --host localhost --port 5432 --username pgadmin --dbname iss
 ```
 
 Database restore (to a recreated/empty target DB):
 
 ```powershell
 pg_restore --clean --if-exists --no-owner --no-privileges `
-  --host localhost --port 5433 --username pgadmin --dbname iss `
+  --host localhost --port 5432 --username pgadmin --dbname iss `
   .\backup\iss-YYYYMMDD-HHMMSS.dump
 ```
 

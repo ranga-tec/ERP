@@ -116,13 +116,12 @@ From the repo root:
 
 ### Database
 
-```powershell
-docker compose up -d
-```
-
 Expected:
 
-- PostgreSQL is available on `localhost:5433`
+- PostgreSQL is available on `localhost:5432`
+- Main local database: `iss`
+- Local integration-test database: `iss_integration_local`
+- Default local credentials used in this repo: `pgadmin / vesper`
 
 ### Backend
 
@@ -169,7 +168,7 @@ Trainer note:
 Train new testers in this order:
 
 1. Explain the module map and the meaning of `Draft`, `Posted`, `AR`, `AP`, and `On Hand`.
-2. Show login, sidebar navigation, and the dashboard.
+2. Show login, sidebar navigation, the sidebar search box, and the dashboard.
 3. Run the smoke test.
 4. Run one full end-to-end business scenario.
 5. Teach the tester how to collect evidence:
@@ -268,15 +267,18 @@ Evidence to capture:
    - unit price `5`
 3. Approve the PO.
 4. Create a goods receipt from the PO.
-5. Add one GRN line:
-   - quantity `10`
-   - unit cost `5`
-6. Post the GRN.
+5. Confirm the `Receive From PO` table loads all open PO lines automatically.
+6. Enter the actual received quantity only for the lines delivered now:
+   - leave `0` or blank on lines that have not arrived yet
+   - for serial-tracked items, the serial count must exactly match the quantity on that same row
+7. Save the receipt plan and confirm the `Current Draft Lines` table shows the lines added to this GRN.
+8. Post the GRN.
 
 Expected:
 
 - PO total is `50`
 - GRN posts successfully
+- If only part of the PO is received, the PO remains open for another GRN later
 - AP shows an outstanding supplier balance of `50`
 - On Hand becomes `10`
 

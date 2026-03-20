@@ -1,11 +1,10 @@
 import Link from "next/link";
 import { backendFetchJson } from "@/lib/backend.server";
-import { ItemInlineLink } from "@/components/InlineLink";
 import { TransactionLink } from "@/components/TransactionLink";
-import { Card, SecondaryLink, Table } from "@/components/ui";
+import { Card, SecondaryLink } from "@/components/ui";
 import { GoodsReceiptActions } from "../GoodsReceiptActions";
-import { GoodsReceiptLineAddForm } from "../GoodsReceiptLineAddForm";
-import { GoodsReceiptLineRow } from "../GoodsReceiptLineRow";
+import { GoodsReceiptDraftLinesTable } from "../GoodsReceiptDraftLinesTable";
+import { GoodsReceiptReceiptPlanForm } from "../GoodsReceiptReceiptPlanForm";
 import { DocumentCollaborationPanel } from "@/components/DocumentCollaborationPanel";
 
 type GoodsReceiptDto = {
@@ -15,12 +14,35 @@ type GoodsReceiptDto = {
   warehouseId: string;
   receivedAt: string;
   status: number;
-  lines: { id: string; itemId: string; quantity: number; unitCost: number; batchNumber?: string | null; serials: string[] }[];
+  lines: {
+    id: string;
+    purchaseOrderLineId?: string | null;
+    itemId: string;
+    quantity: number;
+    unitCost: number;
+    batchNumber?: string | null;
+    serials: string[];
+  }[];
 };
 
 type PurchaseOrderSummaryDto = { id: string; number: string };
 type WarehouseDto = { id: string; code: string; name: string };
 type ItemDto = { id: string; sku: string; name: string; trackingType: number; defaultUnitCost: number };
+type GoodsReceiptReceiptPlanDto = {
+  lines: {
+    purchaseOrderLineId: string;
+    itemId: string;
+    orderedQuantity: number;
+    previouslyReceivedQuantity: number;
+    reservedInOtherDraftsQuantity: number;
+    availableQuantity: number;
+    goodsReceiptLineId?: string | null;
+    currentQuantity: number;
+    unitCost: number;
+    batchNumber?: string | null;
+    serials: string[];
+  }[];
+};
 
 const statusLabel: Record<number, string> = {
   0: "Draft",
@@ -31,17 +53,18 @@ const statusLabel: Record<number, string> = {
 export default async function GoodsReceiptDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
 
-  const [grn, pos, warehouses, items] = await Promise.all([
-    backendFetchJson<GoodsReceiptDto>(`/procurement/goods-receipts/${id}`),
+  const grn = await backendFetchJson<GoodsReceiptDto>(`/procurement/goods-receipts/${id}`);
+  const isDraft = grn.status === 0;
+
+  const [pos, warehouses, items, receiptPlan] = await Promise.all([
     backendFetchJson<PurchaseOrderSummaryDto[]>("/procurement/purchase-orders?take=500"),
     backendFetchJson<WarehouseDto[]>("/warehouses"),
     backendFetchJson<ItemDto[]>("/items"),
+    isDraft ? backendFetchJson<GoodsReceiptReceiptPlanDto>(`/procurement/goods-receipts/${id}/receipt-plan`) : Promise.resolve(null),
   ]);
 
   const poById = new Map(pos.map((p) => [p.id, p]));
   const warehouseById = new Map(warehouses.map((w) => [w.id, w]));
-  const itemById = new Map(items.map((i) => [i.id, i]));
-  const isDraft = grn.status === 0;
 
   return (
     <div className="space-y-6">
@@ -82,53 +105,14 @@ export default async function GoodsReceiptDetailPage({ params }: { params: Promi
 
       {isDraft ? (
         <Card>
-          <div className="mb-3 text-sm font-semibold">Add line</div>
-          <GoodsReceiptLineAddForm goodsReceiptId={grn.id} items={items} />
+          <div className="mb-3 text-sm font-semibold">Receive From PO</div>
+          <GoodsReceiptReceiptPlanForm goodsReceiptId={grn.id} lines={receiptPlan?.lines ?? []} items={items} />
         </Card>
       ) : null}
 
       <Card>
-        <div className="mb-3 text-sm font-semibold">Lines</div>
-        <div className="overflow-auto">
-          <Table>
-            <thead>
-              <tr className="border-b border-zinc-200 text-left text-xs uppercase tracking-wide text-zinc-500 dark:border-zinc-800">
-                <th className="py-2 pr-3">Item</th>
-                <th className="py-2 pr-3">Qty</th>
-                <th className="py-2 pr-3">Unit Cost</th>
-                <th className="py-2 pr-3">Batch</th>
-                <th className="py-2 pr-3">Serials</th>
-                {isDraft ? <th className="py-2 pr-3">Actions</th> : null}
-              </tr>
-            </thead>
-            <tbody>
-              {grn.lines.map((l) => {
-                const item = itemById.get(l.itemId);
-                const itemLabel = (
-                  <ItemInlineLink itemId={l.itemId}>
-                    {item ? `${item.sku} - ${item.name}` : l.itemId}
-                  </ItemInlineLink>
-                );
-                return (
-                  <GoodsReceiptLineRow
-                    key={l.id}
-                    goodsReceiptId={grn.id}
-                    line={l}
-                    itemLabel={itemLabel}
-                    canEdit={isDraft}
-                  />
-                );
-              })}
-              {grn.lines.length === 0 ? (
-                <tr>
-                  <td className="py-6 text-sm text-zinc-500" colSpan={isDraft ? 6 : 5}>
-                    No lines yet.
-                  </td>
-                </tr>
-              ) : null}
-            </tbody>
-          </Table>
-        </div>
+        <div className="mb-3 text-sm font-semibold">{isDraft ? "Current Draft Lines" : "Posted Lines"}</div>
+        <GoodsReceiptDraftLinesTable goodsReceiptId={grn.id} lines={grn.lines} items={items} canEdit={isDraft} />
       </Card>
 
       <DocumentCollaborationPanel referenceType="GRN" referenceId={id} />

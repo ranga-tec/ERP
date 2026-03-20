@@ -1,6 +1,7 @@
 using ISS.Application.Abstractions;
 using ISS.Application.Persistence;
 using ISS.Domain.Audit;
+using ISS.Domain.Assistant;
 using ISS.Domain.Common;
 using ISS.Domain.Documents;
 using ISS.Domain.Finance;
@@ -79,6 +80,9 @@ public sealed class IssDbContext(
     public DbSet<DocumentComment> DocumentComments => Set<DocumentComment>();
     public DbSet<DocumentAttachment> DocumentAttachments => Set<DocumentAttachment>();
     public DbSet<NotificationOutboxItem> NotificationOutboxItems => Set<NotificationOutboxItem>();
+    public DbSet<AssistantAccessPolicy> AssistantAccessPolicies => Set<AssistantAccessPolicy>();
+    public DbSet<AssistantProviderProfile> AssistantProviderProfiles => Set<AssistantProviderProfile>();
+    public DbSet<AssistantUserPreference> AssistantUserPreferences => Set<AssistantUserPreference>();
 
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
     public DbSet<DocumentSequence> DocumentSequences => Set<DocumentSequence>();
@@ -225,6 +229,32 @@ public sealed class IssDbContext(
             entity.HasOne(x => x.Item).WithMany().HasForeignKey(x => x.ItemId).OnDelete(DeleteBehavior.Cascade);
         });
 
+        builder.Entity<AssistantAccessPolicy>(entity =>
+        {
+            entity.HasIndex(x => x.ScopeKey).IsUnique();
+            entity.Property(x => x.ScopeKey).HasMaxLength(32);
+            entity.Property(x => x.AllowedRolesCsv).HasMaxLength(512);
+        });
+
+        builder.Entity<AssistantProviderProfile>(entity =>
+        {
+            entity.HasIndex(x => new { x.UserId, x.Name }).IsUnique();
+            entity.Property(x => x.Name).HasMaxLength(128);
+            entity.Property(x => x.BaseUrl).HasMaxLength(512);
+            entity.Property(x => x.Model).HasMaxLength(256);
+            entity.Property(x => x.ApiKeyCiphertext).HasMaxLength(4000);
+        });
+
+        builder.Entity<AssistantUserPreference>(entity =>
+        {
+            entity.HasIndex(x => x.UserId).IsUnique();
+            entity.HasIndex(x => x.ActiveProviderProfileId);
+            entity.HasOne<AssistantProviderProfile>()
+                .WithMany()
+                .HasForeignKey(x => x.ActiveProviderProfileId)
+                .OnDelete(DeleteBehavior.SetNull);
+        });
+
         builder.Entity<ReorderSetting>(entity =>
         {
             entity.HasIndex(x => new { x.WarehouseId, x.ItemId }).IsUnique();
@@ -334,9 +364,11 @@ public sealed class IssDbContext(
         });
         builder.Entity<GoodsReceiptLine>(entity =>
         {
+            entity.HasIndex(x => x.PurchaseOrderLineId);
             entity.Property(x => x.Quantity).HasPrecision(18, 4);
             entity.Property(x => x.UnitCost).HasPrecision(18, 4);
             entity.Property(x => x.BatchNumber).HasMaxLength(128);
+            entity.HasOne<PurchaseOrderLine>().WithMany().HasForeignKey(x => x.PurchaseOrderLineId).OnDelete(DeleteBehavior.Restrict);
             entity.HasMany(x => x.Serials).WithOne().HasForeignKey(x => x.GoodsReceiptLineId).OnDelete(DeleteBehavior.Cascade);
         });
         builder.Entity<GoodsReceiptLineSerial>(entity =>

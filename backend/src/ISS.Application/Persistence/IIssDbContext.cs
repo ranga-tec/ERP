@@ -1,4 +1,5 @@
 using ISS.Domain.Audit;
+using ISS.Domain.Assistant;
 using ISS.Domain.Documents;
 using ISS.Domain.Finance;
 using ISS.Domain.Inventory;
@@ -67,6 +68,9 @@ public interface IIssDbContext
     DbSet<DocumentComment> DocumentComments { get; }
     DbSet<DocumentAttachment> DocumentAttachments { get; }
     DbSet<NotificationOutboxItem> NotificationOutboxItems { get; }
+    DbSet<AssistantAccessPolicy> AssistantAccessPolicies { get; }
+    DbSet<AssistantProviderProfile> AssistantProviderProfiles { get; }
+    DbSet<AssistantUserPreference> AssistantUserPreferences { get; }
 
     DbSet<AuditLog> AuditLogs { get; }
     DbSet<DocumentSequence> DocumentSequences { get; }

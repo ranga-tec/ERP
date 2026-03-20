@@ -113,6 +113,274 @@ public sealed class EndToEndTests(IssApiFixture fixture) : IClassFixture<IssApiF
     }
 
     [Fact]
+    public async Task Procurement_GRN_Can_Post_Partial_Receipts_Against_The_Same_PO()
+    {
+        var warehouse = await Post<WarehouseDto>("/api/warehouses", new { code = Code("WH"), name = "Main", address = (string?)null });
+        var supplier = await Post<SupplierDto>("/api/suppliers", new { code = Code("SUP"), name = "Supplier", phone = "123", email = (string?)null, address = (string?)null });
+        var itemA = await Post<ItemDto>("/api/items", new
+        {
+            sku = Code("SKU"),
+            name = "Engine Oil",
+            type = ItemType.SparePart,
+            trackingType = TrackingType.None,
+            unitOfMeasure = "L",
+            brandId = (Guid?)null,
+            barcode = (string?)null,
+            defaultUnitCost = 5m
+        });
+        var itemB = await Post<ItemDto>("/api/items", new
+        {
+            sku = Code("SKU"),
+            name = "Oil Filter",
+            type = ItemType.SparePart,
+            trackingType = TrackingType.None,
+            unitOfMeasure = "PCS",
+            brandId = (Guid?)null,
+            barcode = (string?)null,
+            defaultUnitCost = 7m
+        });
+
+        var po = await Post<PurchaseOrderDto>("/api/procurement/purchase-orders", new { supplierId = supplier.Id });
+        await PostNoContent($"/api/procurement/purchase-orders/{po.Id}/lines", new { itemId = itemA.Id, quantity = 10m, unitPrice = 5m });
+        await PostNoContent($"/api/procurement/purchase-orders/{po.Id}/lines", new { itemId = itemB.Id, quantity = 5m, unitPrice = 7m });
+        await PostNoContent($"/api/procurement/purchase-orders/{po.Id}/approve", new { });
+
+        var approvedPo = await Get<PurchaseOrderDetailDto>($"/api/procurement/purchase-orders/{po.Id}");
+        var itemALine = Assert.Single(approvedPo.Lines.Where(x => x.ItemId == itemA.Id));
+        var itemBLine = Assert.Single(approvedPo.Lines.Where(x => x.ItemId == itemB.Id));
+
+        var firstGrn = await Post<GoodsReceiptDto>("/api/procurement/goods-receipts", new { purchaseOrderId = po.Id, warehouseId = warehouse.Id });
+        await PutNoContent($"/api/procurement/goods-receipts/{firstGrn.Id}/receipt-plan", new
+        {
+            lines = new object[]
+            {
+                new { purchaseOrderLineId = itemALine.Id, quantity = 10m, unitCost = 5m, batchNumber = (string?)null, serials = (string[]?)null },
+                new { purchaseOrderLineId = itemBLine.Id, quantity = 2m, unitCost = 7m, batchNumber = (string?)null, serials = (string[]?)null }
+            }
+        });
+        await PostNoContent($"/api/procurement/goods-receipts/{firstGrn.Id}/post", new { });
+
+        var poAfterFirstGrn = await Get<PurchaseOrderDetailDto>($"/api/procurement/purchase-orders/{po.Id}");
+        Assert.Equal(PurchaseOrderStatus.PartiallyReceived, poAfterFirstGrn.Status);
+        Assert.Equal(10m, poAfterFirstGrn.Lines.Single(x => x.Id == itemALine.Id).ReceivedQuantity);
+        Assert.Equal(2m, poAfterFirstGrn.Lines.Single(x => x.Id == itemBLine.Id).ReceivedQuantity);
+
+        var secondGrn = await Post<GoodsReceiptDto>("/api/procurement/goods-receipts", new { purchaseOrderId = po.Id, warehouseId = warehouse.Id });
+        await PutNoContent($"/api/procurement/goods-receipts/{secondGrn.Id}/receipt-plan", new
+        {
+            lines = new object[]
+            {
+                new { purchaseOrderLineId = itemBLine.Id, quantity = 3m, unitCost = 7m, batchNumber = (string?)null, serials = (string[]?)null }
+            }
+        });
+        await PostNoContent($"/api/procurement/goods-receipts/{secondGrn.Id}/post", new { });
+
+        var poAfterSecondGrn = await Get<PurchaseOrderDetailDto>($"/api/procurement/purchase-orders/{po.Id}");
+        Assert.Equal(PurchaseOrderStatus.Closed, poAfterSecondGrn.Status);
+        Assert.Equal(10m, poAfterSecondGrn.Lines.Single(x => x.Id == itemALine.Id).ReceivedQuantity);
+        Assert.Equal(5m, poAfterSecondGrn.Lines.Single(x => x.Id == itemBLine.Id).ReceivedQuantity);
+
+        Assert.Equal(10m, await GetOnHandQuantityAsync(warehouse.Id, itemA.Id));
+        Assert.Equal(5m, await GetOnHandQuantityAsync(warehouse.Id, itemB.Id));
+    }
+
+    [Fact]
+    public async Task Procurement_GRN_Receipt_Plan_Can_Be_Expanded_On_A_Draft_With_Duplicate_PO_Item_Lines()
+    {
+        var warehouse = await Post<WarehouseDto>("/api/warehouses", new { code = Code("WH"), name = "Main", address = (string?)null });
+        var supplier = await Post<SupplierDto>("/api/suppliers", new { code = Code("SUP"), name = "Supplier", phone = "123", email = (string?)null, address = (string?)null });
+        var item = await Post<ItemDto>("/api/items", new
+        {
+            sku = Code("SKU"),
+            name = "Duplicate PO Item",
+            type = ItemType.SparePart,
+            trackingType = TrackingType.None,
+            unitOfMeasure = "PCS",
+            brandId = (Guid?)null,
+            barcode = (string?)null,
+            defaultUnitCost = 23m
+        });
+
+        var po = await Post<PurchaseOrderDto>("/api/procurement/purchase-orders", new { supplierId = supplier.Id });
+        await PostNoContent($"/api/procurement/purchase-orders/{po.Id}/lines", new { itemId = item.Id, quantity = 1m, unitPrice = 23m });
+        await PostNoContent($"/api/procurement/purchase-orders/{po.Id}/lines", new { itemId = item.Id, quantity = 1m, unitPrice = 87m });
+        await PostNoContent($"/api/procurement/purchase-orders/{po.Id}/approve", new { });
+
+        var approvedPo = await Get<PurchaseOrderDetailDto>($"/api/procurement/purchase-orders/{po.Id}");
+        var poLines = approvedPo.Lines
+            .Where(x => x.ItemId == item.Id)
+            .OrderBy(x => x.UnitPrice)
+            .ToList();
+        Assert.Equal(2, poLines.Count);
+
+        var grn = await Post<GoodsReceiptDto>("/api/procurement/goods-receipts", new { purchaseOrderId = po.Id, warehouseId = warehouse.Id });
+
+        await PutNoContent($"/api/procurement/goods-receipts/{grn.Id}/receipt-plan", new
+        {
+            lines = new object[]
+            {
+                new { purchaseOrderLineId = poLines[0].Id, quantity = 1m, unitCost = 23m, batchNumber = (string?)null, serials = (string[]?)null }
+            }
+        });
+
+        await PutNoContent($"/api/procurement/goods-receipts/{grn.Id}/receipt-plan", new
+        {
+            lines = new object[]
+            {
+                new { purchaseOrderLineId = poLines[0].Id, quantity = 1m, unitCost = 23m, batchNumber = (string?)null, serials = (string[]?)null },
+                new { purchaseOrderLineId = poLines[1].Id, quantity = 1m, unitCost = 87m, batchNumber = (string?)null, serials = (string[]?)null }
+            }
+        });
+
+        var grnDetail = await Get<GoodsReceiptDetailDto>($"/api/procurement/goods-receipts/{grn.Id}");
+        Assert.Equal(2, grnDetail.Lines.Count);
+        Assert.Contains(grnDetail.Lines, line => line.PurchaseOrderLineId == poLines[0].Id && line.Quantity == 1m && line.UnitCost == 23m);
+        Assert.Contains(grnDetail.Lines, line => line.PurchaseOrderLineId == poLines[1].Id && line.Quantity == 1m && line.UnitCost == 87m);
+    }
+
+    [Fact]
+    public async Task Procurement_GRN_Receipt_Plan_Rejects_Missing_Serials_Before_Post()
+    {
+        var warehouse = await Post<WarehouseDto>("/api/warehouses", new { code = Code("WH"), name = "Main", address = (string?)null });
+        var supplier = await Post<SupplierDto>("/api/suppliers", new { code = Code("SUP"), name = "Supplier", phone = "123", email = (string?)null, address = (string?)null });
+        var item = await Post<ItemDto>("/api/items", new
+        {
+            sku = Code("SKU"),
+            name = "Serial Tracked Item",
+            type = ItemType.SparePart,
+            trackingType = TrackingType.Serial,
+            unitOfMeasure = "PCS",
+            brandId = (Guid?)null,
+            barcode = (string?)null,
+            defaultUnitCost = 15m
+        });
+
+        var po = await Post<PurchaseOrderDto>("/api/procurement/purchase-orders", new { supplierId = supplier.Id });
+        await PostNoContent($"/api/procurement/purchase-orders/{po.Id}/lines", new { itemId = item.Id, quantity = 1m, unitPrice = 15m });
+        await PostNoContent($"/api/procurement/purchase-orders/{po.Id}/approve", new { });
+
+        var approvedPo = await Get<PurchaseOrderDetailDto>($"/api/procurement/purchase-orders/{po.Id}");
+        var poLine = Assert.Single(approvedPo.Lines.Where(x => x.ItemId == item.Id));
+        var grn = await Post<GoodsReceiptDto>("/api/procurement/goods-receipts", new { purchaseOrderId = po.Id, warehouseId = warehouse.Id });
+
+        var response = await _client.PutAsJsonAsync($"/api/procurement/goods-receipts/{grn.Id}/receipt-plan", new
+        {
+            lines = new object[]
+            {
+                new { purchaseOrderLineId = poLine.Id, quantity = 1m, unitCost = 15m, batchNumber = (string?)null, serials = Array.Empty<string>() }
+            }
+        });
+
+        var body = await response.Content.ReadAsStringAsync();
+        Assert.Equal(400, (int)response.StatusCode);
+        Assert.Contains("Serial numbers are required for serial-tracked items.", body, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task Assistant_GRN_Workflow_Can_Save_Draft_Then_Post_A_Partial_Receipt()
+    {
+        var warehouse = await Post<WarehouseDto>("/api/warehouses", new { code = Code("WH"), name = "Main", address = (string?)null });
+        var supplier = await Post<SupplierDto>("/api/suppliers", new { code = Code("SUP"), name = "Assistant Supplier", phone = "123", email = (string?)null, address = (string?)null });
+        var itemA = await Post<ItemDto>("/api/items", new
+        {
+            sku = Code("SKU"),
+            name = "Hydraulic Oil",
+            type = ItemType.SparePart,
+            trackingType = TrackingType.None,
+            unitOfMeasure = "L",
+            brandId = (Guid?)null,
+            barcode = (string?)null,
+            defaultUnitCost = 5m
+        });
+        var itemB = await Post<ItemDto>("/api/items", new
+        {
+            sku = Code("SKU"),
+            name = "Return Filter",
+            type = ItemType.SparePart,
+            trackingType = TrackingType.None,
+            unitOfMeasure = "PCS",
+            brandId = (Guid?)null,
+            barcode = (string?)null,
+            defaultUnitCost = 7m
+        });
+
+        var po = await Post<PurchaseOrderDto>("/api/procurement/purchase-orders", new { supplierId = supplier.Id });
+        await PostNoContent($"/api/procurement/purchase-orders/{po.Id}/lines", new { itemId = itemA.Id, quantity = 10m, unitPrice = 5m });
+        await PostNoContent($"/api/procurement/purchase-orders/{po.Id}/lines", new { itemId = itemB.Id, quantity = 4m, unitPrice = 7m });
+        await PostNoContent($"/api/procurement/purchase-orders/{po.Id}/approve", new { });
+
+        var assistant = await ChatAssistantAsync("I want to put a GRN");
+        Assert.Contains("purchase order number", LatestAssistantReply(assistant), StringComparison.OrdinalIgnoreCase);
+
+        assistant = await ChatAssistantAsync(po.Number, assistant.SessionId);
+        Assert.Contains(po.Number, LatestAssistantReply(assistant), StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("warehouse", LatestAssistantReply(assistant), StringComparison.OrdinalIgnoreCase);
+
+        assistant = await ChatAssistantAsync(warehouse.Code, assistant.SessionId);
+        var draft = assistant.GoodsReceiptDraft;
+        Assert.NotNull(draft);
+        Assert.Equal("Draft", draft.Status);
+        Assert.Equal(warehouse.Code, draft.WarehouseCode);
+        Assert.Equal($"/procurement/goods-receipts/{draft.Id}", assistant.NavigateTo);
+        var firstPrompt = LatestAssistantReply(assistant);
+        Assert.Contains("opened it behind the chat box", firstPrompt, StringComparison.OrdinalIgnoreCase);
+
+        var firstLineIsItemA =
+            firstPrompt.Contains(itemA.Sku, StringComparison.OrdinalIgnoreCase) ||
+            firstPrompt.Contains(itemA.Name, StringComparison.OrdinalIgnoreCase);
+        var firstLineQuantity = firstLineIsItemA ? 10m : 2m;
+        var secondLineQuantity = firstLineIsItemA ? 2m : 10m;
+
+        assistant = await ChatAssistantAsync(firstLineQuantity.ToString("0.####"), assistant.SessionId);
+        Assert.Contains($"Recorded {firstLineQuantity:0.####}", LatestAssistantReply(assistant), StringComparison.OrdinalIgnoreCase);
+
+        assistant = await ChatAssistantAsync("skip", assistant.SessionId);
+        Assert.Contains("Verification for GRN", LatestAssistantReply(assistant), StringComparison.OrdinalIgnoreCase);
+        Assert.NotNull(assistant.GoodsReceiptDraft);
+        Assert.Equal(1, assistant.GoodsReceiptDraft.LineCount);
+        Assert.Equal(firstLineQuantity, assistant.GoodsReceiptDraft!.PlannedQuantity);
+
+        assistant = await ChatAssistantAsync($"change line 2 qty {secondLineQuantity:0.####}", assistant.SessionId);
+        Assert.Contains($"Updated line 2 quantity to {secondLineQuantity:0.####}", LatestAssistantReply(assistant), StringComparison.OrdinalIgnoreCase);
+        Assert.NotNull(assistant.GoodsReceiptDraft);
+        Assert.Equal(2, assistant.GoodsReceiptDraft.LineCount);
+        Assert.Equal(12m, assistant.GoodsReceiptDraft!.PlannedQuantity);
+
+        assistant = await ChatAssistantAsync("confirm", assistant.SessionId);
+        Assert.Contains("saved as a draft", LatestAssistantReply(assistant), StringComparison.OrdinalIgnoreCase);
+        Assert.NotNull(assistant.GoodsReceiptDraft);
+        Assert.Equal("Draft", assistant.GoodsReceiptDraft.Status);
+
+        assistant = await ChatAssistantAsync("post grn", assistant.SessionId);
+        Assert.Contains("Reply `confirm` to post it", LatestAssistantReply(assistant), StringComparison.Ordinal);
+        Assert.Contains("waiting for post confirmation", assistant.Status.Summary, StringComparison.OrdinalIgnoreCase);
+
+        assistant = await ChatAssistantAsync("confirm", assistant.SessionId);
+        var postedDraft = assistant.GoodsReceiptDraft;
+        Assert.NotNull(postedDraft);
+        Assert.Equal("Posted", postedDraft.Status);
+        Assert.True(assistant.RefreshCurrentPage);
+        Assert.Contains("has been posted", LatestAssistantReply(assistant), StringComparison.OrdinalIgnoreCase);
+
+        var postedGrn = await Get<GoodsReceiptDetailDto>($"/api/procurement/goods-receipts/{postedDraft.Id}");
+        Assert.Equal(GoodsReceiptStatus.Posted, postedGrn.Status);
+        Assert.Equal(2, postedGrn.Lines.Count);
+        Assert.Contains(postedGrn.Lines, line => line.ItemId == itemA.Id && line.Quantity == 10m);
+        Assert.Contains(postedGrn.Lines, line => line.ItemId == itemB.Id && line.Quantity == 2m);
+
+        var poAfterPosting = await Get<PurchaseOrderDetailDto>($"/api/procurement/purchase-orders/{po.Id}");
+        Assert.Equal(PurchaseOrderStatus.PartiallyReceived, poAfterPosting.Status);
+        Assert.Equal(10m, poAfterPosting.Lines.Single(x => x.ItemId == itemA.Id).ReceivedQuantity);
+        Assert.Equal(2m, poAfterPosting.Lines.Single(x => x.ItemId == itemB.Id).ReceivedQuantity);
+
+        Assert.Equal(10m, await GetOnHandQuantityAsync(warehouse.Id, itemA.Id));
+        Assert.Equal(2m, await GetOnHandQuantityAsync(warehouse.Id, itemB.Id));
+
+        var apEntries = await Get<List<ApDto>>("/api/finance/ap?outstandingOnly=true");
+        Assert.Contains(apEntries, entry => entry.ReferenceType == "GRN" && entry.ReferenceId == postedDraft.Id && entry.Outstanding == 64m);
+    }
+
+    [Fact]
     public async Task Procurement_Rfq_Can_Be_Created_Lined_And_Sent()
     {
         var supplier = await Post<SupplierDto>("/api/suppliers", new { code = Code("SUP"), name = "Supplier", phone = "123", email = (string?)null, address = (string?)null });
@@ -1835,7 +2103,11 @@ public sealed class EndToEndTests(IssApiFixture fixture) : IClassFixture<IssApiF
     }
 
     private sealed record PurchaseOrderDto(Guid Id, string Number, Guid SupplierId, DateTimeOffset OrderDate, PurchaseOrderStatus Status, decimal Total);
+    private sealed record PurchaseOrderLineDetailDto(Guid Id, Guid ItemId, decimal OrderedQuantity, decimal ReceivedQuantity, decimal UnitPrice, decimal LineTotal);
+    private sealed record PurchaseOrderDetailDto(Guid Id, string Number, Guid SupplierId, DateTimeOffset OrderDate, PurchaseOrderStatus Status, decimal Total, IReadOnlyList<PurchaseOrderLineDetailDto> Lines);
     private sealed record GoodsReceiptDto(Guid Id, string Number, Guid PurchaseOrderId, Guid WarehouseId, DateTimeOffset ReceivedAt, GoodsReceiptStatus Status);
+    private sealed record GoodsReceiptLineDetailDto(Guid Id, Guid? PurchaseOrderLineId, Guid ItemId, decimal Quantity, decimal UnitCost, string? BatchNumber, IReadOnlyList<string> Serials);
+    private sealed record GoodsReceiptDetailDto(Guid Id, string Number, Guid PurchaseOrderId, Guid WarehouseId, DateTimeOffset ReceivedAt, GoodsReceiptStatus Status, IReadOnlyList<GoodsReceiptLineDetailDto> Lines);
     private sealed record OnHandDto(Guid WarehouseId, Guid ItemId, string? BatchNumber, decimal OnHand);
     private sealed record ApDto(Guid Id, Guid SupplierId, string ReferenceType, Guid ReferenceId, decimal Amount, decimal Outstanding, DateTimeOffset PostedAt);
     private sealed record CreditNoteDto(Guid Id, string ReferenceNumber, CounterpartyType CounterpartyType, Guid CounterpartyId, decimal Amount, decimal RemainingAmount, DateTimeOffset IssuedAt, string? Notes, string? SourceReferenceType, Guid? SourceReferenceId);
@@ -1946,6 +2218,10 @@ public sealed class EndToEndTests(IssApiFixture fixture) : IClassFixture<IssApiF
     private sealed record NotificationOutboxDto(Guid Id, NotificationChannel Channel, string Recipient, string? Subject, string Body, NotificationStatus Status, int Attempts, DateTimeOffset NextAttemptAt, DateTimeOffset? LastAttemptAt, DateTimeOffset? SentAt, string? LastError, string? ReferenceType, Guid? ReferenceId, DateTimeOffset CreatedAt);
     private sealed record AdminUserDto(Guid Id, string Email, string? DisplayName, bool IsLocked, DateTimeOffset? LockoutEnd, IReadOnlyList<string> Roles);
     private sealed record AuthDto(string Token, Guid UserId, string Email, IReadOnlyList<string> Roles);
+    private sealed record AssistantMessageDto(string Role, string Content, DateTimeOffset OccurredAt);
+    private sealed record AssistantStatusDto(string Mode, string Title, string Summary);
+    private sealed record AssistantGoodsReceiptDraftDto(Guid Id, string Number, string Status, string PurchaseOrderNumber, string WarehouseCode, string WarehouseName, int LineCount, decimal PlannedQuantity, int RemainingLineCount, string Path);
+    private sealed record AssistantChatDto(Guid SessionId, IReadOnlyList<AssistantMessageDto> Messages, AssistantStatusDto Status, AssistantGoodsReceiptDraftDto? GoodsReceiptDraft, string? NavigateTo, bool RefreshCurrentPage);
 
     private async Task<T> Post<T>(string url, object body)
     {
@@ -1968,6 +2244,16 @@ public sealed class EndToEndTests(IssApiFixture fixture) : IClassFixture<IssApiF
         }
     }
 
+    private async Task PutNoContent(string url, object body)
+    {
+        var resp = await _client.PutAsJsonAsync(url, body);
+        if (!resp.IsSuccessStatusCode)
+        {
+            var text = await resp.Content.ReadAsStringAsync();
+            throw new InvalidOperationException($"PUT {url} failed: {(int)resp.StatusCode} {resp.ReasonPhrase}. Body: {text}");
+        }
+    }
+
     private async Task<T> Get<T>(string url)
     {
         var resp = await _client.GetAsync(url);
@@ -1978,6 +2264,18 @@ public sealed class EndToEndTests(IssApiFixture fixture) : IClassFixture<IssApiF
         }
         return (await resp.Content.ReadFromJsonAsync<T>())!;
     }
+
+    private async Task<AssistantChatDto> ChatAssistantAsync(string message, Guid? sessionId = null)
+        => await Post<AssistantChatDto>("/api/assistant/chat", new
+        {
+            sessionId,
+            message,
+            providerProfileId = (Guid?)null,
+            provider = (object?)null
+        });
+
+    private static string LatestAssistantReply(AssistantChatDto response)
+        => response.Messages.Last(message => string.Equals(message.Role, "assistant", StringComparison.OrdinalIgnoreCase)).Content;
 
     private async Task<decimal> GetOnHandQuantityAsync(Guid warehouseId, Guid itemId, string? batchNumber = null)
     {

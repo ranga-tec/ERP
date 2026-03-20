@@ -13,7 +13,7 @@ type GoodsReceiptSummaryDto = {
   status: number;
 };
 
-type PurchaseOrderSummaryDto = { id: string; number: string };
+type PurchaseOrderSummaryDto = { id: string; number: string; status: number };
 type WarehouseDto = { id: string; code: string; name: string };
 
 const statusLabel: Record<number, string> = {

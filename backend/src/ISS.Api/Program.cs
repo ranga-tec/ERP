@@ -23,6 +23,7 @@ var builder = WebApplication.CreateBuilder(args);
 // Add services to the container.
 
 builder.Services.AddHttpContextAccessor();
+builder.Services.AddDataProtection();
 builder.Services.AddScoped<ICurrentUser, ISS.Api.Services.CurrentUser>();
 
 builder.Services.AddIssApplication();
@@ -101,6 +102,13 @@ builder.Services.AddRateLimiter(options =>
 
 builder.Services.AddScoped<ISS.Api.Services.JwtTokenService>();
 builder.Services.AddHostedService<ISS.Api.Services.NotificationDispatcherHostedService>();
+builder.Services.AddSingleton<ISS.Api.Assistant.AssistantSessionStore>();
+builder.Services.AddHttpClient<ISS.Api.Assistant.AssistantProviderGateway>(client =>
+{
+    client.Timeout = TimeSpan.FromSeconds(30);
+});
+builder.Services.AddScoped<ISS.Api.Assistant.AssistantSettingsService>();
+builder.Services.AddScoped<ISS.Api.Assistant.AssistantCoordinator>();
 
 builder.Services.AddControllers();
 builder.Services.AddHealthChecks()
@@ -147,7 +155,7 @@ if (app.Environment.IsDevelopment() && JwtConfigurationValidator.UsesBuiltInDeve
 }
 
 var dbInitMode = (builder.Configuration["Database:InitializationMode"] ??
-                  (app.Environment.IsDevelopment() ? "EnsureCreated" : "None"))
+                  (app.Environment.IsDevelopment() ? "Migrate" : "None"))
     .Trim();
 
 await using (var scope = app.Services.CreateAsyncScope())

@@ -3,10 +3,12 @@
 import { useRouter } from "next/navigation";
 import { useState, type ReactNode } from "react";
 import { apiDeleteNoContent, apiPutNoContent } from "@/lib/api-client";
-import { Button, Input, SecondaryButton, Textarea } from "@/components/ui";
+import { Button, Input, SecondaryButton } from "@/components/ui";
+import { AutoGrowTextarea } from "./AutoGrowTextarea";
 
 type GoodsReceiptLineDto = {
   id: string;
+  purchaseOrderLineId?: string | null;
   quantity: number;
   unitCost: number;
   batchNumber?: string | null;
@@ -121,11 +123,11 @@ export function GoodsReceiptLineRow({
       </td>
       <td className="py-2 pr-3">
         {isEditing ? (
-          <Textarea
+          <AutoGrowTextarea
             value={serials}
             onChange={(e) => setSerials(e.target.value)}
             placeholder="One per line or comma-separated"
-            className="min-h-20 min-w-56"
+            className="min-w-56"
           />
         ) : (
           <span className="font-mono text-xs text-zinc-500">{line.serials?.length ? line.serials.join(", ") : "-"}</span>

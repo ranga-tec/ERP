@@ -5,6 +5,7 @@
 - Repo: `D:\VScode Projects\ISS`
 - Branch: `main`
 - Current purpose: resume from the completed finance bootstrap/auth recovery + Railway deploy-hardening checkpoint
+- Current local follow-up: assistant + GRN partial-receipt checkpoint details are documented in `docs/assistant-progress.md`
 - GitHub:
   - `99e5685` `Add auth bootstrap recovery and live capability checks`
   - `c0d424f` `Add Docker-based Railway deploy for API`

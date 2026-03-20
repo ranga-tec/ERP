@@ -3,7 +3,8 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { apiPostNoContent } from "@/lib/api-client";
-import { Button, Input, Select, Textarea } from "@/components/ui";
+import { Button, Input, Select } from "@/components/ui";
+import { AutoGrowTextarea } from "./AutoGrowTextarea";
 
 type ItemRef = { id: string; sku: string; name: string; trackingType: number; defaultUnitCost: number };
 
@@ -106,7 +107,11 @@ export function GoodsReceiptLineAddForm({ goodsReceiptId, items }: { goodsReceip
         </div>
         <div>
           <label className="mb-1 block text-sm font-medium">Serials (optional)</label>
-          <Textarea value={serials} onChange={(e) => setSerials(e.target.value)} placeholder="One per line or comma-separated" />
+          <AutoGrowTextarea
+            value={serials}
+            onChange={(e) => setSerials(e.target.value)}
+            placeholder="One per line or comma-separated"
+          />
         </div>
       </div>
 
@@ -122,4 +127,3 @@ export function GoodsReceiptLineAddForm({ goodsReceiptId, items }: { goodsReceip
     </form>
   );
 }
-

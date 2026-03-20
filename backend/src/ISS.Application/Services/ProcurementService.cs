@@ -3,6 +3,7 @@ using ISS.Application.Common;
 using ISS.Application.Persistence;
 using ISS.Domain.Common;
 using ISS.Domain.Finance;
+using ISS.Domain.MasterData;
 using ISS.Domain.Procurement;
 using Microsoft.EntityFrameworkCore;
 
@@ -15,6 +16,13 @@ public sealed class ProcurementService(
     InventoryService inventoryService,
     NotificationService notificationService)
 {
+    public sealed record GoodsReceiptReceiptPlanLineInput(
+        Guid PurchaseOrderLineId,
+        decimal Quantity,
+        decimal UnitCost,
+        string? BatchNumber,
+        IReadOnlyCollection<string>? SerialNumbers);
+
     public async Task<Guid> CreateRfqAsync(Guid supplierId, CancellationToken cancellationToken = default)
     {
         var number = await documentNumberService.NextAsync("RFQ", "RFQ", cancellationToken);
@@ -299,6 +307,18 @@ public sealed class ProcurementService(
 
     public async Task<Guid> CreateGoodsReceiptAsync(Guid purchaseOrderId, Guid warehouseId, CancellationToken cancellationToken = default)
     {
+        var po = await dbContext.PurchaseOrders
+            .Include(x => x.Lines)
+            .FirstOrDefaultAsync(x => x.Id == purchaseOrderId, cancellationToken)
+            ?? throw new NotFoundException("Purchase order not found.");
+
+        EnsurePurchaseOrderReceivable(po);
+
+        if (po.Lines.All(x => x.ReceivedQuantity >= x.OrderedQuantity))
+        {
+            throw new DomainValidationException("Purchase order has no remaining quantity to receive.");
+        }
+
         var number = await documentNumberService.NextAsync("GRN", "GRN", cancellationToken);
         var grn = new GoodsReceipt(number, purchaseOrderId, warehouseId, clock.UtcNow);
         await dbContext.GoodsReceipts.AddAsync(grn, cancellationToken);
@@ -423,6 +443,7 @@ public sealed class ProcurementService(
     public async Task AddGoodsReceiptLineAsync(
         Guid goodsReceiptId,
         Guid itemId,
+        Guid? purchaseOrderLineId,
         decimal quantity,
         decimal unitCost,
         string? batchNumber,
@@ -433,7 +454,28 @@ public sealed class ProcurementService(
                       .FirstOrDefaultAsync(x => x.Id == goodsReceiptId, cancellationToken)
                   ?? throw new NotFoundException("Goods receipt not found.");
 
-        var line = grn.AddLine(itemId, quantity, unitCost, batchNumber);
+        var po = await dbContext.PurchaseOrders
+            .Include(x => x.Lines)
+            .FirstOrDefaultAsync(x => x.Id == grn.PurchaseOrderId, cancellationToken)
+            ?? throw new NotFoundException("Purchase order not found.");
+
+        EnsurePurchaseOrderReceivable(po);
+
+        var reservedInOtherDrafts = await GetGoodsReceiptDraftReservationsAsync(po.Id, grn.Id, cancellationToken);
+        var resolvedPurchaseOrderLineId = ResolvePurchaseOrderLineId(
+            po,
+            grn,
+            itemId,
+            purchaseOrderLineId,
+            quantity,
+            reservedInOtherDrafts);
+        var item = await dbContext.Items.AsNoTracking()
+            .FirstOrDefaultAsync(x => x.Id == itemId, cancellationToken)
+            ?? throw new DomainValidationException("Invalid item on goods receipt.");
+
+        ValidateGoodsReceiptTracking(item, quantity, batchNumber, serialNumbers);
+
+        var line = grn.AddLine(itemId, quantity, unitCost, batchNumber, resolvedPurchaseOrderLineId);
         if (serialNumbers is { Count: > 0 })
         {
             foreach (var serial in serialNumbers)
@@ -459,12 +501,125 @@ public sealed class ProcurementService(
                       .FirstOrDefaultAsync(x => x.Id == goodsReceiptId, cancellationToken)
                   ?? throw new NotFoundException("Goods receipt not found.");
 
-        if (!grn.Lines.Any(x => x.Id == lineId))
+        var line = grn.Lines.FirstOrDefault(x => x.Id == lineId)
+                   ?? throw new NotFoundException("Goods receipt line not found.");
+
+        var po = await dbContext.PurchaseOrders
+            .Include(x => x.Lines)
+            .FirstOrDefaultAsync(x => x.Id == grn.PurchaseOrderId, cancellationToken)
+            ?? throw new NotFoundException("Purchase order not found.");
+
+        EnsurePurchaseOrderReceivable(po);
+
+        var reservedInOtherDrafts = await GetGoodsReceiptDraftReservationsAsync(po.Id, grn.Id, cancellationToken);
+        if (line.PurchaseOrderLineId is { } purchaseOrderLineId)
         {
-            throw new NotFoundException("Goods receipt line not found.");
+            ValidateGoodsReceiptLineQuantity(
+                po,
+                grn,
+                purchaseOrderLineId,
+                quantity,
+                reservedInOtherDrafts,
+                line.Id);
         }
 
+        var item = await dbContext.Items.AsNoTracking()
+            .FirstOrDefaultAsync(x => x.Id == line.ItemId, cancellationToken)
+            ?? throw new DomainValidationException("Invalid item on goods receipt.");
+
+        ValidateGoodsReceiptTracking(item, quantity, batchNumber, serialNumbers);
+
         grn.UpdateLine(lineId, quantity, unitCost, batchNumber, serialNumbers);
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task ReplaceGoodsReceiptReceiptPlanAsync(
+        Guid goodsReceiptId,
+        IReadOnlyCollection<GoodsReceiptReceiptPlanLineInput> lines,
+        CancellationToken cancellationToken = default)
+    {
+        var grn = await dbContext.GoodsReceipts.Include(x => x.Lines).ThenInclude(x => x.Serials)
+                      .FirstOrDefaultAsync(x => x.Id == goodsReceiptId, cancellationToken)
+                  ?? throw new NotFoundException("Goods receipt not found.");
+
+        var po = await dbContext.PurchaseOrders
+            .Include(x => x.Lines)
+            .FirstOrDefaultAsync(x => x.Id == grn.PurchaseOrderId, cancellationToken)
+            ?? throw new NotFoundException("Purchase order not found.");
+
+        EnsurePurchaseOrderReceivable(po);
+
+        var requestedLines = lines
+            .Where(x => x.Quantity > 0m)
+            .ToList();
+
+        if (requestedLines.Count != requestedLines.Select(x => x.PurchaseOrderLineId).Distinct().Count())
+        {
+            throw new DomainValidationException("Each PO line can only appear once on a GRN receipt plan.");
+        }
+
+        var reservedInOtherDrafts = await GetGoodsReceiptDraftReservationsAsync(po.Id, grn.Id, cancellationToken);
+        var requestedPurchaseOrderLineIds = requestedLines
+            .Select(x => x.PurchaseOrderLineId)
+            .ToHashSet();
+        var poLineById = po.Lines.ToDictionary(x => x.Id);
+        var itemIds = po.Lines
+            .Where(x => requestedPurchaseOrderLineIds.Contains(x.Id))
+            .Select(x => x.ItemId)
+            .Distinct()
+            .ToList();
+        var itemById = await dbContext.Items.AsNoTracking()
+            .Where(x => itemIds.Contains(x.Id))
+            .ToDictionaryAsync(x => x.Id, cancellationToken);
+
+        foreach (var requestedLine in requestedLines)
+        {
+            if (requestedLine.Quantity <= 0m)
+            {
+                throw new DomainValidationException("Receipt quantity must be positive.");
+            }
+
+            if (requestedLine.UnitCost < 0m)
+            {
+                throw new DomainValidationException("Unit cost must be 0 or greater.");
+            }
+
+            var poLine = poLineById.GetValueOrDefault(requestedLine.PurchaseOrderLineId)
+                         ?? throw new DomainValidationException("PO line not found.");
+            ValidateReceiptPlanLineQuantity(poLine, requestedLine.Quantity, reservedInOtherDrafts);
+
+            var item = itemById.GetValueOrDefault(poLine.ItemId)
+                       ?? throw new DomainValidationException("Invalid item on goods receipt.");
+            ValidateGoodsReceiptTracking(item, requestedLine.Quantity, requestedLine.BatchNumber, requestedLine.SerialNumbers);
+        }
+
+        foreach (var existingLine in grn.Lines.ToList())
+        {
+            grn.RemoveLine(existingLine.Id);
+            dbContext.DbContext.Remove(existingLine);
+        }
+
+        foreach (var requestedLine in requestedLines)
+        {
+            var poLine = po.Lines.First(x => x.Id == requestedLine.PurchaseOrderLineId);
+            var line = grn.AddLine(
+                poLine.ItemId,
+                requestedLine.Quantity,
+                requestedLine.UnitCost,
+                requestedLine.BatchNumber,
+                poLine.Id);
+
+            if (requestedLine.SerialNumbers is { Count: > 0 })
+            {
+                foreach (var serialNumber in requestedLine.SerialNumbers)
+                {
+                    line.AddSerial(serialNumber);
+                }
+            }
+
+            dbContext.DbContext.Add(line);
+        }
+
         await dbContext.SaveChangesAsync(cancellationToken);
     }
 
@@ -522,7 +677,14 @@ public sealed class ProcurementService(
                 line.Serials.Select(s => s.SerialNumber).ToList(),
                 cancellationToken);
 
-            po.ApplyReceipt(line.ItemId, line.Quantity);
+            if (line.PurchaseOrderLineId is { } purchaseOrderLineId)
+            {
+                po.ApplyReceiptToLine(purchaseOrderLineId, line.Quantity);
+            }
+            else
+            {
+                po.ApplyReceipt(line.ItemId, line.Quantity);
+            }
         }
 
         var amount = grn.Lines.Sum(l => l.Quantity * l.UnitCost);
@@ -531,6 +693,157 @@ public sealed class ProcurementService(
             cancellationToken);
 
         await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    private static void EnsurePurchaseOrderReceivable(PurchaseOrder po)
+    {
+        if (po.Status != PurchaseOrderStatus.Approved && po.Status != PurchaseOrderStatus.PartiallyReceived)
+        {
+            throw new DomainValidationException("Purchase order must be approved before receiving.");
+        }
+    }
+
+    private async Task<Dictionary<Guid, decimal>> GetGoodsReceiptDraftReservationsAsync(
+        Guid purchaseOrderId,
+        Guid excludedGoodsReceiptId,
+        CancellationToken cancellationToken)
+    {
+        return await dbContext.GoodsReceipts
+            .AsNoTracking()
+            .Where(x => x.PurchaseOrderId == purchaseOrderId && x.Status == GoodsReceiptStatus.Draft && x.Id != excludedGoodsReceiptId)
+            .SelectMany(x => x.Lines)
+            .Where(x => x.PurchaseOrderLineId != null)
+            .GroupBy(x => x.PurchaseOrderLineId!.Value)
+            .Select(x => new { PurchaseOrderLineId = x.Key, Quantity = x.Sum(y => y.Quantity) })
+            .ToDictionaryAsync(x => x.PurchaseOrderLineId, x => x.Quantity, cancellationToken);
+    }
+
+    private static Guid ResolvePurchaseOrderLineId(
+        PurchaseOrder po,
+        GoodsReceipt grn,
+        Guid itemId,
+        Guid? requestedPurchaseOrderLineId,
+        decimal quantity,
+        IReadOnlyDictionary<Guid, decimal> reservedInOtherDrafts)
+    {
+        if (requestedPurchaseOrderLineId is { } explicitPurchaseOrderLineId)
+        {
+            ValidateGoodsReceiptLineQuantity(po, grn, explicitPurchaseOrderLineId, quantity, reservedInOtherDrafts, excludeGoodsReceiptLineId: null);
+
+            var explicitLine = po.Lines.FirstOrDefault(x => x.Id == explicitPurchaseOrderLineId)
+                               ?? throw new DomainValidationException("PO line not found.");
+
+            if (explicitLine.ItemId != itemId)
+            {
+                throw new DomainValidationException("Selected PO line does not match the GRN item.");
+            }
+
+            return explicitPurchaseOrderLineId;
+        }
+
+        foreach (var poLine in po.Lines.Where(x => x.ItemId == itemId))
+        {
+            var currentDraftQuantity = grn.Lines
+                .Where(x => x.PurchaseOrderLineId == poLine.Id)
+                .Sum(x => x.Quantity);
+            var availableQuantity = poLine.OrderedQuantity
+                - poLine.ReceivedQuantity
+                - reservedInOtherDrafts.GetValueOrDefault(poLine.Id)
+                - currentDraftQuantity;
+
+            if (availableQuantity >= quantity)
+            {
+                return poLine.Id;
+            }
+        }
+
+        throw new DomainValidationException("GRN quantity exceeds the remaining quantity on the purchase order.");
+    }
+
+    private static void ValidateGoodsReceiptLineQuantity(
+        PurchaseOrder po,
+        GoodsReceipt grn,
+        Guid purchaseOrderLineId,
+        decimal quantity,
+        IReadOnlyDictionary<Guid, decimal> reservedInOtherDrafts,
+        Guid? excludeGoodsReceiptLineId)
+    {
+        var poLine = po.Lines.FirstOrDefault(x => x.Id == purchaseOrderLineId)
+                     ?? throw new DomainValidationException("PO line not found.");
+
+        var currentDraftQuantity = grn.Lines
+            .Where(x => x.Id != excludeGoodsReceiptLineId && x.PurchaseOrderLineId == purchaseOrderLineId)
+            .Sum(x => x.Quantity);
+        var availableQuantity = poLine.OrderedQuantity
+            - poLine.ReceivedQuantity
+            - reservedInOtherDrafts.GetValueOrDefault(poLine.Id)
+            - currentDraftQuantity;
+
+        if (quantity > availableQuantity)
+        {
+            throw new DomainValidationException("GRN quantity exceeds the remaining quantity on the purchase order.");
+        }
+    }
+
+    private static void ValidateReceiptPlanLineQuantity(
+        PurchaseOrderLine poLine,
+        decimal quantity,
+        IReadOnlyDictionary<Guid, decimal> reservedInOtherDrafts)
+    {
+        var availableQuantity = poLine.OrderedQuantity
+            - poLine.ReceivedQuantity
+            - reservedInOtherDrafts.GetValueOrDefault(poLine.Id);
+
+        if (quantity > availableQuantity)
+        {
+            throw new DomainValidationException("GRN quantity exceeds the remaining quantity on the purchase order.");
+        }
+    }
+
+    private static void ValidateGoodsReceiptTracking(
+        Item item,
+        decimal quantity,
+        string? batchNumber,
+        IReadOnlyCollection<string>? serialNumbers)
+    {
+        if (item.TrackingType == TrackingType.Serial)
+        {
+            if (decimal.Truncate(quantity) != quantity)
+            {
+                throw new DomainValidationException("Quantity must be a whole number for serial-tracked items.");
+            }
+
+            var normalizedSerials = serialNumbers?
+                .Select(x => x.Trim())
+                .Where(x => !string.IsNullOrWhiteSpace(x))
+                .ToList();
+
+            if (normalizedSerials is null || normalizedSerials.Count == 0)
+            {
+                throw new DomainValidationException("Serial numbers are required for serial-tracked items.");
+            }
+
+            if (normalizedSerials.Count != (int)quantity)
+            {
+                throw new DomainValidationException("Quantity must match serial count for serial-tracked items.");
+            }
+
+            var duplicates = normalizedSerials
+                .GroupBy(x => x, StringComparer.OrdinalIgnoreCase)
+                .Where(x => x.Count() > 1)
+                .Select(x => x.Key)
+                .ToList();
+
+            if (duplicates.Count > 0)
+            {
+                throw new DomainValidationException($"Duplicate serial(s): {string.Join(", ", duplicates)}");
+            }
+        }
+
+        if (item.TrackingType == TrackingType.Batch && string.IsNullOrWhiteSpace(batchNumber))
+        {
+            throw new DomainValidationException("Batch number is required for batch-tracked items.");
+        }
     }
 
     public async Task<Guid> CreateSupplierInvoiceAsync(

@@ -16,18 +16,20 @@ Use this hub first, then jump into the specialized docs linked below.
 - Master data now includes UoM conversions, payment types, taxes/tax conversions, currencies/rates, and reference forms.
 - Reporting now includes costing in addition to dashboard, stock-ledger, aging, tax summary, and service KPIs.
 - Inventory currently supports warehouse/batch on-hand breakdown, stock-adjustment physical counts, stock-transfer move quantities, and signed stock-ledger history with batch/serial detail.
+- Procurement GRNs now support PO-linked partial receipt planning, duplicate-item PO line handling, early serial/batch validation, and searchable `Receive From PO` / `Current Draft Lines` tables.
+- The authenticated shell sidebar now defaults to expanded navigation and exposes menu search at the top of the expanded panel.
 
 ## Stack and Runtime Topology
 
 - Backend: ASP.NET Core (.NET 8), EF Core, PostgreSQL, ASP.NET Identity, JWT auth
 - Frontend: Next.js App Router, TypeScript, Tailwind CSS
-- Database: PostgreSQL (`docker-compose.yml` local default maps host `5433 -> container 5432`)
+- Database: PostgreSQL on the local machine (`localhost:5432` by default)
 - Docs/file attachments: local filesystem storage under API `App_Data`
 - Notifications: outbox-based email/SMS dispatch (SMTP/Twilio adapters, null senders when not configured)
 
 Typical local runtime:
 
-- Frontend (`localhost:3000`) -> Next.js proxy route -> Backend API (`localhost:5257`) -> PostgreSQL (`localhost:5433`)
+- Frontend (`localhost:3000`) -> Next.js proxy route -> Backend API (`localhost:5257`) -> PostgreSQL (`localhost:5432`)
 
 ## Implemented Functional Coverage Snapshot
 
@@ -99,6 +101,7 @@ Ops scripts:
 ## Core Supporting Docs
 
 - `README.md` -> quick local setup/run/test commands
+- `docs/assistant-progress.md` -> current assistant checkpoint, GRN partial-receipt status, known gaps, and resume order
 - `docs/iss-tester-trainer-handbook.md` -> zero-knowledge tester/trainer onboarding, screenshots, and regression guidance
 - `docs/role-based-test-checklists.md` -> role-by-role manual access and workflow verification
 - `frontend/README.md` -> frontend-specific quick start and integration entry points

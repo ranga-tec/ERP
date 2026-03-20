@@ -30,11 +30,17 @@ public sealed class GoodsReceipt : AuditableEntity
 
     public List<GoodsReceiptLine> Lines { get; private set; } = new();
 
-    public GoodsReceiptLine AddLine(Guid itemId, decimal quantity, decimal unitCost, string? batchNumber)
+    public GoodsReceiptLine AddLine(Guid itemId, decimal quantity, decimal unitCost, string? batchNumber, Guid? purchaseOrderLineId = null)
     {
         EnsureDraftEditable();
 
-        var line = new GoodsReceiptLine(Id, itemId, Guard.Positive(quantity, nameof(quantity)), Guard.NotNegative(unitCost, nameof(unitCost)), batchNumber);
+        var line = new GoodsReceiptLine(
+            Id,
+            itemId,
+            Guard.Positive(quantity, nameof(quantity)),
+            Guard.NotNegative(unitCost, nameof(unitCost)),
+            batchNumber,
+            purchaseOrderLineId);
         Lines.Add(line);
         return line;
     }
@@ -103,16 +109,24 @@ public sealed class GoodsReceiptLine : Entity
 {
     private GoodsReceiptLine() { }
 
-    public GoodsReceiptLine(Guid goodsReceiptId, Guid itemId, decimal quantity, decimal unitCost, string? batchNumber)
+    public GoodsReceiptLine(
+        Guid goodsReceiptId,
+        Guid itemId,
+        decimal quantity,
+        decimal unitCost,
+        string? batchNumber,
+        Guid? purchaseOrderLineId = null)
     {
         GoodsReceiptId = goodsReceiptId;
         ItemId = itemId;
         Quantity = quantity;
         UnitCost = unitCost;
         BatchNumber = batchNumber?.Trim();
+        PurchaseOrderLineId = purchaseOrderLineId;
     }
 
     public Guid GoodsReceiptId { get; private set; }
+    public Guid? PurchaseOrderLineId { get; private set; }
     public Guid ItemId { get; private set; }
     public decimal Quantity { get; private set; }
     public decimal UnitCost { get; private set; }

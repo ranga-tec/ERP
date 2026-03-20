@@ -107,8 +107,31 @@ public sealed class PurchaseOrder : AuditableEntity
             remaining = line.ApplyReceipt(remaining);
         }
 
-        var fullyReceived = Lines.All(l => l.ReceivedQuantity >= l.OrderedQuantity);
-        if (fullyReceived)
+        if (remaining > 0)
+        {
+            throw new DomainValidationException("Received quantity exceeds the remaining PO quantity.");
+        }
+
+        UpdateReceiptStatus();
+    }
+
+    public void ApplyReceiptToLine(Guid lineId, decimal quantityReceived)
+    {
+        var line = Lines.FirstOrDefault(x => x.Id == lineId)
+                   ?? throw new DomainValidationException("PO line not found.");
+
+        var remaining = line.ApplyReceipt(quantityReceived);
+        if (remaining > 0)
+        {
+            throw new DomainValidationException("Received quantity exceeds the remaining PO quantity.");
+        }
+
+        UpdateReceiptStatus();
+    }
+
+    private void UpdateReceiptStatus()
+    {
+        if (Lines.All(l => l.ReceivedQuantity >= l.OrderedQuantity))
         {
             Status = PurchaseOrderStatus.Closed;
         }

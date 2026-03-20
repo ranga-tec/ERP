@@ -1,6 +1,23 @@
 # ISS ERP System Technical Documentation (Frontend + Backend)
 
-Generated from code inspection on 2026-02-22.
+Generated from code inspection on 2026-03-20.
+
+## 0. Implementation Update (2026-03-20)
+
+The following scope was implemented after the previous documentation snapshot:
+
+- Procurement GRN partial-receipt flow:
+  - creating a GRN from a PO now loads all open PO lines into a `Receive From PO` grid
+  - each draft GRN line now keeps a `PurchaseOrderLineId` link so duplicate item codes on the same PO stay distinct
+  - receipt plans can be saved partially; remaining quantities stay open for later GRNs against the same PO
+  - tracked-item validation for batch/serial data now runs when saving the receipt plan or editing draft lines, not only when posting
+  - the GRN detail page now includes search for both `Receive From PO` and `Current Draft Lines`, persistent row-state highlighting, and compact auto-growing serial inputs
+- Navigation update:
+  - the authenticated sidebar now defaults to expanded navigation for existing browser state by using a new persisted preference key
+  - the expanded sidebar now exposes menu search that filters matching section titles and item labels
+- Runtime / schema update:
+  - Development startup now defaults to `Database__InitializationMode=Migrate`
+  - local development targets PostgreSQL on `localhost:5432` with the repo-default credentials `pgadmin / vesper`
 
 ## 0. Implementation Update (2026-02-27)
 
@@ -65,11 +82,11 @@ The following features were implemented after the initial documentation pass:
 
 ### Local DB Reset / Recreate Notes
 
-- Development DB is PostgreSQL (`docker-compose.yml`, service `db`, exposed at `localhost:5433`)
-- The backend uses `EnsureCreated()` on startup, so schema changes are not applied to an existing DB automatically
-- To load the new tables/columns in local development, the DB volume was reset and recreated
+- Development DB is PostgreSQL on the local machine (`localhost:5432`)
+- Development startup now defaults to `Database__InitializationMode=Migrate`, so EF migrations are applied automatically unless the mode is overridden
+- Existing local databases created earlier with `EnsureCreated` should be recreated or aligned before switching to migrations
 - During recreation, backend startup initially failed due an overridden environment connection string with incorrect credentials (`user "pward"`)
-- Startup succeeded after forcing `ConnectionStrings__Default=Host=localhost;Port=5433;Database=iss;Username=pgadmin;Password=vesper;...`
+- Startup succeeded after forcing `ConnectionStrings__Default=Host=localhost;Port=5432;Database=iss;Username=pgadmin;Password=vesper;...`
 
 ### Data Storage Note (Item Attachments)
 
@@ -178,7 +195,7 @@ Key files:
 - `frontend/src/app/layout.tsx` - root layout, fonts, global CSS
 - `frontend/src/app/(app)/layout.tsx` - authenticated shell (sidebar + header + logout)
 - `frontend/src/app/(auth)/login/page.tsx` - login/register page
-- `frontend/src/components/Sidebar.tsx` - static module navigation
+- `frontend/src/components/Sidebar.tsx` - searchable module navigation
 - `frontend/src/components/ui.tsx` - reusable UI primitives
 
 Rendering pattern:
@@ -305,6 +322,12 @@ Sidebar sections:
 - Audit
 - Admin
 
+Navigation behavior:
+
+- the expanded sidebar includes a search box that filters both section titles and individual menu items
+- matching sections auto-expand during search
+- the persisted collapsed-state key was rotated so existing users start from the expanded layout after the navigation refresh
+
 ## 4.7 Recurring frontend implementation pattern
 
 This pattern is repeated across Procurement, Sales, Inventory, Service, and Finance:
@@ -393,6 +416,14 @@ Tracked inventory line handling (GRN / Supplier Return):
 - `batchNumber` + `serials` inputs
 - local `parseList()` for serials (comma/newline split)
 - client-side numeric validation, backend enforces tracking rules
+
+GRN detail-page receipt planning:
+
+- creating a GRN from a PO loads all open PO lines into `Receive From PO`
+- users can leave non-received rows at `0` / blank and complete the balance in later GRNs
+- duplicate item codes stay separated by PO-line link identity
+- both `Receive From PO` and `Current Draft Lines` support search/filtering
+- receipt-plan rows keep a visible state cue for untouched vs partial vs fully received quantities on the current GRN
 
 ### 4.8.3 Sales
 
@@ -564,13 +595,13 @@ Key startup behavior:
 - Configures JWT bearer validation from `Jwt` config section
 - Registers `JwtTokenService` and `NotificationDispatcherHostedService`
 - Enables controllers + Swagger
-- Calls `db.Database.EnsureCreatedAsync()`
+- Applies startup DB initialization based on `Database__InitializationMode`
 - Seeds Identity roles from `ISS.Api.Security.Roles.All`
 - Adds global exception middleware
 
 Important operational note:
 
-- The API currently uses `EnsureCreated`, not EF migrations.
+- Development defaults to `Migrate`; non-Development defaults to `None` unless explicitly configured otherwise.
 
 ## 5.3 Backend configuration model
 
@@ -1067,14 +1098,14 @@ File: `frontend/src/lib/jwt.ts`
 
 This is acceptable for display-only session metadata, but should not be used for authoritative security decisions.
 
-## 8.4 Backend startup uses `EnsureCreated` instead of migrations
+## 8.4 Migration mode still matters for long-lived local databases
 
 File: `backend/src/ISS.Api/Program.cs`
 
 Impact:
 
-- schema evolution is less controlled
-- production upgrade workflows become riskier as the schema changes
+- startup now prefers migrations, but local databases created earlier with `EnsureCreated` can still drift from the current model
+- schema issues can still surface if developers override `Database__InitializationMode` incorrectly or keep an old database without rerunning migrations
 
 ## 8.5 Potential N+1 behavior in dashboard / reorder alerts
 

@@ -4,8 +4,9 @@ import Link from "next/link";
 import { useState, type ReactNode } from "react";
 import { LogoutButton } from "@/components/LogoutButton";
 import { Sidebar } from "@/components/Sidebar";
+import { AssistantPanel } from "@/components/assistant/AssistantPanel";
 
-const SIDEBAR_COLLAPSED_STORAGE_KEY = "iss_sidebar_collapsed_v1";
+const SIDEBAR_COLLAPSED_STORAGE_KEY = "iss_sidebar_collapsed_v2";
 
 type AppShellProps = {
   children: ReactNode;
@@ -92,6 +93,8 @@ export function AppShell({ children, email, roles }: AppShellProps) {
           </main>
         </div>
       </div>
+
+      <AssistantPanel />
     </div>
   );
 }

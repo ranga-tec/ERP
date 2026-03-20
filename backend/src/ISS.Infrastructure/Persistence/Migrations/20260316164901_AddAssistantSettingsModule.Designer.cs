@@ -3,6 +3,7 @@ using System;
 using ISS.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace ISS.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(IssDbContext))]
-    partial class IssDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260316164901_AddAssistantSettingsModule")]
+    partial class AddAssistantSettingsModule
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -21,6 +24,136 @@ namespace ISS.Infrastructure.Persistence.Migrations
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
+
+            modelBuilder.Entity("ISS.Domain.Assistant.AssistantAccessPolicy", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<bool>("AllowUserManagedProviders")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("AllowedRolesCsv")
+                        .IsRequired()
+                        .HasMaxLength(512)
+                        .HasColumnType("character varying(512)");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("CreatedBy")
+                        .HasColumnType("uuid");
+
+                    b.Property<bool>("IsEnabled")
+                        .HasColumnType("boolean");
+
+                    b.Property<DateTimeOffset?>("LastModifiedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("LastModifiedBy")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ScopeKey")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ScopeKey")
+                        .IsUnique();
+
+                    b.ToTable("AssistantAccessPolicies");
+                });
+
+            modelBuilder.Entity("ISS.Domain.Assistant.AssistantProviderProfile", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ApiKeyCiphertext")
+                        .HasMaxLength(4000)
+                        .HasColumnType("character varying(4000)");
+
+                    b.Property<string>("BaseUrl")
+                        .IsRequired()
+                        .HasMaxLength(512)
+                        .HasColumnType("character varying(512)");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("CreatedBy")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset?>("LastModifiedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("LastModifiedBy")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Model")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<int>("ProviderKind")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId", "Name")
+                        .IsUnique();
+
+                    b.ToTable("AssistantProviderProfiles");
+                });
+
+            modelBuilder.Entity("ISS.Domain.Assistant.AssistantUserPreference", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("ActiveProviderProfileId")
+                        .HasColumnType("uuid");
+
+                    b.Property<bool>("AssistantEnabled")
+                        .HasColumnType("boolean");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("CreatedBy")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset?>("LastModifiedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("LastModifiedBy")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ActiveProviderProfileId");
+
+                    b.HasIndex("UserId")
+                        .IsUnique();
+
+                    b.ToTable("AssistantUserPreferences");
+                });
 
             modelBuilder.Entity("ISS.Domain.Audit.AuditLog", b =>
                 {
@@ -592,10 +725,6 @@ namespace ISS.Infrastructure.Persistence.Migrations
                         .HasMaxLength(128)
                         .HasColumnType("character varying(128)");
 
-                    b.Property<decimal?>("CountedQuantity")
-                        .HasPrecision(18, 4)
-                        .HasColumnType("numeric(18,4)");
-
                     b.Property<Guid>("ItemId")
                         .HasColumnType("uuid");
 
@@ -605,10 +734,6 @@ namespace ISS.Infrastructure.Persistence.Migrations
 
                     b.Property<Guid>("StockAdjustmentId")
                         .HasColumnType("uuid");
-
-                    b.Property<decimal?>("SystemQuantity")
-                        .HasPrecision(18, 4)
-                        .HasColumnType("numeric(18,4)");
 
                     b.Property<decimal>("UnitCost")
                         .HasPrecision(18, 4)
@@ -1786,9 +1911,6 @@ namespace ISS.Infrastructure.Persistence.Migrations
                     b.Property<Guid>("ItemId")
                         .HasColumnType("uuid");
 
-                    b.Property<Guid?>("PurchaseOrderLineId")
-                        .HasColumnType("uuid");
-
                     b.Property<decimal>("Quantity")
                         .HasPrecision(18, 4)
                         .HasColumnType("numeric(18,4)");
@@ -1800,8 +1922,6 @@ namespace ISS.Infrastructure.Persistence.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("GoodsReceiptId");
-
-                    b.HasIndex("PurchaseOrderLineId");
 
                     b.ToTable("GoodsReceiptLine");
                 });
@@ -3377,6 +3497,14 @@ namespace ISS.Infrastructure.Persistence.Migrations
                     b.ToTable("AspNetUserTokens", (string)null);
                 });
 
+            modelBuilder.Entity("ISS.Domain.Assistant.AssistantUserPreference", b =>
+                {
+                    b.HasOne("ISS.Domain.Assistant.AssistantProviderProfile", null)
+                        .WithMany()
+                        .HasForeignKey("ActiveProviderProfileId")
+                        .OnDelete(DeleteBehavior.SetNull);
+                });
+
             modelBuilder.Entity("ISS.Domain.Finance.CreditNoteAllocation", b =>
                 {
                     b.HasOne("ISS.Domain.Finance.CreditNote", null)
@@ -3585,11 +3713,6 @@ namespace ISS.Infrastructure.Persistence.Migrations
                         .HasForeignKey("GoodsReceiptId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
-
-                    b.HasOne("ISS.Domain.Procurement.PurchaseOrderLine", null)
-                        .WithMany()
-                        .HasForeignKey("PurchaseOrderLineId")
-                        .OnDelete(DeleteBehavior.Restrict);
                 });
 
             modelBuilder.Entity("ISS.Domain.Procurement.GoodsReceiptLineSerial", b =>

@@ -143,6 +143,7 @@ The system supports three schema init modes at startup:
   - convenient for quick dev bootstrap on a new database
   - does not maintain EF migration history correctly for long-term upgrades
 - `Migrate`
+  - default in Development
   - preferred for realistic dev/staging/prod parity
   - applies EF migrations
 - `None`
@@ -409,7 +410,7 @@ docker compose up -d
 Local compose defaults (`docker-compose.yml`):
 
 - Host: `localhost`
-- Port: `5433`
+- Port: `5432`
 - Database: `iss`
 - User: `pgadmin`
 - Password: `vesper`
@@ -442,7 +443,7 @@ URLs:
 Apply migrations manually:
 
 ```powershell
-$env:ConnectionStrings__Default="Host=localhost;Port=5433;Database=iss;Username=pgadmin;Password=vesper"
+$env:ConnectionStrings__Default="Host=localhost;Port=5432;Database=iss;Username=pgadmin;Password=vesper"
 dotnet ef database update `
   --project backend/src/ISS.Infrastructure/ISS.Infrastructure.csproj `
   --startup-project backend/src/ISS.Api/ISS.Api.csproj
@@ -476,10 +477,11 @@ Fastest local-dev fix:
 Example reset commands (local dev only, data destructive):
 
 ```powershell
-docker exec iss-postgres psql -U pgadmin -d postgres -c "DROP DATABASE IF EXISTS iss WITH (FORCE);"
-docker exec iss-postgres psql -U pgadmin -d postgres -c "CREATE DATABASE iss OWNER pgadmin;"
+$env:PGPASSWORD="vesper"
+& 'C:\Program Files\PostgreSQL\16\bin\psql.exe' -h localhost -p 5432 -U postgres -d postgres -c "DROP DATABASE IF EXISTS iss WITH (FORCE);"
+& 'C:\Program Files\PostgreSQL\16\bin\psql.exe' -h localhost -p 5432 -U postgres -d postgres -c "CREATE DATABASE iss OWNER pgadmin;"
 
-$env:ConnectionStrings__Default="Host=localhost;Port=5433;Database=iss;Username=pgadmin;Password=vesper"
+$env:ConnectionStrings__Default="Host=localhost;Port=5432;Database=iss;Username=pgadmin;Password=vesper"
 dotnet build backend/src/ISS.Api/ISS.Api.csproj -c Release --nologo
 dotnet ef database update --configuration Release --no-build `
   --project backend/src/ISS.Infrastructure/ISS.Infrastructure.csproj `

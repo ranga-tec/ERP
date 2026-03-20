@@ -12,6 +12,7 @@
 - Deployment / installation: `docs/deployment.md`
 - Manual UAT / test script: `docs/manual-uat-guide.md`
 - System + technical maintainer guide: `docs/system-technical-maintainer-guide.md`
+- Assistant progress + GRN handover: `docs/assistant-progress.md`
 - Backend architecture + operations: `docs/backend-architecture.md`
 - Frontend architecture + UI integration: `docs/frontend-architecture.md`
 - Agent change playbook + troubleshooting: `docs/agent-change-playbook.md`
@@ -41,16 +42,21 @@
 - Master-data maintenance grids now support row actions:
   - `Edit`, `Save/Cancel`, and `Delete` across brands/customers/suppliers/warehouses/UoMs/conversions/taxes/currencies/payment types/reference forms/categories/subcategories/reorder settings
   - items use separate list, create, view, and edit screens; the list grid exposes `View`, `Edit`, `Delete`, and label links
+- Goods receipt from PO now supports PO-linked receipt planning:
+  - creating a GRN from a PO loads every open PO line into the `Receive From PO` grid
+  - users can receive only the lines/quantities delivered now and leave the balance for later GRNs
+  - tracked serial/batch validation happens before posting, and the GRN screen includes search for both receipt-plan and draft-line tables
+- The authenticated sidebar now opens expanded by default and includes top-of-menu search when expanded
 
 ## Local infrastructure (PostgreSQL)
-From the repo root:
+Use a local PostgreSQL server on the machine running the app.
 
-```bash
-docker compose up -d
-```
-
-- PostgreSQL: `localhost:5433` (db `iss`, user `pgadmin`, password `vesper`)
-- Note: the current `docker-compose.yml` starts PostgreSQL only (no pgAdmin service)
+- PostgreSQL: `localhost:5432`
+- Main database: `iss`
+- Integration-test database: `iss_integration_local`
+- User: `pgadmin`
+- Password: `vesper`
+- Docker Compose is optional and is no longer the default local database path for this repo
 
 ## Backend (API)
 
@@ -62,8 +68,8 @@ dotnet run --project backend/src/ISS.Api/ISS.Api.csproj
 - Auth: the **first registered user becomes Admin**
 - Fresh databases auto-seed default currencies, payment types, tax codes, and reference forms needed for core finance/reporting flows
 - Startup DB initialization is controlled by `Database__InitializationMode`:
-  - `EnsureCreated` (default in Development)
-  - `Migrate` (recommended for controlled environments)
+  - `EnsureCreated`
+  - `Migrate` (default in Development and recommended for controlled environments)
   - `None` (default in non-Development)
 - Health endpoint: `GET /health`
 
@@ -94,7 +100,7 @@ npm run build
 If Docker/Testcontainers is unavailable in your shell, integration tests can use an existing PostgreSQL instance:
 
 ```powershell
-$env:ISS_INTEGRATIONTESTS_CONNECTION_STRING="Host=localhost;Port=5433;Database=iss_integration_local;Username=pgadmin;Password=vesper"
+$env:ISS_INTEGRATIONTESTS_CONNECTION_STRING="Host=localhost;Port=5432;Database=iss_integration_local;Username=pgadmin;Password=vesper"
 $env:ISS_INTEGRATIONTESTS_RESET_EXISTING_DB="1"
 dotnet test backend/tests/ISS.IntegrationTests/ISS.IntegrationTests.csproj -c Release --nologo
 ```

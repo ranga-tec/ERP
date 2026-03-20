@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { usePathname } from "next/navigation";
 
 type NavItem = { href: string; label: string };
@@ -144,6 +144,10 @@ function allSectionTitles(): string[] {
   return sections.map((section) => section.title);
 }
 
+function normalizeSearch(value: string): string {
+  return value.trim().toLowerCase();
+}
+
 function readExpandedSectionPreference(): string[] {
   const fallback = allSectionTitles();
 
@@ -212,6 +216,7 @@ export function Sidebar({ collapsed = false, onNavigate, onToggleCollapse }: Sid
   const canToggle = typeof onToggleCollapse === "function";
   const pinned = !collapsed;
   const [expandedSections, setExpandedSections] = useState<string[]>(() => readExpandedSectionPreference());
+  const [search, setSearch] = useState("");
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -230,6 +235,26 @@ export function Sidebar({ collapsed = false, onNavigate, onToggleCollapse }: Sid
   }
 
   const expandedSectionSet = new Set(expandedSections);
+  const normalizedSearch = normalizeSearch(search);
+  const filteredSections = useMemo(() => {
+    if (!normalizedSearch) {
+      return sections;
+    }
+
+    return sections
+      .map((section) => {
+        const sectionMatches = normalizeSearch(section.title).includes(normalizedSearch);
+        const items = sectionMatches
+          ? section.items
+          : section.items.filter((item) => normalizeSearch(item.label).includes(normalizedSearch));
+
+        return {
+          ...section,
+          items,
+        };
+      })
+      .filter((section) => section.items.length > 0);
+  }, [normalizedSearch]);
 
   return (
     <aside
@@ -261,14 +286,65 @@ export function Sidebar({ collapsed = false, onNavigate, onToggleCollapse }: Sid
         ) : null}
       </div>
 
+      {!collapsed ? (
+        <div className="mb-4 shrink-0">
+          <label htmlFor="sidebar-search" className="sr-only">
+            Search menu items
+          </label>
+          <div className="relative">
+            <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[var(--muted-foreground)]">
+              <svg viewBox="0 0 20 20" className="h-4 w-4" fill="none" aria-hidden="true">
+                <path
+                  d="m14.5 14.5 3 3"
+                  stroke="currentColor"
+                  strokeWidth="1.8"
+                  strokeLinecap="round"
+                />
+                <circle
+                  cx="8.5"
+                  cy="8.5"
+                  r="5.5"
+                  stroke="currentColor"
+                  strokeWidth="1.8"
+                />
+              </svg>
+            </span>
+            <input
+              id="sidebar-search"
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder="Search menu items"
+              className="w-full rounded-[1.15rem] border border-[var(--input-border)] bg-[linear-gradient(180deg,var(--surface)_0%,var(--surface-soft)_100%)] py-2.5 pl-9 pr-10 text-sm text-[var(--foreground)] shadow-[var(--shadow-control)] outline-none transition focus-visible:border-[var(--link)] focus-visible:ring-2 focus-visible:ring-[var(--ring-accent)] placeholder:text-[var(--muted-foreground)]/80"
+            />
+            {search ? (
+              <button
+                type="button"
+                onClick={() => setSearch("")}
+                aria-label="Clear menu search"
+                className="absolute right-2 top-1/2 inline-flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-lg text-[var(--muted-foreground)] transition-colors hover:bg-[var(--surface)] hover:text-[var(--foreground)]"
+              >
+                <svg viewBox="0 0 20 20" className="h-4 w-4" fill="none" aria-hidden="true">
+                  <path
+                    d="M5 5l10 10M15 5 5 15"
+                    stroke="currentColor"
+                    strokeWidth="1.8"
+                    strokeLinecap="round"
+                  />
+                </svg>
+              </button>
+            ) : null}
+          </div>
+        </div>
+      ) : null}
+
       <nav
         className={[
           "sidebar-scrollbar flex-1 overflow-y-auto overscroll-contain pr-2",
           collapsed ? "space-y-3" : "space-y-4",
         ].join(" ")}
       >
-        {sections.map((section) => {
-          const expanded = collapsed || expandedSectionSet.has(section.title);
+        {filteredSections.map((section) => {
+          const expanded = collapsed || normalizedSearch.length > 0 || expandedSectionSet.has(section.title);
           const activeSection = sectionIsActive(pathname, section);
 
           return (
@@ -364,6 +440,12 @@ export function Sidebar({ collapsed = false, onNavigate, onToggleCollapse }: Sid
             </div>
           );
         })}
+
+        {filteredSections.length === 0 && !collapsed ? (
+          <div className="rounded-[1.4rem] border border-[var(--card-border)] bg-[var(--card-bg)] px-4 py-4 text-sm text-[var(--muted-foreground)] shadow-[var(--shadow-soft)]">
+            No menu items match your search.
+          </div>
+        ) : null}
       </nav>
     </aside>
   );

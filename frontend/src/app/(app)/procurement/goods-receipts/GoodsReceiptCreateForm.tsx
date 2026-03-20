@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { apiPost } from "@/lib/api-client";
 import { Button, Select } from "@/components/ui";
 
-type PurchaseOrderRef = { id: string; number: string };
+type PurchaseOrderRef = { id: string; number: string; status: number };
 type WarehouseRef = { id: string; code: string; name: string };
 type GoodsReceiptDto = { id: string; number: string };
 
@@ -18,7 +18,11 @@ export function GoodsReceiptCreateForm({
 }) {
   const router = useRouter();
   const poOptions = useMemo(
-    () => purchaseOrders.slice().sort((a, b) => b.number.localeCompare(a.number)),
+    () =>
+      purchaseOrders
+        .filter((purchaseOrder) => purchaseOrder.status === 1 || purchaseOrder.status === 2)
+        .slice()
+        .sort((a, b) => b.number.localeCompare(a.number)),
     [purchaseOrders],
   );
   const warehouseOptions = useMemo(
@@ -88,4 +92,3 @@ export function GoodsReceiptCreateForm({
     </form>
   );
 }
-
