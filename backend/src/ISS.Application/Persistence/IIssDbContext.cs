@@ -55,6 +55,7 @@ public interface IIssDbContext
     DbSet<EquipmentUnit> EquipmentUnits { get; }
     DbSet<ServiceJob> ServiceJobs { get; }
     DbSet<ServiceEstimate> ServiceEstimates { get; }
+    DbSet<ServiceExpenseClaim> ServiceExpenseClaims { get; }
     DbSet<ServiceHandover> ServiceHandovers { get; }
     DbSet<WorkOrder> WorkOrders { get; }
     DbSet<MaterialRequisition> MaterialRequisitions { get; }

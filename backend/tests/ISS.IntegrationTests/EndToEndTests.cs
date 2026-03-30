@@ -21,10 +21,29 @@ public sealed class EndToEndTests(IssApiFixture fixture) : IClassFixture<IssApiF
         => $"{prefix}{Guid.NewGuid():N}"[..Math.Min(prefix.Length + suffixChars, 32)];
 
     private sealed record BrandDto(Guid Id, string Code, string Name, bool IsActive);
+    private sealed record ItemCategoryDto(Guid Id, string Code, string Name, bool IsActive);
+    private sealed record ItemSubcategoryDto(Guid Id, Guid CategoryId, string? CategoryCode, string? CategoryName, string Code, string Name, bool IsActive);
     private sealed record WarehouseDto(Guid Id, string Code, string Name, string? Address, bool IsActive);
     private sealed record SupplierDto(Guid Id, string Code, string Name, string? Phone, string? Email, string? Address, bool IsActive);
     private sealed record CustomerDto(Guid Id, string Code, string Name, string? Phone, string? Email, string? Address, bool IsActive);
     private sealed record ItemDto(Guid Id, string Sku, string Name, ItemType Type, TrackingType TrackingType, string UnitOfMeasure, Guid? BrandId, string? Barcode, decimal DefaultUnitCost, bool IsActive);
+    private sealed record ClassifiedItemDto(
+        Guid Id,
+        string Sku,
+        string Name,
+        ItemType Type,
+        TrackingType TrackingType,
+        string UnitOfMeasure,
+        Guid? BrandId,
+        Guid? CategoryId,
+        string? CategoryCode,
+        string? CategoryName,
+        Guid? SubcategoryId,
+        string? SubcategoryCode,
+        string? SubcategoryName,
+        string? Barcode,
+        decimal DefaultUnitCost,
+        bool IsActive);
     private sealed record CurrencyDto(Guid Id, string Code, string Name, string Symbol, int MinorUnits, bool IsBase, bool IsActive);
     private sealed record PaymentTypeDto(Guid Id, string Code, string Name, string? Description, bool IsActive);
     private sealed record ReferenceFormDto(Guid Id, string Code, string Name, string Module, string? RouteTemplate, bool IsActive);
@@ -57,6 +76,42 @@ public sealed class EndToEndTests(IssApiFixture fixture) : IClassFixture<IssApiF
     }
 
     [Fact]
+    public async Task MasterData_Can_Create_Service_Item_With_Category_And_Subcategory()
+    {
+        var category = await Post<ItemCategoryDto>("/api/item-categories", new
+        {
+            code = Code("SVCAT"),
+            name = "Service Category"
+        });
+        var subcategory = await Post<ItemSubcategoryDto>("/api/item-subcategories", new
+        {
+            categoryId = category.Id,
+            code = Code("LAB"),
+            name = "Labor"
+        });
+
+        var item = await Post<ClassifiedItemDto>("/api/items", new
+        {
+            sku = Code("LAB"),
+            name = "Service Labor",
+            type = ItemType.Service,
+            trackingType = TrackingType.None,
+            unitOfMeasure = "HRS",
+            brandId = (Guid?)null,
+            categoryId = category.Id,
+            subcategoryId = subcategory.Id,
+            barcode = (string?)null,
+            defaultUnitCost = 0m
+        });
+
+        Assert.Equal(ItemType.Service, item.Type);
+        Assert.Equal(category.Id, item.CategoryId);
+        Assert.Equal(category.Code, item.CategoryCode);
+        Assert.Equal(subcategory.Id, item.SubcategoryId);
+        Assert.Equal(subcategory.Code, item.SubcategoryCode);
+    }
+
+    [Fact]
     public async Task MasterData_Default_Reference_Data_Is_Bootstrapped_On_Fresh_System()
     {
         var currencies = await Get<List<CurrencyDto>>("/api/currencies");
@@ -67,6 +122,7 @@ public sealed class EndToEndTests(IssApiFixture fixture) : IClassFixture<IssApiF
 
         var referenceForms = await Get<List<ReferenceFormDto>>("/api/reference-forms");
         Assert.Contains(referenceForms, form => form.Code == "PAY" && form.RouteTemplate == "/finance/payments/{id}" && form.IsActive);
+        Assert.Contains(referenceForms, form => form.Code == "SEC" && form.RouteTemplate == "/service/expense-claims/{id}" && form.IsActive);
     }
 
     [Fact]
@@ -1542,6 +1598,252 @@ public sealed class EndToEndTests(IssApiFixture fixture) : IClassFixture<IssApiF
     }
 
     [Fact]
+    public async Task Service_Estimate_Can_Be_Revised_Without_Changing_Approved_Original()
+    {
+        var customer = await Post<CustomerDto>("/api/customers", new { code = Code("CUS"), name = "Customer A", phone = "555", email = (string?)null, address = (string?)null });
+        var equipment = await Post<ItemDto>("/api/items", new
+        {
+            sku = Code("EQ"),
+            name = "Air Compressor",
+            type = ItemType.Equipment,
+            trackingType = TrackingType.Serial,
+            unitOfMeasure = "UNIT",
+            brandId = (Guid?)null,
+            barcode = (string?)null,
+            defaultUnitCost = 0m
+        });
+        var sparePart = await Post<ItemDto>("/api/items", new
+        {
+            sku = Code("SP"),
+            name = "Valve Set",
+            type = ItemType.SparePart,
+            trackingType = TrackingType.None,
+            unitOfMeasure = "PCS",
+            brandId = (Guid?)null,
+            barcode = (string?)null,
+            defaultUnitCost = 35m
+        });
+
+        var unit = await Post<EquipmentUnitDto>("/api/service/equipment-units", new
+        {
+            itemId = equipment.Id,
+            serialNumber = $"SN-{Guid.NewGuid():N}"[..20],
+            customerId = customer.Id,
+            purchasedAt = (DateTimeOffset?)null,
+            warrantyUntil = (DateTimeOffset?)null
+        });
+
+        var job = await Post<ServiceJobDto>("/api/service/jobs", new
+        {
+            equipmentUnitId = unit.Id,
+            customerId = customer.Id,
+            kind = ServiceJobKind.Repair,
+            problemDescription = "Pressure leak"
+        });
+        Assert.Equal(ServiceJobKind.Repair, job.Kind);
+
+        var estimate = await Post<ServiceEstimateApiDto>("/api/service/estimates", new
+        {
+            serviceJobId = job.Id,
+            validUntil = (DateTimeOffset?)null,
+            terms = "Initial approval required"
+        });
+
+        await PostNoContent($"/api/service/estimates/{estimate.Id}/lines", new
+        {
+            kind = ServiceEstimateLineKind.Part,
+            itemId = sparePart.Id,
+            description = "Replace valve set",
+            quantity = 1m,
+            unitPrice = 35m,
+            taxPercent = 0m
+        });
+        await PostNoContent($"/api/service/estimates/{estimate.Id}/approve", new { });
+
+        var revised = await Post<ServiceEstimateApiDto>($"/api/service/estimates/{estimate.Id}/revise", new { });
+        Assert.Equal(job.Id, revised.ServiceJobId);
+        Assert.Equal(estimate.Id, revised.RevisedFromEstimateId);
+        Assert.Equal(1, revised.RevisionNumber);
+        Assert.Equal(ServiceEstimateStatus.Draft, revised.Status);
+        Assert.Single(revised.Lines);
+
+        await PostNoContent($"/api/service/estimates/{revised.Id}/lines", new
+        {
+            kind = ServiceEstimateLineKind.Labor,
+            itemId = (Guid?)null,
+            description = "Extra repair labor",
+            quantity = 1m,
+            unitPrice = 20m,
+            taxPercent = 0m
+        });
+
+        var revisedAfterEdit = await Get<ServiceEstimateApiDto>($"/api/service/estimates/{revised.Id}");
+        Assert.Equal(2, revisedAfterEdit.Lines.Count);
+
+        var originalAfterRevision = await Get<ServiceEstimateApiDto>($"/api/service/estimates/{estimate.Id}");
+        Assert.Equal(ServiceEstimateStatus.Approved, originalAfterRevision.Status);
+        Assert.Single(originalAfterRevision.Lines);
+    }
+
+    [Fact]
+    public async Task Procurement_DirectPurchase_Can_Be_Linked_To_ServiceJob()
+    {
+        var customer = await Post<CustomerDto>("/api/customers", new { code = Code("CUS"), name = "Customer A", phone = "555", email = (string?)null, address = (string?)null });
+        var supplier = await Post<SupplierDto>("/api/suppliers", new { code = Code("SUP"), name = "Supplier A", phone = "555", email = (string?)null, address = (string?)null });
+        var warehouse = await Post<WarehouseDto>("/api/warehouses", new { code = Code("WH"), name = "Main Warehouse" });
+        var equipment = await Post<ItemDto>("/api/items", new
+        {
+            sku = Code("EQ"),
+            name = "Generator",
+            type = ItemType.Equipment,
+            trackingType = TrackingType.Serial,
+            unitOfMeasure = "UNIT",
+            brandId = (Guid?)null,
+            barcode = (string?)null,
+            defaultUnitCost = 0m
+        });
+        var outsidePart = await Post<ItemDto>("/api/items", new
+        {
+            sku = Code("SP"),
+            name = "Emergency Relay",
+            type = ItemType.SparePart,
+            trackingType = TrackingType.None,
+            unitOfMeasure = "PCS",
+            brandId = (Guid?)null,
+            barcode = (string?)null,
+            defaultUnitCost = 18m
+        });
+
+        var unit = await Post<EquipmentUnitDto>("/api/service/equipment-units", new
+        {
+            itemId = equipment.Id,
+            serialNumber = $"SN-{Guid.NewGuid():N}"[..20],
+            customerId = customer.Id,
+            purchasedAt = (DateTimeOffset?)null,
+            warrantyUntil = (DateTimeOffset?)null
+        });
+        var job = await Post<ServiceJobDto>("/api/service/jobs", new
+        {
+            equipmentUnitId = unit.Id,
+            customerId = customer.Id,
+            kind = ServiceJobKind.Repair,
+            problemDescription = "No electrical output"
+        });
+
+        var dp = await Post<DirectPurchaseApiDto>("/api/procurement/direct-purchases", new
+        {
+            supplierId = supplier.Id,
+            warehouseId = warehouse.Id,
+            serviceJobId = job.Id,
+            purchasedAt = (DateTimeOffset?)null,
+            remarks = "Emergency outside buy for repair"
+        });
+        Assert.Equal(job.Id, dp.ServiceJobId);
+
+        await PostNoContent($"/api/procurement/direct-purchases/{dp.Id}/lines", new
+        {
+            itemId = outsidePart.Id,
+            quantity = 1m,
+            unitPrice = 22m,
+            taxPercent = 0m,
+            batchNumber = (string?)null,
+            serials = (string[]?)null
+        });
+        await PostNoContent($"/api/procurement/direct-purchases/{dp.Id}/post", new { });
+
+        var postedDp = await Get<DirectPurchaseApiDto>($"/api/procurement/direct-purchases/{dp.Id}");
+        Assert.Equal(DirectPurchaseStatus.Posted, postedDp.Status);
+        Assert.Equal(job.Id, postedDp.ServiceJobId);
+    }
+
+    [Fact]
+    public async Task Service_ExpenseClaim_Can_Be_Submitted_Approved_And_Settled()
+    {
+        var customer = await Post<CustomerDto>("/api/customers", new { code = Code("CUS"), name = "Customer A", phone = "555", email = (string?)null, address = (string?)null });
+        var equipment = await Post<ItemDto>("/api/items", new
+        {
+            sku = Code("EQ"),
+            name = "Pump",
+            type = ItemType.Equipment,
+            trackingType = TrackingType.Serial,
+            unitOfMeasure = "UNIT",
+            brandId = (Guid?)null,
+            barcode = (string?)null,
+            defaultUnitCost = 0m
+        });
+        var outsidePart = await Post<ItemDto>("/api/items", new
+        {
+            sku = Code("SP"),
+            name = "Terminal Kit",
+            type = ItemType.SparePart,
+            trackingType = TrackingType.None,
+            unitOfMeasure = "PCS",
+            brandId = (Guid?)null,
+            barcode = (string?)null,
+            defaultUnitCost = 8m
+        });
+
+        var unit = await Post<EquipmentUnitDto>("/api/service/equipment-units", new
+        {
+            itemId = equipment.Id,
+            serialNumber = $"SN-{Guid.NewGuid():N}"[..20],
+            customerId = customer.Id,
+            purchasedAt = (DateTimeOffset?)null,
+            warrantyUntil = (DateTimeOffset?)null
+        });
+        var job = await Post<ServiceJobDto>("/api/service/jobs", new
+        {
+            equipmentUnitId = unit.Id,
+            customerId = customer.Id,
+            kind = ServiceJobKind.Repair,
+            problemDescription = "Motor trips on load"
+        });
+
+        var claim = await Post<ServiceExpenseClaimApiDto>("/api/service/expense-claims", new
+        {
+            serviceJobId = job.Id,
+            claimedByName = "Tech A",
+            fundingSource = ServiceExpenseFundingSource.PettyCash,
+            expenseDate = (DateTimeOffset?)null,
+            merchantName = "Corner Hardware",
+            receiptReference = "PC-001",
+            notes = "Emergency outside purchase during repair"
+        });
+
+        Assert.Equal(ServiceExpenseClaimStatus.Draft, claim.Status);
+        Assert.Equal(ServiceExpenseFundingSource.PettyCash, claim.FundingSource);
+        Assert.Equal("Tech A", claim.ClaimedByName);
+
+        await PostNoContent($"/api/service/expense-claims/{claim.Id}/lines", new
+        {
+            itemId = outsidePart.Id,
+            description = "Emergency terminal kit",
+            quantity = 2m,
+            unitCost = 9.5m,
+            billableToCustomer = true
+        });
+
+        await PostNoContent($"/api/service/expense-claims/{claim.Id}/submit", new { });
+        await PostNoContent($"/api/service/expense-claims/{claim.Id}/approve", new { });
+
+        var cashPaymentType = Assert.Single(await Get<List<PaymentTypeDto>>("/api/payment-types"), x => x.Code == "CASH");
+        await PostNoContent($"/api/service/expense-claims/{claim.Id}/settle", new
+        {
+            settlementPaymentTypeId = cashPaymentType.Id,
+            settlementReference = "PETTY-SETTLE-001"
+        });
+
+        var settledClaim = await Get<ServiceExpenseClaimApiDto>($"/api/service/expense-claims/{claim.Id}");
+        Assert.Equal(ServiceExpenseClaimStatus.Settled, settledClaim.Status);
+        Assert.Equal(cashPaymentType.Id, settledClaim.SettlementPaymentTypeId);
+        Assert.Equal("PETTY-SETTLE-001", settledClaim.SettlementReference);
+        Assert.Single(settledClaim.Lines);
+        Assert.Equal(19m, settledClaim.Total);
+
+        await AssertPdfOkAsync($"/api/service/expense-claims/{claim.Id}/pdf");
+    }
+
+    [Fact]
     public async Task Service_Estimate_Send_And_Handover_ConvertToInvoice_Queue_Notifications_And_Link_Invoice()
     {
         var customer = await Post<CustomerDto>("/api/customers", new { code = Code("CUS"), name = "Customer A", phone = "+15550123", email = "svc-customer@example.test", address = (string?)null });
@@ -2120,7 +2422,7 @@ public sealed class EndToEndTests(IssApiFixture fixture) : IClassFixture<IssApiF
 
     private sealed record SupplierReturnDto(Guid Id, string Number, Guid SupplierId, Guid WarehouseId, DateTimeOffset ReturnDate, SupplierReturnStatus Status, string? Reason);
     private sealed record DirectPurchaseLineApiDto(Guid Id, Guid ItemId, decimal Quantity, decimal UnitPrice, decimal TaxPercent, string? BatchNumber, IReadOnlyList<string> Serials, decimal LineSubTotal, decimal LineTax, decimal LineTotal);
-    private sealed record DirectPurchaseApiDto(Guid Id, string Number, Guid SupplierId, Guid WarehouseId, DateTimeOffset PurchasedAt, DirectPurchaseStatus Status, string? Remarks, decimal Subtotal, decimal TaxTotal, decimal GrandTotal, IReadOnlyList<DirectPurchaseLineApiDto> Lines);
+    private sealed record DirectPurchaseApiDto(Guid Id, string Number, Guid SupplierId, Guid WarehouseId, Guid? ServiceJobId, DateTimeOffset PurchasedAt, DirectPurchaseStatus Status, string? Remarks, decimal Subtotal, decimal TaxTotal, decimal GrandTotal, IReadOnlyList<DirectPurchaseLineApiDto> Lines);
     private sealed record SupplierInvoiceApiDto(Guid Id, string Number, Guid SupplierId, string InvoiceNumber, DateTimeOffset InvoiceDate, DateTimeOffset? DueDate, Guid? PurchaseOrderId, Guid? GoodsReceiptId, Guid? DirectPurchaseId, decimal Subtotal, decimal DiscountAmount, decimal TaxAmount, decimal FreightAmount, decimal RoundingAmount, decimal GrandTotal, SupplierInvoiceStatus Status, DateTimeOffset? PostedAt, Guid? AccountsPayableEntryId, string? Notes);
 
     private sealed record SalesOrderDto(Guid Id, string Number, Guid CustomerId, DateTimeOffset OrderDate, SalesOrderStatus Status, decimal Total);
@@ -2139,9 +2441,11 @@ public sealed class EndToEndTests(IssApiFixture fixture) : IClassFixture<IssApiF
     private sealed record SalesQuoteLineDto(Guid Id, Guid ItemId, decimal Quantity, decimal UnitPrice, decimal LineTotal);
 
     private sealed record EquipmentUnitDto(Guid Id, Guid ItemId, string SerialNumber, Guid CustomerId, DateTimeOffset? PurchasedAt, DateTimeOffset? WarrantyUntil);
-    private sealed record ServiceJobDto(Guid Id, string Number, Guid EquipmentUnitId, Guid CustomerId, DateTimeOffset OpenedAt, string ProblemDescription, ServiceJobStatus Status, DateTimeOffset? CompletedAt);
+    private sealed record ServiceJobDto(Guid Id, string Number, Guid EquipmentUnitId, Guid CustomerId, DateTimeOffset OpenedAt, string ProblemDescription, ServiceJobKind Kind, ServiceJobStatus Status, DateTimeOffset? CompletedAt);
     private sealed record ServiceEstimateLineApiDto(Guid Id, ServiceEstimateLineKind Kind, Guid? ItemId, string Description, decimal Quantity, decimal UnitPrice, decimal TaxPercent, decimal LineSubtotal, decimal LineTax, decimal LineTotal);
-    private sealed record ServiceEstimateApiDto(Guid Id, string Number, Guid ServiceJobId, DateTimeOffset IssuedAt, DateTimeOffset? ValidUntil, string? Terms, ServiceEstimateStatus Status, decimal Subtotal, decimal TaxTotal, decimal Total, IReadOnlyList<ServiceEstimateLineApiDto> Lines);
+    private sealed record ServiceEstimateApiDto(Guid Id, string Number, Guid ServiceJobId, DateTimeOffset IssuedAt, DateTimeOffset? ValidUntil, string? Terms, Guid? RevisedFromEstimateId, int RevisionNumber, ServiceEstimateStatus Status, decimal Subtotal, decimal TaxTotal, decimal Total, IReadOnlyList<ServiceEstimateLineApiDto> Lines);
+    private sealed record ServiceExpenseClaimLineApiDto(Guid Id, Guid? ItemId, string Description, decimal Quantity, decimal UnitCost, bool BillableToCustomer, decimal LineTotal);
+    private sealed record ServiceExpenseClaimApiDto(Guid Id, string Number, Guid ServiceJobId, Guid? ClaimedByUserId, string ClaimedByName, ServiceExpenseFundingSource FundingSource, DateTimeOffset ExpenseDate, string? MerchantName, string? ReceiptReference, string? Notes, ServiceExpenseClaimStatus Status, DateTimeOffset? SubmittedAt, DateTimeOffset? ApprovedAt, DateTimeOffset? RejectedAt, string? RejectionReason, Guid? SettlementPaymentTypeId, DateTimeOffset? SettledAt, string? SettlementReference, decimal Total, IReadOnlyList<ServiceExpenseClaimLineApiDto> Lines);
     private sealed record ServiceHandoverApiDto(Guid Id, string Number, Guid ServiceJobId, DateTimeOffset HandoverDate, string ItemsReturned, int? PostServiceWarrantyMonths, string? CustomerAcknowledgement, string? Notes, ServiceHandoverStatus Status, Guid? SalesInvoiceId = null, DateTimeOffset? ConvertedToInvoiceAt = null);
     private sealed record ConvertToSalesInvoiceResponseDto(Guid SalesInvoiceId);
     private sealed record DocumentCommentApiDto(Guid Id, string ReferenceType, Guid ReferenceId, string Text, DateTimeOffset CreatedAt, Guid? CreatedBy, DateTimeOffset? LastModifiedAt, Guid? LastModifiedBy);

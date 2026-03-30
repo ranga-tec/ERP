@@ -13,13 +13,20 @@ public sealed class DirectPurchase : AuditableEntity
 {
     private DirectPurchase() { }
 
-    public DirectPurchase(string number, Guid supplierId, Guid warehouseId, DateTimeOffset purchasedAt, string? remarks)
+    public DirectPurchase(
+        string number,
+        Guid supplierId,
+        Guid warehouseId,
+        DateTimeOffset purchasedAt,
+        string? remarks,
+        Guid? serviceJobId = null)
     {
         Number = Guard.NotNullOrWhiteSpace(number, nameof(Number), maxLength: 32);
         SupplierId = supplierId;
         WarehouseId = warehouseId;
         PurchasedAt = purchasedAt;
         Remarks = remarks?.Trim();
+        ServiceJobId = serviceJobId;
         Status = DirectPurchaseStatus.Draft;
     }
 
@@ -28,6 +35,7 @@ public sealed class DirectPurchase : AuditableEntity
     public Guid WarehouseId { get; private set; }
     public DateTimeOffset PurchasedAt { get; private set; }
     public string? Remarks { get; private set; }
+    public Guid? ServiceJobId { get; private set; }
     public DirectPurchaseStatus Status { get; private set; }
 
     public List<DirectPurchaseLine> Lines { get; private set; } = new();

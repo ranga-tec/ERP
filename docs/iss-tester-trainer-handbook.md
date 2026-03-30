@@ -104,8 +104,8 @@ What this means in practice:
 | Procurement | Buying and receiving | PR, RFQ, PO, GRN, supplier invoice, supplier return |
 | Inventory | Stock control | on hand by warehouse/batch, reorder alerts, stock adjustment count entry, stock transfer move entry |
 | Sales | Selling and dispatching | quotes, orders, dispatches, invoices, customer returns |
-| Service | Workshop and after-sales work | jobs, work orders, estimates, QC, handovers |
-| Finance | Money owed and paid | AR, AP, payments, credit notes, debit notes |
+| Service | Workshop and after-sales work | jobs, estimates, expense claims, work orders, QC, handovers |
+| Finance | Money owed and paid | AR, AP, payments, credit notes, debit notes, expense-claim approval/settlement |
 | Reporting | Operational visibility | stock ledger, aging, tax summary, service KPIs, costing |
 | Admin | Control and support tools | users, notifications, Excel import, settings |
 | Audit Logs | Change tracking | posted actions and entity changes |

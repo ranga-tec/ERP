@@ -100,37 +100,47 @@ public static class ReferenceDataSeeder
             hasChanges = true;
         }
 
-        if (!await dbContext.ReferenceForms.AnyAsync(cancellationToken))
+        var seededReferenceForms = new[]
         {
-            await dbContext.ReferenceForms.AddRangeAsync(
-            [
-                new ReferenceForm("PR", "Purchase Requisition", "Procurement", "/procurement/purchase-requisitions/{id}"),
-                new ReferenceForm("RFQ", "Request for Quote", "Procurement", "/procurement/rfqs/{id}"),
-                new ReferenceForm("PO", "Purchase Order", "Procurement", "/procurement/purchase-orders/{id}"),
-                new ReferenceForm("GRN", "Goods Receipt", "Procurement", "/procurement/goods-receipts/{id}"),
-                new ReferenceForm("DPR", "Direct Purchase", "Procurement", "/procurement/direct-purchases/{id}"),
-                new ReferenceForm("SINV", "Supplier Invoice", "Procurement", "/procurement/supplier-invoices/{id}"),
-                new ReferenceForm("SR", "Supplier Return", "Procurement", "/procurement/supplier-returns/{id}"),
-                new ReferenceForm("SQ", "Sales Quote", "Sales", "/sales/quotes/{id}"),
-                new ReferenceForm("SO", "Sales Order", "Sales", "/sales/orders/{id}"),
-                new ReferenceForm("DN", "Dispatch Note", "Sales", "/sales/dispatches/{id}"),
-                new ReferenceForm("DDN", "Direct Dispatch", "Sales", "/sales/direct-dispatches/{id}"),
-                new ReferenceForm("INV", "Sales Invoice", "Sales", "/sales/invoices/{id}"),
-                new ReferenceForm("CRTN", "Customer Return", "Sales", "/sales/customer-returns/{id}"),
-                new ReferenceForm("SJ", "Service Job", "Service", "/service/jobs/{id}"),
-                new ReferenceForm("SE", "Service Estimate", "Service", "/service/estimates/{id}"),
-                new ReferenceForm("WO", "Work Order", "Service", "/service/work-orders/{id}"),
-                new ReferenceForm("MR", "Material Requisition", "Service", "/service/material-requisitions/{id}"),
-                new ReferenceForm("QC", "Quality Check", "Service", "/service/quality-checks/{id}"),
-                new ReferenceForm("SH", "Service Handover", "Service", "/service/handovers/{id}"),
-                new ReferenceForm("EUNIT", "Equipment Unit", "Service", "/service/equipment-units/{id}"),
-                new ReferenceForm("ADJ", "Stock Adjustment", "Inventory", "/inventory/stock-adjustments/{id}"),
-                new ReferenceForm("TRF", "Stock Transfer", "Inventory", "/inventory/stock-transfers/{id}"),
-                new ReferenceForm("PAY", "Payment", "Finance", "/finance/payments/{id}"),
-                new ReferenceForm("CN", "Credit Note", "Finance", "/finance/credit-notes/{id}"),
-                new ReferenceForm("DBN", "Debit Note", "Finance", "/finance/debit-notes/{id}")
-            ], cancellationToken);
+            new ReferenceForm("PR", "Purchase Requisition", "Procurement", "/procurement/purchase-requisitions/{id}"),
+            new ReferenceForm("RFQ", "Request for Quote", "Procurement", "/procurement/rfqs/{id}"),
+            new ReferenceForm("PO", "Purchase Order", "Procurement", "/procurement/purchase-orders/{id}"),
+            new ReferenceForm("GRN", "Goods Receipt", "Procurement", "/procurement/goods-receipts/{id}"),
+            new ReferenceForm("DPR", "Direct Purchase", "Procurement", "/procurement/direct-purchases/{id}"),
+            new ReferenceForm("SINV", "Supplier Invoice", "Procurement", "/procurement/supplier-invoices/{id}"),
+            new ReferenceForm("SR", "Supplier Return", "Procurement", "/procurement/supplier-returns/{id}"),
+            new ReferenceForm("SQ", "Sales Quote", "Sales", "/sales/quotes/{id}"),
+            new ReferenceForm("SO", "Sales Order", "Sales", "/sales/orders/{id}"),
+            new ReferenceForm("DN", "Dispatch Note", "Sales", "/sales/dispatches/{id}"),
+            new ReferenceForm("DDN", "Direct Dispatch", "Sales", "/sales/direct-dispatches/{id}"),
+            new ReferenceForm("INV", "Sales Invoice", "Sales", "/sales/invoices/{id}"),
+            new ReferenceForm("CRTN", "Customer Return", "Sales", "/sales/customer-returns/{id}"),
+            new ReferenceForm("SJ", "Service Job", "Service", "/service/jobs/{id}"),
+            new ReferenceForm("SE", "Service Estimate", "Service", "/service/estimates/{id}"),
+            new ReferenceForm("SEC", "Service Expense Claim", "Service", "/service/expense-claims/{id}"),
+            new ReferenceForm("WO", "Work Order", "Service", "/service/work-orders/{id}"),
+            new ReferenceForm("MR", "Material Requisition", "Service", "/service/material-requisitions/{id}"),
+            new ReferenceForm("QC", "Quality Check", "Service", "/service/quality-checks/{id}"),
+            new ReferenceForm("SH", "Service Handover", "Service", "/service/handovers/{id}"),
+            new ReferenceForm("EUNIT", "Equipment Unit", "Service", "/service/equipment-units/{id}"),
+            new ReferenceForm("ADJ", "Stock Adjustment", "Inventory", "/inventory/stock-adjustments/{id}"),
+            new ReferenceForm("TRF", "Stock Transfer", "Inventory", "/inventory/stock-transfers/{id}"),
+            new ReferenceForm("PAY", "Payment", "Finance", "/finance/payments/{id}"),
+            new ReferenceForm("CN", "Credit Note", "Finance", "/finance/credit-notes/{id}"),
+            new ReferenceForm("DBN", "Debit Note", "Finance", "/finance/debit-notes/{id}")
+        };
 
+        var existingReferenceCodes = await dbContext.ReferenceForms
+            .Select(x => x.Code)
+            .ToListAsync(cancellationToken);
+
+        var missingReferenceForms = seededReferenceForms
+            .Where(form => !existingReferenceCodes.Contains(form.Code, StringComparer.OrdinalIgnoreCase))
+            .ToList();
+
+        if (missingReferenceForms.Count > 0)
+        {
+            await dbContext.ReferenceForms.AddRangeAsync(missingReferenceForms, cancellationToken);
             hasChanges = true;
         }
 

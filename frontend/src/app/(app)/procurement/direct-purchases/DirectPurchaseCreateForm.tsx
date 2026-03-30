@@ -7,18 +7,22 @@ import { Button, Input, Select } from "@/components/ui";
 
 type SupplierRef = { id: string; code: string; name: string };
 type WarehouseRef = { id: string; code: string; name: string };
+type ServiceJobRef = { id: string; number: string; kind: number };
 type DirectPurchaseDto = { id: string; number: string };
 
 export function DirectPurchaseCreateForm({
   suppliers,
   warehouses,
+  serviceJobs,
 }: {
   suppliers: SupplierRef[];
   warehouses: WarehouseRef[];
+  serviceJobs: ServiceJobRef[];
 }) {
   const router = useRouter();
   const [supplierId, setSupplierId] = useState("");
   const [warehouseId, setWarehouseId] = useState("");
+  const [serviceJobId, setServiceJobId] = useState("");
   const [purchasedAt, setPurchasedAt] = useState("");
   const [remarks, setRemarks] = useState("");
   const [busy, setBusy] = useState(false);
@@ -32,6 +36,7 @@ export function DirectPurchaseCreateForm({
       const body = {
         supplierId,
         warehouseId,
+        serviceJobId: serviceJobId || null,
         purchasedAt: purchasedAt ? new Date(purchasedAt).toISOString() : null,
         remarks: remarks.trim() || null,
       };
@@ -47,10 +52,11 @@ export function DirectPurchaseCreateForm({
 
   const sortedSuppliers = suppliers.slice().sort((a, b) => a.code.localeCompare(b.code));
   const sortedWarehouses = warehouses.slice().sort((a, b) => a.code.localeCompare(b.code));
+  const sortedServiceJobs = serviceJobs.slice().sort((a, b) => b.number.localeCompare(a.number));
 
   return (
     <form onSubmit={onSubmit} className="space-y-3">
-      <div className="grid gap-3 sm:grid-cols-2">
+      <div className="grid gap-3 sm:grid-cols-3">
         <div>
           <label className="mb-1 block text-sm font-medium">Supplier</label>
           <Select value={supplierId} onChange={(e) => setSupplierId(e.target.value)} required>
@@ -73,6 +79,17 @@ export function DirectPurchaseCreateForm({
             {sortedWarehouses.map((w) => (
               <option key={w.id} value={w.id}>
                 {w.code} - {w.name}
+              </option>
+            ))}
+          </Select>
+        </div>
+        <div>
+          <label className="mb-1 block text-sm font-medium">Service job (optional)</label>
+          <Select value={serviceJobId} onChange={(e) => setServiceJobId(e.target.value)}>
+            <option value="">Not linked</option>
+            {sortedServiceJobs.map((job) => (
+              <option key={job.id} value={job.id}>
+                {job.number} - {job.kind === 1 ? "Repair" : "Service"}
               </option>
             ))}
           </Select>

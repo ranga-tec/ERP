@@ -3,6 +3,7 @@ using System;
 using ISS.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace ISS.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(IssDbContext))]
-    partial class IssDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260330051608_AddServiceJobKindEstimateRevisionsAndDirectPurchaseJobLink")]
+    partial class AddServiceJobKindEstimateRevisionsAndDirectPurchaseJobLink
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -3172,135 +3175,6 @@ namespace ISS.Infrastructure.Persistence.Migrations
                     b.ToTable("ServiceEstimateLine");
                 });
 
-            modelBuilder.Entity("ISS.Domain.Service.ServiceExpenseClaim", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTimeOffset?>("ApprovedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("ClaimedByName")
-                        .IsRequired()
-                        .HasMaxLength(256)
-                        .HasColumnType("character varying(256)");
-
-                    b.Property<Guid?>("ClaimedByUserId")
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTimeOffset>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<Guid?>("CreatedBy")
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTimeOffset>("ExpenseDate")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<int>("FundingSource")
-                        .HasColumnType("integer");
-
-                    b.Property<DateTimeOffset?>("LastModifiedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<Guid?>("LastModifiedBy")
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("MerchantName")
-                        .HasMaxLength(256)
-                        .HasColumnType("character varying(256)");
-
-                    b.Property<string>("Notes")
-                        .HasMaxLength(2000)
-                        .HasColumnType("character varying(2000)");
-
-                    b.Property<string>("Number")
-                        .IsRequired()
-                        .HasMaxLength(32)
-                        .HasColumnType("character varying(32)");
-
-                    b.Property<string>("ReceiptReference")
-                        .HasMaxLength(128)
-                        .HasColumnType("character varying(128)");
-
-                    b.Property<DateTimeOffset?>("RejectedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("RejectionReason")
-                        .HasMaxLength(512)
-                        .HasColumnType("character varying(512)");
-
-                    b.Property<Guid>("ServiceJobId")
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTimeOffset?>("SettledAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<Guid?>("SettlementPaymentTypeId")
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("SettlementReference")
-                        .HasMaxLength(128)
-                        .HasColumnType("character varying(128)");
-
-                    b.Property<int>("Status")
-                        .HasColumnType("integer");
-
-                    b.Property<DateTimeOffset?>("SubmittedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("ClaimedByUserId");
-
-                    b.HasIndex("Number")
-                        .IsUnique();
-
-                    b.HasIndex("ServiceJobId");
-
-                    b.HasIndex("SettlementPaymentTypeId");
-
-                    b.ToTable("ServiceExpenseClaims");
-                });
-
-            modelBuilder.Entity("ISS.Domain.Service.ServiceExpenseClaimLine", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<bool>("BillableToCustomer")
-                        .HasColumnType("boolean");
-
-                    b.Property<string>("Description")
-                        .IsRequired()
-                        .HasMaxLength(512)
-                        .HasColumnType("character varying(512)");
-
-                    b.Property<Guid?>("ItemId")
-                        .HasColumnType("uuid");
-
-                    b.Property<decimal>("Quantity")
-                        .HasPrecision(18, 4)
-                        .HasColumnType("numeric(18,4)");
-
-                    b.Property<Guid>("ServiceExpenseClaimId")
-                        .HasColumnType("uuid");
-
-                    b.Property<decimal>("UnitCost")
-                        .HasPrecision(18, 4)
-                        .HasColumnType("numeric(18,4)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("ItemId");
-
-                    b.HasIndex("ServiceExpenseClaimId");
-
-                    b.ToTable("ServiceExpenseClaimLine");
-                });
-
             modelBuilder.Entity("ISS.Domain.Service.ServiceHandover", b =>
                 {
                     b.Property<Guid>("Id")
@@ -4037,23 +3911,6 @@ namespace ISS.Infrastructure.Persistence.Migrations
                         .IsRequired();
                 });
 
-            modelBuilder.Entity("ISS.Domain.Service.ServiceExpenseClaim", b =>
-                {
-                    b.HasOne("ISS.Domain.MasterData.PaymentType", null)
-                        .WithMany()
-                        .HasForeignKey("SettlementPaymentTypeId")
-                        .OnDelete(DeleteBehavior.Restrict);
-                });
-
-            modelBuilder.Entity("ISS.Domain.Service.ServiceExpenseClaimLine", b =>
-                {
-                    b.HasOne("ISS.Domain.Service.ServiceExpenseClaim", null)
-                        .WithMany("Lines")
-                        .HasForeignKey("ServiceExpenseClaimId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-                });
-
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<System.Guid>", b =>
                 {
                     b.HasOne("Microsoft.AspNetCore.Identity.IdentityRole<System.Guid>", null)
@@ -4236,11 +4093,6 @@ namespace ISS.Infrastructure.Persistence.Migrations
                 });
 
             modelBuilder.Entity("ISS.Domain.Service.ServiceEstimate", b =>
-                {
-                    b.Navigation("Lines");
-                });
-
-            modelBuilder.Entity("ISS.Domain.Service.ServiceExpenseClaim", b =>
                 {
                     b.Navigation("Lines");
                 });

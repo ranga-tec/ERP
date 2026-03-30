@@ -29,10 +29,15 @@ public sealed class ServiceManagementService(
         return unit.Id;
     }
 
-    public async Task<Guid> CreateServiceJobAsync(Guid equipmentUnitId, Guid customerId, string problemDescription, CancellationToken cancellationToken = default)
+    public async Task<Guid> CreateServiceJobAsync(
+        Guid equipmentUnitId,
+        Guid customerId,
+        string problemDescription,
+        ServiceJobKind kind = ServiceJobKind.Service,
+        CancellationToken cancellationToken = default)
     {
         var number = await documentNumberService.NextAsync("SJ", "SJ", cancellationToken);
-        var job = new ServiceJob(number, equipmentUnitId, customerId, clock.UtcNow, problemDescription);
+        var job = new ServiceJob(number, equipmentUnitId, customerId, clock.UtcNow, problemDescription, kind);
         await dbContext.ServiceJobs.AddAsync(job, cancellationToken);
         await dbContext.SaveChangesAsync(cancellationToken);
         return job.Id;
@@ -82,6 +87,84 @@ public sealed class ServiceManagementService(
         await dbContext.ServiceEstimates.AddAsync(estimate, cancellationToken);
         await dbContext.SaveChangesAsync(cancellationToken);
         return estimate.Id;
+    }
+
+    public async Task<Guid> CreateServiceExpenseClaimAsync(
+        Guid serviceJobId,
+        Guid? claimedByUserId,
+        string claimedByName,
+        ServiceExpenseFundingSource fundingSource,
+        DateTimeOffset? expenseDate,
+        string? merchantName,
+        string? receiptReference,
+        string? notes,
+        CancellationToken cancellationToken = default)
+    {
+        var jobExists = await dbContext.ServiceJobs.AsNoTracking().AnyAsync(x => x.Id == serviceJobId, cancellationToken);
+        if (!jobExists)
+        {
+            throw new NotFoundException("Service job not found.");
+        }
+
+        var number = await documentNumberService.NextAsync(ReferenceTypes.ServiceExpenseClaim, "SEC", cancellationToken);
+        var claim = new ServiceExpenseClaim(
+            number,
+            serviceJobId,
+            claimedByUserId,
+            claimedByName,
+            fundingSource,
+            expenseDate ?? clock.UtcNow,
+            merchantName,
+            receiptReference,
+            notes);
+
+        await dbContext.ServiceExpenseClaims.AddAsync(claim, cancellationToken);
+        await dbContext.SaveChangesAsync(cancellationToken);
+        return claim.Id;
+    }
+
+    public async Task<Guid> ReviseServiceEstimateAsync(
+        Guid sourceServiceEstimateId,
+        DateTimeOffset? validUntil,
+        string? terms,
+        CancellationToken cancellationToken = default)
+    {
+        var sourceEstimate = await dbContext.ServiceEstimates
+            .Include(x => x.Lines)
+            .FirstOrDefaultAsync(x => x.Id == sourceServiceEstimateId, cancellationToken)
+            ?? throw new NotFoundException("Service estimate not found.");
+
+        if (sourceEstimate.Status == ServiceEstimateStatus.Draft)
+        {
+            throw new DomainValidationException("Draft estimates can already be edited directly.");
+        }
+
+        var number = await documentNumberService.NextAsync("SE", "SE", cancellationToken);
+        var revisedEstimate = new ServiceEstimate(
+            number,
+            sourceEstimate.ServiceJobId,
+            clock.UtcNow,
+            validUntil ?? sourceEstimate.ValidUntil,
+            string.IsNullOrWhiteSpace(terms) ? sourceEstimate.Terms : terms,
+            revisedFromEstimateId: sourceEstimate.Id,
+            revisionNumber: sourceEstimate.RevisionNumber + 1);
+
+        await dbContext.ServiceEstimates.AddAsync(revisedEstimate, cancellationToken);
+
+        foreach (var line in sourceEstimate.Lines)
+        {
+            var copiedLine = revisedEstimate.AddLine(
+                line.Kind,
+                line.ItemId,
+                line.Description,
+                line.Quantity,
+                line.UnitPrice,
+                line.TaxPercent);
+            dbContext.DbContext.Add(copiedLine);
+        }
+
+        await dbContext.SaveChangesAsync(cancellationToken);
+        return revisedEstimate.Id;
     }
 
     public async Task AddServiceEstimateLineAsync(
@@ -234,6 +317,135 @@ public sealed class ServiceManagementService(
             ?? throw new NotFoundException("Service estimate not found.");
 
         estimate.Reject();
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task AddServiceExpenseClaimLineAsync(
+        Guid serviceExpenseClaimId,
+        Guid? itemId,
+        string description,
+        decimal quantity,
+        decimal unitCost,
+        bool billableToCustomer,
+        CancellationToken cancellationToken = default)
+    {
+        var claim = await dbContext.ServiceExpenseClaims.Include(x => x.Lines)
+            .FirstOrDefaultAsync(x => x.Id == serviceExpenseClaimId, cancellationToken)
+            ?? throw new NotFoundException("Service expense claim not found.");
+
+        if (itemId is { } itemRef)
+        {
+            var itemExists = await dbContext.Items.AsNoTracking().AnyAsync(x => x.Id == itemRef, cancellationToken);
+            if (!itemExists)
+            {
+                throw new NotFoundException("Item not found.");
+            }
+        }
+
+        var line = claim.AddLine(itemId, description, quantity, unitCost, billableToCustomer);
+        dbContext.DbContext.Add(line);
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task UpdateServiceExpenseClaimLineAsync(
+        Guid serviceExpenseClaimId,
+        Guid lineId,
+        Guid? itemId,
+        string description,
+        decimal quantity,
+        decimal unitCost,
+        bool billableToCustomer,
+        CancellationToken cancellationToken = default)
+    {
+        var claim = await dbContext.ServiceExpenseClaims.Include(x => x.Lines)
+            .FirstOrDefaultAsync(x => x.Id == serviceExpenseClaimId, cancellationToken)
+            ?? throw new NotFoundException("Service expense claim not found.");
+
+        if (itemId is { } itemRef)
+        {
+            var itemExists = await dbContext.Items.AsNoTracking().AnyAsync(x => x.Id == itemRef, cancellationToken);
+            if (!itemExists)
+            {
+                throw new NotFoundException("Item not found.");
+            }
+        }
+
+        if (!claim.Lines.Any(x => x.Id == lineId))
+        {
+            throw new NotFoundException("Service expense claim line not found.");
+        }
+
+        claim.UpdateLine(lineId, itemId, description, quantity, unitCost, billableToCustomer);
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task RemoveServiceExpenseClaimLineAsync(Guid serviceExpenseClaimId, Guid lineId, CancellationToken cancellationToken = default)
+    {
+        var claim = await dbContext.ServiceExpenseClaims.Include(x => x.Lines)
+            .FirstOrDefaultAsync(x => x.Id == serviceExpenseClaimId, cancellationToken)
+            ?? throw new NotFoundException("Service expense claim not found.");
+
+        var line = claim.Lines.FirstOrDefault(x => x.Id == lineId)
+            ?? throw new NotFoundException("Service expense claim line not found.");
+
+        claim.RemoveLine(lineId);
+        dbContext.DbContext.Remove(line);
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task SubmitServiceExpenseClaimAsync(Guid serviceExpenseClaimId, CancellationToken cancellationToken = default)
+    {
+        var claim = await dbContext.ServiceExpenseClaims.Include(x => x.Lines)
+            .FirstOrDefaultAsync(x => x.Id == serviceExpenseClaimId, cancellationToken)
+            ?? throw new NotFoundException("Service expense claim not found.");
+
+        claim.Submit(clock.UtcNow);
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task ApproveServiceExpenseClaimAsync(Guid serviceExpenseClaimId, CancellationToken cancellationToken = default)
+    {
+        var claim = await dbContext.ServiceExpenseClaims
+            .FirstOrDefaultAsync(x => x.Id == serviceExpenseClaimId, cancellationToken)
+            ?? throw new NotFoundException("Service expense claim not found.");
+
+        claim.Approve(clock.UtcNow);
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task RejectServiceExpenseClaimAsync(
+        Guid serviceExpenseClaimId,
+        string? rejectionReason,
+        CancellationToken cancellationToken = default)
+    {
+        var claim = await dbContext.ServiceExpenseClaims
+            .FirstOrDefaultAsync(x => x.Id == serviceExpenseClaimId, cancellationToken)
+            ?? throw new NotFoundException("Service expense claim not found.");
+
+        claim.Reject(clock.UtcNow, rejectionReason);
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task SettleServiceExpenseClaimAsync(
+        Guid serviceExpenseClaimId,
+        Guid? settlementPaymentTypeId,
+        string? settlementReference,
+        CancellationToken cancellationToken = default)
+    {
+        var claim = await dbContext.ServiceExpenseClaims
+            .FirstOrDefaultAsync(x => x.Id == serviceExpenseClaimId, cancellationToken)
+            ?? throw new NotFoundException("Service expense claim not found.");
+
+        if (settlementPaymentTypeId is { } paymentTypeId)
+        {
+            var paymentTypeExists = await dbContext.PaymentTypes.AsNoTracking().AnyAsync(x => x.Id == paymentTypeId, cancellationToken);
+            if (!paymentTypeExists)
+            {
+                throw new NotFoundException("Payment type not found.");
+            }
+        }
+
+        claim.Settle(clock.UtcNow, settlementPaymentTypeId, settlementReference);
         await dbContext.SaveChangesAsync(cancellationToken);
     }
 

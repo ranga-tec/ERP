@@ -5,8 +5,17 @@ import { ISS_TOKEN_COOKIE, issApiBaseUrl } from "@/lib/env";
 export const runtime = "nodejs";
 
 const DEFAULT_UPSTREAM_TIMEOUT_MS = 30_000;
+const REQUEST_HEADER_ALLOWLIST = new Set([
+  "accept",
+  "content-type",
+  "content-disposition",
+  "range",
+  "if-none-match",
+  "if-modified-since",
+]);
 const HOP_BY_HOP_HEADERS = new Set([
   "connection",
+  "expect",
   "keep-alive",
   "proxy-authenticate",
   "proxy-authorization",
@@ -40,9 +49,16 @@ async function forward(req: Request, path: string[]) {
   const cookieStore = await cookies();
   const token = cookieStore.get(ISS_TOKEN_COOKIE)?.value;
 
-  const headers = new Headers(req.headers);
-  headers.delete("host");
-  headers.delete("cookie");
+  const headers = new Headers();
+  req.headers.forEach((value, key) => {
+    const normalized = key.toLowerCase();
+    if (!REQUEST_HEADER_ALLOWLIST.has(normalized)) {
+      return;
+    }
+
+    headers.set(key, value);
+  });
+
   if (token) {
     headers.set("authorization", `Bearer ${token}`);
   } else {
@@ -52,20 +68,24 @@ async function forward(req: Request, path: string[]) {
   const controller = new AbortController();
   const timeoutHandle = setTimeout(() => controller.abort(), upstreamTimeoutMs());
 
-  const init: RequestInit & { duplex?: "half" } = {
+  const init: RequestInit = {
     method: req.method,
     headers,
     redirect: "manual",
     signal: controller.signal,
   };
 
-  if (req.method !== "GET" && req.method !== "HEAD" && req.body) {
-    init.body = req.body;
-    init.duplex = "half";
-  }
-
   let upstreamResp: Response;
   try {
+    if (req.method !== "GET" && req.method !== "HEAD") {
+      // Re-buffer request content instead of replaying the original stream so the upstream
+      // fetch can compute its own transport headers and avoid unsupported proxy headers.
+      const body = await req.arrayBuffer();
+      if (body.byteLength > 0) {
+        init.body = body;
+      }
+    }
+
     upstreamResp = await fetch(upstreamUrl, init);
   } catch (err) {
     clearTimeout(timeoutHandle);
@@ -75,6 +95,16 @@ async function forward(req: Request, path: string[]) {
         { status: 504 },
       );
     }
+
+    const cause = err instanceof Error && "cause" in err
+      ? String((err as Error & { cause?: unknown }).cause)
+      : undefined;
+    console.error("Backend proxy request failed", {
+      method: req.method,
+      upstreamUrl: upstreamUrl.toString(),
+      error: String(err),
+      cause,
+    });
 
     return NextResponse.json(
       { error: "Upstream request failed.", detail: String(err) },

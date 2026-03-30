@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { backendFetchJson } from "@/lib/backend.server";
 import { ItemInlineLink } from "@/components/InlineLink";
+import { TransactionLink } from "@/components/TransactionLink";
 import { Card, SecondaryLink, Table } from "@/components/ui";
 import { DirectPurchaseActions } from "../DirectPurchaseActions";
 import { DirectPurchaseLineAddForm } from "../DirectPurchaseLineAddForm";
@@ -12,6 +13,7 @@ type DirectPurchaseDto = {
   number: string;
   supplierId: string;
   warehouseId: string;
+  serviceJobId?: string | null;
   purchasedAt: string;
   status: number;
   remarks?: string | null;
@@ -36,6 +38,7 @@ type SupplierDto = { id: string; code: string; name: string };
 type WarehouseDto = { id: string; code: string; name: string };
 type ItemDto = { id: string; sku: string; name: string; trackingType: number; defaultUnitCost: number };
 type TaxDto = { id: string; code: string; name: string; ratePercent: number; isActive: boolean };
+type ServiceJobDto = { id: string; number: string };
 
 const statusLabel: Record<number, string> = {
   0: "Draft",
@@ -46,17 +49,19 @@ const statusLabel: Record<number, string> = {
 export default async function DirectPurchaseDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
 
-  const [dp, suppliers, warehouses, items, taxes] = await Promise.all([
+  const [dp, suppliers, warehouses, items, taxes, serviceJobs] = await Promise.all([
     backendFetchJson<DirectPurchaseDto>(`/procurement/direct-purchases/${id}`),
     backendFetchJson<SupplierDto[]>("/suppliers"),
     backendFetchJson<WarehouseDto[]>("/warehouses"),
     backendFetchJson<ItemDto[]>("/items"),
     backendFetchJson<TaxDto[]>("/taxes"),
+    backendFetchJson<ServiceJobDto[]>("/service/jobs?take=500"),
   ]);
 
   const supplierById = new Map(suppliers.map((s) => [s.id, s]));
   const warehouseById = new Map(warehouses.map((w) => [w.id, w]));
   const itemById = new Map(items.map((i) => [i.id, i]));
+  const jobById = new Map(serviceJobs.map((job) => [job.id, job]));
   const isDraft = dp.status === 0;
 
   return (
@@ -72,6 +77,14 @@ export default async function DirectPurchaseDetailPage({ params }: { params: Pro
         <div className="mt-2 flex flex-wrap gap-3 text-sm text-zinc-600 dark:text-zinc-400">
           <div>Supplier: {supplierById.get(dp.supplierId)?.code ?? dp.supplierId}</div>
           <div>Warehouse: {warehouseById.get(dp.warehouseId)?.code ?? dp.warehouseId}</div>
+          {dp.serviceJobId ? (
+            <div>
+              Service Job:{" "}
+              <TransactionLink referenceType="SJ" referenceId={dp.serviceJobId} monospace>
+                {jobById.get(dp.serviceJobId)?.number ?? dp.serviceJobId}
+              </TransactionLink>
+            </div>
+          ) : null}
           <div>Status: {statusLabel[dp.status] ?? dp.status}</div>
           <div>Date: {new Date(dp.purchasedAt).toLocaleString()}</div>
         </div>
@@ -152,4 +165,3 @@ export default async function DirectPurchaseDetailPage({ params }: { params: Pro
     </div>
   );
 }
-

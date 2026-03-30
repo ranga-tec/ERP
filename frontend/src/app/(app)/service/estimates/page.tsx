@@ -10,6 +10,8 @@ type ServiceEstimateSummaryDto = {
   serviceJobId: string;
   issuedAt: string;
   validUntil?: string | null;
+  revisedFromEstimateId?: string | null;
+  revisionNumber: number;
   status: number;
   subtotal: number;
   taxTotal: number;
@@ -41,7 +43,7 @@ export default async function ServiceEstimatesPage() {
       <div>
         <h1 className="text-2xl font-semibold">Service Estimates</h1>
         <p className="mt-1 text-sm text-zinc-500">
-          Quote parts and labor for service jobs, then approve/reject before execution.
+          Quote parts and labor for service jobs, then create a revision if extra findings appear after approval.
         </p>
       </div>
 
@@ -74,6 +76,7 @@ export default async function ServiceEstimatesPage() {
                     <td className="py-2 pr-3 font-mono text-xs">
                       <Link className="hover:underline" href={`/service/estimates/${e.id}`}>
                         {e.number}
+                        {e.revisionNumber > 0 ? ` / R${e.revisionNumber}` : ""}
                       </Link>
                     </td>
                     <td className="py-2 pr-3 font-mono text-xs text-zinc-600 dark:text-zinc-400">

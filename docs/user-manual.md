@@ -102,16 +102,27 @@ Note:
   - register serialized customer equipment
 - Service jobs:
   - create -> start -> complete -> close
+  - choose `Service` or `Repair` when opening the job
 - Work orders:
   - create and track work records
 - Service estimates:
   - create -> add lines -> approve/reject/send
+  - if extra findings appear after approval or rejection, create a revision instead of overwriting the original estimate
+- Service expense claims:
+  - create against a service job for `Out of Pocket` or `Petty Cash`
+  - add free-text or item-linked lines
+  - submit -> finance approve/reject -> settle
+  - use this for emergency outside buys and technician reimbursement/petty-cash clearing that do not come from stock
 - Material requisitions:
   - create -> add lines -> post
+  - use when issuing stocked spare parts from a warehouse to the job
 - Quality checks:
   - record pass/fail and notes
 - Service handovers:
   - complete handover and optionally convert to invoice
+- Direct purchases linked to service jobs:
+  - use when a required part is bought from a supplier and also needs to be received into stock
+  - the direct purchase can now be linked back to the service job for traceability
 
 ## Finance workflows
 
@@ -124,6 +135,9 @@ Note:
   - create and allocate to AR/AP
 - Debit notes:
   - create additional AR/AP charge entries
+- Service expense claims:
+  - finance users approve/reject submitted claims and settle approved claims with a payment method/reference
+  - petty-cash and out-of-pocket claims are tracked here rather than hidden as ad-hoc stock or payment workarounds
 
 ## Reporting
 

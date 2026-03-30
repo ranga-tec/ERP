@@ -67,6 +67,7 @@ public sealed class IssDbContext(
     public DbSet<EquipmentUnit> EquipmentUnits => Set<EquipmentUnit>();
     public DbSet<ServiceJob> ServiceJobs => Set<ServiceJob>();
     public DbSet<ServiceEstimate> ServiceEstimates => Set<ServiceEstimate>();
+    public DbSet<ServiceExpenseClaim> ServiceExpenseClaims => Set<ServiceExpenseClaim>();
     public DbSet<ServiceHandover> ServiceHandovers => Set<ServiceHandover>();
     public DbSet<WorkOrder> WorkOrders => Set<WorkOrder>();
     public DbSet<MaterialRequisition> MaterialRequisitions => Set<MaterialRequisition>();
@@ -380,6 +381,7 @@ public sealed class IssDbContext(
         builder.Entity<DirectPurchase>(entity =>
         {
             entity.HasIndex(x => x.Number).IsUnique();
+            entity.HasIndex(x => x.ServiceJobId);
             entity.Property(x => x.Number).HasMaxLength(32);
             entity.Property(x => x.Remarks).HasMaxLength(2000);
             entity.HasMany(x => x.Lines).WithOne().HasForeignKey(x => x.DirectPurchaseId).OnDelete(DeleteBehavior.Cascade);
@@ -542,6 +544,7 @@ public sealed class IssDbContext(
         builder.Entity<ServiceEstimate>(entity =>
         {
             entity.HasIndex(x => x.Number).IsUnique();
+            entity.HasIndex(x => x.RevisedFromEstimateId);
             entity.Property(x => x.Number).HasMaxLength(32);
             entity.Property(x => x.Terms).HasMaxLength(2000);
             entity.HasMany(x => x.Lines).WithOne().HasForeignKey(x => x.ServiceEstimateId).OnDelete(DeleteBehavior.Cascade);
@@ -552,6 +555,30 @@ public sealed class IssDbContext(
             entity.Property(x => x.Quantity).HasPrecision(18, 4);
             entity.Property(x => x.UnitPrice).HasPrecision(18, 4);
             entity.Property(x => x.TaxPercent).HasPrecision(18, 4);
+        });
+
+        builder.Entity<ServiceExpenseClaim>(entity =>
+        {
+            entity.HasIndex(x => x.Number).IsUnique();
+            entity.HasIndex(x => x.ServiceJobId);
+            entity.HasIndex(x => x.ClaimedByUserId);
+            entity.HasIndex(x => x.SettlementPaymentTypeId);
+            entity.Property(x => x.Number).HasMaxLength(32);
+            entity.Property(x => x.ClaimedByName).HasMaxLength(256);
+            entity.Property(x => x.MerchantName).HasMaxLength(256);
+            entity.Property(x => x.ReceiptReference).HasMaxLength(128);
+            entity.Property(x => x.Notes).HasMaxLength(2000);
+            entity.Property(x => x.RejectionReason).HasMaxLength(512);
+            entity.Property(x => x.SettlementReference).HasMaxLength(128);
+            entity.HasOne<PaymentType>().WithMany().HasForeignKey(x => x.SettlementPaymentTypeId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasMany(x => x.Lines).WithOne().HasForeignKey(x => x.ServiceExpenseClaimId).OnDelete(DeleteBehavior.Cascade);
+        });
+        builder.Entity<ServiceExpenseClaimLine>(entity =>
+        {
+            entity.Property(x => x.Description).HasMaxLength(512);
+            entity.Property(x => x.Quantity).HasPrecision(18, 4);
+            entity.Property(x => x.UnitCost).HasPrecision(18, 4);
+            entity.HasIndex(x => x.ItemId);
         });
 
         builder.Entity<ServiceHandover>(entity =>

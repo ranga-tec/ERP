@@ -32,9 +32,9 @@
 - Sales includes:
   - quote, order, dispatch, direct dispatch, invoice, customer return
 - Service includes:
-  - equipment units, jobs, work orders, estimates, material requisitions, quality checks, handovers
+  - equipment units, jobs, work orders, estimates, expense claims, material requisitions, quality checks, handovers
 - Finance includes:
-  - AR/AP, payments + allocations, credit notes, debit notes
+  - AR/AP, payments + allocations, credit notes, debit notes, finance approval/settlement of service expense claims
 - Reporting includes:
   - dashboard, stock ledger, aging, tax summary, service KPIs, costing
 - Draft document detail pages with line grids now support row actions:
@@ -46,6 +46,11 @@
   - creating a GRN from a PO loads every open PO line into the `Receive From PO` grid
   - users can receive only the lines/quantities delivered now and leave the balance for later GRNs
   - tracked serial/batch validation happens before posting, and the GRN screen includes search for both receipt-plan and draft-line tables
+- Service workflow now supports:
+  - `Service` and `Repair` job types on service jobs
+  - estimate revisions so approved/rejected estimates are preserved and additional findings can be resent as a new draft revision
+  - direct purchases linked to service jobs for outside emergency buys
+  - service expense claims for petty-cash and out-of-pocket spending, with finance approval and settlement tracking
 - The authenticated sidebar now opens expanded by default and includes top-of-menu search when expanded
 
 ## Local infrastructure (PostgreSQL)

@@ -23,6 +23,7 @@ public sealed partial class DocumentPdfService
         var meta = new List<(string Label, string Value)>
         {
             ("Customer", CustomerLabel(customer, job.CustomerId)),
+            ("Kind", job.Kind.ToString()),
             ("Opened at", job.OpenedAt.ToString("u")),
             ("Status", job.Status.ToString()),
             ("Completed at", job.CompletedAt?.ToString("u") ?? ""),
@@ -185,6 +186,7 @@ public sealed partial class DocumentPdfService
         {
             ("Service job", job?.Number ?? estimate.ServiceJobId.ToString()),
             ("Customer", job is null ? "" : CustomerLabel(customer, job.CustomerId)),
+            ("Revision", estimate.RevisionNumber.ToString()),
             ("Issued at", estimate.IssuedAt.ToString("u")),
             ("Valid until", estimate.ValidUntil?.ToString("u") ?? ""),
             ("Status", estimate.Status.ToString())
@@ -311,5 +313,103 @@ public sealed partial class DocumentPdfService
             fileName: $"SH-{handover.Number}.pdf",
             qrPayload: $"ISS:SH:{handover.Id}",
             barcodePayload: handover.Number);
+    }
+
+    private async Task<PdfDocument> RenderServiceExpenseClaimAsync(Guid id, CancellationToken cancellationToken)
+    {
+        var claim = await _dbContext.ServiceExpenseClaims.AsNoTracking()
+                         .Include(x => x.Lines)
+                         .FirstOrDefaultAsync(x => x.Id == id, cancellationToken)
+                     ?? throw new NotFoundException("Service expense claim not found.");
+
+        var job = await _dbContext.ServiceJobs.AsNoTracking().FirstOrDefaultAsync(x => x.Id == claim.ServiceJobId, cancellationToken);
+        var settlementPaymentType = claim.SettlementPaymentTypeId is null
+            ? null
+            : await _dbContext.PaymentTypes.AsNoTracking().FirstOrDefaultAsync(x => x.Id == claim.SettlementPaymentTypeId.Value, cancellationToken);
+        var itemById = await LoadItemMapAsync(
+            claim.Lines.Where(x => x.ItemId.HasValue).Select(x => x.ItemId!.Value),
+            cancellationToken);
+
+        var meta = new List<(string Label, string Value)>
+        {
+            ("Service job", job?.Number ?? claim.ServiceJobId.ToString()),
+            ("Claimed by", claim.ClaimedByName),
+            ("Funding source", claim.FundingSource.ToString()),
+            ("Expense date", claim.ExpenseDate.ToString("u")),
+            ("Merchant", claim.MerchantName ?? ""),
+            ("Receipt ref", claim.ReceiptReference ?? ""),
+            ("Status", claim.Status.ToString()),
+            ("Settled at", claim.SettledAt?.ToString("u") ?? "")
+        };
+
+        if (settlementPaymentType is not null)
+        {
+            meta.Add(("Settlement method", $"{settlementPaymentType.Code} - {settlementPaymentType.Name}"));
+        }
+
+        return BuildPdf(
+            title: "Service Expense Claim",
+            referenceNumber: claim.Number,
+            meta: meta,
+            content: column =>
+            {
+                column.Item().Text("Lines").SemiBold();
+                column.Item().Table(table =>
+                {
+                    table.ColumnsDefinition(cols =>
+                    {
+                        cols.RelativeColumn(4);
+                        cols.RelativeColumn(3);
+                        cols.RelativeColumn(1.5f);
+                        cols.RelativeColumn(1.8f);
+                        cols.RelativeColumn(1.5f);
+                        cols.RelativeColumn(2);
+                    });
+
+                    table.Header(h =>
+                    {
+                        h.Cell().Element(CellHeader).Text("Item");
+                        h.Cell().Element(CellHeader).Text("Description");
+                        h.Cell().Element(CellHeader).AlignRight().Text("Qty");
+                        h.Cell().Element(CellHeader).AlignRight().Text("Unit Cost");
+                        h.Cell().Element(CellHeader).Text("Billable");
+                        h.Cell().Element(CellHeader).AlignRight().Text("Line Total");
+                    });
+
+                    foreach (var line in claim.Lines)
+                    {
+                        var item = line.ItemId.HasValue ? itemById.GetValueOrDefault(line.ItemId.Value) : null;
+                        table.Cell().Element(CellBody).Text(line.ItemId.HasValue ? ItemLabel(item, line.ItemId.Value) : "Ad-hoc / outside buy");
+                        table.Cell().Element(CellBody).Text(line.Description);
+                        table.Cell().Element(CellBody).AlignRight().Text(FormatQty(line.Quantity));
+                        table.Cell().Element(CellBody).AlignRight().Text(FormatMoney(line.UnitCost));
+                        table.Cell().Element(CellBody).Text(line.BillableToCustomer ? "Yes" : "No");
+                        table.Cell().Element(CellBody).AlignRight().Text(FormatMoney(line.LineTotal));
+                    }
+                });
+
+                if (!string.IsNullOrWhiteSpace(claim.Notes))
+                {
+                    column.Item().PaddingTop(8).Text("Notes").SemiBold();
+                    column.Item().Text(claim.Notes);
+                }
+
+                if (!string.IsNullOrWhiteSpace(claim.RejectionReason))
+                {
+                    column.Item().PaddingTop(8).Text("Rejection reason").SemiBold();
+                    column.Item().Text(claim.RejectionReason);
+                }
+
+                if (!string.IsNullOrWhiteSpace(claim.SettlementReference))
+                {
+                    column.Item().PaddingTop(8).Text("Settlement reference").SemiBold();
+                    column.Item().Text(claim.SettlementReference);
+                }
+
+                column.Item().PaddingTop(8).AlignRight().Text($"Total: {FormatMoney(claim.Total)}").SemiBold();
+            },
+            fileName: $"SEC-{claim.Number}.pdf",
+            qrPayload: $"ISS:SEC:{claim.Id}",
+            barcodePayload: claim.Number);
     }
 }

@@ -11,6 +11,7 @@ type ServiceJobDto = {
   customerId: string;
   openedAt: string;
   problemDescription: string;
+  kind: number;
   status: number;
   completedAt?: string | null;
 };
@@ -24,6 +25,11 @@ const statusLabel: Record<number, string> = {
   2: "Completed",
   3: "Closed",
   4: "Cancelled",
+};
+
+const kindLabel: Record<number, string> = {
+  0: "Service",
+  1: "Repair",
 };
 
 export default async function ServiceJobsPage() {
@@ -40,7 +46,7 @@ export default async function ServiceJobsPage() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-semibold">Service Jobs</h1>
-        <p className="mt-1 text-sm text-zinc-500">Open → in progress → completed → closed.</p>
+        <p className="mt-1 text-sm text-zinc-500">Open -&gt; in progress -&gt; completed -&gt; closed.</p>
       </div>
 
       <Card>
@@ -57,6 +63,7 @@ export default async function ServiceJobsPage() {
                 <th className="py-2 pr-3">Number</th>
                 <th className="py-2 pr-3">Equipment</th>
                 <th className="py-2 pr-3">Customer</th>
+                <th className="py-2 pr-3">Type</th>
                 <th className="py-2 pr-3">Opened</th>
                 <th className="py-2 pr-3">Status</th>
                 <th className="py-2 pr-3">Completed</th>
@@ -76,16 +83,17 @@ export default async function ServiceJobsPage() {
                     </TransactionLink>
                   </td>
                   <td className="py-2 pr-3">{customerById.get(j.customerId)?.code ?? j.customerId}</td>
+                  <td className="py-2 pr-3">{kindLabel[j.kind] ?? j.kind}</td>
                   <td className="py-2 pr-3 text-zinc-500">{new Date(j.openedAt).toLocaleString()}</td>
                   <td className="py-2 pr-3">{statusLabel[j.status] ?? j.status}</td>
                   <td className="py-2 pr-3 text-zinc-500">
-                    {j.completedAt ? new Date(j.completedAt).toLocaleString() : "—"}
+                    {j.completedAt ? new Date(j.completedAt).toLocaleString() : "-"}
                   </td>
                 </tr>
               ))}
               {jobs.length === 0 ? (
                 <tr>
-                  <td className="py-6 text-sm text-zinc-500" colSpan={6}>
+                  <td className="py-6 text-sm text-zinc-500" colSpan={7}>
                     No service jobs yet.
                   </td>
                 </tr>

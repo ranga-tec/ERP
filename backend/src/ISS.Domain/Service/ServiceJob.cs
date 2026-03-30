@@ -2,6 +2,12 @@ using ISS.Domain.Common;
 
 namespace ISS.Domain.Service;
 
+public enum ServiceJobKind
+{
+    Service = 0,
+    Repair = 1
+}
+
 public enum ServiceJobStatus
 {
     Open = 0,
@@ -15,13 +21,20 @@ public sealed class ServiceJob : AuditableEntity
 {
     private ServiceJob() { }
 
-    public ServiceJob(string number, Guid equipmentUnitId, Guid customerId, DateTimeOffset openedAt, string problemDescription)
+    public ServiceJob(
+        string number,
+        Guid equipmentUnitId,
+        Guid customerId,
+        DateTimeOffset openedAt,
+        string problemDescription,
+        ServiceJobKind kind = ServiceJobKind.Service)
     {
         Number = Guard.NotNullOrWhiteSpace(number, nameof(Number), maxLength: 32);
         EquipmentUnitId = equipmentUnitId;
         CustomerId = customerId;
         OpenedAt = openedAt;
         ProblemDescription = Guard.NotNullOrWhiteSpace(problemDescription, nameof(ProblemDescription), maxLength: 2000);
+        Kind = kind;
         Status = ServiceJobStatus.Open;
     }
 
@@ -30,6 +43,7 @@ public sealed class ServiceJob : AuditableEntity
     public Guid CustomerId { get; private set; }
     public DateTimeOffset OpenedAt { get; private set; }
     public string ProblemDescription { get; private set; } = null!;
+    public ServiceJobKind Kind { get; private set; }
     public ServiceJobStatus Status { get; private set; }
     public DateTimeOffset? CompletedAt { get; private set; }
 
@@ -74,4 +88,3 @@ public sealed class ServiceJob : AuditableEntity
         Status = ServiceJobStatus.Cancelled;
     }
 }
-

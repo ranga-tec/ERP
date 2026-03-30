@@ -12,6 +12,7 @@ type ServiceJobDto = {
   customerId: string;
   openedAt: string;
   problemDescription: string;
+  kind: number;
   status: number;
   completedAt?: string | null;
 };
@@ -25,6 +26,11 @@ const statusLabel: Record<number, string> = {
   2: "Completed",
   3: "Closed",
   4: "Cancelled",
+};
+
+const kindLabel: Record<number, string> = {
+  0: "Service",
+  1: "Repair",
 };
 
 export default async function ServiceJobDetailPage({ params }: { params: Promise<{ id: string }> }) {
@@ -61,9 +67,10 @@ export default async function ServiceJobDetailPage({ params }: { params: Promise
             </TransactionLink>
           </div>
           <div>Customer: {customerById.get(job.customerId)?.code ?? job.customerId}</div>
+          <div>Type: {kindLabel[job.kind] ?? job.kind}</div>
           <div>Status: {statusLabel[job.status] ?? job.status}</div>
           <div>Opened: {new Date(job.openedAt).toLocaleString()}</div>
-          <div>Completed: {job.completedAt ? new Date(job.completedAt).toLocaleString() : "—"}</div>
+          <div>Completed: {job.completedAt ? new Date(job.completedAt).toLocaleString() : "-"}</div>
         </div>
       </div>
 
@@ -88,9 +95,11 @@ export default async function ServiceJobDetailPage({ params }: { params: Promise
 
       <Card>
         <div className="text-sm text-zinc-500">
-          Track the service flow via <Link className="underline" href="/service/estimates">Estimates</Link>,{" "}
+          Track the job flow via <Link className="underline" href="/service/estimates">Estimates</Link>,{" "}
+          <Link className="underline" href="/service/expense-claims">Expense Claims</Link>,{" "}
           <Link className="underline" href="/service/work-orders">Work Orders</Link>,{" "}
           <Link className="underline" href="/service/material-requisitions">Material Reqs</Link>,{" "}
+          <Link className="underline" href="/procurement/direct-purchases">Direct Purchases</Link>,{" "}
           <Link className="underline" href="/service/quality-checks">Quality Checks</Link>, and{" "}
           <Link className="underline" href="/service/handovers">Handovers</Link>.
         </div>

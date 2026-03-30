@@ -22,6 +22,7 @@ public sealed class DirectPurchasesController(
         string Number,
         Guid SupplierId,
         Guid WarehouseId,
+        Guid? ServiceJobId,
         DateTimeOffset PurchasedAt,
         DirectPurchaseStatus Status,
         string? Remarks,
@@ -46,6 +47,7 @@ public sealed class DirectPurchasesController(
         string Number,
         Guid SupplierId,
         Guid WarehouseId,
+        Guid? ServiceJobId,
         DateTimeOffset PurchasedAt,
         DirectPurchaseStatus Status,
         string? Remarks,
@@ -54,7 +56,7 @@ public sealed class DirectPurchasesController(
         decimal GrandTotal,
         IReadOnlyList<DirectPurchaseLineDto> Lines);
 
-    public sealed record CreateDirectPurchaseRequest(Guid SupplierId, Guid WarehouseId, DateTimeOffset? PurchasedAt, string? Remarks);
+    public sealed record CreateDirectPurchaseRequest(Guid SupplierId, Guid WarehouseId, DateTimeOffset? PurchasedAt, string? Remarks, Guid? ServiceJobId);
     public sealed record AddDirectPurchaseLineRequest(Guid ItemId, decimal Quantity, decimal UnitPrice, decimal TaxPercent, string? BatchNumber, IReadOnlyList<string>? Serials);
     public sealed record UpdateDirectPurchaseLineRequest(decimal Quantity, decimal UnitPrice, decimal TaxPercent, string? BatchNumber, IReadOnlyList<string>? Serials);
 
@@ -76,6 +78,7 @@ public sealed class DirectPurchasesController(
                 x.Number,
                 x.SupplierId,
                 x.WarehouseId,
+                x.ServiceJobId,
                 x.PurchasedAt,
                 x.Status,
                 x.Remarks,
@@ -95,6 +98,7 @@ public sealed class DirectPurchasesController(
             request.WarehouseId,
             request.PurchasedAt,
             request.Remarks,
+            request.ServiceJobId,
             cancellationToken);
 
         return await Get(id, cancellationToken);
@@ -130,6 +134,7 @@ public sealed class DirectPurchasesController(
             dp.Number,
             dp.SupplierId,
             dp.WarehouseId,
+            dp.ServiceJobId,
             dp.PurchasedAt,
             dp.Status,
             dp.Remarks,

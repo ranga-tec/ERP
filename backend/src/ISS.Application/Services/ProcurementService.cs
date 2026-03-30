@@ -331,10 +331,21 @@ public sealed class ProcurementService(
         Guid warehouseId,
         DateTimeOffset? purchasedAt,
         string? remarks,
+        Guid? serviceJobId = null,
         CancellationToken cancellationToken = default)
     {
+        if (serviceJobId is not null)
+        {
+            var jobExists = await dbContext.ServiceJobs.AsNoTracking()
+                .AnyAsync(x => x.Id == serviceJobId.Value, cancellationToken);
+            if (!jobExists)
+            {
+                throw new NotFoundException("Service job not found.");
+            }
+        }
+
         var number = await documentNumberService.NextAsync(ReferenceTypes.DirectPurchase, "DP", cancellationToken);
-        var dp = new DirectPurchase(number, supplierId, warehouseId, purchasedAt ?? clock.UtcNow, remarks);
+        var dp = new DirectPurchase(number, supplierId, warehouseId, purchasedAt ?? clock.UtcNow, remarks, serviceJobId);
         await dbContext.DirectPurchases.AddAsync(dp, cancellationToken);
         await dbContext.SaveChangesAsync(cancellationToken);
         return dp.Id;

@@ -19,13 +19,27 @@ public sealed class ServiceEstimate : AuditableEntity
 {
     private ServiceEstimate() { }
 
-    public ServiceEstimate(string number, Guid serviceJobId, DateTimeOffset issuedAt, DateTimeOffset? validUntil, string? terms)
+    public ServiceEstimate(
+        string number,
+        Guid serviceJobId,
+        DateTimeOffset issuedAt,
+        DateTimeOffset? validUntil,
+        string? terms,
+        Guid? revisedFromEstimateId = null,
+        int revisionNumber = 0)
     {
         Number = Guard.NotNullOrWhiteSpace(number, nameof(Number), maxLength: 32);
         ServiceJobId = serviceJobId;
         IssuedAt = issuedAt;
         ValidUntil = validUntil;
         Terms = terms?.Trim();
+        RevisedFromEstimateId = revisedFromEstimateId;
+        if (revisionNumber < 0)
+        {
+            throw new DomainValidationException("revisionNumber cannot be negative.");
+        }
+
+        RevisionNumber = revisionNumber;
         Status = ServiceEstimateStatus.Draft;
     }
 
@@ -34,6 +48,8 @@ public sealed class ServiceEstimate : AuditableEntity
     public DateTimeOffset IssuedAt { get; private set; }
     public DateTimeOffset? ValidUntil { get; private set; }
     public string? Terms { get; private set; }
+    public Guid? RevisedFromEstimateId { get; private set; }
+    public int RevisionNumber { get; private set; }
     public ServiceEstimateStatus Status { get; private set; }
 
     public List<ServiceEstimateLine> Lines { get; private set; } = new();

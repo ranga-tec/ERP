@@ -23,6 +23,8 @@ public sealed class ServiceEstimatesController(
         Guid ServiceJobId,
         DateTimeOffset IssuedAt,
         DateTimeOffset? ValidUntil,
+        Guid? RevisedFromEstimateId,
+        int RevisionNumber,
         ServiceEstimateStatus Status,
         decimal Subtotal,
         decimal TaxTotal,
@@ -48,6 +50,8 @@ public sealed class ServiceEstimatesController(
         DateTimeOffset IssuedAt,
         DateTimeOffset? ValidUntil,
         string? Terms,
+        Guid? RevisedFromEstimateId,
+        int RevisionNumber,
         ServiceEstimateStatus Status,
         decimal Subtotal,
         decimal TaxTotal,
@@ -70,6 +74,7 @@ public sealed class ServiceEstimatesController(
         decimal UnitPrice,
         decimal TaxPercent);
     public sealed record SendServiceEstimateRequest(string? AppBaseUrl);
+    public sealed record ReviseServiceEstimateRequest(DateTimeOffset? ValidUntil, string? Terms);
 
     [HttpGet]
     public async Task<ActionResult<IReadOnlyList<ServiceEstimateSummaryDto>>> List(
@@ -90,6 +95,8 @@ public sealed class ServiceEstimatesController(
                 x.ServiceJobId,
                 x.IssuedAt,
                 x.ValidUntil,
+                x.RevisedFromEstimateId,
+                x.RevisionNumber,
                 x.Status,
                 x.Lines.Sum(l => l.Quantity * l.UnitPrice),
                 x.Lines.Sum(l => (l.Quantity * l.UnitPrice) * (l.TaxPercent / 100m)),
@@ -130,6 +137,8 @@ public sealed class ServiceEstimatesController(
             estimate.IssuedAt,
             estimate.ValidUntil,
             estimate.Terms,
+            estimate.RevisedFromEstimateId,
+            estimate.RevisionNumber,
             estimate.Status,
             estimate.Subtotal,
             estimate.TaxTotal,
@@ -204,6 +213,17 @@ public sealed class ServiceEstimatesController(
     {
         await serviceManagementService.SendServiceEstimateToCustomerAsync(id, request?.AppBaseUrl, cancellationToken);
         return NoContent();
+    }
+
+    [HttpPost("{id:guid}/revise")]
+    public async Task<ActionResult<ServiceEstimateDto>> Revise(Guid id, ReviseServiceEstimateRequest? request, CancellationToken cancellationToken)
+    {
+        var revisedEstimateId = await serviceManagementService.ReviseServiceEstimateAsync(
+            id,
+            request?.ValidUntil,
+            request?.Terms,
+            cancellationToken);
+        return await Get(revisedEstimateId, cancellationToken);
     }
 
     [HttpPost("{id:guid}/reject")]

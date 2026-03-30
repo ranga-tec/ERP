@@ -268,6 +268,9 @@ public sealed partial class DocumentPdfService
 
         var supplier = await _dbContext.Suppliers.AsNoTracking().FirstOrDefaultAsync(x => x.Id == dp.SupplierId, cancellationToken);
         var warehouse = await _dbContext.Warehouses.AsNoTracking().FirstOrDefaultAsync(x => x.Id == dp.WarehouseId, cancellationToken);
+        var serviceJob = dp.ServiceJobId is null
+            ? null
+            : await _dbContext.ServiceJobs.AsNoTracking().FirstOrDefaultAsync(x => x.Id == dp.ServiceJobId.Value, cancellationToken);
         var itemById = await LoadItemMapAsync(dp.Lines.Select(l => l.ItemId), cancellationToken);
 
         var subtotal = dp.Lines.Sum(l => l.LineSubTotal);
@@ -278,6 +281,7 @@ public sealed partial class DocumentPdfService
         {
             ("Supplier", SupplierLabel(supplier, dp.SupplierId)),
             ("Warehouse", WarehouseLabel(warehouse, dp.WarehouseId)),
+            ("Service job", serviceJob?.Number ?? dp.ServiceJobId?.ToString() ?? ""),
             ("Date", dp.PurchasedAt.ToString("u")),
             ("Status", dp.Status.ToString()),
             ("Subtotal", FormatMoney(subtotal)),

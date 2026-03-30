@@ -15,6 +15,8 @@ type ServiceEstimateDto = {
   issuedAt: string;
   validUntil?: string | null;
   terms?: string | null;
+  revisedFromEstimateId?: string | null;
+  revisionNumber: number;
   status: number;
   subtotal: number;
   taxTotal: number;
@@ -85,6 +87,15 @@ export default async function ServiceEstimateDetailPage({ params }: { params: Pr
             </TransactionLink>
           </div>
           <div>Customer: {customer ? customer.code : "-"}</div>
+          <div>Revision: {estimate.revisionNumber}</div>
+          {estimate.revisedFromEstimateId ? (
+            <div>
+              Revised from:{" "}
+              <TransactionLink referenceType="SE" referenceId={estimate.revisedFromEstimateId} monospace>
+                {estimate.revisedFromEstimateId}
+              </TransactionLink>
+            </div>
+          ) : null}
           <div>Status: {statusLabel[estimate.status] ?? estimate.status}</div>
           <div>Issued: {new Date(estimate.issuedAt).toLocaleString()}</div>
           <div>Valid till: {estimate.validUntil ? new Date(estimate.validUntil).toLocaleString() : "-"}</div>
@@ -107,8 +118,17 @@ export default async function ServiceEstimateDetailPage({ params }: { params: Pr
           canApprove={isDraft && estimate.lines.length > 0}
           canReject={isDraft}
           canSend={estimate.status !== 2 && estimate.lines.length > 0}
+          canRevise={!isDraft}
         />
       </Card>
+
+      {!isDraft ? (
+        <Card>
+          <div className="text-sm text-zinc-500">
+            If more spare parts or labor are discovered after approval, create a revision to copy this estimate into a new draft and resend it for customer approval.
+          </div>
+        </Card>
+      ) : null}
 
       {isDraft ? (
         <Card>
@@ -181,4 +201,3 @@ export default async function ServiceEstimateDetailPage({ params }: { params: Pr
     </div>
   );
 }
-

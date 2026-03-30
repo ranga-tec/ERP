@@ -14,8 +14,17 @@ namespace ISS.Api.Controllers.Service;
 [Authorize(Roles = $"{Roles.Admin},{Roles.Service},{Roles.Sales}")]
 public sealed class ServiceJobsController(IIssDbContext dbContext, ServiceManagementService serviceManagementService, IDocumentPdfService pdfService) : ControllerBase
 {
-    public sealed record ServiceJobDto(Guid Id, string Number, Guid EquipmentUnitId, Guid CustomerId, DateTimeOffset OpenedAt, string ProblemDescription, ServiceJobStatus Status, DateTimeOffset? CompletedAt);
-    public sealed record CreateServiceJobRequest(Guid EquipmentUnitId, Guid CustomerId, string ProblemDescription);
+    public sealed record ServiceJobDto(
+        Guid Id,
+        string Number,
+        Guid EquipmentUnitId,
+        Guid CustomerId,
+        DateTimeOffset OpenedAt,
+        string ProblemDescription,
+        ServiceJobKind Kind,
+        ServiceJobStatus Status,
+        DateTimeOffset? CompletedAt);
+    public sealed record CreateServiceJobRequest(Guid EquipmentUnitId, Guid CustomerId, string ProblemDescription, ServiceJobKind? Kind);
 
     [HttpGet]
     public async Task<ActionResult<IReadOnlyList<ServiceJobDto>>> List([FromQuery] int skip = 0, [FromQuery] int take = 100, CancellationToken cancellationToken = default)
@@ -27,7 +36,7 @@ public sealed class ServiceJobsController(IIssDbContext dbContext, ServiceManage
             .OrderByDescending(x => x.OpenedAt)
             .Skip(skip)
             .Take(take)
-            .Select(x => new ServiceJobDto(x.Id, x.Number, x.EquipmentUnitId, x.CustomerId, x.OpenedAt, x.ProblemDescription, x.Status, x.CompletedAt))
+            .Select(x => new ServiceJobDto(x.Id, x.Number, x.EquipmentUnitId, x.CustomerId, x.OpenedAt, x.ProblemDescription, x.Kind, x.Status, x.CompletedAt))
             .ToListAsync(cancellationToken);
 
         return Ok(jobs);
@@ -36,7 +45,12 @@ public sealed class ServiceJobsController(IIssDbContext dbContext, ServiceManage
     [HttpPost]
     public async Task<ActionResult<ServiceJobDto>> Create(CreateServiceJobRequest request, CancellationToken cancellationToken)
     {
-        var id = await serviceManagementService.CreateServiceJobAsync(request.EquipmentUnitId, request.CustomerId, request.ProblemDescription, cancellationToken);
+        var id = await serviceManagementService.CreateServiceJobAsync(
+            request.EquipmentUnitId,
+            request.CustomerId,
+            request.ProblemDescription,
+            request.Kind ?? ServiceJobKind.Service,
+            cancellationToken);
         return await Get(id, cancellationToken);
     }
 
@@ -45,7 +59,7 @@ public sealed class ServiceJobsController(IIssDbContext dbContext, ServiceManage
     {
         var job = await dbContext.ServiceJobs.AsNoTracking()
             .Where(x => x.Id == id)
-            .Select(x => new ServiceJobDto(x.Id, x.Number, x.EquipmentUnitId, x.CustomerId, x.OpenedAt, x.ProblemDescription, x.Status, x.CompletedAt))
+            .Select(x => new ServiceJobDto(x.Id, x.Number, x.EquipmentUnitId, x.CustomerId, x.OpenedAt, x.ProblemDescription, x.Kind, x.Status, x.CompletedAt))
             .FirstOrDefaultAsync(cancellationToken);
 
         return job is null ? NotFound() : Ok(job);
