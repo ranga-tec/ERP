@@ -50,8 +50,10 @@
   - equipment-unit warranty coverage with editable warranty end date and coverage scope
   - service contracts (`AMC`, `SLA`, `Warranty Extension`) linked to specific customer equipment units
   - `Service` and `Repair` job types on service jobs
+  - open service jobs can be edited before work starts; saving re-evaluates entitlement against the selected unit/customer
   - automatic entitlement snapshot on service jobs from active equipment warranty or service contract, plus manual entitlement refresh on the job
   - work-order labor entries with draft, submitted, approved, rejected, and invoiced states
+  - draft service estimate headers and lines remain editable until approval or rejection
   - estimate revisions so approved/rejected estimates are preserved and additional findings can be resent as a new draft revision
   - direct purchases linked to service jobs for outside emergency buys
   - service expense claims for petty-cash and out-of-pocket spending, with finance approval and settlement tracking

@@ -3,6 +3,7 @@ import { backendFetchJson } from "@/lib/backend.server";
 import { ItemInlineLink } from "@/components/InlineLink";
 import { Card, SecondaryLink, Table } from "@/components/ui";
 import { ServiceJobActions } from "../ServiceJobActions";
+import { ServiceJobEditForm } from "../ServiceJobEditForm";
 import { DocumentCollaborationPanel } from "@/components/DocumentCollaborationPanel";
 import { TransactionLink } from "@/components/TransactionLink";
 
@@ -25,7 +26,7 @@ type ServiceJobDto = {
   entitlementSummary?: string | null;
 };
 
-type EquipmentUnitDto = { id: string; serialNumber: string };
+type EquipmentUnitDto = { id: string; serialNumber: string; customerId: string };
 type CustomerDto = { id: string; code: string; name: string };
 type ServiceJobCostingDto = {
   serviceJobId: string;
@@ -226,6 +227,19 @@ export default async function ServiceJobDetailPage({ params }: { params: Promise
         </div>
         <ServiceJobActions jobId={job.id} canStart={canStart} canComplete={canComplete} canClose={canClose} />
       </Card>
+
+      {job.status === 0 ? (
+        <Card>
+          <div className="mb-3 text-sm font-semibold">Edit Job</div>
+          <ServiceJobEditForm job={job} equipmentUnits={units} customers={customers} />
+        </Card>
+      ) : (
+        <Card>
+          <div className="text-sm text-zinc-500">
+            Job header fields are editable while the job is still open. After work starts, use the job status flow and linked service documents instead of changing the intake header.
+          </div>
+        </Card>
+      )}
 
       <Card>
         <div className="mb-2 text-sm font-semibold">Problem</div>

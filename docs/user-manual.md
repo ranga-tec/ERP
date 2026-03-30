@@ -106,9 +106,12 @@ Note:
   - create `AMC`, `SLA`, or `Warranty Extension` documents against a specific customer-owned equipment unit
   - set the contract coverage window and coverage scope (`Inspection`, `Labor`, `Parts`, or `Labor and Parts`)
   - use this when the unit is covered by a service agreement beyond or instead of manufacturer warranty
+  - contracts are edited from the contract detail page after creation
 - Service jobs:
   - create -> start -> complete -> close
   - choose `Service` or `Repair` when opening the job
+  - while status is still `Open`, you can edit the job header (unit, customer, type, problem) from the detail page
+  - once the job is started, header editing is locked and execution should continue through work orders, estimates, material issues, and handover
   - entitlement is captured automatically when the job is created by checking active service contracts first, then manufacturer warranty on the equipment unit
   - use `Refresh Entitlement` on the job if warranty/contract data is added after the job was already opened
   - recommended operating flow is: receive equipment -> open the job immediately -> diagnose -> draft/send estimate before continuing additional billable work
@@ -120,7 +123,7 @@ Note:
 - Service estimates:
   - create -> add lines -> approve/reject/send
   - estimates now support `Part`, `Labor`, and billable `Expense` lines
-  - draft estimates can be edited directly
+  - while status is `Draft`, the estimate header (`Valid until`, `Terms`) and lines can be edited directly
   - if extra findings appear after approval or rejection, create a revision instead of overwriting the original estimate
 - Service expense claims:
   - create against a service job for `Out of Pocket` or `Petty Cash`

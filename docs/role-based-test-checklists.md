@@ -449,12 +449,14 @@ Expected result:
 - [ ] Create a service job.
 - [ ] Choose `Service` or `Repair` explicitly when creating the job.
 - [ ] Confirm the job shows entitlement source and billing treatment.
+- [ ] While the job is still `Open`, edit the header and save it.
 - [ ] If contract/warranty data changes, use `Refresh Entitlement` and confirm the job updates.
 - [ ] Update the job through at least one status change.
 - [ ] Create a work order.
 - [ ] Add a work-order labor entry with hours and cost details.
 - [ ] Submit and approve or reject the labor entry.
 - [ ] Create a service estimate and add at least one line.
+- [ ] While the estimate is still `Draft`, edit the estimate header and at least one line.
 - [ ] Confirm estimate lines can use `Part`, `Labor`, or `Expense` as needed.
 - [ ] Send or approve the estimate.
 - [ ] Create a service expense claim and submit it.

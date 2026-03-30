@@ -10,6 +10,9 @@ public sealed class ServiceTests
     {
         var job = new ServiceJob("SJ0001", Guid.NewGuid(), Guid.NewGuid(), DateTimeOffset.UtcNow, "Won't start");
 
+        job.Update(job.EquipmentUnitId, job.CustomerId, "Still won't start", ServiceJobKind.Service);
+        Assert.Equal("Still won't start", job.ProblemDescription);
+
         job.Start();
         Assert.Equal(ServiceJobStatus.InProgress, job.Status);
 
@@ -20,6 +23,26 @@ public sealed class ServiceTests
         Assert.Equal(ServiceJobStatus.Closed, job.Status);
 
         Assert.Throws<DomainValidationException>(() => job.Cancel());
+        Assert.Throws<DomainValidationException>(() => job.Update(Guid.NewGuid(), Guid.NewGuid(), "Too late", ServiceJobKind.Repair));
+    }
+
+    [Fact]
+    public void ServiceEstimate_Header_Is_Editable_Only_In_Draft()
+    {
+        var estimate = new ServiceEstimate(
+            "SE0001",
+            Guid.NewGuid(),
+            DateTimeOffset.UtcNow,
+            DateTimeOffset.UtcNow.AddDays(7),
+            "Initial terms");
+
+        estimate.UpdateHeader(DateTimeOffset.UtcNow.AddDays(14), "Updated terms");
+        Assert.Equal("Updated terms", estimate.Terms);
+
+        estimate.AddLine(ServiceEstimateLineKind.Labor, null, "Inspection", 1m, 10m, 0m);
+        estimate.Approve();
+
+        Assert.Throws<DomainValidationException>(() => estimate.UpdateHeader(DateTimeOffset.UtcNow.AddDays(21), "Too late"));
     }
 
     [Fact]

@@ -5,6 +5,7 @@ import { TransactionLink } from "@/components/TransactionLink";
 import { Card, SecondaryLink, Table } from "@/components/ui";
 import { DocumentCollaborationPanel } from "@/components/DocumentCollaborationPanel";
 import { ServiceEstimateActions } from "../ServiceEstimateActions";
+import { ServiceEstimateEditForm } from "../ServiceEstimateEditForm";
 import { ServiceEstimateLineAddForm } from "../ServiceEstimateLineAddForm";
 import { ServiceEstimateLineRow } from "../ServiceEstimateLineRow";
 
@@ -122,6 +123,13 @@ export default async function ServiceEstimateDetailPage({ params }: { params: Pr
           canRevise={!isDraft}
         />
       </Card>
+
+      {isDraft ? (
+        <Card>
+          <div className="mb-3 text-sm font-semibold">Edit Estimate</div>
+          <ServiceEstimateEditForm estimate={estimate} />
+        </Card>
+      ) : null}
 
       {!isDraft ? (
         <Card>

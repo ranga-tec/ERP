@@ -36,6 +36,7 @@ public sealed class ServiceJobsController(
         DateTimeOffset? EntitlementEvaluatedAt,
         string? EntitlementSummary);
     public sealed record CreateServiceJobRequest(Guid EquipmentUnitId, Guid CustomerId, string ProblemDescription, ServiceJobKind? Kind);
+    public sealed record UpdateServiceJobRequest(Guid EquipmentUnitId, Guid CustomerId, string ProblemDescription, ServiceJobKind Kind);
 
     [HttpGet]
     public async Task<ActionResult<IReadOnlyList<ServiceJobDto>>> List([FromQuery] int skip = 0, [FromQuery] int take = 100, CancellationToken cancellationToken = default)
@@ -80,6 +81,19 @@ public sealed class ServiceJobsController(
             request.CustomerId,
             request.ProblemDescription,
             request.Kind ?? ServiceJobKind.Service,
+            cancellationToken);
+        return await Get(id, cancellationToken);
+    }
+
+    [HttpPut("{id:guid}")]
+    public async Task<ActionResult<ServiceJobDto>> Update(Guid id, UpdateServiceJobRequest request, CancellationToken cancellationToken)
+    {
+        await serviceManagementService.UpdateServiceJobAsync(
+            id,
+            request.EquipmentUnitId,
+            request.CustomerId,
+            request.ProblemDescription,
+            request.Kind,
             cancellationToken);
         return await Get(id, cancellationToken);
     }

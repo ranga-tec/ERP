@@ -153,6 +153,32 @@ public sealed class ServiceManagementService(
         await dbContext.SaveChangesAsync(cancellationToken);
     }
 
+    public async Task UpdateServiceJobAsync(
+        Guid serviceJobId,
+        Guid equipmentUnitId,
+        Guid customerId,
+        string problemDescription,
+        ServiceJobKind kind,
+        CancellationToken cancellationToken = default)
+    {
+        var job = await dbContext.ServiceJobs
+            .FirstOrDefaultAsync(x => x.Id == serviceJobId, cancellationToken)
+            ?? throw new NotFoundException("Service job not found.");
+
+        job.Update(equipmentUnitId, customerId, problemDescription, kind);
+
+        var entitlement = await EvaluateServiceEntitlementAsync(equipmentUnitId, customerId, clock.UtcNow, cancellationToken);
+        job.ApplyEntitlement(
+            entitlement.ServiceContractId,
+            entitlement.EntitlementSource,
+            entitlement.EntitlementCoverage,
+            entitlement.CustomerBillingTreatment,
+            clock.UtcNow,
+            entitlement.EntitlementSummary);
+
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
     public async Task StartServiceJobAsync(Guid serviceJobId, CancellationToken cancellationToken = default)
     {
         var job = await dbContext.ServiceJobs.FirstOrDefaultAsync(x => x.Id == serviceJobId, cancellationToken)
@@ -196,6 +222,20 @@ public sealed class ServiceManagementService(
         await dbContext.ServiceEstimates.AddAsync(estimate, cancellationToken);
         await dbContext.SaveChangesAsync(cancellationToken);
         return estimate.Id;
+    }
+
+    public async Task UpdateServiceEstimateAsync(
+        Guid serviceEstimateId,
+        DateTimeOffset? validUntil,
+        string? terms,
+        CancellationToken cancellationToken = default)
+    {
+        var estimate = await dbContext.ServiceEstimates
+            .FirstOrDefaultAsync(x => x.Id == serviceEstimateId, cancellationToken)
+            ?? throw new NotFoundException("Service estimate not found.");
+
+        estimate.UpdateHeader(validUntil, terms);
+        await dbContext.SaveChangesAsync(cancellationToken);
     }
 
     public async Task<Guid> CreateServiceExpenseClaimAsync(

@@ -159,4 +159,21 @@ public sealed class ServiceJob : AuditableEntity
             ? null
             : Guard.NotNullOrWhiteSpace(entitlementSummary, nameof(entitlementSummary), maxLength: 512);
     }
+
+    public void Update(
+        Guid equipmentUnitId,
+        Guid customerId,
+        string problemDescription,
+        ServiceJobKind kind)
+    {
+        if (Status != ServiceJobStatus.Open)
+        {
+            throw new DomainValidationException("Only open service jobs can be edited.");
+        }
+
+        EquipmentUnitId = equipmentUnitId;
+        CustomerId = customerId;
+        ProblemDescription = Guard.NotNullOrWhiteSpace(problemDescription, nameof(problemDescription), maxLength: 2000);
+        Kind = kind;
+    }
 }

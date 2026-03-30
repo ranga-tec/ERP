@@ -134,6 +134,13 @@ public sealed class ServiceEstimate : AuditableEntity
         Status = ServiceEstimateStatus.Rejected;
     }
 
+    public void UpdateHeader(DateTimeOffset? validUntil, string? terms)
+    {
+        EnsureDraftEditable();
+        ValidUntil = validUntil;
+        Terms = string.IsNullOrWhiteSpace(terms) ? null : terms.Trim();
+    }
+
     private void EnsureDraftEditable()
     {
         if (Status != ServiceEstimateStatus.Draft)

@@ -75,6 +75,7 @@ public sealed class ServiceEstimatesController(
         decimal TaxPercent);
     public sealed record SendServiceEstimateRequest(string? AppBaseUrl);
     public sealed record ReviseServiceEstimateRequest(DateTimeOffset? ValidUntil, string? Terms);
+    public sealed record UpdateServiceEstimateRequest(DateTimeOffset? ValidUntil, string? Terms);
 
     [HttpGet]
     public async Task<ActionResult<IReadOnlyList<ServiceEstimateSummaryDto>>> List(
@@ -112,6 +113,17 @@ public sealed class ServiceEstimatesController(
     {
         var id = await serviceManagementService.CreateServiceEstimateAsync(
             request.ServiceJobId,
+            request.ValidUntil,
+            request.Terms,
+            cancellationToken);
+        return await Get(id, cancellationToken);
+    }
+
+    [HttpPut("{id:guid}")]
+    public async Task<ActionResult<ServiceEstimateDto>> Update(Guid id, UpdateServiceEstimateRequest request, CancellationToken cancellationToken)
+    {
+        await serviceManagementService.UpdateServiceEstimateAsync(
+            id,
             request.ValidUntil,
             request.Terms,
             cancellationToken);
