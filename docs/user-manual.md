@@ -103,18 +103,20 @@ Note:
 - Service jobs:
   - create -> start -> complete -> close
   - choose `Service` or `Repair` when opening the job
+  - recommended operating flow is: receive equipment -> open the job immediately -> diagnose -> draft/send estimate before continuing additional billable work
 - Work orders:
   - create and track work records
 - Service estimates:
   - create -> add lines -> approve/reject/send
   - estimates now support `Part`, `Labor`, and billable `Expense` lines
+  - draft estimates can be edited directly
   - if extra findings appear after approval or rejection, create a revision instead of overwriting the original estimate
 - Service expense claims:
   - create against a service job for `Out of Pocket` or `Petty Cash`
   - add free-text or item-linked lines
   - submit -> finance approve/reject -> settle
   - billable approved/settled claim lines can be pushed into the latest draft estimate or into an automatic estimate revision
-  - use this for emergency outside buys and technician reimbursement/petty-cash clearing that do not come from stock
+  - use this for technician reimbursement, emergency cash buys, and petty-cash clearing that should not be hidden as stock or AP workarounds
 - Material requisitions:
   - create -> add lines -> post
   - use when issuing stocked spare parts from a warehouse to the job
@@ -124,8 +126,9 @@ Note:
   - complete handover and optionally convert to invoice
   - invoice conversion can now map expense estimate lines by using the line item when present or a selected fallback expense/service item
 - Direct purchases linked to service jobs:
-  - use when a required part is bought from a supplier and also needs to be received into stock
+  - use when a required part is bought from a supplier and also needs to be received into stock and/or booked to supplier AP
   - the direct purchase can now be linked back to the service job for traceability
+  - use direct purchase instead of expense claim when the purchase should enter inventory and follow procurement-style receiving/accounting
 
 ## Finance workflows
 
@@ -138,6 +141,7 @@ Note:
   - create fund -> optionally seed opening balance
   - post top-ups and manual adjustments
   - settle approved service expense claims against a petty cash fund when workshop cash was used
+  - petty-cash-funded service claims require a petty cash fund at settlement; out-of-pocket claims can still be settled with payment type/reference only
 - Credit notes:
   - create and allocate to AR/AP
 - Debit notes:
@@ -155,8 +159,9 @@ Note:
   - shows last receipt cost/date
   - shows on-hand valuation in base currency
 - Service job costing:
-  - each service job detail page now shows quoted revenue, posted invoice revenue, actual job cost, and unconverted billable expense-claim totals
+  - each service job detail page now shows quoted revenue, posted invoice revenue, actual job cost, pending claim cost, and unconverted billable expense-claim totals
   - cost sources are broken down by material requisitions, direct purchases, and service expense claims
+  - estimate and invoice snapshots are shown together with quoted and posted gross margin visibility
 
 ## Line editing in draft documents
 

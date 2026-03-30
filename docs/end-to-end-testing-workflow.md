@@ -667,13 +667,15 @@ Test:
 - `Service -> Jobs`
 - `Service -> Work Orders`
 - `Service -> Estimates`
+- `Service -> Expense Claims`
 - `Service -> Material Requisitions`
 - `Service -> Quality Checks`
 - `Service -> Handovers`
+- `Finance -> Petty Cash` when petty-cash-funded claims are part of the branch being tested
 
 Expected:
 
-- service documents save, change status correctly, and can be cross-checked with PDFs and audit logs
+- service documents save, change status correctly, support estimate revision and expense-claim settlement where relevant, and can be cross-checked with PDFs, costing views, and audit logs
 
 ## 18. Month-End Sign-Off Checklist
 

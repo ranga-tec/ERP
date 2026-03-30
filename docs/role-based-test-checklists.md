@@ -10,7 +10,7 @@ This document provides manual test checklists for these user roles:
 
 It is intended for UAT, regression testing, and user training.
 
-Validated against the current backend authorization attributes on March 15, 2026.
+Validated against the current backend authorization attributes on March 30, 2026.
 
 ## How To Use This Document
 
@@ -56,9 +56,9 @@ Recommended sample data:
 | --- | --- | --- |
 | `Admin` | All modules | None by design |
 | `Procurement` | suppliers, taxes, reference forms, PR, RFQ, PO, GRN, direct purchase, supplier invoice, supplier return | users, notifications, currencies, AR/AP, payments, service work order pages |
-| `Sales` | customers, taxes, reference forms, quotes, orders, dispatches, direct dispatches, invoices, customer returns, equipment units, jobs, estimates, handovers | users, procurement pages, finance pages, currencies, work orders, QC, material requisitions |
-| `Finance` | customers, suppliers, currencies, currency rates, payment types, taxes, tax conversions, reference forms, AR/AP, payments, credit notes, debit notes, direct purchases, supplier invoices, invoices | users, notifications, audit logs, reporting pages, PO/GRN, most service pages |
-| `Service` | customers, taxes, reference forms, equipment units, jobs, work orders, estimates, material requisitions, quality checks, handovers, direct dispatches | users, procurement, currencies, payments, AR/AP, audit logs, reporting |
+| `Sales` | customers, taxes, reference forms, quotes, orders, dispatches, direct dispatches, invoices, customer returns, equipment units, jobs, estimates, handovers | users, procurement pages, finance pages, currencies, work orders, QC, material requisitions, expense claims |
+| `Finance` | customers, suppliers, currencies, currency rates, payment types, taxes, tax conversions, reference forms, AR/AP, payments, petty cash, credit notes, debit notes, direct purchases, supplier invoices, invoices, service expense claims | users, notifications, audit logs, reporting pages, PO/GRN, service jobs/work orders/estimates/handovers |
+| `Service` | customers, taxes, reference forms, equipment units, jobs, estimates, expense claims, work orders, material requisitions, quality checks, handovers, direct dispatches | users, procurement, currencies, payments, AR/AP, petty cash, audit logs, reporting |
 
 ## Admin Checklist
 
@@ -71,8 +71,10 @@ Use this role to verify full-system access and role setup.
 - [ ] Open `Master Data -> Items`.
 - [ ] Open `Procurement -> Purchase Orders`.
 - [ ] Open `Sales -> Invoices`.
+- [ ] Open `Service -> Expense Claims`.
 - [ ] Open `Service -> Work Orders`.
 - [ ] Open `Finance -> Payments`.
+- [ ] Open `Finance -> Petty Cash`.
 - [ ] Open `Reporting -> Costing`.
 - [ ] Open `Admin -> Users`.
 - [ ] Open `Audit Logs`.
@@ -165,7 +167,7 @@ Expected result:
 - [ ] Open the resulting PO and verify the supplier, item, and quantity.
 - [ ] Approve the PO.
 - [ ] Create a goods receipt from the PO.
-- [ ] Add a GRN line and post it.
+- [ ] Use the PO receipt plan to add the delivered quantity into the draft GRN and post it.
 
 Expected result:
 
@@ -303,6 +305,7 @@ Expected result:
 - [ ] Attempt to open `Master Data -> Currencies`.
 - [ ] Attempt to open `Service -> Work Orders`.
 - [ ] Attempt to open `Service -> Quality Checks`.
+- [ ] Attempt to open `Service -> Expense Claims`.
 
 Expected result:
 
@@ -326,11 +329,13 @@ Use a user with only the `Finance` role.
 - [ ] Open `Finance -> Accounts Receivable`.
 - [ ] Open `Finance -> Accounts Payable`.
 - [ ] Open `Finance -> Payments`.
+- [ ] Open `Finance -> Petty Cash`.
 - [ ] Open `Finance -> Credit Notes`.
 - [ ] Open `Finance -> Debit Notes`.
 - [ ] Open `Procurement -> Direct Purchases`.
 - [ ] Open `Procurement -> Supplier Invoices`.
 - [ ] Open `Sales -> Invoices`.
+- [ ] Open `Service -> Expense Claims`.
 
 Expected result:
 
@@ -370,6 +375,19 @@ Expected result:
 
 - finance adjustment documents save and affect balances correctly
 
+### Petty Cash And Service Expense Claims
+
+- [ ] Create a petty cash fund or open an existing one.
+- [ ] Post one top-up or adjustment entry.
+- [ ] Open one submitted service expense claim.
+- [ ] Approve or reject the claim.
+- [ ] If approved, settle it with payment details and a petty cash fund when the funding source is `Petty Cash`.
+
+Expected result:
+
+- petty cash transactions update the fund balance correctly
+- finance users can complete expense-claim approval and settlement without authorization errors
+
 ### Shared Finance-Document Checks
 
 - [ ] Open one supplier invoice.
@@ -389,6 +407,7 @@ Expected result:
 - [ ] Attempt to open `Reporting -> Costing`.
 - [ ] Attempt to open `Procurement -> Purchase Orders`.
 - [ ] Attempt to open `Procurement -> Goods Receipts`.
+- [ ] Attempt to open `Service -> Jobs`.
 - [ ] Attempt to open `Service -> Work Orders`.
 
 Expected result:
@@ -407,6 +426,7 @@ Use a user with only the `Service` role.
 - [ ] Open `Master Data -> Reference Forms`.
 - [ ] Open `Service -> Equipment Units`.
 - [ ] Open `Service -> Jobs`.
+- [ ] Open `Service -> Expense Claims`.
 - [ ] Open `Service -> Work Orders`.
 - [ ] Open `Service -> Estimates`.
 - [ ] Open `Service -> Material Reqs`.
@@ -422,14 +442,17 @@ Expected result:
 
 - [ ] Create an equipment unit for a customer.
 - [ ] Create a service job.
+- [ ] Choose `Service` or `Repair` explicitly when creating the job.
 - [ ] Update the job through at least one status change.
 - [ ] Create a work order.
 - [ ] Create a service estimate and add at least one line.
+- [ ] Confirm estimate lines can use `Part`, `Labor`, or `Expense` as needed.
 - [ ] Send or approve the estimate.
+- [ ] Create a service expense claim and submit it.
 
 Expected result:
 
-- equipment, job, work order, and estimate workflows are usable by the service role
+- equipment, job, estimate, expense-claim, and work-order workflows are usable by the service role
 
 ### Parts And Quality Flow
 
@@ -438,6 +461,7 @@ Expected result:
 - [ ] Record a quality check.
 - [ ] Create a handover or open an existing handover.
 - [ ] If the handover-to-invoice path is used, confirm the conversion action works or is correctly restricted by process.
+- [ ] Open one service job detail page and review the costing section.
 
 Expected result:
 
@@ -469,6 +493,7 @@ Expected result:
 - [ ] Attempt to open `Procurement -> Purchase Orders`.
 - [ ] Attempt to open `Finance -> Payments`.
 - [ ] Attempt to open `Finance -> AR`.
+- [ ] Attempt to open `Finance -> Petty Cash`.
 - [ ] Attempt to open `Master Data -> Currencies`.
 - [ ] Attempt to open `Audit Logs`.
 - [ ] Attempt to open `Reporting -> Costing`.

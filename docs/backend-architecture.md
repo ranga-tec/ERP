@@ -170,6 +170,7 @@ Registered in `backend/src/ISS.Application/DependencyInjection.cs`:
 - `ProcurementService`
 - `SalesService`
 - `ServiceManagementService`
+- `ServiceCostingService`
 - `FinanceService`
 - `NotificationService`
 
@@ -202,6 +203,12 @@ Top-level controller areas under `backend/src/ISS.Api/Controllers`:
 - `Sales`
 - `Service`
 - root-level controllers for auth/reporting/health-adjacent endpoints and shared APIs
+
+Recent service/finance workflow surfaces:
+
+- Service jobs expose `GET /api/service/jobs/{id}/costing` for per-job margin and actual-cost rollups.
+- Service expense claims live under `/api/service/expense-claims` and support submit, approve/reject, settle, and billable-line conversion into estimates.
+- Petty cash funds live under `/api/finance/petty-cash-funds` and track opening balance, top-ups, adjustments, and claim-settlement outflows.
 
 Conventions commonly used:
 
@@ -291,6 +298,7 @@ Current endpoints include:
 Notes:
 
 - The reporting pack covers operational dashboards and item-level costing visibility.
+- Service job costing is intentionally exposed from the service module, not the reporting controller, because it is a live document-detail workflow view tied to a single job.
 - Advanced reporting (for example profitability slices, supplier performance, export-heavy analytics) is still pending.
 
 Implementation caution:
@@ -401,13 +409,20 @@ Why this matters:
 
 ### Local Infrastructure
 
-From repo root:
+Preferred local setup:
+
+- use a local PostgreSQL server on `localhost:5432`
+- main database: `iss`
+- integration-test database: `iss_integration_local`
+- default local credentials in this repo: `pgadmin / vesper`
+
+Optional Docker fallback from repo root:
 
 ```powershell
 docker compose up -d
 ```
 
-Local compose defaults (`docker-compose.yml`):
+Docker compose defaults (`docker-compose.yml`):
 
 - Host: `localhost`
 - Port: `5432`

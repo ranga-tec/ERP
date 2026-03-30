@@ -55,12 +55,12 @@ It is intended to guide closure work and UAT, not to replace row-level manual ve
 | 4.4 Direct Dispatch | Partial | `DirectDispatchesController`, direct dispatch pages, integration tests incl. duplicate-post guard | Core flow exists; invoice-later UX/explicit conversion workflow needs verification/polish |
 | 4.5 Sales Invoice | Done | `InvoicesController`, invoice pages, integration tests for AR impact, PDF export, notifications | Core CSV intent is implemented end-to-end |
 | 4.6 Customer Return (Sales Return) | Partial | `CustomerReturnsController`, customer return pages, integration tests incl. duplicate-post guard | Core stock-in + AR credit path exists; quarantine option and service-job repair linkage are not clearly implemented |
-| 5.1 Service Job / Ticket (Job Card) | Partial | `ServiceJobsController`, service job pages, equipment units, document collaboration attachments/comments | Core service job flow exists; CSV fields/workflow depth (walk-in path, SLA timers, richer device metadata, video attachments, status automation) is broader |
-| 5.2 Estimate / Quotation (Service) | Done | `ServiceEstimatesController`, estimate pages, approve/send actions, integration tests (including notifications) | Core estimate flow and send/approve behavior are covered |
+| 5.1 Service Job / Ticket (Job Card) | Partial | `ServiceJobsController`, service job pages, equipment units, service job costing view, document collaboration attachments/comments | Core service/repair job flow and costing visibility exist; CSV fields/workflow depth (walk-in path, SLA timers, richer device metadata, video attachments, status automation) is broader |
+| 5.2 Estimate / Quotation (Service) | Done | `ServiceEstimatesController`, estimate pages, approve/send/revise actions, expense-line support, integration tests (including notifications) | Core estimate flow, revision behavior, and send/approve behavior are covered |
 | 5.3 Spare Parts Requisition | Partial | `MaterialRequisitionsController`, MR pages, integration test (stock consumption) | Core issue/post flow exists; CSV reserve-vs-trigger-PO workflow depth is broader |
 | 5.4 Service Work Order | Partial | `WorkOrdersController`, WO pages, integration test + collaboration | Core WO creation exists; CSV pause/resume, labor time capture depth, and richer task/test tracking appear partial |
 | 5.5 Quality Check (QC) | Partial | `QualityChecksController`, QC pages, integration test + collaboration | Core QC record exists; configurable checklist and reopen automation depth need confirmation |
-| 5.6 Handover / Delivery (Service) | Partial | `ServiceHandoversController`, handover pages, convert-to-sales-invoice endpoint, integration tests | Core handover + invoice conversion exists; customer signature capture and pickup-ready messaging UX may be partial |
+| 5.6 Handover / Delivery (Service) | Partial | `ServiceHandoversController`, handover pages, convert-to-sales-invoice endpoint with labor/expense mapping, integration tests | Core handover + invoice conversion exists; customer signature capture and pickup-ready messaging UX may be partial |
 | 6.1 Receipts (AR) | Partial | Unified `PaymentsController` + finance payments pages + AR/AP pages; integration test shows payment allocation marking AR paid | Implemented under unified payments model, not a dedicated receipts module; AR receipt-specific UX/reporting may need polish |
 | 6.2 Payments (AP) | Partial | `PaymentsController`, AP page, payment allocation UI | Core module exists; explicit AP-focused regression coverage is lighter than AR path |
 | 6.3 Credit/Debit Notes | Done | `CreditNotesController`, `DebitNotesController`, finance note pages, allocations, integration + domain coverage | Core CSV intent implemented (explicit documents + allocations) |
@@ -68,6 +68,10 @@ It is intended to guide closure work and UAT, not to replace row-level manual ve
 | 8) Security, Audit & Integrations | Partial | JWT auth, role-based authorization, audit logs, notifications outbox + SMTP/Twilio, barcode/QR support, REST API | Role granularity differs from CSV examples; barcode scanner UX is limited; accounting export (Tally/QuickBooks/CSV) not implemented; webhook/template management not clearly implemented |
 | 9) Document Relationships (Flow Summary) | Partial | End-to-end modules across procurement/sales/service + integration tests for key chains and conversions | Major flows exist, but not every optional branch/relationship in the CSV has explicit traceability tests or UI affordances |
 | Notes: "All documents support status/PDF/attachments/comments/activity logs" | Partial | Broad PDF support, audit logs, document collaboration panel rolled out to many detail pages; attachment upload safety now includes allowlists/quotas/signature checks | "All documents" claim still needs strict page-by-page verification and UI consistency review |
+
+Supplemental workflow note:
+
+- Service expense claims, petty cash fund management, service-linked direct purchases, estimate revisions, and per-job costing are implemented as workflow-depth additions beyond the original CSV headings.
 
 ## Evidence Highlights
 

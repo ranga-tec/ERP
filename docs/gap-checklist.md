@@ -79,4 +79,7 @@ Note:
 
 - [x] Draft line grids now support full row actions (`Edit`, `Save/Cancel`, `Delete`) across all line-based document modules.
 - [x] Master-data maintenance grids now support row actions (`Edit`, `Save/Cancel`, `Delete`) with backend delete compatibility.
+- [x] Service workflow now includes `Service`/`Repair` job kinds, estimate revisions, service-linked direct purchases, service expense claims, and claim-to-estimate conversion.
+- [x] Finance workflow now includes petty cash funds with opening balance, top-up, adjustment, and service expense-claim settlement tracking.
+- [x] Service job detail pages now expose quoted vs posted value and actual job costing rollups across materials, direct purchases, and expense claims.
 - [ ] Final end-user acceptance and regression walkthrough on all responsive breakpoints.

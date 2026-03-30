@@ -64,7 +64,7 @@ Client components:
 
 - use `api-client.ts` helpers (`apiGet`, `apiPost`, `apiPostNoContent`, `apiPostForm`, etc.)
 - requests go through `frontend/src/app/api/backend/[...path]/route.ts`
-- proxy route forwards method/body and Bearer token from cookie
+- proxy route forwards method/body, Bearer token from cookie, and only a safe allowlist of request headers
 - preserves binary/content-disposition responses for downloads
 
 Maintainer rule:
@@ -151,9 +151,9 @@ Transactional module pages include:
 
 - procurement: RFQ, purchase requisition, PO, GRN, direct purchase, supplier invoice, supplier return
 - sales: quote, order, dispatch, direct dispatch, invoice, customer return
-- service: equipment units, jobs, work orders, estimates, material requisitions, quality checks, handovers
+- service: equipment units, jobs, estimates, expense claims, work orders, material requisitions, quality checks, handovers
 - inventory: on-hand, reorder alerts, stock adjustments, stock transfers
-- finance: AR/AP, payments, credit notes, debit notes
+- finance: AR/AP, payments, petty cash, credit notes, debit notes
 - reporting: dashboard, stock-ledger, aging, tax summary, service KPIs, costing
 
 ### Inventory UI Behavior
@@ -200,4 +200,14 @@ This page supports:
 - default vs weighted average cost display
 - last receipt cost/date display
 - on-hand and inventory valuation totals in base currency
+
+### Service And Finance Workflow UI
+
+Recent workflow-specific UI behavior:
+
+- service estimates support `Part`, `Labor`, and `Expense` line kinds plus explicit estimate revision actions
+- service expense claim detail pages let service/finance users submit, approve/reject, settle, and convert billable claim lines into the working estimate
+- service handover invoice conversion supports fallback item mapping for labor and expense estimate lines
+- service job detail pages render a costing summary with estimate, invoice, material, direct-purchase, and expense-claim breakdowns
+- finance petty cash pages provide fund creation, editing, top-up, adjustment, and settlement-ledger visibility
 

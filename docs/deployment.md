@@ -259,13 +259,18 @@ Compress-Archive -Path .\backend\src\ISS.Api\App_Data\* `
 
 ## Railway Deployment Notes
 
-For this repo, Railway deploys are most reliable when the service root is uploaded explicitly from the repo root.
+For this repo, Railway deploys are most reliable when each service is deployed from its own directory and uploaded with `--path-as-root`.
+
+Do not upload the whole repo and expect Railway to infer the correct build root for both services.
 
 Use:
 
 ```powershell
-railway up .\backend\src --path-as-root -s iss-api -e production -c
-railway up .\frontend --path-as-root -s iss-web -e production -c
+cd backend
+railway up . --path-as-root --service iss-api --environment production --detach
+
+cd ..\frontend
+railway up . --path-as-root --service iss-web --environment production --detach
 ```
 
 Notes:

@@ -2,7 +2,7 @@
 
 This guide is for a fresh end-to-end manual test of the ISS ERP system.
 
-It is based on a verified walkthrough completed on March 10, 2026 against a fresh database.
+It is based on a verified walkthrough completed on March 30, 2026 against a fresh database.
 
 ## Pre-checks
 
@@ -32,6 +32,14 @@ The payment form has active currency options and does not show the "No active cu
 3. Open `Reporting -> Costing`.
 Expected:
 The page loads successfully even on a fresh system.
+
+4. Open `Finance -> Petty Cash`.
+Expected:
+The petty cash fund list loads successfully.
+
+5. Open `Service -> Jobs`.
+Expected:
+The job list and create form load without service API errors.
 
 ## End-to-End Scenario
 
@@ -72,11 +80,10 @@ Expected:
 6. Create a GRN for:
    - PO: the PO you just approved
    - Warehouse: `MAIN`
-7. Add one GRN line:
-   - Item: `SKU1`
-   - Qty: `10`
-   - Unit Cost: `5`
-8. Post the GRN.
+7. Confirm the `Receive From PO` table loads the open PO line automatically.
+8. Enter received quantity `10` for the PO line and save the receipt plan.
+9. Confirm the `Current Draft Lines` table shows the GRN line created from the PO receipt plan.
+10. Post the GRN.
 
 Expected:
 
@@ -201,6 +208,46 @@ Expected:
 
 This confirms the stock-take correction is reflected in both inventory balance and valuation.
 
+### 7. Optional Service / Repair Flow
+
+Use this focused scenario when validating the current workshop workflow.
+
+Suggested extra setup:
+
+- one petty cash fund:
+  - Code: `WORKSHOP`
+  - Name: `Workshop Petty Cash`
+  - Currency: `USD`
+  - Opening Balance: `100`
+
+Steps:
+
+1. Go to `Service -> Equipment Units` and register one serialized unit for customer `CUS1`.
+2. Go to `Service -> Jobs` and create a job:
+   - Kind: `Repair`
+   - Problem Description: `Unit does not power on`
+3. Start the job.
+4. Go to `Service -> Estimates` and create an estimate for the job.
+5. Add at least:
+   - one `Part` line using `SKU1`
+   - one `Labor` line
+6. Approve the estimate.
+7. Create a service expense claim for the same job:
+   - Funding Source: `Petty Cash`
+   - one billable line for an emergency outside expense
+8. Submit the claim.
+9. Approve and settle the claim against petty cash fund `WORKSHOP`.
+10. Convert the billable claim line into the working estimate.
+11. Open the service job detail page and review the costing section.
+
+Expected:
+
+- the job can be opened as `Repair` and moved to `In Progress`
+- the approved estimate stays preserved
+- the approved/settled billable claim can be converted into an estimate or estimate revision
+- petty cash balance is reduced by the settled claim amount
+- job costing reflects material, expense-claim, and quoted value in one view
+
 ## Verified Calculation Trail
 
 This is the tested numeric chain:
@@ -221,6 +268,7 @@ During UAT, also open at least one PDF from each area you touch:
 - Invoice PDF
 - Payment PDF
 - Stock Adjustment PDF
+- one service PDF if the optional service flow is tested
 
 Expected:
 
@@ -256,5 +304,8 @@ If time is limited, always re-test these pages after changes:
 - `Procurement -> Goods Receipts`
 - `Sales -> Invoices`
 - `Finance -> Payments`
+- `Finance -> Petty Cash`
+- `Service -> Jobs`
+- `Service -> Expense Claims`
 - `Inventory -> On Hand`
 - `Reporting -> Costing`

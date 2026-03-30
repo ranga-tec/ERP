@@ -23,6 +23,12 @@ Source: `c:\Users\ASUS\Downloads\ERP System Proposal - C-Com Equipment.pdf` (dat
 - Supplier invoices
 - Direct dispatches and customer returns
 - Service estimates and service handovers
+- `Service` and `Repair` job classification on service jobs
+- Estimate revisions and `Part` / `Labor` / `Expense` estimate line support
+- Service expense claims for out-of-pocket and petty-cash spending
+- Petty cash funds and ledger transactions
+- Billable expense-claim conversion into service estimates or estimate revisions
+- Service-linked direct purchases and service job costing rollups
 - UoM conversions
 - Taxes and tax conversions
 - Currencies and currency rates
