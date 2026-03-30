@@ -45,6 +45,9 @@ export function ServiceJobActions({
         <SecondaryButton type="button" disabled={!canClose || busy} onClick={() => act("close")}>
           Close
         </SecondaryButton>
+        <SecondaryButton type="button" disabled={busy} onClick={() => act("refresh-entitlement")}>
+          Refresh Entitlement
+        </SecondaryButton>
       </div>
       {error ? (
         <div className="rounded-md border border-red-200 bg-red-50 p-2 text-sm text-red-900 dark:border-red-900/40 dark:bg-red-950/40 dark:text-red-100">
@@ -54,4 +57,3 @@ export function ServiceJobActions({
     </div>
   );
 }
-

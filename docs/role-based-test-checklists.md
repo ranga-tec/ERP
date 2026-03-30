@@ -240,6 +240,7 @@ Use a user with only the `Sales` role.
 - [ ] Open `Sales -> Invoices`.
 - [ ] Open `Sales -> Customer Returns`.
 - [ ] Open `Service -> Equipment Units`.
+- [ ] Open `Service -> Service Contracts`.
 - [ ] Open `Service -> Jobs`.
 - [ ] Open `Service -> Estimates`.
 - [ ] Open `Service -> Handovers`.
@@ -278,6 +279,7 @@ Expected result:
 ### Shared Sales-Service Checks
 
 - [ ] Create or view an equipment unit.
+- [ ] Create or view a service contract for a customer-owned unit.
 - [ ] Create a service estimate and add a line.
 - [ ] Send or approve the estimate.
 - [ ] Create or update a service job.
@@ -425,6 +427,7 @@ Use a user with only the `Service` role.
 - [ ] Open `Master Data -> Tax Codes`.
 - [ ] Open `Master Data -> Reference Forms`.
 - [ ] Open `Service -> Equipment Units`.
+- [ ] Open `Service -> Service Contracts`.
 - [ ] Open `Service -> Jobs`.
 - [ ] Open `Service -> Expense Claims`.
 - [ ] Open `Service -> Work Orders`.
@@ -441,8 +444,12 @@ Expected result:
 ### Core Service Flow
 
 - [ ] Create an equipment unit for a customer.
+- [ ] Add or edit warranty coverage on the equipment unit.
+- [ ] Create a service contract for the unit or view an existing one.
 - [ ] Create a service job.
 - [ ] Choose `Service` or `Repair` explicitly when creating the job.
+- [ ] Confirm the job shows entitlement source and billing treatment.
+- [ ] If contract/warranty data changes, use `Refresh Entitlement` and confirm the job updates.
 - [ ] Update the job through at least one status change.
 - [ ] Create a work order.
 - [ ] Add a work-order labor entry with hours and cost details.

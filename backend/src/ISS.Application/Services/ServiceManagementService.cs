@@ -16,18 +16,97 @@ public sealed class ServiceManagementService(
     InventoryService inventoryService,
     NotificationService notificationService)
 {
+    private sealed record ServiceEntitlementSnapshot(
+        Guid? ServiceContractId,
+        ServiceEntitlementSource EntitlementSource,
+        ServiceCoverageScope EntitlementCoverage,
+        CustomerBillingTreatment CustomerBillingTreatment,
+        string? EntitlementSummary);
+
     public async Task<Guid> CreateEquipmentUnitAsync(
         Guid itemId,
         string serialNumber,
         Guid customerId,
         DateTimeOffset? purchasedAt,
         DateTimeOffset? warrantyUntil,
+        ServiceCoverageScope warrantyCoverage,
         CancellationToken cancellationToken = default)
     {
-        var unit = new EquipmentUnit(itemId, serialNumber, customerId, purchasedAt, warrantyUntil);
+        var unit = new EquipmentUnit(itemId, serialNumber, customerId, purchasedAt, warrantyUntil, warrantyCoverage);
         await dbContext.EquipmentUnits.AddAsync(unit, cancellationToken);
         await dbContext.SaveChangesAsync(cancellationToken);
         return unit.Id;
+    }
+
+    public async Task UpdateEquipmentUnitAsync(
+        Guid equipmentUnitId,
+        Guid customerId,
+        DateTimeOffset? purchasedAt,
+        DateTimeOffset? warrantyUntil,
+        ServiceCoverageScope warrantyCoverage,
+        CancellationToken cancellationToken = default)
+    {
+        var unit = await dbContext.EquipmentUnits
+            .FirstOrDefaultAsync(x => x.Id == equipmentUnitId, cancellationToken)
+            ?? throw new NotFoundException("Equipment unit not found.");
+
+        unit.Update(customerId, purchasedAt, warrantyUntil, warrantyCoverage);
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task<Guid> CreateServiceContractAsync(
+        Guid customerId,
+        Guid equipmentUnitId,
+        ServiceContractType contractType,
+        ServiceCoverageScope coverage,
+        DateTimeOffset startDate,
+        DateTimeOffset endDate,
+        string? notes,
+        CancellationToken cancellationToken = default)
+    {
+        var equipmentUnit = await dbContext.EquipmentUnits.AsNoTracking()
+            .FirstOrDefaultAsync(x => x.Id == equipmentUnitId, cancellationToken)
+            ?? throw new NotFoundException("Equipment unit not found.");
+
+        if (equipmentUnit.CustomerId != customerId)
+        {
+            throw new DomainValidationException("Service contracts must use the same customer that owns the equipment unit.");
+        }
+
+        var number = await documentNumberService.NextAsync(ReferenceTypes.ServiceContract, "SC", cancellationToken);
+        var contract = new ServiceContract(number, customerId, equipmentUnitId, contractType, coverage, startDate, endDate, notes);
+        await dbContext.ServiceContracts.AddAsync(contract, cancellationToken);
+        await dbContext.SaveChangesAsync(cancellationToken);
+        return contract.Id;
+    }
+
+    public async Task UpdateServiceContractAsync(
+        Guid serviceContractId,
+        Guid customerId,
+        Guid equipmentUnitId,
+        ServiceContractType contractType,
+        ServiceCoverageScope coverage,
+        DateTimeOffset startDate,
+        DateTimeOffset endDate,
+        string? notes,
+        bool isActive,
+        CancellationToken cancellationToken = default)
+    {
+        var contract = await dbContext.ServiceContracts
+            .FirstOrDefaultAsync(x => x.Id == serviceContractId, cancellationToken)
+            ?? throw new NotFoundException("Service contract not found.");
+
+        var equipmentUnit = await dbContext.EquipmentUnits.AsNoTracking()
+            .FirstOrDefaultAsync(x => x.Id == equipmentUnitId, cancellationToken)
+            ?? throw new NotFoundException("Equipment unit not found.");
+
+        if (equipmentUnit.CustomerId != customerId)
+        {
+            throw new DomainValidationException("Service contracts must use the same customer that owns the equipment unit.");
+        }
+
+        contract.Update(customerId, equipmentUnitId, contractType, coverage, startDate, endDate, notes, isActive);
+        await dbContext.SaveChangesAsync(cancellationToken);
     }
 
     public async Task<Guid> CreateServiceJobAsync(
@@ -37,11 +116,41 @@ public sealed class ServiceManagementService(
         ServiceJobKind kind = ServiceJobKind.Service,
         CancellationToken cancellationToken = default)
     {
+        var entitlement = await EvaluateServiceEntitlementAsync(equipmentUnitId, customerId, clock.UtcNow, cancellationToken);
         var number = await documentNumberService.NextAsync("SJ", "SJ", cancellationToken);
-        var job = new ServiceJob(number, equipmentUnitId, customerId, clock.UtcNow, problemDescription, kind);
+        var job = new ServiceJob(
+            number,
+            equipmentUnitId,
+            customerId,
+            clock.UtcNow,
+            problemDescription,
+            kind,
+            entitlement.ServiceContractId,
+            entitlement.EntitlementSource,
+            entitlement.EntitlementCoverage,
+            entitlement.CustomerBillingTreatment,
+            clock.UtcNow,
+            entitlement.EntitlementSummary);
         await dbContext.ServiceJobs.AddAsync(job, cancellationToken);
         await dbContext.SaveChangesAsync(cancellationToken);
         return job.Id;
+    }
+
+    public async Task RefreshServiceJobEntitlementAsync(Guid serviceJobId, CancellationToken cancellationToken = default)
+    {
+        var job = await dbContext.ServiceJobs
+            .FirstOrDefaultAsync(x => x.Id == serviceJobId, cancellationToken)
+            ?? throw new NotFoundException("Service job not found.");
+
+        var entitlement = await EvaluateServiceEntitlementAsync(job.EquipmentUnitId, job.CustomerId, clock.UtcNow, cancellationToken);
+        job.ApplyEntitlement(
+            entitlement.ServiceContractId,
+            entitlement.EntitlementSource,
+            entitlement.EntitlementCoverage,
+            entitlement.CustomerBillingTreatment,
+            clock.UtcNow,
+            entitlement.EntitlementSummary);
+        await dbContext.SaveChangesAsync(cancellationToken);
     }
 
     public async Task StartServiceJobAsync(Guid serviceJobId, CancellationToken cancellationToken = default)
@@ -1071,6 +1180,54 @@ public sealed class ServiceManagementService(
         }
 
         await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    private async Task<ServiceEntitlementSnapshot> EvaluateServiceEntitlementAsync(
+        Guid equipmentUnitId,
+        Guid customerId,
+        DateTimeOffset asOf,
+        CancellationToken cancellationToken)
+    {
+        var equipmentUnit = await dbContext.EquipmentUnits.AsNoTracking()
+            .FirstOrDefaultAsync(x => x.Id == equipmentUnitId, cancellationToken)
+            ?? throw new NotFoundException("Equipment unit not found.");
+
+        var activeContract = await dbContext.ServiceContracts.AsNoTracking()
+            .Where(x => x.EquipmentUnitId == equipmentUnitId
+                        && x.CustomerId == customerId
+                        && x.IsActive
+                        && x.StartDate <= asOf
+                        && x.EndDate >= asOf)
+            .OrderByDescending(x => x.EndDate)
+            .ThenByDescending(x => x.StartDate)
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (activeContract is not null)
+        {
+            return new ServiceEntitlementSnapshot(
+                activeContract.Id,
+                ServiceEntitlementSource.ServiceContract,
+                activeContract.Coverage,
+                ServiceEntitlementRules.ToBillingTreatment(activeContract.Coverage),
+                $"Contract {activeContract.Number} ({activeContract.ContractType}) covers {activeContract.Coverage} until {activeContract.EndDate:yyyy-MM-dd}.");
+        }
+
+        if (equipmentUnit.HasActiveWarranty(asOf))
+        {
+            return new ServiceEntitlementSnapshot(
+                null,
+                ServiceEntitlementSource.ManufacturerWarranty,
+                equipmentUnit.WarrantyCoverage,
+                ServiceEntitlementRules.ToBillingTreatment(equipmentUnit.WarrantyCoverage),
+                $"Manufacturer warranty covers {equipmentUnit.WarrantyCoverage} until {equipmentUnit.WarrantyUntil:yyyy-MM-dd}.");
+        }
+
+        return new ServiceEntitlementSnapshot(
+            null,
+            ServiceEntitlementSource.None,
+            ServiceCoverageScope.None,
+            CustomerBillingTreatment.Billable,
+            "No active warranty or service contract entitlement was found.");
     }
 
     public async Task<Guid> AddQualityCheckAsync(Guid serviceJobId, bool passed, string? notes, CancellationToken cancellationToken = default)

@@ -11,6 +11,8 @@ type EquipmentUnitDto = {
   customerId: string;
   purchasedAt?: string | null;
   warrantyUntil?: string | null;
+  warrantyCoverage: number;
+  hasActiveWarranty: boolean;
 };
 
 type ItemDto = { id: string; sku: string; name: string; type: number };
@@ -27,6 +29,13 @@ export default async function EquipmentUnitsPage() {
   const customerById = new Map(customers.map((customer) => [customer.id, customer]));
 
   const equipmentItems = items.filter((item) => item.type === 1).map((item) => ({ id: item.id, sku: item.sku, name: item.name }));
+  const coverageLabel: Record<number, string> = {
+    0: "No Warranty",
+    1: "Inspection Only",
+    2: "Labor Only",
+    3: "Parts Only",
+    4: "Labor and Parts",
+  };
 
   return (
     <div className="space-y-6">
@@ -51,6 +60,8 @@ export default async function EquipmentUnitsPage() {
                 <th className="py-2 pr-3">Customer</th>
                 <th className="py-2 pr-3">Purchased</th>
                 <th className="py-2 pr-3">Warranty</th>
+                <th className="py-2 pr-3">Coverage</th>
+                <th className="py-2 pr-3">Active</th>
               </tr>
             </thead>
             <tbody>
@@ -73,11 +84,13 @@ export default async function EquipmentUnitsPage() {
                   <td className="py-2 pr-3 text-zinc-500">
                     {unit.warrantyUntil ? new Date(unit.warrantyUntil).toLocaleDateString() : "-"}
                   </td>
+                  <td className="py-2 pr-3 text-zinc-500">{coverageLabel[unit.warrantyCoverage] ?? unit.warrantyCoverage}</td>
+                  <td className="py-2 pr-3">{unit.hasActiveWarranty ? "Yes" : "No"}</td>
                 </tr>
               ))}
               {units.length === 0 ? (
                 <tr>
-                  <td className="py-6 text-sm text-zinc-500" colSpan={5}>
+                  <td className="py-6 text-sm text-zinc-500" colSpan={7}>
                     No equipment units yet.
                   </td>
                 </tr>

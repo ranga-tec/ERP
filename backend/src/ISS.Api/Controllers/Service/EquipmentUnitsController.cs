@@ -13,8 +13,29 @@ namespace ISS.Api.Controllers.Service;
 [Authorize(Roles = $"{Roles.Admin},{Roles.Service},{Roles.Sales}")]
 public sealed class EquipmentUnitsController(IIssDbContext dbContext, ServiceManagementService serviceManagementService) : ControllerBase
 {
-    public sealed record EquipmentUnitDto(Guid Id, Guid ItemId, string SerialNumber, Guid CustomerId, DateTimeOffset? PurchasedAt, DateTimeOffset? WarrantyUntil);
-    public sealed record CreateEquipmentUnitRequest(Guid ItemId, string SerialNumber, Guid CustomerId, DateTimeOffset? PurchasedAt, DateTimeOffset? WarrantyUntil);
+    public sealed record EquipmentUnitDto(
+        Guid Id,
+        Guid ItemId,
+        string SerialNumber,
+        Guid CustomerId,
+        DateTimeOffset? PurchasedAt,
+        DateTimeOffset? WarrantyUntil,
+        ServiceCoverageScope WarrantyCoverage,
+        bool HasActiveWarranty);
+
+    public sealed record CreateEquipmentUnitRequest(
+        Guid ItemId,
+        string SerialNumber,
+        Guid CustomerId,
+        DateTimeOffset? PurchasedAt,
+        DateTimeOffset? WarrantyUntil,
+        ServiceCoverageScope? WarrantyCoverage);
+
+    public sealed record UpdateEquipmentUnitRequest(
+        Guid CustomerId,
+        DateTimeOffset? PurchasedAt,
+        DateTimeOffset? WarrantyUntil,
+        ServiceCoverageScope? WarrantyCoverage);
 
     [HttpGet]
     public async Task<ActionResult<IReadOnlyList<EquipmentUnitDto>>> List([FromQuery] int skip = 0, [FromQuery] int take = 100, CancellationToken cancellationToken = default)
@@ -26,7 +47,15 @@ public sealed class EquipmentUnitsController(IIssDbContext dbContext, ServiceMan
             .OrderBy(x => x.SerialNumber)
             .Skip(skip)
             .Take(take)
-            .Select(x => new EquipmentUnitDto(x.Id, x.ItemId, x.SerialNumber, x.CustomerId, x.PurchasedAt, x.WarrantyUntil))
+            .Select(x => new EquipmentUnitDto(
+                x.Id,
+                x.ItemId,
+                x.SerialNumber,
+                x.CustomerId,
+                x.PurchasedAt,
+                x.WarrantyUntil,
+                x.WarrantyCoverage,
+                x.WarrantyUntil != null && x.WarrantyCoverage != ServiceCoverageScope.None && x.WarrantyUntil >= DateTimeOffset.UtcNow))
             .ToListAsync(cancellationToken);
 
         return Ok(units);
@@ -35,7 +64,14 @@ public sealed class EquipmentUnitsController(IIssDbContext dbContext, ServiceMan
     [HttpPost]
     public async Task<ActionResult<EquipmentUnitDto>> Create(CreateEquipmentUnitRequest request, CancellationToken cancellationToken)
     {
-        var id = await serviceManagementService.CreateEquipmentUnitAsync(request.ItemId, request.SerialNumber, request.CustomerId, request.PurchasedAt, request.WarrantyUntil, cancellationToken);
+        var id = await serviceManagementService.CreateEquipmentUnitAsync(
+            request.ItemId,
+            request.SerialNumber,
+            request.CustomerId,
+            request.PurchasedAt,
+            request.WarrantyUntil,
+            request.WarrantyUntil is null ? ServiceCoverageScope.None : request.WarrantyCoverage ?? ServiceCoverageScope.LaborAndParts,
+            cancellationToken);
         return await Get(id, cancellationToken);
     }
 
@@ -44,9 +80,30 @@ public sealed class EquipmentUnitsController(IIssDbContext dbContext, ServiceMan
     {
         var unit = await dbContext.EquipmentUnits.AsNoTracking()
             .Where(x => x.Id == id)
-            .Select(x => new EquipmentUnitDto(x.Id, x.ItemId, x.SerialNumber, x.CustomerId, x.PurchasedAt, x.WarrantyUntil))
+            .Select(x => new EquipmentUnitDto(
+                x.Id,
+                x.ItemId,
+                x.SerialNumber,
+                x.CustomerId,
+                x.PurchasedAt,
+                x.WarrantyUntil,
+                x.WarrantyCoverage,
+                x.WarrantyUntil != null && x.WarrantyCoverage != ServiceCoverageScope.None && x.WarrantyUntil >= DateTimeOffset.UtcNow))
             .FirstOrDefaultAsync(cancellationToken);
 
         return unit is null ? NotFound() : Ok(unit);
+    }
+
+    [HttpPut("{id:guid}")]
+    public async Task<ActionResult<EquipmentUnitDto>> Update(Guid id, UpdateEquipmentUnitRequest request, CancellationToken cancellationToken)
+    {
+        await serviceManagementService.UpdateEquipmentUnitAsync(
+            id,
+            request.CustomerId,
+            request.PurchasedAt,
+            request.WarrantyUntil,
+            request.WarrantyUntil is null ? ServiceCoverageScope.None : request.WarrantyCoverage ?? ServiceCoverageScope.LaborAndParts,
+            cancellationToken);
+        return await Get(id, cancellationToken);
     }
 }

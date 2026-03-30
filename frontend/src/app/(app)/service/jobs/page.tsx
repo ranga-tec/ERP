@@ -14,6 +14,13 @@ type ServiceJobDto = {
   kind: number;
   status: number;
   completedAt?: string | null;
+  serviceContractId?: string | null;
+  serviceContractNumber?: string | null;
+  entitlementSource: number;
+  entitlementCoverage: number;
+  customerBillingTreatment: number;
+  entitlementEvaluatedAt?: string | null;
+  entitlementSummary?: string | null;
 };
 
 type EquipmentUnitDto = { id: string; serialNumber: string; itemId: string; customerId: string };
@@ -30,6 +37,18 @@ const statusLabel: Record<number, string> = {
 const kindLabel: Record<number, string> = {
   0: "Service",
   1: "Repair",
+};
+
+const entitlementSourceLabel: Record<number, string> = {
+  0: "None",
+  1: "Warranty",
+  2: "Contract",
+};
+
+const billingTreatmentLabel: Record<number, string> = {
+  0: "Billable",
+  1: "Partially Covered",
+  2: "Covered No Charge",
 };
 
 export default async function ServiceJobsPage() {
@@ -64,6 +83,8 @@ export default async function ServiceJobsPage() {
                 <th className="py-2 pr-3">Equipment</th>
                 <th className="py-2 pr-3">Customer</th>
                 <th className="py-2 pr-3">Type</th>
+                <th className="py-2 pr-3">Entitlement</th>
+                <th className="py-2 pr-3">Billing</th>
                 <th className="py-2 pr-3">Opened</th>
                 <th className="py-2 pr-3">Status</th>
                 <th className="py-2 pr-3">Completed</th>
@@ -84,6 +105,16 @@ export default async function ServiceJobsPage() {
                   </td>
                   <td className="py-2 pr-3">{customerById.get(j.customerId)?.code ?? j.customerId}</td>
                   <td className="py-2 pr-3">{kindLabel[j.kind] ?? j.kind}</td>
+                  <td className="py-2 pr-3">
+                    {j.serviceContractId && j.serviceContractNumber ? (
+                      <Link className="hover:underline" href={`/service/contracts/${j.serviceContractId}`}>
+                        {j.serviceContractNumber}
+                      </Link>
+                    ) : (
+                      entitlementSourceLabel[j.entitlementSource] ?? j.entitlementSource
+                    )}
+                  </td>
+                  <td className="py-2 pr-3">{billingTreatmentLabel[j.customerBillingTreatment] ?? j.customerBillingTreatment}</td>
                   <td className="py-2 pr-3 text-zinc-500">{new Date(j.openedAt).toLocaleString()}</td>
                   <td className="py-2 pr-3">{statusLabel[j.status] ?? j.status}</td>
                   <td className="py-2 pr-3 text-zinc-500">
@@ -93,7 +124,7 @@ export default async function ServiceJobsPage() {
               ))}
               {jobs.length === 0 ? (
                 <tr>
-                  <td className="py-6 text-sm text-zinc-500" colSpan={7}>
+                  <td className="py-6 text-sm text-zinc-500" colSpan={9}>
                     No service jobs yet.
                   </td>
                 </tr>

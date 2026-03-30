@@ -512,12 +512,22 @@ public sealed class ImportController(IIssDbContext dbContext) : ControllerBase
 
             if (equipmentBySerial.TryGetValue(serial, out var existing))
             {
-                existing.Update(customer.Id, purchasedAt, warrantyUntil);
+                existing.Update(
+                    customer.Id,
+                    purchasedAt,
+                    warrantyUntil,
+                    warrantyUntil is null ? ServiceCoverageScope.None : ServiceCoverageScope.LaborAndParts);
                 counters.EquipmentUpdated++;
                 continue;
             }
 
-            var created = new EquipmentUnit(item.Id, serial, customer.Id, purchasedAt, warrantyUntil);
+            var created = new EquipmentUnit(
+                item.Id,
+                serial,
+                customer.Id,
+                purchasedAt,
+                warrantyUntil,
+                warrantyUntil is null ? ServiceCoverageScope.None : ServiceCoverageScope.LaborAndParts);
             dbContext.EquipmentUnits.Add(created);
             equipmentBySerial[serial] = created;
             counters.EquipmentCreated++;

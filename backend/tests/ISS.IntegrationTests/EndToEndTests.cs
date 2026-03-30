@@ -1505,6 +1505,106 @@ public sealed class EndToEndTests(IssApiFixture fixture) : IClassFixture<IssApiF
     }
 
     [Fact]
+    public async Task Service_Job_Captures_Manufacturer_Warranty_Entitlement_On_Create()
+    {
+        var customer = await Post<CustomerDto>("/api/customers", new { code = Code("CUS"), name = "Warranty Customer", phone = "555", email = (string?)null, address = (string?)null });
+        var equipment = await Post<ItemDto>("/api/items", new
+        {
+            sku = Code("EQ"),
+            name = "Warranty Unit",
+            type = ItemType.Equipment,
+            trackingType = TrackingType.Serial,
+            unitOfMeasure = "UNIT",
+            brandId = (Guid?)null,
+            barcode = (string?)null,
+            defaultUnitCost = 0m
+        });
+
+        var warrantyUntil = DateTimeOffset.UtcNow.AddDays(45);
+        var unit = await Post<EquipmentUnitDto>("/api/service/equipment-units", new
+        {
+            itemId = equipment.Id,
+            serialNumber = $"SN-{Guid.NewGuid():N}"[..20],
+            customerId = customer.Id,
+            purchasedAt = (DateTimeOffset?)null,
+            warrantyUntil,
+            warrantyCoverage = ServiceCoverageScope.LaborAndParts
+        });
+
+        var job = await Post<ServiceJobDto>("/api/service/jobs", new
+        {
+            equipmentUnitId = unit.Id,
+            customerId = customer.Id,
+            problemDescription = "Covered service check"
+        });
+
+        Assert.Equal(ServiceCoverageScope.LaborAndParts, unit.WarrantyCoverage);
+        Assert.True(unit.HasActiveWarranty);
+        Assert.Equal(ServiceEntitlementSource.ManufacturerWarranty, job.EntitlementSource);
+        Assert.Equal(ServiceCoverageScope.LaborAndParts, job.EntitlementCoverage);
+        Assert.Equal(CustomerBillingTreatment.CoveredNoCharge, job.CustomerBillingTreatment);
+        Assert.Null(job.ServiceContractId);
+        Assert.Contains("Manufacturer warranty", job.EntitlementSummary ?? string.Empty, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task Service_Job_Refresh_Entitlement_Picks_Up_New_Service_Contract()
+    {
+        var customer = await Post<CustomerDto>("/api/customers", new { code = Code("CUS"), name = "Contract Customer", phone = "555", email = (string?)null, address = (string?)null });
+        var equipment = await Post<ItemDto>("/api/items", new
+        {
+            sku = Code("EQ"),
+            name = "Contract Unit",
+            type = ItemType.Equipment,
+            trackingType = TrackingType.Serial,
+            unitOfMeasure = "UNIT",
+            brandId = (Guid?)null,
+            barcode = (string?)null,
+            defaultUnitCost = 0m
+        });
+
+        var unit = await Post<EquipmentUnitDto>("/api/service/equipment-units", new
+        {
+            itemId = equipment.Id,
+            serialNumber = $"SN-{Guid.NewGuid():N}"[..20],
+            customerId = customer.Id,
+            purchasedAt = (DateTimeOffset?)null,
+            warrantyUntil = (DateTimeOffset?)null
+        });
+
+        var job = await Post<ServiceJobDto>("/api/service/jobs", new
+        {
+            equipmentUnitId = unit.Id,
+            customerId = customer.Id,
+            problemDescription = "Needs contract coverage"
+        });
+
+        Assert.Equal(ServiceEntitlementSource.None, job.EntitlementSource);
+        Assert.Equal(CustomerBillingTreatment.Billable, job.CustomerBillingTreatment);
+
+        var contract = await Post<ServiceContractDto>("/api/service/contracts", new
+        {
+            customerId = customer.Id,
+            equipmentUnitId = unit.Id,
+            contractType = ServiceContractType.AnnualMaintenance,
+            coverage = ServiceCoverageScope.PartsOnly,
+            startDate = DateTimeOffset.UtcNow.AddDays(-1),
+            endDate = DateTimeOffset.UtcNow.AddDays(60),
+            notes = "Late-entered contract"
+        });
+
+        await PostNoContent($"/api/service/jobs/{job.Id}/refresh-entitlement", new { });
+
+        var refreshedJob = await Get<ServiceJobDto>($"/api/service/jobs/{job.Id}");
+        Assert.Equal(contract.Id, refreshedJob.ServiceContractId);
+        Assert.Equal(contract.Number, refreshedJob.ServiceContractNumber);
+        Assert.Equal(ServiceEntitlementSource.ServiceContract, refreshedJob.EntitlementSource);
+        Assert.Equal(ServiceCoverageScope.PartsOnly, refreshedJob.EntitlementCoverage);
+        Assert.Equal(CustomerBillingTreatment.PartiallyCovered, refreshedJob.CustomerBillingTreatment);
+        Assert.Contains(contract.Number, refreshedJob.EntitlementSummary ?? string.Empty, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
     public async Task Service_Estimate_And_Handover_Can_Be_Processed_And_Exported()
     {
         var customer = await Post<CustomerDto>("/api/customers", new { code = Code("CUS"), name = "Customer A", phone = "555", email = (string?)null, address = (string?)null });
@@ -2862,8 +2962,9 @@ public sealed class EndToEndTests(IssApiFixture fixture) : IClassFixture<IssApiF
     private sealed record SalesQuoteDto(Guid Id, string Number, Guid CustomerId, DateTimeOffset QuoteDate, DateTimeOffset? ValidUntil, SalesQuoteStatus Status, decimal Total, IReadOnlyList<SalesQuoteLineDto> Lines);
     private sealed record SalesQuoteLineDto(Guid Id, Guid ItemId, decimal Quantity, decimal UnitPrice, decimal LineTotal);
 
-    private sealed record EquipmentUnitDto(Guid Id, Guid ItemId, string SerialNumber, Guid CustomerId, DateTimeOffset? PurchasedAt, DateTimeOffset? WarrantyUntil);
-    private sealed record ServiceJobDto(Guid Id, string Number, Guid EquipmentUnitId, Guid CustomerId, DateTimeOffset OpenedAt, string ProblemDescription, ServiceJobKind Kind, ServiceJobStatus Status, DateTimeOffset? CompletedAt);
+    private sealed record EquipmentUnitDto(Guid Id, Guid ItemId, string SerialNumber, Guid CustomerId, DateTimeOffset? PurchasedAt, DateTimeOffset? WarrantyUntil, ServiceCoverageScope WarrantyCoverage, bool HasActiveWarranty);
+    private sealed record ServiceContractDto(Guid Id, string Number, Guid CustomerId, Guid EquipmentUnitId, ServiceContractType ContractType, ServiceCoverageScope Coverage, DateTimeOffset StartDate, DateTimeOffset EndDate, string? Notes, bool IsActive, string CurrentState);
+    private sealed record ServiceJobDto(Guid Id, string Number, Guid EquipmentUnitId, Guid CustomerId, DateTimeOffset OpenedAt, string ProblemDescription, ServiceJobKind Kind, ServiceJobStatus Status, DateTimeOffset? CompletedAt, Guid? ServiceContractId, string? ServiceContractNumber, ServiceEntitlementSource EntitlementSource, ServiceCoverageScope EntitlementCoverage, CustomerBillingTreatment CustomerBillingTreatment, DateTimeOffset? EntitlementEvaluatedAt, string? EntitlementSummary);
     private sealed record ServiceEstimateLineApiDto(Guid Id, ServiceEstimateLineKind Kind, Guid? ItemId, string Description, decimal Quantity, decimal UnitPrice, decimal TaxPercent, decimal LineSubtotal, decimal LineTax, decimal LineTotal);
     private sealed record ServiceEstimateApiDto(Guid Id, string Number, Guid ServiceJobId, DateTimeOffset IssuedAt, DateTimeOffset? ValidUntil, string? Terms, Guid? RevisedFromEstimateId, int RevisionNumber, ServiceEstimateStatus Status, decimal Subtotal, decimal TaxTotal, decimal Total, IReadOnlyList<ServiceEstimateLineApiDto> Lines);
     private sealed record ServiceExpenseClaimLineApiDto(Guid Id, Guid? ItemId, string Description, decimal Quantity, decimal UnitCost, bool BillableToCustomer, Guid? ConvertedToServiceEstimateId, Guid? ConvertedToServiceEstimateLineId, DateTimeOffset? ConvertedToEstimateAt, decimal LineTotal);

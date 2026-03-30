@@ -206,7 +206,10 @@ Top-level controller areas under `backend/src/ISS.Api/Controllers`:
 
 Recent service/finance workflow surfaces:
 
+- Service contracts live under `/api/service/contracts` and bind `AMC`, `SLA`, and warranty-extension coverage to specific equipment units/customers.
+- Equipment units and service jobs now carry warranty/entitlement fields so job creation can snapshot customer billing treatment from active warranty or contract coverage.
 - Service jobs expose `GET /api/service/jobs/{id}/costing` for per-job margin and actual-cost rollups, including approved labor and billable-timesheet visibility.
+- Service jobs also expose `POST /api/service/jobs/{id}/refresh-entitlement` so existing jobs can be re-evaluated after contract/warranty maintenance.
 - Work orders live under `/api/service/work-orders` and now support nested labor-entry/timesheet actions (`add`, `edit`, `delete`, `submit`, `approve`, `reject`).
 - Service expense claims live under `/api/service/expense-claims` and support submit, approve/reject, settle, and billable-line conversion into estimates.
 - Service handover invoice conversion accepts a labor billing source so draft invoices can use estimate labor or approved work-order time entries.

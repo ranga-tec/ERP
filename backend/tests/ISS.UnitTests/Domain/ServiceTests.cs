@@ -23,6 +23,98 @@ public sealed class ServiceTests
     }
 
     [Fact]
+    public void EquipmentUnit_Warranty_Coverage_Requires_End_Date()
+    {
+        Assert.Throws<DomainValidationException>(() => new EquipmentUnit(
+            Guid.NewGuid(),
+            "SN-001",
+            Guid.NewGuid(),
+            purchasedAt: null,
+            warrantyUntil: null,
+            warrantyCoverage: ServiceCoverageScope.LaborOnly));
+
+        var unit = new EquipmentUnit(
+            Guid.NewGuid(),
+            "SN-002",
+            Guid.NewGuid(),
+            purchasedAt: null,
+            warrantyUntil: DateTimeOffset.UtcNow.AddDays(90),
+            warrantyCoverage: ServiceCoverageScope.LaborAndParts);
+
+        Assert.True(unit.HasActiveWarranty(DateTimeOffset.UtcNow));
+    }
+
+    [Fact]
+    public void ServiceContract_Validation_Enforces_Coverage_And_Date_Window()
+    {
+        var start = new DateTimeOffset(2026, 3, 30, 0, 0, 0, TimeSpan.Zero);
+        var end = start.AddDays(30);
+        var contract = new ServiceContract(
+            "SC0001",
+            Guid.NewGuid(),
+            Guid.NewGuid(),
+            ServiceContractType.AnnualMaintenance,
+            ServiceCoverageScope.PartsOnly,
+            start,
+            end,
+            "Coverage notes");
+
+        Assert.True(contract.IsCovering(start.AddDays(1)));
+
+        Assert.Throws<DomainValidationException>(() => new ServiceContract(
+            "SC0002",
+            Guid.NewGuid(),
+            Guid.NewGuid(),
+            ServiceContractType.ServiceLevelAgreement,
+            ServiceCoverageScope.None,
+            start,
+            end,
+            null));
+
+        Assert.Throws<DomainValidationException>(() => new ServiceContract(
+            "SC0003",
+            Guid.NewGuid(),
+            Guid.NewGuid(),
+            ServiceContractType.WarrantyExtension,
+            ServiceCoverageScope.LaborOnly,
+            end,
+            start,
+            null));
+    }
+
+    [Fact]
+    public void ServiceJob_Entitlement_Invariants_Are_Validated()
+    {
+        var contractId = Guid.NewGuid();
+        var evaluatedAt = DateTimeOffset.UtcNow;
+
+        var job = new ServiceJob(
+            "SJ0002",
+            Guid.NewGuid(),
+            Guid.NewGuid(),
+            evaluatedAt,
+            "Warranty check",
+            ServiceJobKind.Repair,
+            contractId,
+            ServiceEntitlementSource.ServiceContract,
+            ServiceCoverageScope.LaborOnly,
+            CustomerBillingTreatment.PartiallyCovered,
+            evaluatedAt,
+            "Contract coverage");
+
+        Assert.Equal(contractId, job.ServiceContractId);
+        Assert.Equal(ServiceEntitlementSource.ServiceContract, job.EntitlementSource);
+
+        Assert.Throws<DomainValidationException>(() => job.ApplyEntitlement(
+            serviceContractId: contractId,
+            entitlementSource: ServiceEntitlementSource.None,
+            entitlementCoverage: ServiceCoverageScope.None,
+            customerBillingTreatment: CustomerBillingTreatment.Billable,
+            entitlementEvaluatedAt: evaluatedAt,
+            entitlementSummary: null));
+    }
+
+    [Fact]
     public void MaterialRequisition_Post_Requires_Lines()
     {
         var mr = new MaterialRequisition("MR0001", Guid.NewGuid(), Guid.NewGuid(), DateTimeOffset.UtcNow);

@@ -151,7 +151,7 @@ Transactional module pages include:
 
 - procurement: RFQ, purchase requisition, PO, GRN, direct purchase, supplier invoice, supplier return
 - sales: quote, order, dispatch, direct dispatch, invoice, customer return
-- service: equipment units, jobs, estimates, expense claims, work orders, material requisitions, quality checks, handovers
+- service: equipment units, service contracts, jobs, estimates, expense claims, work orders, material requisitions, quality checks, handovers
 - inventory: on-hand, reorder alerts, stock adjustments, stock transfers
 - finance: AR/AP, payments, petty cash, credit notes, debit notes
 - reporting: dashboard, stock-ledger, aging, tax summary, service KPIs, costing
@@ -205,6 +205,9 @@ This page supports:
 
 Recent workflow-specific UI behavior:
 
+- equipment-unit detail pages support warranty ownership updates and list linked service contracts
+- service-contract list/detail pages manage `AMC`, `SLA`, and warranty-extension coverage for installed units
+- service-job create/detail screens surface entitlement source, coverage, billing treatment, and manual refresh when coverage changes
 - service estimates support `Part`, `Labor`, and `Expense` line kinds plus explicit estimate revision actions
 - service expense claim detail pages let service/finance users submit, approve/reject, settle, and convert billable claim lines into the working estimate
 - service work-order detail pages support labor-entry capture plus submit/approve/reject actions

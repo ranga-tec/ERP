@@ -10,6 +10,14 @@ type CustomerRef = { id: string; code: string; name: string };
 
 type EquipmentUnitDto = { id: string; itemId: string; serialNumber: string; customerId: string };
 
+const warrantyCoverageOptions = [
+  { value: "0", label: "No Warranty" },
+  { value: "1", label: "Inspection Only" },
+  { value: "2", label: "Labor Only" },
+  { value: "3", label: "Parts Only" },
+  { value: "4", label: "Labor and Parts" },
+];
+
 export function EquipmentUnitCreateForm({
   equipmentItems,
   customers,
@@ -32,6 +40,7 @@ export function EquipmentUnitCreateForm({
   const [customerId, setCustomerId] = useState("");
   const [purchasedAt, setPurchasedAt] = useState("");
   const [warrantyUntil, setWarrantyUntil] = useState("");
+  const [warrantyCoverage, setWarrantyCoverage] = useState("4");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -46,6 +55,7 @@ export function EquipmentUnitCreateForm({
         customerId,
         purchasedAt: purchasedAt ? new Date(purchasedAt).toISOString() : null,
         warrantyUntil: warrantyUntil ? new Date(warrantyUntil).toISOString() : null,
+        warrantyCoverage: warrantyUntil ? Number(warrantyCoverage) : 0,
       });
       router.push(`/service/equipment-units/${unit.id}`);
     } catch (err) {
@@ -66,7 +76,7 @@ export function EquipmentUnitCreateForm({
             </option>
             {itemOptions.map((i) => (
               <option key={i.id} value={i.id}>
-                {i.sku} — {i.name}
+                {i.sku} - {i.name}
               </option>
             ))}
           </Select>
@@ -79,14 +89,14 @@ export function EquipmentUnitCreateForm({
             </option>
             {customerOptions.map((c) => (
               <option key={c.id} value={c.id}>
-                {c.code} — {c.name}
+                {c.code} - {c.name}
               </option>
             ))}
           </Select>
         </div>
       </div>
 
-      <div className="grid gap-3 sm:grid-cols-3">
+      <div className="grid gap-3 sm:grid-cols-4">
         <div className="sm:col-span-1">
           <label className="mb-1 block text-sm font-medium">Serial number</label>
           <Input value={serialNumber} onChange={(e) => setSerialNumber(e.target.value)} required />
@@ -98,6 +108,20 @@ export function EquipmentUnitCreateForm({
         <div>
           <label className="mb-1 block text-sm font-medium">Warranty until (optional)</label>
           <Input type="date" value={warrantyUntil} onChange={(e) => setWarrantyUntil(e.target.value)} />
+        </div>
+        <div>
+          <label className="mb-1 block text-sm font-medium">Warranty coverage</label>
+          <Select
+            value={warrantyUntil ? warrantyCoverage : "0"}
+            onChange={(e) => setWarrantyCoverage(e.target.value)}
+            disabled={!warrantyUntil}
+          >
+            {warrantyCoverageOptions.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </Select>
         </div>
       </div>
 
@@ -113,4 +137,3 @@ export function EquipmentUnitCreateForm({
     </form>
   );
 }
-

@@ -16,6 +16,13 @@ type ServiceJobDto = {
   kind: number;
   status: number;
   completedAt?: string | null;
+  serviceContractId?: string | null;
+  serviceContractNumber?: string | null;
+  entitlementSource: number;
+  entitlementCoverage: number;
+  customerBillingTreatment: number;
+  entitlementEvaluatedAt?: string | null;
+  entitlementSummary?: string | null;
 };
 
 type EquipmentUnitDto = { id: string; serialNumber: string };
@@ -111,6 +118,26 @@ const kindLabel: Record<number, string> = {
   1: "Repair",
 };
 
+const entitlementSourceLabel: Record<number, string> = {
+  0: "None",
+  1: "Manufacturer Warranty",
+  2: "Service Contract",
+};
+
+const entitlementCoverageLabel: Record<number, string> = {
+  0: "No Warranty",
+  1: "Inspection Only",
+  2: "Labor Only",
+  3: "Parts Only",
+  4: "Labor and Parts",
+};
+
+const billingTreatmentLabel: Record<number, string> = {
+  0: "Billable",
+  1: "Partially Covered",
+  2: "Covered No Charge",
+};
+
 const estimateStatusLabel: Record<number, string> = {
   0: "Draft",
   1: "Approved",
@@ -204,6 +231,55 @@ export default async function ServiceJobDetailPage({ params }: { params: Promise
         <div className="mb-2 text-sm font-semibold">Problem</div>
         <div className="whitespace-pre-wrap text-sm text-zinc-700 dark:text-zinc-200">{job.problemDescription}</div>
       </Card>
+
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <Card>
+          <div className="text-xs uppercase tracking-wide text-zinc-500">Entitlement Source</div>
+          <div className="mt-2 text-sm font-medium">
+            {job.serviceContractId && job.serviceContractNumber ? (
+              <Link className="hover:underline" href={`/service/contracts/${job.serviceContractId}`}>
+                {job.serviceContractNumber}
+              </Link>
+            ) : (
+              entitlementSourceLabel[job.entitlementSource] ?? job.entitlementSource
+            )}
+          </div>
+          <div className="mt-1 text-xs text-zinc-500">
+            {job.entitlementEvaluatedAt ? `Evaluated ${new Date(job.entitlementEvaluatedAt).toLocaleString()}` : "Not evaluated yet"}
+          </div>
+        </Card>
+        <Card>
+          <div className="text-xs uppercase tracking-wide text-zinc-500">Coverage</div>
+          <div className="mt-2 text-sm font-medium">
+            {entitlementCoverageLabel[job.entitlementCoverage] ?? job.entitlementCoverage}
+          </div>
+        </Card>
+        <Card>
+          <div className="text-xs uppercase tracking-wide text-zinc-500">Billing Treatment</div>
+          <div className="mt-2 text-sm font-medium">
+            {billingTreatmentLabel[job.customerBillingTreatment] ?? job.customerBillingTreatment}
+          </div>
+        </Card>
+        <Card>
+          <div className="text-xs uppercase tracking-wide text-zinc-500">Contract Link</div>
+          <div className="mt-2 text-sm font-medium">
+            {job.serviceContractId && job.serviceContractNumber ? (
+              <Link className="hover:underline" href={`/service/contracts/${job.serviceContractId}`}>
+                {job.serviceContractNumber}
+              </Link>
+            ) : (
+              "No linked contract"
+            )}
+          </div>
+        </Card>
+      </div>
+
+      {job.entitlementSummary ? (
+        <Card>
+          <div className="mb-2 text-sm font-semibold">Entitlement Summary</div>
+          <div className="text-sm text-zinc-700 dark:text-zinc-200">{job.entitlementSummary}</div>
+        </Card>
+      ) : null}
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <Card>

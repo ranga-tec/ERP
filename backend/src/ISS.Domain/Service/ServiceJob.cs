@@ -27,7 +27,13 @@ public sealed class ServiceJob : AuditableEntity
         Guid customerId,
         DateTimeOffset openedAt,
         string problemDescription,
-        ServiceJobKind kind = ServiceJobKind.Service)
+        ServiceJobKind kind = ServiceJobKind.Service,
+        Guid? serviceContractId = null,
+        ServiceEntitlementSource entitlementSource = ServiceEntitlementSource.None,
+        ServiceCoverageScope entitlementCoverage = ServiceCoverageScope.None,
+        CustomerBillingTreatment customerBillingTreatment = CustomerBillingTreatment.Billable,
+        DateTimeOffset? entitlementEvaluatedAt = null,
+        string? entitlementSummary = null)
     {
         Number = Guard.NotNullOrWhiteSpace(number, nameof(Number), maxLength: 32);
         EquipmentUnitId = equipmentUnitId;
@@ -36,6 +42,13 @@ public sealed class ServiceJob : AuditableEntity
         ProblemDescription = Guard.NotNullOrWhiteSpace(problemDescription, nameof(ProblemDescription), maxLength: 2000);
         Kind = kind;
         Status = ServiceJobStatus.Open;
+        ApplyEntitlement(
+            serviceContractId,
+            entitlementSource,
+            entitlementCoverage,
+            customerBillingTreatment,
+            entitlementEvaluatedAt,
+            entitlementSummary);
     }
 
     public string Number { get; private set; } = null!;
@@ -46,6 +59,12 @@ public sealed class ServiceJob : AuditableEntity
     public ServiceJobKind Kind { get; private set; }
     public ServiceJobStatus Status { get; private set; }
     public DateTimeOffset? CompletedAt { get; private set; }
+    public Guid? ServiceContractId { get; private set; }
+    public ServiceEntitlementSource EntitlementSource { get; private set; }
+    public ServiceCoverageScope EntitlementCoverage { get; private set; }
+    public CustomerBillingTreatment CustomerBillingTreatment { get; private set; }
+    public DateTimeOffset? EntitlementEvaluatedAt { get; private set; }
+    public string? EntitlementSummary { get; private set; }
 
     public void Start()
     {
@@ -86,5 +105,58 @@ public sealed class ServiceJob : AuditableEntity
         }
 
         Status = ServiceJobStatus.Cancelled;
+    }
+
+    public void ApplyEntitlement(
+        Guid? serviceContractId,
+        ServiceEntitlementSource entitlementSource,
+        ServiceCoverageScope entitlementCoverage,
+        CustomerBillingTreatment customerBillingTreatment,
+        DateTimeOffset? entitlementEvaluatedAt,
+        string? entitlementSummary)
+    {
+        if (entitlementSource == ServiceEntitlementSource.None)
+        {
+            if (serviceContractId is not null)
+            {
+                throw new DomainValidationException("Service contract cannot be linked when entitlement source is None.");
+            }
+
+            if (entitlementCoverage != ServiceCoverageScope.None)
+            {
+                throw new DomainValidationException("Entitlement coverage must be None when no entitlement source is set.");
+            }
+
+            if (customerBillingTreatment != CustomerBillingTreatment.Billable)
+            {
+                throw new DomainValidationException("Jobs without entitlement must remain billable.");
+            }
+        }
+        else
+        {
+            if (entitlementCoverage == ServiceCoverageScope.None)
+            {
+                throw new DomainValidationException("Covered jobs must specify an entitlement coverage scope.");
+            }
+
+            if (entitlementSource == ServiceEntitlementSource.ServiceContract && serviceContractId is null)
+            {
+                throw new DomainValidationException("Service-contract entitlement must link to a contract.");
+            }
+
+            if (entitlementSource != ServiceEntitlementSource.ServiceContract && serviceContractId is not null)
+            {
+                throw new DomainValidationException("Only service-contract entitlement may link to a contract.");
+            }
+        }
+
+        ServiceContractId = entitlementSource == ServiceEntitlementSource.ServiceContract ? serviceContractId : null;
+        EntitlementSource = entitlementSource;
+        EntitlementCoverage = entitlementCoverage;
+        CustomerBillingTreatment = customerBillingTreatment;
+        EntitlementEvaluatedAt = entitlementEvaluatedAt;
+        EntitlementSummary = string.IsNullOrWhiteSpace(entitlementSummary)
+            ? null
+            : Guard.NotNullOrWhiteSpace(entitlementSummary, nameof(entitlementSummary), maxLength: 512);
     }
 }

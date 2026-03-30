@@ -100,9 +100,17 @@ Note:
 
 - Equipment units:
   - register serialized customer equipment
+  - maintain purchased date, warranty end date, and warranty coverage scope
+  - use the equipment-unit detail page to edit ownership or warranty coverage as the installed base changes
+- Service contracts:
+  - create `AMC`, `SLA`, or `Warranty Extension` documents against a specific customer-owned equipment unit
+  - set the contract coverage window and coverage scope (`Inspection`, `Labor`, `Parts`, or `Labor and Parts`)
+  - use this when the unit is covered by a service agreement beyond or instead of manufacturer warranty
 - Service jobs:
   - create -> start -> complete -> close
   - choose `Service` or `Repair` when opening the job
+  - entitlement is captured automatically when the job is created by checking active service contracts first, then manufacturer warranty on the equipment unit
+  - use `Refresh Entitlement` on the job if warranty/contract data is added after the job was already opened
   - recommended operating flow is: receive equipment -> open the job immediately -> diagnose -> draft/send estimate before continuing additional billable work
 - Work orders:
   - create and track work records
@@ -165,6 +173,7 @@ Note:
 - Service job costing:
   - each service job detail page now shows quoted revenue, posted invoice revenue, actual job cost, approved/pending labor, pending claim cost, uninvoiced billable labor, and unconverted billable expense-claim totals
   - cost sources are broken down by material requisitions, direct purchases, work-order labor entries, and service expense claims
+  - entitlement source, coverage scope, billing treatment, and linked service-contract visibility are shown on the job detail page
   - estimate and invoice snapshots are shown together with quoted and posted gross margin visibility
 
 ## Line editing in draft documents

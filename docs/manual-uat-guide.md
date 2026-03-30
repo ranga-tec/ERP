@@ -41,6 +41,10 @@ The petty cash fund list loads successfully.
 Expected:
 The job list and create form load without service API errors.
 
+6. Open `Service -> Service Contracts`.
+Expected:
+The contract list and create form load without service API errors.
+
 ## End-to-End Scenario
 
 Use these sample values.
@@ -223,28 +227,41 @@ Suggested extra setup:
 Steps:
 
 1. Go to `Service -> Equipment Units` and register one serialized unit for customer `CUS1`.
+   - enter a future `Warranty until` date
+   - set `Warranty coverage` to `Labor and Parts`
 2. Go to `Service -> Jobs` and create a job:
    - Kind: `Repair`
    - Problem Description: `Unit does not power on`
-3. Start the job.
-4. Go to `Service -> Work Orders` and create a work order for the job.
-5. Add one billable labor entry on the work order, then submit and approve it.
-6. Go to `Service -> Estimates` and create an estimate for the job.
-7. Add at least:
+3. Confirm the job detail page shows warranty-based entitlement and billing treatment.
+4. Go to `Service -> Service Contracts` and create a contract for the same unit:
+   - Type: `AMC`
+   - Coverage: `Parts Only`
+   - Start Date: yesterday
+   - End Date: 60 days from now
+5. Return to the job and click `Refresh Entitlement`.
+6. Confirm the job now shows contract-based entitlement instead of warranty.
+7. Start the job.
+8. Go to `Service -> Work Orders` and create a work order for the job.
+9. Add one billable labor entry on the work order, then submit and approve it.
+10. Go to `Service -> Estimates` and create an estimate for the job.
+11. Add at least:
    - one `Part` line using `SKU1`
-8. Approve the estimate.
-9. Create a service expense claim for the same job:
+12. Approve the estimate.
+13. Create a service expense claim for the same job:
    - Funding Source: `Petty Cash`
    - one billable line for an emergency outside expense
-10. Submit the claim.
-11. Approve and settle the claim against petty cash fund `WORKSHOP`.
-12. Convert the billable claim line into the working estimate.
-13. Create and complete a service handover.
-14. Convert the handover to sales invoice using the labor source that bills approved timesheets.
-15. Open the service job detail page and review the costing section.
+14. Submit the claim.
+15. Approve and settle the claim against petty cash fund `WORKSHOP`.
+16. Convert the billable claim line into the working estimate.
+17. Create and complete a service handover.
+18. Convert the handover to sales invoice using the labor source that bills approved timesheets.
+19. Open the service job detail page and review the costing section.
 
 Expected:
 
+- equipment units accept warranty coverage and the unit detail page allows updates
+- the contract can be linked to the same unit and appears on both the contract list and equipment-unit detail page
+- the job first shows warranty entitlement, then changes to contract entitlement after refresh
 - the job can be opened as `Repair` and moved to `In Progress`
 - the work order accepts labor entries and the approved labor becomes visible on the work order and job costing views
 - the approved estimate stays preserved
@@ -310,6 +327,7 @@ If time is limited, always re-test these pages after changes:
 - `Sales -> Invoices`
 - `Finance -> Payments`
 - `Finance -> Petty Cash`
+- `Service -> Service Contracts`
 - `Service -> Jobs`
 - `Service -> Expense Claims`
 - `Inventory -> On Hand`

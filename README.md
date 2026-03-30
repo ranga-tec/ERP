@@ -32,7 +32,7 @@
 - Sales includes:
   - quote, order, dispatch, direct dispatch, invoice, customer return
 - Service includes:
-  - equipment units, jobs, work orders, estimates, expense claims, material requisitions, quality checks, handovers
+  - equipment units, service contracts, jobs, work orders, estimates, expense claims, material requisitions, quality checks, handovers
 - Finance includes:
   - AR/AP, payments + allocations, petty cash funds/ledger, credit notes, debit notes, finance approval/settlement of service expense claims
 - Reporting includes:
@@ -47,7 +47,10 @@
   - users can receive only the lines/quantities delivered now and leave the balance for later GRNs
   - tracked serial/batch validation happens before posting, and the GRN screen includes search for both receipt-plan and draft-line tables
 - Service workflow now supports:
+  - equipment-unit warranty coverage with editable warranty end date and coverage scope
+  - service contracts (`AMC`, `SLA`, `Warranty Extension`) linked to specific customer equipment units
   - `Service` and `Repair` job types on service jobs
+  - automatic entitlement snapshot on service jobs from active equipment warranty or service contract, plus manual entitlement refresh on the job
   - work-order labor entries with draft, submitted, approved, rejected, and invoiced states
   - estimate revisions so approved/rejected estimates are preserved and additional findings can be resent as a new draft revision
   - direct purchases linked to service jobs for outside emergency buys

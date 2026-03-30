@@ -5,6 +5,7 @@ public static class ReferenceTypes
     public const string DirectDispatch = "DDN";
     public const string DirectPurchase = "DPR";
     public const string CustomerReturn = "CRTN";
+    public const string ServiceContract = "SC";
     public const string ServiceEstimate = "SE";
     public const string ServiceHandover = "SH";
     public const string GoodsReceipt = "GRN";

@@ -27,7 +27,14 @@ public sealed class ServiceJobsController(
         string ProblemDescription,
         ServiceJobKind Kind,
         ServiceJobStatus Status,
-        DateTimeOffset? CompletedAt);
+        DateTimeOffset? CompletedAt,
+        Guid? ServiceContractId,
+        string? ServiceContractNumber,
+        ServiceEntitlementSource EntitlementSource,
+        ServiceCoverageScope EntitlementCoverage,
+        CustomerBillingTreatment CustomerBillingTreatment,
+        DateTimeOffset? EntitlementEvaluatedAt,
+        string? EntitlementSummary);
     public sealed record CreateServiceJobRequest(Guid EquipmentUnitId, Guid CustomerId, string ProblemDescription, ServiceJobKind? Kind);
 
     [HttpGet]
@@ -40,7 +47,26 @@ public sealed class ServiceJobsController(
             .OrderByDescending(x => x.OpenedAt)
             .Skip(skip)
             .Take(take)
-            .Select(x => new ServiceJobDto(x.Id, x.Number, x.EquipmentUnitId, x.CustomerId, x.OpenedAt, x.ProblemDescription, x.Kind, x.Status, x.CompletedAt))
+            .Select(x => new ServiceJobDto(
+                x.Id,
+                x.Number,
+                x.EquipmentUnitId,
+                x.CustomerId,
+                x.OpenedAt,
+                x.ProblemDescription,
+                x.Kind,
+                x.Status,
+                x.CompletedAt,
+                x.ServiceContractId,
+                dbContext.ServiceContracts
+                    .Where(contract => contract.Id == x.ServiceContractId)
+                    .Select(contract => contract.Number)
+                    .FirstOrDefault(),
+                x.EntitlementSource,
+                x.EntitlementCoverage,
+                x.CustomerBillingTreatment,
+                x.EntitlementEvaluatedAt,
+                x.EntitlementSummary))
             .ToListAsync(cancellationToken);
 
         return Ok(jobs);
@@ -63,7 +89,26 @@ public sealed class ServiceJobsController(
     {
         var job = await dbContext.ServiceJobs.AsNoTracking()
             .Where(x => x.Id == id)
-            .Select(x => new ServiceJobDto(x.Id, x.Number, x.EquipmentUnitId, x.CustomerId, x.OpenedAt, x.ProblemDescription, x.Kind, x.Status, x.CompletedAt))
+            .Select(x => new ServiceJobDto(
+                x.Id,
+                x.Number,
+                x.EquipmentUnitId,
+                x.CustomerId,
+                x.OpenedAt,
+                x.ProblemDescription,
+                x.Kind,
+                x.Status,
+                x.CompletedAt,
+                x.ServiceContractId,
+                dbContext.ServiceContracts
+                    .Where(contract => contract.Id == x.ServiceContractId)
+                    .Select(contract => contract.Number)
+                    .FirstOrDefault(),
+                x.EntitlementSource,
+                x.EntitlementCoverage,
+                x.CustomerBillingTreatment,
+                x.EntitlementEvaluatedAt,
+                x.EntitlementSummary))
             .FirstOrDefaultAsync(cancellationToken);
 
         return job is null ? NotFound() : Ok(job);
@@ -101,6 +146,13 @@ public sealed class ServiceJobsController(
     public async Task<ActionResult> Close(Guid id, CancellationToken cancellationToken)
     {
         await serviceManagementService.CloseServiceJobAsync(id, cancellationToken);
+        return NoContent();
+    }
+
+    [HttpPost("{id:guid}/refresh-entitlement")]
+    public async Task<ActionResult> RefreshEntitlement(Guid id, CancellationToken cancellationToken)
+    {
+        await serviceManagementService.RefreshServiceJobEntitlementAsync(id, cancellationToken);
         return NoContent();
     }
 }

@@ -1,11 +1,11 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { apiPost } from "@/lib/api-client";
 import { Button, Select, Textarea } from "@/components/ui";
 
-type EquipmentUnitRef = { id: string; serialNumber: string };
+type EquipmentUnitRef = { id: string; serialNumber: string; customerId: string };
 type CustomerRef = { id: string; code: string; name: string };
 type ServiceJobDto = { id: string; number: string };
 
@@ -35,6 +35,17 @@ export function ServiceJobCreateForm({
   const [problemDescription, setProblemDescription] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!equipmentUnitId) {
+      return;
+    }
+
+    const selected = equipmentUnits.find((unit) => unit.id === equipmentUnitId);
+    if (selected) {
+      setCustomerId(selected.customerId);
+    }
+  }, [equipmentUnitId, equipmentUnits]);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -83,6 +94,9 @@ export function ServiceJobCreateForm({
               </option>
             ))}
           </Select>
+          <div className="mt-1 text-xs text-zinc-500">
+            Customer defaults from the selected unit. Entitlement is evaluated automatically when the job is created.
+          </div>
         </div>
       </div>
 

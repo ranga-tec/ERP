@@ -53,6 +53,7 @@ public interface IIssDbContext
     DbSet<CustomerReturn> CustomerReturns { get; }
 
     DbSet<EquipmentUnit> EquipmentUnits { get; }
+    DbSet<ServiceContract> ServiceContracts { get; }
     DbSet<ServiceJob> ServiceJobs { get; }
     DbSet<ServiceEstimate> ServiceEstimates { get; }
     DbSet<ServiceExpenseClaim> ServiceExpenseClaims { get; }

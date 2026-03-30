@@ -65,6 +65,7 @@ public sealed class IssDbContext(
     public DbSet<CustomerReturn> CustomerReturns => Set<CustomerReturn>();
 
     public DbSet<EquipmentUnit> EquipmentUnits => Set<EquipmentUnit>();
+    public DbSet<ServiceContract> ServiceContracts => Set<ServiceContract>();
     public DbSet<ServiceJob> ServiceJobs => Set<ServiceJob>();
     public DbSet<ServiceEstimate> ServiceEstimates => Set<ServiceEstimate>();
     public DbSet<ServiceExpenseClaim> ServiceExpenseClaims => Set<ServiceExpenseClaim>();
@@ -536,11 +537,26 @@ public sealed class IssDbContext(
             entity.Property(x => x.SerialNumber).HasMaxLength(128);
         });
 
+        builder.Entity<ServiceContract>(entity =>
+        {
+            entity.HasIndex(x => x.Number).IsUnique();
+            entity.HasIndex(x => x.CustomerId);
+            entity.HasIndex(x => x.EquipmentUnitId);
+            entity.HasIndex(x => new { x.IsActive, x.StartDate, x.EndDate });
+            entity.Property(x => x.Number).HasMaxLength(32);
+            entity.Property(x => x.Notes).HasMaxLength(2000);
+            entity.HasOne<Customer>().WithMany().HasForeignKey(x => x.CustomerId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne<EquipmentUnit>().WithMany().HasForeignKey(x => x.EquipmentUnitId).OnDelete(DeleteBehavior.Restrict);
+        });
+
         builder.Entity<ServiceJob>(entity =>
         {
             entity.HasIndex(x => x.Number).IsUnique();
+            entity.HasIndex(x => x.ServiceContractId);
             entity.Property(x => x.Number).HasMaxLength(32);
             entity.Property(x => x.ProblemDescription).HasMaxLength(2000);
+            entity.Property(x => x.EntitlementSummary).HasMaxLength(512);
+            entity.HasOne<ServiceContract>().WithMany().HasForeignKey(x => x.ServiceContractId).OnDelete(DeleteBehavior.SetNull);
         });
 
         builder.Entity<ServiceEstimate>(entity =>
