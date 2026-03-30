@@ -12,6 +12,92 @@ public sealed class FinanceService(
     IDocumentNumberService documentNumberService,
     IClock clock)
 {
+    public async Task<Guid> CreatePettyCashFundAsync(
+        string code,
+        string name,
+        string currencyCode,
+        string? custodianName,
+        string? notes,
+        decimal? openingBalance,
+        DateTimeOffset? openedAt,
+        string? openingReferenceNumber,
+        CancellationToken cancellationToken = default)
+    {
+        await EnsureCurrencyIsActiveAsync(currencyCode, cancellationToken);
+
+        var fund = new PettyCashFund(code, name, currencyCode, custodianName, notes);
+        await dbContext.PettyCashFunds.AddAsync(fund, cancellationToken);
+
+        if (openingBalance is > 0m)
+        {
+            var openingTransaction = fund.AddOpeningBalance(
+                openingBalance.Value,
+                openedAt ?? clock.UtcNow,
+                openingReferenceNumber,
+                "Opening balance");
+            dbContext.DbContext.Add(openingTransaction);
+        }
+
+        await dbContext.SaveChangesAsync(cancellationToken);
+        return fund.Id;
+    }
+
+    public async Task UpdatePettyCashFundAsync(
+        Guid pettyCashFundId,
+        string code,
+        string name,
+        string currencyCode,
+        string? custodianName,
+        string? notes,
+        bool isActive,
+        CancellationToken cancellationToken = default)
+    {
+        var fund = await dbContext.PettyCashFunds
+            .FirstOrDefaultAsync(x => x.Id == pettyCashFundId, cancellationToken)
+            ?? throw new NotFoundException("Petty cash fund not found.");
+
+        await EnsureCurrencyIsActiveAsync(currencyCode, cancellationToken);
+        fund.Update(code, name, currencyCode, custodianName, notes, isActive);
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task AddPettyCashTopUpAsync(
+        Guid pettyCashFundId,
+        decimal amount,
+        DateTimeOffset? occurredAt,
+        string? referenceNumber,
+        string? notes,
+        CancellationToken cancellationToken = default)
+    {
+        var fund = await dbContext.PettyCashFunds
+            .Include(x => x.Transactions)
+            .FirstOrDefaultAsync(x => x.Id == pettyCashFundId, cancellationToken)
+            ?? throw new NotFoundException("Petty cash fund not found.");
+
+        var transaction = fund.AddTopUp(amount, occurredAt ?? clock.UtcNow, referenceNumber, notes);
+        dbContext.DbContext.Add(transaction);
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task AddPettyCashAdjustmentAsync(
+        Guid pettyCashFundId,
+        decimal amount,
+        PettyCashTransactionDirection direction,
+        DateTimeOffset? occurredAt,
+        string? referenceNumber,
+        string? notes,
+        CancellationToken cancellationToken = default)
+    {
+        var fund = await dbContext.PettyCashFunds
+            .Include(x => x.Transactions)
+            .FirstOrDefaultAsync(x => x.Id == pettyCashFundId, cancellationToken)
+            ?? throw new NotFoundException("Petty cash fund not found.");
+
+        var transaction = fund.AddAdjustment(amount, direction, occurredAt ?? clock.UtcNow, referenceNumber, notes);
+        dbContext.DbContext.Add(transaction);
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
     public async Task<Guid> CreatePaymentAsync(
         PaymentDirection direction,
         CounterpartyType counterpartyType,
@@ -314,5 +400,19 @@ public sealed class FinanceService(
 
         var invoice = await dbContext.SalesInvoices.FirstOrDefaultAsync(x => x.Id == ar.ReferenceId, cancellationToken);
         invoice?.MarkPaid();
+    }
+
+    private async Task EnsureCurrencyIsActiveAsync(string currencyCode, CancellationToken cancellationToken)
+    {
+        var resolvedCurrencyCode = string.IsNullOrWhiteSpace(currencyCode)
+            ? throw new DomainValidationException("Currency code is required.")
+            : currencyCode.Trim().ToUpperInvariant();
+
+        var currencyExists = await dbContext.Currencies.AsNoTracking()
+            .AnyAsync(x => x.Code == resolvedCurrencyCode && x.IsActive, cancellationToken);
+        if (!currencyExists)
+        {
+            throw new DomainValidationException("Selected currency is invalid or inactive.");
+        }
     }
 }

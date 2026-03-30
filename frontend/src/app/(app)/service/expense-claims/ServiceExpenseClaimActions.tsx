@@ -6,17 +6,22 @@ import { apiPostNoContent } from "@/lib/api-client";
 import { Input, SecondaryButton, Select } from "@/components/ui";
 
 type PaymentTypeRef = { id: string; code: string; name: string };
+type PettyCashFundRef = { id: string; code: string; name: string; balance: number; isActive: boolean };
 
 export function ServiceExpenseClaimActions({
   claimId,
+  fundingSource,
   paymentTypes,
+  pettyCashFunds,
   canSubmit,
   canApprove,
   canReject,
   canSettle,
 }: {
   claimId: string;
+  fundingSource: number;
   paymentTypes: PaymentTypeRef[];
+  pettyCashFunds: PettyCashFundRef[];
   canSubmit: boolean;
   canApprove: boolean;
   canReject: boolean;
@@ -25,6 +30,7 @@ export function ServiceExpenseClaimActions({
   const router = useRouter();
   const [rejectionReason, setRejectionReason] = useState("");
   const [settlementPaymentTypeId, setSettlementPaymentTypeId] = useState("");
+  const [settlementPettyCashFundId, setSettlementPettyCashFundId] = useState("");
   const [settlementReference, setSettlementReference] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -38,8 +44,13 @@ export function ServiceExpenseClaimActions({
           rejectionReason: rejectionReason.trim() || null,
         });
       } else if (action === "settle") {
+        if (requiresPettyCashFund && !settlementPettyCashFundId) {
+          throw new Error("Select the petty cash fund used for this claim.");
+        }
+
         await apiPostNoContent(`service/expense-claims/${claimId}/settle`, {
           settlementPaymentTypeId: settlementPaymentTypeId || null,
+          settlementPettyCashFundId: settlementPettyCashFundId || null,
           settlementReference: settlementReference.trim() || null,
         });
       } else {
@@ -55,6 +66,11 @@ export function ServiceExpenseClaimActions({
   }
 
   const sortedPaymentTypes = paymentTypes.slice().sort((a, b) => a.code.localeCompare(b.code));
+  const sortedFunds = pettyCashFunds
+    .filter((fund) => fund.isActive)
+    .slice()
+    .sort((a, b) => a.code.localeCompare(b.code));
+  const requiresPettyCashFund = fundingSource === 2;
 
   return (
     <div className="space-y-3">
@@ -85,7 +101,20 @@ export function ServiceExpenseClaimActions({
       ) : null}
 
       {canSettle ? (
-        <div className="grid gap-3 sm:grid-cols-2">
+        <div className="grid gap-3 sm:grid-cols-3">
+          <div>
+            <label className="mb-1 block text-sm font-medium">
+              Petty cash fund {requiresPettyCashFund ? "(required)" : "(optional)"}
+            </label>
+            <Select value={settlementPettyCashFundId} onChange={(event) => setSettlementPettyCashFundId(event.target.value)}>
+              <option value="">{requiresPettyCashFund ? "Select fund..." : "Not used"}</option>
+              {sortedFunds.map((fund) => (
+                <option key={fund.id} value={fund.id}>
+                  {fund.code} - {fund.name} ({fund.balance.toFixed(2)})
+                </option>
+              ))}
+            </Select>
+          </div>
           <div>
             <label className="mb-1 block text-sm font-medium">Settlement method (optional)</label>
             <Select value={settlementPaymentTypeId} onChange={(event) => setSettlementPaymentTypeId(event.target.value)}>

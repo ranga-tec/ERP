@@ -2,6 +2,7 @@ using ISS.Application.Abstractions;
 using ISS.Application.Common;
 using ISS.Application.Persistence;
 using ISS.Domain.Common;
+using ISS.Domain.Finance;
 using ISS.Domain.Sales;
 using ISS.Domain.Service;
 using Microsoft.EntityFrameworkCore;
@@ -82,8 +83,7 @@ public sealed class ServiceManagementService(
             throw new NotFoundException("Service job not found.");
         }
 
-        var number = await documentNumberService.NextAsync("SE", "SE", cancellationToken);
-        var estimate = new ServiceEstimate(number, serviceJobId, clock.UtcNow, validUntil, terms);
+        var estimate = await CreateDraftServiceEstimateInternalAsync(serviceJobId, validUntil, terms, cancellationToken);
         await dbContext.ServiceEstimates.AddAsync(estimate, cancellationToken);
         await dbContext.SaveChangesAsync(cancellationToken);
         return estimate.Id;
@@ -139,29 +139,7 @@ public sealed class ServiceManagementService(
             throw new DomainValidationException("Draft estimates can already be edited directly.");
         }
 
-        var number = await documentNumberService.NextAsync("SE", "SE", cancellationToken);
-        var revisedEstimate = new ServiceEstimate(
-            number,
-            sourceEstimate.ServiceJobId,
-            clock.UtcNow,
-            validUntil ?? sourceEstimate.ValidUntil,
-            string.IsNullOrWhiteSpace(terms) ? sourceEstimate.Terms : terms,
-            revisedFromEstimateId: sourceEstimate.Id,
-            revisionNumber: sourceEstimate.RevisionNumber + 1);
-
-        await dbContext.ServiceEstimates.AddAsync(revisedEstimate, cancellationToken);
-
-        foreach (var line in sourceEstimate.Lines)
-        {
-            var copiedLine = revisedEstimate.AddLine(
-                line.Kind,
-                line.ItemId,
-                line.Description,
-                line.Quantity,
-                line.UnitPrice,
-                line.TaxPercent);
-            dbContext.DbContext.Add(copiedLine);
-        }
+        var revisedEstimate = await CreateRevisedEstimateInternalAsync(sourceEstimate, validUntil, terms, cancellationToken);
 
         await dbContext.SaveChangesAsync(cancellationToken);
         return revisedEstimate.Id;
@@ -181,7 +159,7 @@ public sealed class ServiceManagementService(
             .FirstOrDefaultAsync(x => x.Id == serviceEstimateId, cancellationToken)
             ?? throw new NotFoundException("Service estimate not found.");
 
-        if (kind == ServiceEstimateLineKind.Part && itemId is not null)
+        if (itemId is not null)
         {
             var itemExists = await dbContext.Items.AsNoTracking().AnyAsync(x => x.Id == itemId.Value, cancellationToken);
             if (!itemExists)
@@ -210,7 +188,7 @@ public sealed class ServiceManagementService(
             .FirstOrDefaultAsync(x => x.Id == serviceEstimateId, cancellationToken)
             ?? throw new NotFoundException("Service estimate not found.");
 
-        if (kind == ServiceEstimateLineKind.Part && itemId is not null)
+        if (itemId is not null)
         {
             var itemExists = await dbContext.Items.AsNoTracking().AnyAsync(x => x.Id == itemId.Value, cancellationToken);
             if (!itemExists)
@@ -429,6 +407,7 @@ public sealed class ServiceManagementService(
     public async Task SettleServiceExpenseClaimAsync(
         Guid serviceExpenseClaimId,
         Guid? settlementPaymentTypeId,
+        Guid? settlementPettyCashFundId,
         string? settlementReference,
         CancellationToken cancellationToken = default)
     {
@@ -445,8 +424,85 @@ public sealed class ServiceManagementService(
             }
         }
 
-        claim.Settle(clock.UtcNow, settlementPaymentTypeId, settlementReference);
+        PettyCashFund? pettyCashFund = null;
+        if (settlementPettyCashFundId is { } pettyCashFundId)
+        {
+            pettyCashFund = await dbContext.PettyCashFunds
+                .Include(x => x.Transactions)
+                .FirstOrDefaultAsync(x => x.Id == pettyCashFundId, cancellationToken)
+                ?? throw new NotFoundException("Petty cash fund not found.");
+        }
+
+        claim.Settle(clock.UtcNow, settlementPaymentTypeId, settlementPettyCashFundId, settlementReference);
+
+        if (pettyCashFund is not null)
+        {
+            var transaction = pettyCashFund.RecordExpenseSettlement(
+                claim.Total,
+                clock.UtcNow,
+                claim.Id,
+                settlementReference ?? claim.Number,
+                notes: $"Expense claim {claim.Number} settled.");
+            dbContext.DbContext.Add(transaction);
+        }
+
         await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task<(Guid ServiceEstimateId, int AddedLineCount)> ConvertBillableExpenseClaimToEstimateAsync(
+        Guid serviceExpenseClaimId,
+        Guid? serviceEstimateId,
+        decimal taxPercent,
+        DateTimeOffset? validUntil,
+        string? terms,
+        CancellationToken cancellationToken = default)
+    {
+        if (taxPercent < 0m)
+        {
+            throw new DomainValidationException("Tax percent cannot be negative.");
+        }
+
+        var claim = await dbContext.ServiceExpenseClaims
+            .Include(x => x.Lines)
+            .FirstOrDefaultAsync(x => x.Id == serviceExpenseClaimId, cancellationToken)
+            ?? throw new NotFoundException("Service expense claim not found.");
+
+        if (claim.Status is not (ServiceExpenseClaimStatus.Approved or ServiceExpenseClaimStatus.Settled))
+        {
+            throw new DomainValidationException("Only approved or settled expense claims can be converted to a service estimate.");
+        }
+
+        var linesToConvert = claim.Lines
+            .Where(x => x.BillableToCustomer && x.ConvertedToServiceEstimateLineId is null)
+            .ToList();
+
+        if (linesToConvert.Count == 0)
+        {
+            throw new DomainValidationException("No unconverted billable lines are available on this expense claim.");
+        }
+
+        var estimate = await ResolveDraftEstimateForExpenseConversionAsync(
+            claim.ServiceJobId,
+            serviceEstimateId,
+            validUntil,
+            terms,
+            cancellationToken);
+
+        foreach (var line in linesToConvert)
+        {
+            var estimateLine = estimate.AddLine(
+                ServiceEstimateLineKind.Expense,
+                line.ItemId,
+                line.Description,
+                line.Quantity,
+                line.UnitCost,
+                taxPercent);
+            dbContext.DbContext.Add(estimateLine);
+            line.MarkConvertedToEstimate(estimate.Id, estimateLine.Id, clock.UtcNow);
+        }
+
+        await dbContext.SaveChangesAsync(cancellationToken);
+        return (estimate.Id, linesToConvert.Count);
     }
 
     public async Task<Guid> CreateServiceHandoverAsync(
@@ -527,6 +583,7 @@ public sealed class ServiceManagementService(
         Guid serviceHandoverId,
         Guid? serviceEstimateId,
         Guid? laborItemId,
+        Guid? expenseItemId,
         DateTimeOffset? dueDate,
         CancellationToken cancellationToken = default)
     {
@@ -572,12 +629,27 @@ public sealed class ServiceManagementService(
             throw new DomainValidationException("Labor item is required to convert labor estimate lines into sales invoice lines.");
         }
 
+        var hasExpenseWithoutItem = estimate.Lines.Any(x => x.Kind == ServiceEstimateLineKind.Expense && x.ItemId is null);
+        if (hasExpenseWithoutItem && expenseItemId is null)
+        {
+            throw new DomainValidationException("Expense item is required to convert expense estimate lines without an item into sales invoice lines.");
+        }
+
         if (laborItemId is not null)
         {
             var laborItemExists = await dbContext.Items.AsNoTracking().AnyAsync(x => x.Id == laborItemId.Value, cancellationToken);
             if (!laborItemExists)
             {
                 throw new NotFoundException("Labor item not found.");
+            }
+        }
+
+        if (expenseItemId is not null)
+        {
+            var expenseItemExists = await dbContext.Items.AsNoTracking().AnyAsync(x => x.Id == expenseItemId.Value, cancellationToken);
+            if (!expenseItemExists)
+            {
+                throw new NotFoundException("Expense item not found.");
             }
         }
 
@@ -591,6 +663,7 @@ public sealed class ServiceManagementService(
             {
                 ServiceEstimateLineKind.Part => line.ItemId ?? throw new DomainValidationException("Part estimate line is missing item."),
                 ServiceEstimateLineKind.Labor => laborItemId!.Value,
+                ServiceEstimateLineKind.Expense => line.ItemId ?? expenseItemId!.Value,
                 _ => throw new DomainValidationException("Unsupported service estimate line kind.")
             };
 
@@ -606,6 +679,104 @@ public sealed class ServiceManagementService(
         handover.LinkSalesInvoice(invoice.Id, clock.UtcNow);
         await dbContext.SaveChangesAsync(cancellationToken);
         return invoice.Id;
+    }
+
+    private async Task<ServiceEstimate> ResolveDraftEstimateForExpenseConversionAsync(
+        Guid serviceJobId,
+        Guid? preferredEstimateId,
+        DateTimeOffset? validUntil,
+        string? terms,
+        CancellationToken cancellationToken)
+    {
+        if (preferredEstimateId is { } estimateId)
+        {
+            var selectedEstimate = await dbContext.ServiceEstimates
+                .Include(x => x.Lines)
+                .FirstOrDefaultAsync(x => x.Id == estimateId, cancellationToken)
+                ?? throw new NotFoundException("Service estimate not found.");
+
+            if (selectedEstimate.ServiceJobId != serviceJobId)
+            {
+                throw new DomainValidationException("Selected service estimate does not belong to this service job.");
+            }
+
+            return selectedEstimate.Status == ServiceEstimateStatus.Draft
+                ? selectedEstimate
+                : await CreateRevisedEstimateInternalAsync(selectedEstimate, validUntil, terms, cancellationToken);
+        }
+
+        var latestDraft = await dbContext.ServiceEstimates
+            .Include(x => x.Lines)
+            .Where(x => x.ServiceJobId == serviceJobId && x.Status == ServiceEstimateStatus.Draft)
+            .OrderByDescending(x => x.RevisionNumber)
+            .ThenByDescending(x => x.IssuedAt)
+            .ThenByDescending(x => x.CreatedAt)
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (latestDraft is not null)
+        {
+            return latestDraft;
+        }
+
+        var latestExisting = await dbContext.ServiceEstimates
+            .Include(x => x.Lines)
+            .Where(x => x.ServiceJobId == serviceJobId)
+            .OrderByDescending(x => x.RevisionNumber)
+            .ThenByDescending(x => x.IssuedAt)
+            .ThenByDescending(x => x.CreatedAt)
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (latestExisting is not null)
+        {
+            return await CreateRevisedEstimateInternalAsync(latestExisting, validUntil, terms, cancellationToken);
+        }
+
+        var estimate = await CreateDraftServiceEstimateInternalAsync(serviceJobId, validUntil, terms, cancellationToken);
+        await dbContext.ServiceEstimates.AddAsync(estimate, cancellationToken);
+        return estimate;
+    }
+
+    private async Task<ServiceEstimate> CreateDraftServiceEstimateInternalAsync(
+        Guid serviceJobId,
+        DateTimeOffset? validUntil,
+        string? terms,
+        CancellationToken cancellationToken)
+    {
+        var number = await documentNumberService.NextAsync("SE", "SE", cancellationToken);
+        return new ServiceEstimate(number, serviceJobId, clock.UtcNow, validUntil, terms);
+    }
+
+    private async Task<ServiceEstimate> CreateRevisedEstimateInternalAsync(
+        ServiceEstimate sourceEstimate,
+        DateTimeOffset? validUntil,
+        string? terms,
+        CancellationToken cancellationToken)
+    {
+        var number = await documentNumberService.NextAsync("SE", "SE", cancellationToken);
+        var revisedEstimate = new ServiceEstimate(
+            number,
+            sourceEstimate.ServiceJobId,
+            clock.UtcNow,
+            validUntil ?? sourceEstimate.ValidUntil,
+            string.IsNullOrWhiteSpace(terms) ? sourceEstimate.Terms : terms,
+            revisedFromEstimateId: sourceEstimate.Id,
+            revisionNumber: sourceEstimate.RevisionNumber + 1);
+
+        await dbContext.ServiceEstimates.AddAsync(revisedEstimate, cancellationToken);
+
+        foreach (var line in sourceEstimate.Lines)
+        {
+            var copiedLine = revisedEstimate.AddLine(
+                line.Kind,
+                line.ItemId,
+                line.Description,
+                line.Quantity,
+                line.UnitPrice,
+                line.TaxPercent);
+            dbContext.DbContext.Add(copiedLine);
+        }
+
+        return revisedEstimate;
     }
 
     public async Task<Guid> CreateWorkOrderAsync(Guid serviceJobId, string description, Guid? assignedToUserId, CancellationToken cancellationToken = default)

@@ -224,9 +224,12 @@ public sealed partial class DocumentPdfService
                     foreach (var line in estimate.Lines)
                     {
                         var item = line.ItemId.HasValue ? itemById.GetValueOrDefault(line.ItemId.Value) : null;
-                        var description = line.Kind == ServiceEstimateLineKind.Part
-                            ? (item is null ? line.Description : $"{ItemLabel(item, line.ItemId ?? Guid.Empty)} ({line.Description})")
-                            : line.Description;
+                        var description = line.Kind switch
+                        {
+                            ServiceEstimateLineKind.Part or ServiceEstimateLineKind.Expense when item is not null
+                                => $"{ItemLabel(item, line.ItemId ?? Guid.Empty)} ({line.Description})",
+                            _ => line.Description
+                        };
 
                         table.Cell().Element(CellBody).Text(line.Kind.ToString());
                         table.Cell().Element(CellBody).Text(description);
@@ -326,6 +329,9 @@ public sealed partial class DocumentPdfService
         var settlementPaymentType = claim.SettlementPaymentTypeId is null
             ? null
             : await _dbContext.PaymentTypes.AsNoTracking().FirstOrDefaultAsync(x => x.Id == claim.SettlementPaymentTypeId.Value, cancellationToken);
+        var settlementPettyCashFund = claim.SettlementPettyCashFundId is null
+            ? null
+            : await _dbContext.PettyCashFunds.AsNoTracking().FirstOrDefaultAsync(x => x.Id == claim.SettlementPettyCashFundId.Value, cancellationToken);
         var itemById = await LoadItemMapAsync(
             claim.Lines.Where(x => x.ItemId.HasValue).Select(x => x.ItemId!.Value),
             cancellationToken);
@@ -345,6 +351,11 @@ public sealed partial class DocumentPdfService
         if (settlementPaymentType is not null)
         {
             meta.Add(("Settlement method", $"{settlementPaymentType.Code} - {settlementPaymentType.Name}"));
+        }
+
+        if (settlementPettyCashFund is not null)
+        {
+            meta.Add(("Petty cash fund", $"{settlementPettyCashFund.Code} - {settlementPettyCashFund.Name}"));
         }
 
         return BuildPdf(

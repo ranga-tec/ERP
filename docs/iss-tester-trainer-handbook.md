@@ -4,7 +4,7 @@ This document is the zero-knowledge onboarding guide for manual testers, busines
 
 It combines the "what is this system?", "how do I run it?", and "how do I test it?" answers into one place.
 
-Validated against the current repository and a live local walkthrough on March 14, 2026.
+Validated against the current repository and a live local walkthrough on March 30, 2026.
 
 ## 1. What This System Is
 
@@ -104,8 +104,8 @@ What this means in practice:
 | Procurement | Buying and receiving | PR, RFQ, PO, GRN, supplier invoice, supplier return |
 | Inventory | Stock control | on hand by warehouse/batch, reorder alerts, stock adjustment count entry, stock transfer move entry |
 | Sales | Selling and dispatching | quotes, orders, dispatches, invoices, customer returns |
-| Service | Workshop and after-sales work | jobs, estimates, expense claims, work orders, QC, handovers |
-| Finance | Money owed and paid | AR, AP, payments, credit notes, debit notes, expense-claim approval/settlement |
+| Service | Workshop and after-sales work | jobs, estimates, expense claims, work orders, QC, handovers, job costing |
+| Finance | Money owed and paid | AR, AP, payments, petty cash funds, credit notes, debit notes, expense-claim approval/settlement |
 | Reporting | Operational visibility | stock ledger, aging, tax summary, service KPIs, costing |
 | Admin | Control and support tools | users, notifications, Excel import, settings |
 | Audit Logs | Change tracking | posted actions and entity changes |
@@ -391,16 +391,19 @@ Use this after the smoke test and core scenario.
 - equipment unit can be registered
 - service job can be created and status changed
 - work order can be created
-- estimate can be created, lined, and approved or sent
+- estimate can be created, lined, revised, and approved or sent
+- billable approved expense-claim lines can be converted into a draft estimate or auto-created estimate revision
 - material requisition can be posted
 - quality check can be recorded
 - handover can be completed and converted to invoice
+- service job detail shows material, direct-purchase, and expense-claim cost rollup
 
 ### Finance
 
 - AR page shows open invoice balances
 - AP page shows open supplier balances
 - payment create and allocation work
+- petty cash fund create, top-up, adjustment, and expense-claim settlement work
 - credit note and debit note flows work
 - payment PDF opens and matches the screen
 

@@ -49,6 +49,7 @@ const statusLabel: Record<number, string> = {
 const kindLabel: Record<number, string> = {
   1: "Part",
   2: "Labor",
+  3: "Expense",
 };
 
 export default async function ServiceEstimateDetailPage({ params }: { params: Promise<{ id: string }> }) {
@@ -125,7 +126,7 @@ export default async function ServiceEstimateDetailPage({ params }: { params: Pr
       {!isDraft ? (
         <Card>
           <div className="text-sm text-zinc-500">
-            If more spare parts or labor are discovered after approval, create a revision to copy this estimate into a new draft and resend it for customer approval.
+            If more spare parts, external billable expenses, or labor are discovered after approval, create a revision to copy this estimate into a new draft and resend it for customer approval.
           </div>
         </Card>
       ) : null}

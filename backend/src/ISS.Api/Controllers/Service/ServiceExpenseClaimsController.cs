@@ -30,6 +30,7 @@ public sealed class ServiceExpenseClaimsController(
         ServiceExpenseClaimStatus Status,
         decimal Total,
         int LineCount,
+        int BillableUnconvertedLineCount,
         DateTimeOffset? SettledAt);
 
     public sealed record ServiceExpenseClaimLineDto(
@@ -39,6 +40,9 @@ public sealed class ServiceExpenseClaimsController(
         decimal Quantity,
         decimal UnitCost,
         bool BillableToCustomer,
+        Guid? ConvertedToServiceEstimateId,
+        Guid? ConvertedToServiceEstimateLineId,
+        DateTimeOffset? ConvertedToEstimateAt,
         decimal LineTotal);
 
     public sealed record ServiceExpenseClaimDto(
@@ -58,9 +62,11 @@ public sealed class ServiceExpenseClaimsController(
         DateTimeOffset? RejectedAt,
         string? RejectionReason,
         Guid? SettlementPaymentTypeId,
+        Guid? SettlementPettyCashFundId,
         DateTimeOffset? SettledAt,
         string? SettlementReference,
         decimal Total,
+        int BillableUnconvertedLineCount,
         IReadOnlyList<ServiceExpenseClaimLineDto> Lines);
 
     public sealed record CreateServiceExpenseClaimRequest(
@@ -87,7 +93,9 @@ public sealed class ServiceExpenseClaimsController(
         bool BillableToCustomer);
 
     public sealed record RejectServiceExpenseClaimRequest(string? RejectionReason);
-    public sealed record SettleServiceExpenseClaimRequest(Guid? SettlementPaymentTypeId, string? SettlementReference);
+    public sealed record SettleServiceExpenseClaimRequest(Guid? SettlementPaymentTypeId, Guid? SettlementPettyCashFundId, string? SettlementReference);
+    public sealed record ConvertBillableLinesToEstimateRequest(Guid? ServiceEstimateId, decimal? TaxPercent, DateTimeOffset? ValidUntil, string? Terms);
+    public sealed record ConvertBillableLinesToEstimateResponse(Guid ServiceEstimateId, int AddedLineCount);
 
     [HttpGet]
     public async Task<ActionResult<IReadOnlyList<ServiceExpenseClaimSummaryDto>>> List(
@@ -115,6 +123,7 @@ public sealed class ServiceExpenseClaimsController(
                 x.Status,
                 x.Lines.Sum(l => l.Quantity * l.UnitCost),
                 x.Lines.Count,
+                x.Lines.Count(l => l.BillableToCustomer && l.ConvertedToServiceEstimateLineId == null),
                 x.SettledAt))
             .ToListAsync(cancellationToken);
 
@@ -172,9 +181,11 @@ public sealed class ServiceExpenseClaimsController(
             claim.RejectedAt,
             claim.RejectionReason,
             claim.SettlementPaymentTypeId,
+            claim.SettlementPettyCashFundId,
             claim.SettledAt,
             claim.SettlementReference,
             claim.Total,
+            claim.Lines.Count(line => line.BillableToCustomer && line.ConvertedToServiceEstimateLineId == null),
             claim.Lines.Select(line => new ServiceExpenseClaimLineDto(
                 line.Id,
                 line.ItemId,
@@ -182,6 +193,9 @@ public sealed class ServiceExpenseClaimsController(
                 line.Quantity,
                 line.UnitCost,
                 line.BillableToCustomer,
+                line.ConvertedToServiceEstimateId,
+                line.ConvertedToServiceEstimateLineId,
+                line.ConvertedToEstimateAt,
                 line.LineTotal)).ToList()));
     }
 
@@ -258,8 +272,26 @@ public sealed class ServiceExpenseClaimsController(
         await serviceManagementService.SettleServiceExpenseClaimAsync(
             id,
             request?.SettlementPaymentTypeId,
+            request?.SettlementPettyCashFundId,
             request?.SettlementReference,
             cancellationToken);
         return NoContent();
+    }
+
+    [HttpPost("{id:guid}/convert-billable-lines-to-estimate")]
+    public async Task<ActionResult<ConvertBillableLinesToEstimateResponse>> ConvertBillableLinesToEstimate(
+        Guid id,
+        ConvertBillableLinesToEstimateRequest? request,
+        CancellationToken cancellationToken)
+    {
+        var result = await serviceManagementService.ConvertBillableExpenseClaimToEstimateAsync(
+            id,
+            request?.ServiceEstimateId,
+            request?.TaxPercent ?? 0m,
+            request?.ValidUntil,
+            request?.Terms,
+            cancellationToken);
+
+        return Ok(new ConvertBillableLinesToEstimateResponse(result.ServiceEstimateId, result.AddedLineCount));
     }
 }

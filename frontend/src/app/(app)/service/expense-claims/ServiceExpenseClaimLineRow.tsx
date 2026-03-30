@@ -156,6 +156,7 @@ export function ServiceExpenseClaimLineRow({
           "No"
         )}
       </td>
+      <td className="py-2 pr-3 text-zinc-500">-</td>
       <td className="py-2 pr-3">
         {isEditing && Number.isFinite(previewTotal) ? previewTotal.toFixed(2) : line.lineTotal.toFixed(2)}
       </td>

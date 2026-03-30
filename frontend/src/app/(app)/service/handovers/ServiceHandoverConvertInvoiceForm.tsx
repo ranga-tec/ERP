@@ -37,6 +37,7 @@ export function ServiceHandoverConvertInvoiceForm({
   const router = useRouter();
   const [serviceEstimateId, setServiceEstimateId] = useState("");
   const [laborItemId, setLaborItemId] = useState("");
+  const [expenseItemId, setExpenseItemId] = useState("");
   const [dueDate, setDueDate] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -62,6 +63,7 @@ export function ServiceHandoverConvertInvoiceForm({
       const result = await apiPost<ConvertResponse>(`service/handovers/${handoverId}/convert-to-sales-invoice`, {
         serviceEstimateId: serviceEstimateId || null,
         laborItemId: laborItemId || null,
+        expenseItemId: expenseItemId || null,
         dueDate: dueDate ? new Date(dueDate).toISOString() : null,
       });
       router.push(`/sales/invoices/${result.salesInvoiceId}`);
@@ -84,7 +86,7 @@ export function ServiceHandoverConvertInvoiceForm({
     <div className="space-y-3 rounded-lg border border-zinc-200 p-3 dark:border-zinc-800">
       <div className="text-sm font-medium">Convert to Sales Invoice</div>
 
-      <div className="grid gap-3 sm:grid-cols-3">
+      <div className="grid gap-3 sm:grid-cols-4">
         <div>
           <label className="mb-1 block text-sm font-medium">Approved Estimate</label>
           <Select value={serviceEstimateId} onChange={(e) => setServiceEstimateId(e.target.value)} disabled={disabled || busy}>
@@ -110,6 +112,18 @@ export function ServiceHandoverConvertInvoiceForm({
         </div>
 
         <div>
+          <label className="mb-1 block text-sm font-medium">Expense Item (if needed)</label>
+          <Select value={expenseItemId} onChange={(e) => setExpenseItemId(e.target.value)} disabled={disabled || busy}>
+            <option value="">Use estimate item or select fallback</option>
+            {itemOptions.map((i) => (
+              <option key={i.id} value={i.id}>
+                {i.sku} - {i.name}
+              </option>
+            ))}
+          </Select>
+        </div>
+
+        <div>
           <label className="mb-1 block text-sm font-medium">Invoice Due Date (optional)</label>
           <Input
             type="datetime-local"
@@ -125,7 +139,7 @@ export function ServiceHandoverConvertInvoiceForm({
           {busy ? "Converting..." : "Create Sales Invoice Draft"}
         </SecondaryButton>
         <div className="text-xs text-zinc-500">
-          Labor estimate lines require a selected labor/service item for invoice mapping.
+          Labor lines need a labor item. Expense lines without an item need an expense or misc service item.
         </div>
       </div>
 

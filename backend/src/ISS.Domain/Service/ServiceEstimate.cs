@@ -12,7 +12,8 @@ public enum ServiceEstimateStatus
 public enum ServiceEstimateLineKind
 {
     Part = 1,
-    Labor = 2
+    Labor = 2,
+    Expense = 3
 }
 
 public sealed class ServiceEstimate : AuditableEntity

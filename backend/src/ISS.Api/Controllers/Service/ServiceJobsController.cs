@@ -12,7 +12,11 @@ namespace ISS.Api.Controllers.Service;
 [ApiController]
 [Route("api/service/jobs")]
 [Authorize(Roles = $"{Roles.Admin},{Roles.Service},{Roles.Sales}")]
-public sealed class ServiceJobsController(IIssDbContext dbContext, ServiceManagementService serviceManagementService, IDocumentPdfService pdfService) : ControllerBase
+public sealed class ServiceJobsController(
+    IIssDbContext dbContext,
+    ServiceManagementService serviceManagementService,
+    ServiceCostingService serviceCostingService,
+    IDocumentPdfService pdfService) : ControllerBase
 {
     public sealed record ServiceJobDto(
         Guid Id,
@@ -63,6 +67,13 @@ public sealed class ServiceJobsController(IIssDbContext dbContext, ServiceManage
             .FirstOrDefaultAsync(cancellationToken);
 
         return job is null ? NotFound() : Ok(job);
+    }
+
+    [HttpGet("{id:guid}/costing")]
+    public async Task<ActionResult<ServiceCostingService.ServiceJobCostingDto>> Costing(Guid id, CancellationToken cancellationToken)
+    {
+        var costing = await serviceCostingService.GetServiceJobCostingAsync(id, cancellationToken);
+        return Ok(costing);
     }
 
     [HttpGet("{id:guid}/pdf")]

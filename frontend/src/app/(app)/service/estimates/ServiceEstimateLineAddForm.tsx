@@ -10,6 +10,7 @@ type TaxRef = { id: string; code: string; name: string; ratePercent: number; isA
 
 const KIND_PART = "1";
 const KIND_LABOR = "2";
+const KIND_EXPENSE = "3";
 
 export function ServiceEstimateLineAddForm({
   estimateId,
@@ -38,6 +39,7 @@ export function ServiceEstimateLineAddForm({
     .sort((a, b) => a.code.localeCompare(b.code));
   const selectedItem = itemId ? items.find((i) => i.id === itemId) : undefined;
   const isPart = kind === KIND_PART;
+  const usesItem = kind !== KIND_LABOR;
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -46,7 +48,7 @@ export function ServiceEstimateLineAddForm({
 
     try {
       const qty = Number(quantity);
-      const price = Number(unitPrice || (isPart ? selectedItem?.defaultUnitCost ?? 0 : 0));
+      const price = Number(unitPrice || (usesItem ? selectedItem?.defaultUnitCost ?? 0 : 0));
       const tax = Number(taxPercent || 0);
 
       if (Number.isNaN(qty) || qty <= 0) throw new Error("Quantity must be positive.");
@@ -57,7 +59,7 @@ export function ServiceEstimateLineAddForm({
 
       await apiPostNoContent(`service/estimates/${estimateId}/lines`, {
         kind: Number(kind),
-        itemId: isPart ? itemId : null,
+        itemId: usesItem && itemId ? itemId : null,
         description: description.trim(),
         quantity: qty,
         unitPrice: price,
@@ -95,10 +97,11 @@ export function ServiceEstimateLineAddForm({
           >
             <option value={KIND_PART}>Part</option>
             <option value={KIND_LABOR}>Labor</option>
+            <option value={KIND_EXPENSE}>Expense</option>
           </Select>
         </div>
         <div className="sm:col-span-2">
-          <label className="mb-1 block text-sm font-medium">Item (parts only)</label>
+          <label className="mb-1 block text-sm font-medium">Item ({usesItem ? "optional for expense" : "not used for labor"})</label>
           <Select
             value={itemId}
             onChange={(e) => {
@@ -109,9 +112,11 @@ export function ServiceEstimateLineAddForm({
                 if (picked) setDescription(picked.name);
               }
             }}
-            disabled={!isPart}
+            disabled={!usesItem}
           >
-            <option value="">{isPart ? "Select..." : "N/A for labor"}</option>
+            <option value="">
+              {isPart ? "Select..." : kind === KIND_EXPENSE ? "Optional expense item" : "N/A for labor"}
+            </option>
             {sortedItems.map((i) => (
               <option key={i.id} value={i.id}>
                 {i.sku} - {i.name}
@@ -129,7 +134,7 @@ export function ServiceEstimateLineAddForm({
             value={unitPrice}
             onChange={(e) => setUnitPrice(e.target.value)}
             inputMode="decimal"
-            placeholder={isPart && selectedItem ? selectedItem.defaultUnitCost.toString() : "0"}
+            placeholder={usesItem && selectedItem ? selectedItem.defaultUnitCost.toString() : "0"}
           />
         </div>
         <div>
@@ -164,7 +169,13 @@ export function ServiceEstimateLineAddForm({
         <Input
           value={description}
           onChange={(e) => setDescription(e.target.value)}
-          placeholder={isPart ? "Part/repair line description" : "Labor task description"}
+          placeholder={
+            isPart
+              ? "Part/repair line description"
+              : kind === KIND_EXPENSE
+                ? "Billable expense description"
+                : "Labor task description"
+          }
           required
         />
       </div>

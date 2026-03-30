@@ -34,7 +34,7 @@
 - Service includes:
   - equipment units, jobs, work orders, estimates, expense claims, material requisitions, quality checks, handovers
 - Finance includes:
-  - AR/AP, payments + allocations, credit notes, debit notes, finance approval/settlement of service expense claims
+  - AR/AP, payments + allocations, petty cash funds/ledger, credit notes, debit notes, finance approval/settlement of service expense claims
 - Reporting includes:
   - dashboard, stock ledger, aging, tax summary, service KPIs, costing
 - Draft document detail pages with line grids now support row actions:
@@ -51,6 +51,11 @@
   - estimate revisions so approved/rejected estimates are preserved and additional findings can be resent as a new draft revision
   - direct purchases linked to service jobs for outside emergency buys
   - service expense claims for petty-cash and out-of-pocket spending, with finance approval and settlement tracking
+  - billable expense-claim lines can be converted into the working estimate or an automatic estimate revision
+  - handover-to-invoice conversion now supports expense estimate lines with fallback invoice item mapping
+  - service job detail now includes actual job-cost rollup across material issues, direct purchases, expense claims, estimates, and invoices
+- Finance workflow now supports:
+  - petty cash funds with opening balance, top-up, adjustment, and expense-settlement ledger entries
 - The authenticated sidebar now opens expanded by default and includes top-of-menu search when expanded
 
 ## Local infrastructure (PostgreSQL)

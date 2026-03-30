@@ -107,11 +107,13 @@ Note:
   - create and track work records
 - Service estimates:
   - create -> add lines -> approve/reject/send
+  - estimates now support `Part`, `Labor`, and billable `Expense` lines
   - if extra findings appear after approval or rejection, create a revision instead of overwriting the original estimate
 - Service expense claims:
   - create against a service job for `Out of Pocket` or `Petty Cash`
   - add free-text or item-linked lines
   - submit -> finance approve/reject -> settle
+  - billable approved/settled claim lines can be pushed into the latest draft estimate or into an automatic estimate revision
   - use this for emergency outside buys and technician reimbursement/petty-cash clearing that do not come from stock
 - Material requisitions:
   - create -> add lines -> post
@@ -120,6 +122,7 @@ Note:
   - record pass/fail and notes
 - Service handovers:
   - complete handover and optionally convert to invoice
+  - invoice conversion can now map expense estimate lines by using the line item when present or a selected fallback expense/service item
 - Direct purchases linked to service jobs:
   - use when a required part is bought from a supplier and also needs to be received into stock
   - the direct purchase can now be linked back to the service job for traceability
@@ -131,12 +134,16 @@ Note:
 - Payments:
   - create incoming/outgoing payments
   - allocate to AR/AP entries
+- Petty cash:
+  - create fund -> optionally seed opening balance
+  - post top-ups and manual adjustments
+  - settle approved service expense claims against a petty cash fund when workshop cash was used
 - Credit notes:
   - create and allocate to AR/AP
 - Debit notes:
   - create additional AR/AP charge entries
 - Service expense claims:
-  - finance users approve/reject submitted claims and settle approved claims with a payment method/reference
+  - finance users approve/reject submitted claims and settle approved claims with a payment method/reference and optional petty cash fund linkage
   - petty-cash and out-of-pocket claims are tracked here rather than hidden as ad-hoc stock or payment workarounds
 
 ## Reporting
@@ -147,6 +154,9 @@ Note:
   - compares default and weighted average cost
   - shows last receipt cost/date
   - shows on-hand valuation in base currency
+- Service job costing:
+  - each service job detail page now shows quoted revenue, posted invoice revenue, actual job cost, and unconverted billable expense-claim totals
+  - cost sources are broken down by material requisitions, direct purchases, and service expense claims
 
 ## Line editing in draft documents
 

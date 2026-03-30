@@ -63,6 +63,7 @@ public sealed class ServiceExpenseClaim : AuditableEntity
     public DateTimeOffset? RejectedAt { get; private set; }
     public string? RejectionReason { get; private set; }
     public Guid? SettlementPaymentTypeId { get; private set; }
+    public Guid? SettlementPettyCashFundId { get; private set; }
     public DateTimeOffset? SettledAt { get; private set; }
     public string? SettlementReference { get; private set; }
 
@@ -158,16 +159,26 @@ public sealed class ServiceExpenseClaim : AuditableEntity
         RejectionReason = rejectionReason?.Trim();
     }
 
-    public void Settle(DateTimeOffset settledAt, Guid? settlementPaymentTypeId, string? settlementReference)
+    public void Settle(
+        DateTimeOffset settledAt,
+        Guid? settlementPaymentTypeId,
+        Guid? settlementPettyCashFundId,
+        string? settlementReference)
     {
         if (Status != ServiceExpenseClaimStatus.Approved)
         {
             throw new DomainValidationException("Only approved expense claims can be settled.");
         }
 
+        if (FundingSource == ServiceExpenseFundingSource.PettyCash && settlementPettyCashFundId is null)
+        {
+            throw new DomainValidationException("Petty cash claims must be settled against a petty cash fund.");
+        }
+
         Status = ServiceExpenseClaimStatus.Settled;
         SettledAt = settledAt;
         SettlementPaymentTypeId = settlementPaymentTypeId;
+        SettlementPettyCashFundId = settlementPettyCashFundId;
         SettlementReference = settlementReference?.Trim();
     }
 
@@ -206,6 +217,9 @@ public sealed class ServiceExpenseClaimLine : Entity
     public decimal Quantity { get; private set; }
     public decimal UnitCost { get; private set; }
     public bool BillableToCustomer { get; private set; }
+    public Guid? ConvertedToServiceEstimateId { get; private set; }
+    public Guid? ConvertedToServiceEstimateLineId { get; private set; }
+    public DateTimeOffset? ConvertedToEstimateAt { get; private set; }
     public decimal LineTotal => Quantity * UnitCost;
 
     public void Update(
@@ -220,5 +234,22 @@ public sealed class ServiceExpenseClaimLine : Entity
         Quantity = Guard.Positive(quantity, nameof(quantity));
         UnitCost = Guard.NotNegative(unitCost, nameof(unitCost));
         BillableToCustomer = billableToCustomer;
+    }
+
+    public void MarkConvertedToEstimate(Guid serviceEstimateId, Guid serviceEstimateLineId, DateTimeOffset convertedAt)
+    {
+        if (!BillableToCustomer)
+        {
+            throw new DomainValidationException("Only billable expense claim lines can be converted to a service estimate.");
+        }
+
+        if (ConvertedToServiceEstimateLineId is not null)
+        {
+            throw new DomainValidationException("Expense claim line has already been converted to a service estimate.");
+        }
+
+        ConvertedToServiceEstimateId = serviceEstimateId;
+        ConvertedToServiceEstimateLineId = serviceEstimateLineId;
+        ConvertedToEstimateAt = convertedAt;
     }
 }

@@ -64,6 +64,7 @@ public interface IIssDbContext
     DbSet<AccountsReceivableEntry> AccountsReceivableEntries { get; }
     DbSet<AccountsPayableEntry> AccountsPayableEntries { get; }
     DbSet<Payment> Payments { get; }
+    DbSet<PettyCashFund> PettyCashFunds { get; }
     DbSet<CreditNote> CreditNotes { get; }
     DbSet<DebitNote> DebitNotes { get; }
     DbSet<DocumentComment> DocumentComments { get; }

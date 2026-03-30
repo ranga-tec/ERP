@@ -14,6 +14,7 @@ public static class ReferenceTypes
     public const string SalesInvoice = "INV";
     public const string MaterialRequisition = "MR";
     public const string ServiceExpenseClaim = "SEC";
+    public const string PettyCashFund = "PCF";
     public const string StockAdjustment = "ADJ";
     public const string StockTransfer = "TRF";
     public const string Payment = "PAY";

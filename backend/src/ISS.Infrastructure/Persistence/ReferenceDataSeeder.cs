@@ -126,6 +126,7 @@ public static class ReferenceDataSeeder
             new ReferenceForm("ADJ", "Stock Adjustment", "Inventory", "/inventory/stock-adjustments/{id}"),
             new ReferenceForm("TRF", "Stock Transfer", "Inventory", "/inventory/stock-transfers/{id}"),
             new ReferenceForm("PAY", "Payment", "Finance", "/finance/payments/{id}"),
+            new ReferenceForm("PCF", "Petty Cash Fund", "Finance", "/finance/petty-cash/{id}"),
             new ReferenceForm("CN", "Credit Note", "Finance", "/finance/credit-notes/{id}"),
             new ReferenceForm("DBN", "Debit Note", "Finance", "/finance/debit-notes/{id}")
         };

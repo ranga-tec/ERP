@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { backendFetchJson } from "@/lib/backend.server";
-import { Card, SecondaryLink } from "@/components/ui";
+import { ItemInlineLink } from "@/components/InlineLink";
+import { Card, SecondaryLink, Table } from "@/components/ui";
 import { ServiceJobActions } from "../ServiceJobActions";
 import { DocumentCollaborationPanel } from "@/components/DocumentCollaborationPanel";
 import { TransactionLink } from "@/components/TransactionLink";
@@ -19,6 +20,61 @@ type ServiceJobDto = {
 
 type EquipmentUnitDto = { id: string; serialNumber: string };
 type CustomerDto = { id: string; code: string; name: string };
+type ServiceJobCostingDto = {
+  serviceJobId: string;
+  jobNumber: string;
+  latestApprovedEstimateTotal?: number | null;
+  latestDraftEstimateTotal?: number | null;
+  draftInvoiceTotal: number;
+  postedInvoiceTotal: number;
+  materialConsumedCost: number;
+  directPurchaseCost: number;
+  approvedExpenseClaimCost: number;
+  pendingExpenseClaimCost: number;
+  billableExpenseClaimCost: number;
+  unconvertedBillableExpenseClaimCost: number;
+  totalActualCost: number;
+  quotedGrossMargin?: number | null;
+  postedGrossMargin: number;
+  estimates: { id: string; number: string; revisionNumber: number; status: number; total: number }[];
+  invoices: { id: string; number: string; status: number; total: number }[];
+  materialLines: {
+    materialRequisitionId: string;
+    materialRequisitionNumber: string;
+    itemId: string;
+    itemSku: string;
+    itemName: string;
+    quantity: number;
+    unitCost: number;
+    lineTotal: number;
+  }[];
+  directPurchaseLines: {
+    directPurchaseId: string;
+    directPurchaseNumber: string;
+    supplierCode: string;
+    itemId: string;
+    itemSku: string;
+    itemName: string;
+    quantity: number;
+    unitPrice: number;
+    taxPercent: number;
+    lineTotal: number;
+  }[];
+  expenseClaimLines: {
+    expenseClaimId: string;
+    expenseClaimNumber: string;
+    status: number;
+    itemId?: string | null;
+    itemSku?: string | null;
+    itemName?: string | null;
+    description: string;
+    quantity: number;
+    unitCost: number;
+    billableToCustomer: boolean;
+    convertedToServiceEstimateId?: string | null;
+    lineTotal: number;
+  }[];
+};
 
 const statusLabel: Record<number, string> = {
   0: "Open",
@@ -33,13 +89,39 @@ const kindLabel: Record<number, string> = {
   1: "Repair",
 };
 
+const estimateStatusLabel: Record<number, string> = {
+  0: "Draft",
+  1: "Approved",
+  2: "Rejected",
+};
+
+const invoiceStatusLabel: Record<number, string> = {
+  0: "Draft",
+  1: "Posted",
+  2: "Paid",
+  3: "Voided",
+};
+
+const claimStatusLabel: Record<number, string> = {
+  0: "Draft",
+  1: "Submitted",
+  2: "Approved",
+  3: "Rejected",
+  4: "Settled",
+};
+
+function money(value?: number | null) {
+  return typeof value === "number" ? value.toFixed(2) : "-";
+}
+
 export default async function ServiceJobDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
 
-  const [job, units, customers] = await Promise.all([
+  const [job, units, customers, costing] = await Promise.all([
     backendFetchJson<ServiceJobDto>(`/service/jobs/${id}`),
     backendFetchJson<EquipmentUnitDto[]>("/service/equipment-units?take=500"),
     backendFetchJson<CustomerDto[]>("/customers"),
+    backendFetchJson<ServiceJobCostingDto>(`/service/jobs/${id}/costing`),
   ]);
 
   const unitById = new Map(units.map((u) => [u.id, u]));
@@ -91,6 +173,265 @@ export default async function ServiceJobDetailPage({ params }: { params: Promise
       <Card>
         <div className="mb-2 text-sm font-semibold">Problem</div>
         <div className="whitespace-pre-wrap text-sm text-zinc-700 dark:text-zinc-200">{job.problemDescription}</div>
+      </Card>
+
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <Card>
+          <div className="text-xs uppercase tracking-wide text-zinc-500">Actual Cost</div>
+          <div className="mt-2 text-2xl font-semibold">{money(costing.totalActualCost)}</div>
+          <div className="mt-1 text-xs text-zinc-500">Materials + direct purchase + approved claims</div>
+        </Card>
+        <Card>
+          <div className="text-xs uppercase tracking-wide text-zinc-500">Quoted Revenue</div>
+          <div className="mt-2 text-2xl font-semibold">
+            {money(costing.latestApprovedEstimateTotal ?? costing.latestDraftEstimateTotal)}
+          </div>
+          <div className="mt-1 text-xs text-zinc-500">Approved estimate preferred, otherwise latest draft</div>
+        </Card>
+        <Card>
+          <div className="text-xs uppercase tracking-wide text-zinc-500">Posted Invoice Revenue</div>
+          <div className="mt-2 text-2xl font-semibold">{money(costing.postedInvoiceTotal)}</div>
+          <div className="mt-1 text-xs text-zinc-500">Draft invoices: {money(costing.draftInvoiceTotal)}</div>
+        </Card>
+        <Card>
+          <div className="text-xs uppercase tracking-wide text-zinc-500">Unconverted Billable Expense</div>
+          <div className="mt-2 text-2xl font-semibold">{money(costing.unconvertedBillableExpenseClaimCost)}</div>
+          <div className="mt-1 text-xs text-zinc-500">Claim lines still not pushed into estimate</div>
+        </Card>
+      </div>
+
+      <Card>
+        <div className="mb-3 text-sm font-semibold">Job Costing</div>
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3 text-sm">
+          <div className="rounded-xl border border-[var(--card-border)] p-3">
+            <div className="font-medium">Cost Breakdown</div>
+            <div className="mt-2 text-zinc-500">Material consumption: {money(costing.materialConsumedCost)}</div>
+            <div className="text-zinc-500">Direct purchases: {money(costing.directPurchaseCost)}</div>
+            <div className="text-zinc-500">Approved expense claims: {money(costing.approvedExpenseClaimCost)}</div>
+            <div className="text-zinc-500">Pending expense claims: {money(costing.pendingExpenseClaimCost)}</div>
+          </div>
+          <div className="rounded-xl border border-[var(--card-border)] p-3">
+            <div className="font-medium">Margin View</div>
+            <div className="mt-2 text-zinc-500">Quoted gross margin: {money(costing.quotedGrossMargin)}</div>
+            <div className="text-zinc-500">Posted gross margin: {money(costing.postedGrossMargin)}</div>
+            <div className="text-zinc-500">Billable claim cost: {money(costing.billableExpenseClaimCost)}</div>
+          </div>
+          <div className="rounded-xl border border-[var(--card-border)] p-3">
+            <div className="font-medium">Estimate / Invoice Trail</div>
+            <div className="mt-2 text-zinc-500">Latest approved estimate: {money(costing.latestApprovedEstimateTotal)}</div>
+            <div className="text-zinc-500">Latest draft estimate: {money(costing.latestDraftEstimateTotal)}</div>
+            <div className="text-zinc-500">Draft invoice total: {money(costing.draftInvoiceTotal)}</div>
+            <div className="text-zinc-500">Posted invoice total: {money(costing.postedInvoiceTotal)}</div>
+          </div>
+        </div>
+      </Card>
+
+      <Card>
+        <div className="mb-3 text-sm font-semibold">Estimates & Invoices</div>
+        <div className="grid gap-4 lg:grid-cols-2">
+          <div className="overflow-auto">
+            <Table>
+              <thead>
+                <tr className="border-b border-zinc-200 text-left text-xs uppercase tracking-wide text-zinc-500 dark:border-zinc-800">
+                  <th className="py-2 pr-3">Estimate</th>
+                  <th className="py-2 pr-3">Revision</th>
+                  <th className="py-2 pr-3">Status</th>
+                  <th className="py-2 pr-3">Total</th>
+                </tr>
+              </thead>
+              <tbody>
+                {costing.estimates.map((estimate) => (
+                  <tr key={estimate.id} className="border-b border-zinc-100 dark:border-zinc-900">
+                    <td className="py-2 pr-3">
+                      <TransactionLink referenceType="SE" referenceId={estimate.id} monospace>
+                        {estimate.number}
+                      </TransactionLink>
+                    </td>
+                    <td className="py-2 pr-3">{estimate.revisionNumber}</td>
+                    <td className="py-2 pr-3">{estimateStatusLabel[estimate.status] ?? estimate.status}</td>
+                    <td className="py-2 pr-3">{money(estimate.total)}</td>
+                  </tr>
+                ))}
+                {costing.estimates.length === 0 ? (
+                  <tr>
+                    <td className="py-6 text-sm text-zinc-500" colSpan={4}>
+                      No service estimates yet.
+                    </td>
+                  </tr>
+                ) : null}
+              </tbody>
+            </Table>
+          </div>
+
+          <div className="overflow-auto">
+            <Table>
+              <thead>
+                <tr className="border-b border-zinc-200 text-left text-xs uppercase tracking-wide text-zinc-500 dark:border-zinc-800">
+                  <th className="py-2 pr-3">Invoice</th>
+                  <th className="py-2 pr-3">Status</th>
+                  <th className="py-2 pr-3">Total</th>
+                </tr>
+              </thead>
+              <tbody>
+                {costing.invoices.map((invoice) => (
+                  <tr key={invoice.id} className="border-b border-zinc-100 dark:border-zinc-900">
+                    <td className="py-2 pr-3">
+                      <TransactionLink referenceType="INV" referenceId={invoice.id} monospace>
+                        {invoice.number}
+                      </TransactionLink>
+                    </td>
+                    <td className="py-2 pr-3">{invoiceStatusLabel[invoice.status] ?? invoice.status}</td>
+                    <td className="py-2 pr-3">{money(invoice.total)}</td>
+                  </tr>
+                ))}
+                {costing.invoices.length === 0 ? (
+                  <tr>
+                    <td className="py-6 text-sm text-zinc-500" colSpan={3}>
+                      No linked sales invoices yet.
+                    </td>
+                  </tr>
+                ) : null}
+              </tbody>
+            </Table>
+          </div>
+        </div>
+      </Card>
+
+      <Card>
+        <div className="mb-3 text-sm font-semibold">Cost Sources</div>
+        <div className="space-y-4">
+          <div className="overflow-auto">
+            <div className="mb-2 text-sm font-medium">Material Consumption</div>
+            <Table>
+              <thead>
+                <tr className="border-b border-zinc-200 text-left text-xs uppercase tracking-wide text-zinc-500 dark:border-zinc-800">
+                  <th className="py-2 pr-3">Source</th>
+                  <th className="py-2 pr-3">Item</th>
+                  <th className="py-2 pr-3">Qty</th>
+                  <th className="py-2 pr-3">Unit Cost</th>
+                  <th className="py-2 pr-3">Total</th>
+                </tr>
+              </thead>
+              <tbody>
+                {costing.materialLines.map((line) => (
+                  <tr key={`${line.materialRequisitionId}-${line.itemId}-${line.quantity}`} className="border-b border-zinc-100 dark:border-zinc-900">
+                    <td className="py-2 pr-3">
+                      <TransactionLink referenceType="MR" referenceId={line.materialRequisitionId} monospace>
+                        {line.materialRequisitionNumber}
+                      </TransactionLink>
+                    </td>
+                    <td className="py-2 pr-3">
+                      <ItemInlineLink itemId={line.itemId}>{line.itemSku} - {line.itemName}</ItemInlineLink>
+                    </td>
+                    <td className="py-2 pr-3">{line.quantity}</td>
+                    <td className="py-2 pr-3">{money(line.unitCost)}</td>
+                    <td className="py-2 pr-3">{money(line.lineTotal)}</td>
+                  </tr>
+                ))}
+                {costing.materialLines.length === 0 ? (
+                  <tr>
+                    <td className="py-6 text-sm text-zinc-500" colSpan={5}>
+                      No posted material consumption yet.
+                    </td>
+                  </tr>
+                ) : null}
+              </tbody>
+            </Table>
+          </div>
+
+          <div className="overflow-auto">
+            <div className="mb-2 text-sm font-medium">Direct Purchases</div>
+            <Table>
+              <thead>
+                <tr className="border-b border-zinc-200 text-left text-xs uppercase tracking-wide text-zinc-500 dark:border-zinc-800">
+                  <th className="py-2 pr-3">Source</th>
+                  <th className="py-2 pr-3">Supplier</th>
+                  <th className="py-2 pr-3">Item</th>
+                  <th className="py-2 pr-3">Qty</th>
+                  <th className="py-2 pr-3">Line Total</th>
+                </tr>
+              </thead>
+              <tbody>
+                {costing.directPurchaseLines.map((line) => (
+                  <tr key={`${line.directPurchaseId}-${line.itemId}-${line.quantity}`} className="border-b border-zinc-100 dark:border-zinc-900">
+                    <td className="py-2 pr-3">
+                      <TransactionLink referenceType="DPR" referenceId={line.directPurchaseId} monospace>
+                        {line.directPurchaseNumber}
+                      </TransactionLink>
+                    </td>
+                    <td className="py-2 pr-3 text-zinc-500">{line.supplierCode}</td>
+                    <td className="py-2 pr-3">
+                      <ItemInlineLink itemId={line.itemId}>{line.itemSku} - {line.itemName}</ItemInlineLink>
+                    </td>
+                    <td className="py-2 pr-3">{line.quantity}</td>
+                    <td className="py-2 pr-3">{money(line.lineTotal)}</td>
+                  </tr>
+                ))}
+                {costing.directPurchaseLines.length === 0 ? (
+                  <tr>
+                    <td className="py-6 text-sm text-zinc-500" colSpan={5}>
+                      No posted direct purchases linked to this job.
+                    </td>
+                  </tr>
+                ) : null}
+              </tbody>
+            </Table>
+          </div>
+
+          <div className="overflow-auto">
+            <div className="mb-2 text-sm font-medium">Expense Claims</div>
+            <Table>
+              <thead>
+                <tr className="border-b border-zinc-200 text-left text-xs uppercase tracking-wide text-zinc-500 dark:border-zinc-800">
+                  <th className="py-2 pr-3">Claim</th>
+                  <th className="py-2 pr-3">Status</th>
+                  <th className="py-2 pr-3">Description</th>
+                  <th className="py-2 pr-3">Billable</th>
+                  <th className="py-2 pr-3">Estimate</th>
+                  <th className="py-2 pr-3">Line Total</th>
+                </tr>
+              </thead>
+              <tbody>
+                {costing.expenseClaimLines.map((line, index) => (
+                  <tr key={`${line.expenseClaimId}-${index}`} className="border-b border-zinc-100 dark:border-zinc-900">
+                    <td className="py-2 pr-3">
+                      <TransactionLink referenceType="SEC" referenceId={line.expenseClaimId} monospace>
+                        {line.expenseClaimNumber}
+                      </TransactionLink>
+                    </td>
+                    <td className="py-2 pr-3">{claimStatusLabel[line.status] ?? line.status}</td>
+                    <td className="py-2 pr-3 text-zinc-500">
+                      {line.itemId ? (
+                        <ItemInlineLink itemId={line.itemId}>
+                          {(line.itemSku ?? line.itemId)}{line.itemName ? ` - ${line.itemName}` : ""}
+                        </ItemInlineLink>
+                      ) : null}
+                      <div>{line.description}</div>
+                    </td>
+                    <td className="py-2 pr-3">{line.billableToCustomer ? "Yes" : "No"}</td>
+                    <td className="py-2 pr-3">
+                      {line.convertedToServiceEstimateId ? (
+                        <TransactionLink referenceType="SE" referenceId={line.convertedToServiceEstimateId}>
+                          Linked
+                        </TransactionLink>
+                      ) : (
+                        "-"
+                      )}
+                    </td>
+                    <td className="py-2 pr-3">{money(line.lineTotal)}</td>
+                  </tr>
+                ))}
+                {costing.expenseClaimLines.length === 0 ? (
+                  <tr>
+                    <td className="py-6 text-sm text-zinc-500" colSpan={6}>
+                      No service expense claims linked to this job.
+                    </td>
+                  </tr>
+                ) : null}
+              </tbody>
+            </Table>
+          </div>
+        </div>
       </Card>
 
       <Card>

@@ -7,6 +7,7 @@ import { DocumentCollaborationPanel } from "@/components/DocumentCollaborationPa
 import { Card, SecondaryLink, Table } from "@/components/ui";
 import { TransactionLink } from "@/components/TransactionLink";
 import { ServiceExpenseClaimActions } from "../ServiceExpenseClaimActions";
+import { ServiceExpenseClaimConvertEstimateForm } from "../ServiceExpenseClaimConvertEstimateForm";
 import { ServiceExpenseClaimLineAddForm } from "../ServiceExpenseClaimLineAddForm";
 import { ServiceExpenseClaimLineRow } from "../ServiceExpenseClaimLineRow";
 
@@ -27,9 +28,11 @@ type ServiceExpenseClaimDto = {
   rejectedAt?: string | null;
   rejectionReason?: string | null;
   settlementPaymentTypeId?: string | null;
+  settlementPettyCashFundId?: string | null;
   settledAt?: string | null;
   settlementReference?: string | null;
   total: number;
+  billableUnconvertedLineCount: number;
   lines: {
     id: string;
     itemId?: string | null;
@@ -37,6 +40,9 @@ type ServiceExpenseClaimDto = {
     quantity: number;
     unitCost: number;
     billableToCustomer: boolean;
+    convertedToServiceEstimateId?: string | null;
+    convertedToServiceEstimateLineId?: string | null;
+    convertedToEstimateAt?: string | null;
     lineTotal: number;
   }[];
 };
@@ -44,6 +50,8 @@ type ServiceExpenseClaimDto = {
 type ServiceJobDto = { id: string; number: string };
 type ItemDto = { id: string; sku: string; name: string };
 type PaymentTypeDto = { id: string; code: string; name: string; isActive: boolean };
+type PettyCashFundDto = { id: string; code: string; name: string; balance: number; isActive: boolean };
+type ServiceEstimateSummaryDto = { id: string; number: string; revisionNumber: number; status: number; total: number; serviceJobId: string };
 
 const statusLabel: Record<number, string> = {
   0: "Draft",
@@ -64,22 +72,27 @@ export default async function ServiceExpenseClaimDetailPage({ params }: { params
   const token = cookieStore.get(ISS_TOKEN_COOKIE)?.value;
   const session = token ? sessionFromToken(token) : null;
   const roles = new Set(session?.roles ?? []);
+  const isFinanceOrAdmin = roles.has("Admin") || roles.has("Finance");
 
-  const [claim, jobs, items, paymentTypes] = await Promise.all([
+  const [claim, jobs, items, paymentTypes, pettyCashFunds, estimates] = await Promise.all([
     backendFetchJson<ServiceExpenseClaimDto>(`/service/expense-claims/${id}`),
     backendFetchJson<ServiceJobDto[]>("/service/jobs?take=500"),
     backendFetchJson<ItemDto[]>("/items"),
-    backendFetchJson<PaymentTypeDto[]>("/payment-types"),
+    isFinanceOrAdmin ? backendFetchJson<PaymentTypeDto[]>("/payment-types") : Promise.resolve([]),
+    isFinanceOrAdmin ? backendFetchJson<PettyCashFundDto[]>("/finance/petty-cash-funds") : Promise.resolve([]),
+    backendFetchJson<ServiceEstimateSummaryDto[]>("/service/estimates?take=500"),
   ]);
 
   const jobById = new Map(jobs.map((job) => [job.id, job]));
   const paymentTypeById = new Map(paymentTypes.map((paymentType) => [paymentType.id, paymentType]));
-  const isFinanceOrAdmin = roles.has("Admin") || roles.has("Finance");
+  const pettyCashFundById = new Map(pettyCashFunds.map((fund) => [fund.id, fund]));
   const isDraft = claim.status === 0;
   const canSubmit = claim.status === 0;
   const canApprove = claim.status === 1 && isFinanceOrAdmin;
   const canReject = claim.status === 1 && isFinanceOrAdmin;
   const canSettle = claim.status === 2 && isFinanceOrAdmin;
+  const canConvertBillable = !isDraft && claim.billableUnconvertedLineCount > 0 && (claim.status === 2 || claim.status === 4);
+  const jobEstimates = estimates.filter((estimate) => estimate.serviceJobId === claim.serviceJobId);
 
   return (
     <div className="space-y-6">
@@ -116,6 +129,14 @@ export default async function ServiceExpenseClaimDetailPage({ params }: { params
               Method: {paymentTypeById.get(claim.settlementPaymentTypeId)?.code ?? claim.settlementPaymentTypeId}
             </div>
           ) : null}
+          {claim.settlementPettyCashFundId ? (
+            <div>
+              Fund:{" "}
+              <Link className="underline" href={`/finance/petty-cash/${claim.settlementPettyCashFundId}`}>
+                {pettyCashFundById.get(claim.settlementPettyCashFundId)?.code ?? claim.settlementPettyCashFundId}
+              </Link>
+            </div>
+          ) : null}
         </div>
         {claim.settlementReference ? <div className="mt-2 text-sm text-zinc-500">Settlement ref: {claim.settlementReference}</div> : null}
       </div>
@@ -133,13 +154,21 @@ export default async function ServiceExpenseClaimDetailPage({ params }: { params
         </div>
         <ServiceExpenseClaimActions
           claimId={claim.id}
+          fundingSource={claim.fundingSource}
           paymentTypes={paymentTypes.filter((paymentType) => paymentType.isActive)}
+          pettyCashFunds={pettyCashFunds}
           canSubmit={canSubmit}
           canApprove={canApprove}
           canReject={canReject}
           canSettle={canSettle}
         />
       </Card>
+
+      {canConvertBillable ? (
+        <Card>
+          <ServiceExpenseClaimConvertEstimateForm claimId={claim.id} estimates={jobEstimates} disabled={false} />
+        </Card>
+      ) : null}
 
       {claim.notes ? (
         <Card>
@@ -173,23 +202,46 @@ export default async function ServiceExpenseClaimDetailPage({ params }: { params
                 <th className="py-2 pr-3">Qty</th>
                 <th className="py-2 pr-3">Unit Cost</th>
                 <th className="py-2 pr-3">Billable</th>
+                <th className="py-2 pr-3">Estimate</th>
                 <th className="py-2 pr-3">Line Total</th>
                 {isDraft ? <th className="py-2 pr-3">Actions</th> : null}
               </tr>
             </thead>
             <tbody>
-              {claim.lines.map((line) => (
-                <ServiceExpenseClaimLineRow
-                  key={line.id}
-                  claimId={claim.id}
-                  line={line}
-                  items={items}
-                  canEdit={isDraft}
-                />
-              ))}
+              {claim.lines.map((line) =>
+                isDraft ? (
+                  <ServiceExpenseClaimLineRow
+                    key={line.id}
+                    claimId={claim.id}
+                    line={line}
+                    items={items}
+                    canEdit={isDraft}
+                  />
+                ) : (
+                  <tr key={line.id} className="border-b border-zinc-100 align-top dark:border-zinc-900">
+                    <td className="py-2 pr-3 text-zinc-500">
+                      {line.itemId ? `${items.find((item) => item.id === line.itemId)?.sku ?? line.itemId}` : "-"}
+                    </td>
+                    <td className="py-2 pr-3 text-zinc-500">{line.description}</td>
+                    <td className="py-2 pr-3">{line.quantity}</td>
+                    <td className="py-2 pr-3">{line.unitCost.toFixed(2)}</td>
+                    <td className="py-2 pr-3">{line.billableToCustomer ? "Yes" : "No"}</td>
+                    <td className="py-2 pr-3 text-zinc-500">
+                      {line.convertedToServiceEstimateId ? (
+                        <TransactionLink referenceType="SE" referenceId={line.convertedToServiceEstimateId}>
+                          {jobEstimates.find((estimate) => estimate.id === line.convertedToServiceEstimateId)?.number ?? "Open estimate"}
+                        </TransactionLink>
+                      ) : (
+                        "-"
+                      )}
+                    </td>
+                    <td className="py-2 pr-3">{line.lineTotal.toFixed(2)}</td>
+                  </tr>
+                ),
+              )}
               {claim.lines.length === 0 ? (
                 <tr>
-                  <td className="py-6 text-sm text-zinc-500" colSpan={isDraft ? 7 : 6}>
+                  <td className="py-6 text-sm text-zinc-500" colSpan={isDraft ? 8 : 7}>
                     No lines yet.
                   </td>
                 </tr>
@@ -202,11 +254,7 @@ export default async function ServiceExpenseClaimDetailPage({ params }: { params
       {!isDraft && claim.lines.some((line) => line.billableToCustomer) ? (
         <Card>
           <div className="text-sm text-zinc-500">
-            Billable lines on this claim should normally be reflected in the active{" "}
-            <Link className="underline" href="/service/estimates">
-              service estimate
-            </Link>{" "}
-            or the next estimate revision before invoicing.
+            Billable lines on this claim should be pushed into the working estimate or estimate revision before customer approval and invoice conversion.
           </div>
         </Card>
       ) : null}
