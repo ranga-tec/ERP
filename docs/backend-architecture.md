@@ -206,8 +206,10 @@ Top-level controller areas under `backend/src/ISS.Api/Controllers`:
 
 Recent service/finance workflow surfaces:
 
-- Service jobs expose `GET /api/service/jobs/{id}/costing` for per-job margin and actual-cost rollups.
+- Service jobs expose `GET /api/service/jobs/{id}/costing` for per-job margin and actual-cost rollups, including approved labor and billable-timesheet visibility.
+- Work orders live under `/api/service/work-orders` and now support nested labor-entry/timesheet actions (`add`, `edit`, `delete`, `submit`, `approve`, `reject`).
 - Service expense claims live under `/api/service/expense-claims` and support submit, approve/reject, settle, and billable-line conversion into estimates.
+- Service handover invoice conversion accepts a labor billing source so draft invoices can use estimate labor or approved work-order time entries.
 - Petty cash funds live under `/api/finance/petty-cash-funds` and track opening balance, top-ups, adjustments, and claim-settlement outflows.
 
 Conventions commonly used:

@@ -36,7 +36,12 @@ public sealed class ServiceHandoversController(
         int? PostServiceWarrantyMonths,
         string? CustomerAcknowledgement,
         string? Notes);
-    public sealed record ConvertToSalesInvoiceRequest(Guid? ServiceEstimateId, Guid? LaborItemId, Guid? ExpenseItemId, DateTimeOffset? DueDate);
+    public sealed record ConvertToSalesInvoiceRequest(
+        Guid? ServiceEstimateId,
+        Guid? LaborItemId,
+        Guid? ExpenseItemId,
+        ServiceLaborBillingSource? LaborBillingSource,
+        DateTimeOffset? DueDate);
     public sealed record ConvertToSalesInvoiceResponse(Guid SalesInvoiceId);
 
     [HttpGet]
@@ -136,6 +141,7 @@ public sealed class ServiceHandoversController(
             request.ServiceEstimateId,
             request.LaborItemId,
             request.ExpenseItemId,
+            request.LaborBillingSource ?? ServiceLaborBillingSource.Auto,
             request.DueDate,
             cancellationToken);
 

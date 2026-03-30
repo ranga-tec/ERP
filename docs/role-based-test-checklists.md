@@ -445,6 +445,8 @@ Expected result:
 - [ ] Choose `Service` or `Repair` explicitly when creating the job.
 - [ ] Update the job through at least one status change.
 - [ ] Create a work order.
+- [ ] Add a work-order labor entry with hours and cost details.
+- [ ] Submit and approve or reject the labor entry.
 - [ ] Create a service estimate and add at least one line.
 - [ ] Confirm estimate lines can use `Part`, `Labor`, or `Expense` as needed.
 - [ ] Send or approve the estimate.
@@ -460,7 +462,7 @@ Expected result:
 - [ ] Add a line and post it.
 - [ ] Record a quality check.
 - [ ] Create a handover or open an existing handover.
-- [ ] If the handover-to-invoice path is used, confirm the conversion action works or is correctly restricted by process.
+- [ ] If the handover-to-invoice path is used, confirm the conversion action works with estimate labor or approved timesheet labor as intended.
 - [ ] Open one service job detail page and review the costing section.
 
 Expected result:

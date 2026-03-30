@@ -10,6 +10,9 @@ type WorkOrderDto = {
   description: string;
   assignedToUserId?: string | null;
   status: number;
+  timeEntryCount: number;
+  approvedHours: number;
+  approvedLaborCost: number;
 };
 
 type ServiceJobDto = { id: string; number: string };
@@ -51,6 +54,8 @@ export default async function WorkOrdersPage() {
                 <th className="py-2 pr-3">Job</th>
                 <th className="py-2 pr-3">Status</th>
                 <th className="py-2 pr-3">Description</th>
+                <th className="py-2 pr-3">Approved Hrs</th>
+                <th className="py-2 pr-3">Approved Cost</th>
               </tr>
             </thead>
             <tbody>
@@ -68,11 +73,13 @@ export default async function WorkOrdersPage() {
                   </td>
                   <td className="py-2 pr-3">{statusLabel[w.status] ?? w.status}</td>
                   <td className="py-2 pr-3 text-zinc-500">{w.description}</td>
+                  <td className="py-2 pr-3">{w.approvedHours.toFixed(2)}</td>
+                  <td className="py-2 pr-3">{w.approvedLaborCost.toFixed(2)}</td>
                 </tr>
               ))}
               {workOrders.length === 0 ? (
                 <tr>
-                  <td className="py-6 text-sm text-zinc-500" colSpan={4}>
+                  <td className="py-6 text-sm text-zinc-500" colSpan={6}>
                     No work orders yet.
                   </td>
                 </tr>

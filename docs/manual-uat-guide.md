@@ -227,26 +227,31 @@ Steps:
    - Kind: `Repair`
    - Problem Description: `Unit does not power on`
 3. Start the job.
-4. Go to `Service -> Estimates` and create an estimate for the job.
-5. Add at least:
+4. Go to `Service -> Work Orders` and create a work order for the job.
+5. Add one billable labor entry on the work order, then submit and approve it.
+6. Go to `Service -> Estimates` and create an estimate for the job.
+7. Add at least:
    - one `Part` line using `SKU1`
-   - one `Labor` line
-6. Approve the estimate.
-7. Create a service expense claim for the same job:
+8. Approve the estimate.
+9. Create a service expense claim for the same job:
    - Funding Source: `Petty Cash`
    - one billable line for an emergency outside expense
-8. Submit the claim.
-9. Approve and settle the claim against petty cash fund `WORKSHOP`.
-10. Convert the billable claim line into the working estimate.
-11. Open the service job detail page and review the costing section.
+10. Submit the claim.
+11. Approve and settle the claim against petty cash fund `WORKSHOP`.
+12. Convert the billable claim line into the working estimate.
+13. Create and complete a service handover.
+14. Convert the handover to sales invoice using the labor source that bills approved timesheets.
+15. Open the service job detail page and review the costing section.
 
 Expected:
 
 - the job can be opened as `Repair` and moved to `In Progress`
+- the work order accepts labor entries and the approved labor becomes visible on the work order and job costing views
 - the approved estimate stays preserved
 - the approved/settled billable claim can be converted into an estimate or estimate revision
 - petty cash balance is reduced by the settled claim amount
-- job costing reflects material, expense-claim, and quoted value in one view
+- the handover invoice includes both estimate parts and approved actual labor
+- job costing reflects labor, material, expense-claim, invoice, and quoted value in one view
 
 ## Verified Calculation Trail
 

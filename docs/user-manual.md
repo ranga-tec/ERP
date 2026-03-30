@@ -106,6 +106,9 @@ Note:
   - recommended operating flow is: receive equipment -> open the job immediately -> diagnose -> draft/send estimate before continuing additional billable work
 - Work orders:
   - create and track work records
+  - add labor entries/timesheets with technician, date, hours, cost rate, billing rate, and notes
+  - labor entries move through `Draft -> Submitted -> Approved/Rejected -> Invoiced`
+  - approved labor feeds job costing; approved billable labor can be billed during handover invoice conversion
 - Service estimates:
   - create -> add lines -> approve/reject/send
   - estimates now support `Part`, `Labor`, and billable `Expense` lines
@@ -124,7 +127,8 @@ Note:
   - record pass/fail and notes
 - Service handovers:
   - complete handover and optionally convert to invoice
-  - invoice conversion can now map expense estimate lines by using the line item when present or a selected fallback expense/service item
+  - invoice conversion can map expense estimate lines by using the line item when present or a selected fallback expense/service item
+  - labor billing can come from estimate labor lines or from approved work-order timesheets when actual labor should drive the invoice
 - Direct purchases linked to service jobs:
   - use when a required part is bought from a supplier and also needs to be received into stock and/or booked to supplier AP
   - the direct purchase can now be linked back to the service job for traceability
@@ -159,8 +163,8 @@ Note:
   - shows last receipt cost/date
   - shows on-hand valuation in base currency
 - Service job costing:
-  - each service job detail page now shows quoted revenue, posted invoice revenue, actual job cost, pending claim cost, and unconverted billable expense-claim totals
-  - cost sources are broken down by material requisitions, direct purchases, and service expense claims
+  - each service job detail page now shows quoted revenue, posted invoice revenue, actual job cost, approved/pending labor, pending claim cost, uninvoiced billable labor, and unconverted billable expense-claim totals
+  - cost sources are broken down by material requisitions, direct purchases, work-order labor entries, and service expense claims
   - estimate and invoice snapshots are shown together with quoted and posted gross margin visibility
 
 ## Line editing in draft documents

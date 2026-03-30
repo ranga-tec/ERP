@@ -207,7 +207,8 @@ Recent workflow-specific UI behavior:
 
 - service estimates support `Part`, `Labor`, and `Expense` line kinds plus explicit estimate revision actions
 - service expense claim detail pages let service/finance users submit, approve/reject, settle, and convert billable claim lines into the working estimate
-- service handover invoice conversion supports fallback item mapping for labor and expense estimate lines
-- service job detail pages render a costing summary with estimate, invoice, material, direct-purchase, and expense-claim breakdowns
+- service work-order detail pages support labor-entry capture plus submit/approve/reject actions
+- service handover invoice conversion supports fallback item mapping for expense lines and lets users choose estimate labor vs approved timesheet labor
+- service job detail pages render a costing summary with estimate, invoice, material, direct-purchase, labor, and expense-claim breakdowns
 - finance petty cash pages provide fund creation, editing, top-up, adjustment, and settlement-ledger visibility
 

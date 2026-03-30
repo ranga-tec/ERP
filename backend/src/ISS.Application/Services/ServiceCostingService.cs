@@ -69,6 +69,24 @@ public sealed class ServiceCostingService(IIssDbContext dbContext)
         Guid? ConvertedToServiceEstimateLineId,
         decimal LineTotal);
 
+    public sealed record LaborTimeCostLine(
+        DateTimeOffset WorkDate,
+        Guid WorkOrderId,
+        Guid TimeEntryId,
+        string TechnicianName,
+        string WorkDescription,
+        WorkOrderTimeEntryStatus Status,
+        decimal HoursWorked,
+        decimal CostRate,
+        decimal LaborCost,
+        bool BillableToCustomer,
+        decimal BillableHours,
+        decimal BillingRate,
+        decimal TaxPercent,
+        decimal BillableTotal,
+        Guid? SalesInvoiceId,
+        Guid? SalesInvoiceLineId);
+
     public sealed record ServiceJobCostingDto(
         Guid ServiceJobId,
         string JobNumber,
@@ -78,8 +96,12 @@ public sealed class ServiceCostingService(IIssDbContext dbContext)
         decimal PostedInvoiceTotal,
         decimal MaterialConsumedCost,
         decimal DirectPurchaseCost,
+        decimal ApprovedLaborCost,
+        decimal PendingLaborCost,
         decimal ApprovedExpenseClaimCost,
         decimal PendingExpenseClaimCost,
+        decimal BillableLaborRevenue,
+        decimal UninvoicedBillableLaborRevenue,
         decimal BillableExpenseClaimCost,
         decimal UnconvertedBillableExpenseClaimCost,
         decimal TotalActualCost,
@@ -89,6 +111,7 @@ public sealed class ServiceCostingService(IIssDbContext dbContext)
         IReadOnlyList<InvoiceSnapshot> Invoices,
         IReadOnlyList<MaterialCostLine> MaterialLines,
         IReadOnlyList<DirectPurchaseCostLine> DirectPurchaseLines,
+        IReadOnlyList<LaborTimeCostLine> LaborLines,
         IReadOnlyList<ExpenseClaimCostLine> ExpenseClaimLines);
 
     public async Task<ServiceJobCostingDto> GetServiceJobCostingAsync(Guid serviceJobId, CancellationToken cancellationToken = default)
@@ -197,6 +220,30 @@ public sealed class ServiceCostingService(IIssDbContext dbContext)
                 line.Quantity * line.UnitCost))
             .ToListAsync(cancellationToken);
 
+        var laborLines = await (
+            from workOrder in dbContext.WorkOrders.AsNoTracking()
+            from line in workOrder.TimeEntries
+            where workOrder.ServiceJobId == serviceJobId
+            orderby line.WorkDate descending, line.Id descending
+            select new LaborTimeCostLine(
+                line.WorkDate,
+                workOrder.Id,
+                line.Id,
+                line.TechnicianName,
+                line.WorkDescription,
+                line.Status,
+                line.HoursWorked,
+                line.CostRate,
+                line.HoursWorked * line.CostRate,
+                line.BillableToCustomer,
+                line.BillableHours,
+                line.BillingRate,
+                line.TaxPercent,
+                line.BillableHours * line.BillingRate * (1 + (line.TaxPercent / 100m)),
+                line.SalesInvoiceId,
+                line.SalesInvoiceLineId))
+            .ToListAsync(cancellationToken);
+
         var latestApprovedEstimateTotal = estimates
             .Where(x => x.Status == ServiceEstimateStatus.Approved)
             .OrderByDescending(x => x.RevisionNumber)
@@ -221,12 +268,27 @@ public sealed class ServiceCostingService(IIssDbContext dbContext)
 
         var materialConsumedCost = materialLines.Sum(x => x.LineTotal);
         var directPurchaseCost = directPurchaseLines.Sum(x => x.LineTotal);
+        var approvedLaborCost = laborLines
+            .Where(x => x.Status is WorkOrderTimeEntryStatus.Approved or WorkOrderTimeEntryStatus.Invoiced)
+            .Sum(x => x.LaborCost);
+        var pendingLaborCost = laborLines
+            .Where(x => x.Status == WorkOrderTimeEntryStatus.Submitted)
+            .Sum(x => x.LaborCost);
         var approvedExpenseClaimCost = expenseClaimLines
             .Where(x => x.Status is ServiceExpenseClaimStatus.Approved or ServiceExpenseClaimStatus.Settled)
             .Sum(x => x.LineTotal);
         var pendingExpenseClaimCost = expenseClaimLines
             .Where(x => x.Status == ServiceExpenseClaimStatus.Submitted)
             .Sum(x => x.LineTotal);
+        var billableLaborRevenue = laborLines
+            .Where(x => x.BillableToCustomer
+                        && (x.Status is WorkOrderTimeEntryStatus.Approved or WorkOrderTimeEntryStatus.Invoiced))
+            .Sum(x => x.BillableTotal);
+        var uninvoicedBillableLaborRevenue = laborLines
+            .Where(x => x.BillableToCustomer
+                        && x.Status == WorkOrderTimeEntryStatus.Approved
+                        && x.SalesInvoiceLineId is null)
+            .Sum(x => x.BillableTotal);
         var billableExpenseClaimCost = expenseClaimLines
             .Where(x => x.BillableToCustomer
                         && (x.Status is ServiceExpenseClaimStatus.Approved or ServiceExpenseClaimStatus.Settled))
@@ -237,7 +299,7 @@ public sealed class ServiceCostingService(IIssDbContext dbContext)
                         && (x.Status is ServiceExpenseClaimStatus.Approved or ServiceExpenseClaimStatus.Settled))
             .Sum(x => x.LineTotal);
 
-        var totalActualCost = materialConsumedCost + directPurchaseCost + approvedExpenseClaimCost;
+        var totalActualCost = materialConsumedCost + directPurchaseCost + approvedLaborCost + approvedExpenseClaimCost;
         var quotedRevenue = latestApprovedEstimateTotal ?? latestDraftEstimateTotal;
         decimal? quotedGrossMargin = quotedRevenue is null ? null : quotedRevenue.Value - totalActualCost;
         var postedGrossMargin = postedInvoiceTotal - totalActualCost;
@@ -251,8 +313,12 @@ public sealed class ServiceCostingService(IIssDbContext dbContext)
             postedInvoiceTotal,
             materialConsumedCost,
             directPurchaseCost,
+            approvedLaborCost,
+            pendingLaborCost,
             approvedExpenseClaimCost,
             pendingExpenseClaimCost,
+            billableLaborRevenue,
+            uninvoicedBillableLaborRevenue,
             billableExpenseClaimCost,
             unconvertedBillableExpenseClaimCost,
             totalActualCost,
@@ -262,6 +328,7 @@ public sealed class ServiceCostingService(IIssDbContext dbContext)
             invoices,
             materialLines,
             directPurchaseLines,
+            laborLines,
             expenseClaimLines);
     }
 }

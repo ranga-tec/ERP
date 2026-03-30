@@ -48,12 +48,13 @@
   - tracked serial/batch validation happens before posting, and the GRN screen includes search for both receipt-plan and draft-line tables
 - Service workflow now supports:
   - `Service` and `Repair` job types on service jobs
+  - work-order labor entries with draft, submitted, approved, rejected, and invoiced states
   - estimate revisions so approved/rejected estimates are preserved and additional findings can be resent as a new draft revision
   - direct purchases linked to service jobs for outside emergency buys
   - service expense claims for petty-cash and out-of-pocket spending, with finance approval and settlement tracking
   - billable expense-claim lines can be converted into the working estimate or an automatic estimate revision
-  - handover-to-invoice conversion now supports expense estimate lines with fallback invoice item mapping
-  - service job detail now includes actual job-cost rollup across material issues, direct purchases, expense claims, estimates, and invoices
+  - handover-to-invoice conversion now supports expense estimate lines with fallback invoice item mapping and approved timesheet-based labor billing
+  - service job detail now includes actual job-cost rollup across material issues, direct purchases, approved labor, expense claims, estimates, and invoices
 - Finance workflow now supports:
   - petty cash funds with opening balance, top-up, adjustment, and expense-settlement ledger entries
 - The authenticated sidebar now opens expanded by default and includes top-of-menu search when expanded

@@ -38,6 +38,7 @@ export function ServiceHandoverConvertInvoiceForm({
   const [serviceEstimateId, setServiceEstimateId] = useState("");
   const [laborItemId, setLaborItemId] = useState("");
   const [expenseItemId, setExpenseItemId] = useState("");
+  const [laborBillingSource, setLaborBillingSource] = useState("0");
   const [dueDate, setDueDate] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -64,6 +65,7 @@ export function ServiceHandoverConvertInvoiceForm({
         serviceEstimateId: serviceEstimateId || null,
         laborItemId: laborItemId || null,
         expenseItemId: expenseItemId || null,
+        laborBillingSource: Number(laborBillingSource),
         dueDate: dueDate ? new Date(dueDate).toISOString() : null,
       });
       router.push(`/sales/invoices/${result.salesInvoiceId}`);
@@ -86,7 +88,7 @@ export function ServiceHandoverConvertInvoiceForm({
     <div className="space-y-3 rounded-lg border border-zinc-200 p-3 dark:border-zinc-800">
       <div className="text-sm font-medium">Convert to Sales Invoice</div>
 
-      <div className="grid gap-3 sm:grid-cols-4">
+      <div className="grid gap-3 sm:grid-cols-5">
         <div>
           <label className="mb-1 block text-sm font-medium">Approved Estimate</label>
           <Select value={serviceEstimateId} onChange={(e) => setServiceEstimateId(e.target.value)} disabled={disabled || busy}>
@@ -96,6 +98,15 @@ export function ServiceHandoverConvertInvoiceForm({
                 {e.number} ({e.total.toFixed(2)})
               </option>
             ))}
+          </Select>
+        </div>
+
+        <div>
+          <label className="mb-1 block text-sm font-medium">Labor Billing Source</label>
+          <Select value={laborBillingSource} onChange={(e) => setLaborBillingSource(e.target.value)} disabled={disabled || busy}>
+            <option value="0">Auto: approved timesheets first</option>
+            <option value="1">Use estimate labor lines</option>
+            <option value="2">Use approved timesheets only</option>
           </Select>
         </div>
 
@@ -139,7 +150,7 @@ export function ServiceHandoverConvertInvoiceForm({
           {busy ? "Converting..." : "Create Sales Invoice Draft"}
         </SecondaryButton>
         <div className="text-xs text-zinc-500">
-          Labor lines need a labor item. Expense lines without an item need an expense or misc service item.
+          Labor billing can use estimate labor or approved timesheets. Expense lines without an item still need an expense or misc service item.
         </div>
       </div>
 

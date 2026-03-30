@@ -47,16 +47,33 @@ public sealed partial class DocumentPdfService
     private async Task<PdfDocument> RenderWorkOrderAsync(Guid id, CancellationToken cancellationToken)
     {
         var wo = await _dbContext.WorkOrders.AsNoTracking()
+                    .Include(x => x.TimeEntries)
                     .FirstOrDefaultAsync(x => x.Id == id, cancellationToken)
                  ?? throw new NotFoundException("Work order not found.");
 
         var job = await _dbContext.ServiceJobs.AsNoTracking().FirstOrDefaultAsync(x => x.Id == wo.ServiceJobId, cancellationToken);
+        var approvedHours = wo.TimeEntries
+            .Where(x => x.Status is WorkOrderTimeEntryStatus.Approved or WorkOrderTimeEntryStatus.Invoiced)
+            .Sum(x => x.HoursWorked);
+        var approvedLaborCost = wo.TimeEntries
+            .Where(x => x.Status is WorkOrderTimeEntryStatus.Approved or WorkOrderTimeEntryStatus.Invoiced)
+            .Sum(x => x.LaborCost);
+        var pendingLaborCost = wo.TimeEntries
+            .Where(x => x.Status == WorkOrderTimeEntryStatus.Submitted)
+            .Sum(x => x.LaborCost);
+        var billableApprovedAmount = wo.TimeEntries
+            .Where(x => x.BillableToCustomer && (x.Status is WorkOrderTimeEntryStatus.Approved or WorkOrderTimeEntryStatus.Invoiced))
+            .Sum(x => x.BillableTotal);
 
         var meta = new List<(string Label, string Value)>
         {
             ("Service job", job?.Number ?? wo.ServiceJobId.ToString()),
             ("Status", wo.Status.ToString()),
-            ("Assigned to", wo.AssignedToUserId?.ToString() ?? "")
+            ("Assigned to", wo.AssignedToUserId?.ToString() ?? ""),
+            ("Approved hours", FormatQty(approvedHours)),
+            ("Approved labor cost", FormatMoney(approvedLaborCost)),
+            ("Pending labor cost", FormatMoney(pendingLaborCost)),
+            ("Approved billable labor", FormatMoney(billableApprovedAmount))
         };
 
         var shortRef = $"WO-{wo.Id:N}"[..Math.Min(11, $"WO-{wo.Id:N}".Length)];
@@ -68,6 +85,48 @@ public sealed partial class DocumentPdfService
             {
                 column.Item().Text("Description").SemiBold();
                 column.Item().Text(wo.Description);
+
+                column.Item().PaddingTop(8).Text("Labor entries").SemiBold();
+                column.Item().Table(table =>
+                {
+                    table.ColumnsDefinition(cols =>
+                    {
+                        cols.RelativeColumn(2);
+                        cols.RelativeColumn(2);
+                        cols.RelativeColumn(4);
+                        cols.RelativeColumn(1.5f);
+                        cols.RelativeColumn(1.7f);
+                        cols.RelativeColumn(1.7f);
+                        cols.RelativeColumn(2);
+                    });
+
+                    table.Header(h =>
+                    {
+                        h.Cell().Element(CellHeader).Text("Date");
+                        h.Cell().Element(CellHeader).Text("Technician");
+                        h.Cell().Element(CellHeader).Text("Work");
+                        h.Cell().Element(CellHeader).AlignRight().Text("Hours");
+                        h.Cell().Element(CellHeader).AlignRight().Text("Cost");
+                        h.Cell().Element(CellHeader).AlignRight().Text("Billable");
+                        h.Cell().Element(CellHeader).Text("Status");
+                    });
+
+                    foreach (var line in wo.TimeEntries.OrderByDescending(x => x.WorkDate).ThenByDescending(x => x.Id))
+                    {
+                        table.Cell().Element(CellBody).Text(line.WorkDate.ToString("yyyy-MM-dd"));
+                        table.Cell().Element(CellBody).Text(line.TechnicianName);
+                        table.Cell().Element(CellBody).Text(line.WorkDescription);
+                        table.Cell().Element(CellBody).AlignRight().Text(FormatQty(line.HoursWorked));
+                        table.Cell().Element(CellBody).AlignRight().Text(FormatMoney(line.LaborCost));
+                        table.Cell().Element(CellBody).AlignRight().Text(line.BillableToCustomer ? FormatMoney(line.BillableTotal) : "-");
+                        table.Cell().Element(CellBody).Text(line.Status.ToString());
+                    }
+
+                    if (wo.TimeEntries.Count == 0)
+                    {
+                        table.Cell().ColumnSpan(7).Element(CellBody).Text("No labor entries recorded.");
+                    }
+                });
             },
             fileName: $"WO-{wo.Id:N}.pdf",
             qrPayload: $"ISS:WO:{wo.Id}",

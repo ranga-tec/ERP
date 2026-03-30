@@ -31,5 +31,50 @@ public sealed class ServiceTests
         mr.Post();
         Assert.Equal(MaterialRequisitionStatus.Posted, mr.Status);
     }
-}
 
+    [Fact]
+    public void WorkOrder_TimeEntry_Approval_And_Invoicing_Follow_State_Rules()
+    {
+        var workOrder = new WorkOrder(Guid.NewGuid(), "Inspect compressor", assignedToUserId: null);
+        var entry = workOrder.AddTimeEntry(
+            technicianUserId: null,
+            technicianName: "Tech A",
+            workDate: new DateTimeOffset(2026, 3, 30, 8, 0, 0, TimeSpan.Zero),
+            workDescription: "Diagnosis and pressure test",
+            hoursWorked: 2m,
+            costRate: 15m,
+            billableToCustomer: true,
+            billableHours: 1.5m,
+            billingRate: 30m,
+            taxPercent: 10m,
+            notes: "Initial bench test");
+
+        Assert.Equal(30m, entry.LaborCost);
+        Assert.Equal(49.5m, entry.BillableTotal);
+
+        entry.Submit(DateTimeOffset.UtcNow);
+        entry.Approve(DateTimeOffset.UtcNow);
+
+        Assert.Throws<DomainValidationException>(() => entry.Update(
+            technicianUserId: null,
+            technicianName: "Tech A",
+            workDate: entry.WorkDate,
+            workDescription: entry.WorkDescription,
+            hoursWorked: entry.HoursWorked,
+            costRate: entry.CostRate,
+            billableToCustomer: entry.BillableToCustomer,
+            billableHours: entry.BillableHours,
+            billingRate: entry.BillingRate,
+            taxPercent: entry.TaxPercent,
+            notes: entry.Notes));
+
+        var invoiceId = Guid.NewGuid();
+        var invoiceLineId = Guid.NewGuid();
+        entry.MarkInvoiced(invoiceId, invoiceLineId, DateTimeOffset.UtcNow);
+
+        Assert.Equal(WorkOrderTimeEntryStatus.Invoiced, entry.Status);
+        Assert.Equal(invoiceId, entry.SalesInvoiceId);
+        Assert.Equal(invoiceLineId, entry.SalesInvoiceLineId);
+        Assert.Throws<DomainValidationException>(() => entry.MarkInvoiced(Guid.NewGuid(), Guid.NewGuid(), DateTimeOffset.UtcNow));
+    }
+}

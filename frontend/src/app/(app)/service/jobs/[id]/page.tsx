@@ -29,8 +29,12 @@ type ServiceJobCostingDto = {
   postedInvoiceTotal: number;
   materialConsumedCost: number;
   directPurchaseCost: number;
+  approvedLaborCost: number;
+  pendingLaborCost: number;
   approvedExpenseClaimCost: number;
   pendingExpenseClaimCost: number;
+  billableLaborRevenue: number;
+  uninvoicedBillableLaborRevenue: number;
   billableExpenseClaimCost: number;
   unconvertedBillableExpenseClaimCost: number;
   totalActualCost: number;
@@ -59,6 +63,24 @@ type ServiceJobCostingDto = {
     unitPrice: number;
     taxPercent: number;
     lineTotal: number;
+  }[];
+  laborLines: {
+    workDate: string;
+    workOrderId: string;
+    timeEntryId: string;
+    technicianName: string;
+    workDescription: string;
+    status: number;
+    hoursWorked: number;
+    costRate: number;
+    laborCost: number;
+    billableToCustomer: boolean;
+    billableHours: number;
+    billingRate: number;
+    taxPercent: number;
+    billableTotal: number;
+    salesInvoiceId?: string | null;
+    salesInvoiceLineId?: string | null;
   }[];
   expenseClaimLines: {
     expenseClaimId: string;
@@ -108,6 +130,14 @@ const claimStatusLabel: Record<number, string> = {
   2: "Approved",
   3: "Rejected",
   4: "Settled",
+};
+
+const laborStatusLabel: Record<number, string> = {
+  0: "Draft",
+  1: "Submitted",
+  2: "Approved",
+  3: "Rejected",
+  4: "Invoiced",
 };
 
 function money(value?: number | null) {
@@ -179,7 +209,7 @@ export default async function ServiceJobDetailPage({ params }: { params: Promise
         <Card>
           <div className="text-xs uppercase tracking-wide text-zinc-500">Actual Cost</div>
           <div className="mt-2 text-2xl font-semibold">{money(costing.totalActualCost)}</div>
-          <div className="mt-1 text-xs text-zinc-500">Materials + direct purchase + approved claims</div>
+          <div className="mt-1 text-xs text-zinc-500">Materials + direct purchase + approved labor + approved claims</div>
         </Card>
         <Card>
           <div className="text-xs uppercase tracking-wide text-zinc-500">Quoted Revenue</div>
@@ -194,9 +224,9 @@ export default async function ServiceJobDetailPage({ params }: { params: Promise
           <div className="mt-1 text-xs text-zinc-500">Draft invoices: {money(costing.draftInvoiceTotal)}</div>
         </Card>
         <Card>
-          <div className="text-xs uppercase tracking-wide text-zinc-500">Unconverted Billable Expense</div>
-          <div className="mt-2 text-2xl font-semibold">{money(costing.unconvertedBillableExpenseClaimCost)}</div>
-          <div className="mt-1 text-xs text-zinc-500">Claim lines still not pushed into estimate</div>
+          <div className="text-xs uppercase tracking-wide text-zinc-500">Uninvoiced Billable Labor</div>
+          <div className="mt-2 text-2xl font-semibold">{money(costing.uninvoicedBillableLaborRevenue)}</div>
+          <div className="mt-1 text-xs text-zinc-500">Approved timesheets ready for customer billing</div>
         </Card>
       </div>
 
@@ -207,6 +237,8 @@ export default async function ServiceJobDetailPage({ params }: { params: Promise
             <div className="font-medium">Cost Breakdown</div>
             <div className="mt-2 text-zinc-500">Material consumption: {money(costing.materialConsumedCost)}</div>
             <div className="text-zinc-500">Direct purchases: {money(costing.directPurchaseCost)}</div>
+            <div className="text-zinc-500">Approved labor: {money(costing.approvedLaborCost)}</div>
+            <div className="text-zinc-500">Pending labor: {money(costing.pendingLaborCost)}</div>
             <div className="text-zinc-500">Approved expense claims: {money(costing.approvedExpenseClaimCost)}</div>
             <div className="text-zinc-500">Pending expense claims: {money(costing.pendingExpenseClaimCost)}</div>
           </div>
@@ -214,7 +246,10 @@ export default async function ServiceJobDetailPage({ params }: { params: Promise
             <div className="font-medium">Margin View</div>
             <div className="mt-2 text-zinc-500">Quoted gross margin: {money(costing.quotedGrossMargin)}</div>
             <div className="text-zinc-500">Posted gross margin: {money(costing.postedGrossMargin)}</div>
+            <div className="text-zinc-500">Billable labor revenue: {money(costing.billableLaborRevenue)}</div>
+            <div className="text-zinc-500">Uninvoiced billable labor: {money(costing.uninvoicedBillableLaborRevenue)}</div>
             <div className="text-zinc-500">Billable claim cost: {money(costing.billableExpenseClaimCost)}</div>
+            <div className="text-zinc-500">Unconverted billable claims: {money(costing.unconvertedBillableExpenseClaimCost)}</div>
           </div>
           <div className="rounded-xl border border-[var(--card-border)] p-3">
             <div className="font-medium">Estimate / Invoice Trail</div>
@@ -371,6 +406,61 @@ export default async function ServiceJobDetailPage({ params }: { params: Promise
                   <tr>
                     <td className="py-6 text-sm text-zinc-500" colSpan={5}>
                       No posted direct purchases linked to this job.
+                    </td>
+                  </tr>
+                ) : null}
+              </tbody>
+            </Table>
+          </div>
+
+          <div className="overflow-auto">
+            <div className="mb-2 text-sm font-medium">Work-Order Labor Entries</div>
+            <Table>
+              <thead>
+                <tr className="border-b border-zinc-200 text-left text-xs uppercase tracking-wide text-zinc-500 dark:border-zinc-800">
+                  <th className="py-2 pr-3">Date</th>
+                  <th className="py-2 pr-3">Work Order</th>
+                  <th className="py-2 pr-3">Technician</th>
+                  <th className="py-2 pr-3">Work</th>
+                  <th className="py-2 pr-3">Status</th>
+                  <th className="py-2 pr-3">Hours</th>
+                  <th className="py-2 pr-3">Labor Cost</th>
+                  <th className="py-2 pr-3">Billable</th>
+                  <th className="py-2 pr-3">Invoice</th>
+                </tr>
+              </thead>
+              <tbody>
+                {costing.laborLines.map((line) => (
+                  <tr key={line.timeEntryId} className="border-b border-zinc-100 dark:border-zinc-900">
+                    <td className="py-2 pr-3">{new Date(line.workDate).toLocaleDateString()}</td>
+                    <td className="py-2 pr-3">
+                      <TransactionLink referenceType="WO" referenceId={line.workOrderId} monospace>
+                        {line.workOrderId.slice(0, 8)}
+                      </TransactionLink>
+                    </td>
+                    <td className="py-2 pr-3">{line.technicianName}</td>
+                    <td className="py-2 pr-3 text-zinc-500">{line.workDescription}</td>
+                    <td className="py-2 pr-3">{laborStatusLabel[line.status] ?? line.status}</td>
+                    <td className="py-2 pr-3">{line.hoursWorked.toFixed(2)}</td>
+                    <td className="py-2 pr-3">{money(line.laborCost)}</td>
+                    <td className="py-2 pr-3">
+                      {line.billableToCustomer ? `${line.billableHours.toFixed(2)} hrs / ${money(line.billableTotal)}` : "No"}
+                    </td>
+                    <td className="py-2 pr-3">
+                      {line.salesInvoiceId ? (
+                        <TransactionLink referenceType="INV" referenceId={line.salesInvoiceId} monospace>
+                          {line.salesInvoiceId.slice(0, 8)}
+                        </TransactionLink>
+                      ) : (
+                        "-"
+                      )}
+                    </td>
+                  </tr>
+                ))}
+                {costing.laborLines.length === 0 ? (
+                  <tr>
+                    <td className="py-6 text-sm text-zinc-500" colSpan={9}>
+                      No work-order labor entries linked to this job yet.
                     </td>
                   </tr>
                 ) : null}

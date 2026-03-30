@@ -1,8 +1,10 @@
 import Link from "next/link";
 import { backendFetchJson } from "@/lib/backend.server";
-import { Card, SecondaryLink } from "@/components/ui";
+import { Card, SecondaryLink, Table } from "@/components/ui";
 import { DocumentCollaborationPanel } from "@/components/DocumentCollaborationPanel";
 import { TransactionLink } from "@/components/TransactionLink";
+import { WorkOrderTimeEntryAddForm } from "../WorkOrderTimeEntryAddForm";
+import { WorkOrderTimeEntryRow } from "../WorkOrderTimeEntryRow";
 
 type WorkOrderDto = {
   id: string;
@@ -10,6 +12,28 @@ type WorkOrderDto = {
   description: string;
   assignedToUserId?: string | null;
   status: number;
+  approvedHours: number;
+  approvedLaborCost: number;
+  pendingLaborCost: number;
+  billableApprovedAmount: number;
+  timeEntries: {
+    id: string;
+    technicianName: string;
+    workDate: string;
+    workDescription: string;
+    hoursWorked: number;
+    costRate: number;
+    laborCost: number;
+    billableToCustomer: boolean;
+    billableHours: number;
+    billingRate: number;
+    taxPercent: number;
+    billableTotal: number;
+    notes?: string | null;
+    status: number;
+    rejectionReason?: string | null;
+    salesInvoiceId?: string | null;
+  }[];
 };
 
 type ServiceJobDto = { id: string; number: string };
@@ -30,6 +54,7 @@ export default async function WorkOrderDetailPage({ params }: { params: Promise<
   ]);
 
   const jobById = new Map(jobs.map((j) => [j.id, j]));
+  const canAddLabor = wo.status !== 3;
 
   return (
     <div className="space-y-6">
@@ -52,6 +77,29 @@ export default async function WorkOrderDetailPage({ params }: { params: Promise<
         </div>
       </div>
 
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <Card>
+          <div className="text-xs uppercase tracking-wide text-zinc-500">Approved Hours</div>
+          <div className="mt-2 text-2xl font-semibold">{wo.approvedHours.toFixed(2)}</div>
+          <div className="mt-1 text-xs text-zinc-500">Approved or invoiced labor only</div>
+        </Card>
+        <Card>
+          <div className="text-xs uppercase tracking-wide text-zinc-500">Approved Labor Cost</div>
+          <div className="mt-2 text-2xl font-semibold">{wo.approvedLaborCost.toFixed(2)}</div>
+          <div className="mt-1 text-xs text-zinc-500">Actual labor cost posted into the job</div>
+        </Card>
+        <Card>
+          <div className="text-xs uppercase tracking-wide text-zinc-500">Pending Approval Cost</div>
+          <div className="mt-2 text-2xl font-semibold">{wo.pendingLaborCost.toFixed(2)}</div>
+          <div className="mt-1 text-xs text-zinc-500">Submitted labor awaiting approval</div>
+        </Card>
+        <Card>
+          <div className="text-xs uppercase tracking-wide text-zinc-500">Approved Billable Labor</div>
+          <div className="mt-2 text-2xl font-semibold">{wo.billableApprovedAmount.toFixed(2)}</div>
+          <div className="mt-1 text-xs text-zinc-500">Used by handover invoice conversion when billing actual labor</div>
+        </Card>
+      </div>
+
       <Card>
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="text-sm font-semibold">Actions</div>
@@ -68,6 +116,46 @@ export default async function WorkOrderDetailPage({ params }: { params: Promise<
       <Card>
         <div className="mb-2 text-sm font-semibold">Description</div>
         <div className="whitespace-pre-wrap text-sm text-zinc-700 dark:text-zinc-200">{wo.description}</div>
+      </Card>
+
+      <Card>
+        <div className="mb-3 text-sm font-semibold">Add Labor Entry</div>
+        <WorkOrderTimeEntryAddForm workOrderId={wo.id} disabled={!canAddLabor} />
+      </Card>
+
+      <Card>
+        <div className="mb-3 text-sm font-semibold">Labor Entries</div>
+        <div className="overflow-auto">
+          <Table>
+            <thead>
+              <tr className="border-b border-zinc-200 text-left text-xs uppercase tracking-wide text-zinc-500 dark:border-zinc-800">
+                <th className="py-2 pr-3">Date</th>
+                <th className="py-2 pr-3">Technician</th>
+                <th className="py-2 pr-3">Work</th>
+                <th className="py-2 pr-3">Hours</th>
+                <th className="py-2 pr-3">Cost Rate</th>
+                <th className="py-2 pr-3">Labor Cost</th>
+                <th className="py-2 pr-3">Billable</th>
+                <th className="py-2 pr-3">Billable Total</th>
+                <th className="py-2 pr-3">Status</th>
+                <th className="py-2 pr-3">Invoice</th>
+                <th className="py-2 pr-3">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {wo.timeEntries.map((entry) => (
+                <WorkOrderTimeEntryRow key={entry.id} workOrderId={wo.id} entry={entry} />
+              ))}
+              {wo.timeEntries.length === 0 ? (
+                <tr>
+                  <td className="py-6 text-sm text-zinc-500" colSpan={11}>
+                    No labor entries yet.
+                  </td>
+                </tr>
+              ) : null}
+            </tbody>
+          </Table>
+        </div>
       </Card>
 
       <DocumentCollaborationPanel referenceType="WO" referenceId={id} />

@@ -17,7 +17,7 @@ Use this hub first, then jump into the specialized docs linked below.
 - Reporting now includes costing in addition to dashboard, stock-ledger, aging, tax summary, and service KPIs.
 - Inventory currently supports warehouse/batch on-hand breakdown, stock-adjustment physical counts, stock-transfer move quantities, and signed stock-ledger history with batch/serial detail.
 - Procurement GRNs now support PO-linked partial receipt planning, duplicate-item PO line handling, early serial/batch validation, and searchable `Receive From PO` / `Current Draft Lines` tables.
-- Service now supports `Service` and `Repair` job kinds, estimate revisions, service-linked direct purchases, service expense claims, billable claim-to-estimate conversion, and per-job costing rollups.
+- Service now supports `Service` and `Repair` job kinds, work-order labor entries/timesheets, estimate revisions, service-linked direct purchases, service expense claims, billable claim-to-estimate conversion, labor-to-invoice conversion, and per-job costing rollups.
 - Finance now includes petty cash funds with opening balance, top-up, adjustment, and service expense-claim settlement flows.
 - The authenticated shell sidebar now defaults to expanded navigation and exposes menu search at the top of the expanded panel.
 

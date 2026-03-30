@@ -584,6 +584,7 @@ public sealed class ServiceManagementService(
         Guid? serviceEstimateId,
         Guid? laborItemId,
         Guid? expenseItemId,
+        ServiceLaborBillingSource laborBillingSource,
         DateTimeOffset? dueDate,
         CancellationToken cancellationToken = default)
     {
@@ -623,10 +624,35 @@ public sealed class ServiceManagementService(
             throw new DomainValidationException("Approved estimate has no lines.");
         }
 
-        var hasLabor = estimate.Lines.Any(x => x.Kind == ServiceEstimateLineKind.Labor);
-        if (hasLabor && laborItemId is null)
+        var approvedBillableTimeEntries = await dbContext.WorkOrderTimeEntries
+            .Where(x => x.ServiceJobId == job.Id
+                        && x.Status == WorkOrderTimeEntryStatus.Approved
+                        && x.BillableToCustomer
+                        && x.SalesInvoiceLineId == null)
+            .OrderBy(x => x.WorkDate)
+            .ThenBy(x => x.Id)
+            .ToListAsync(cancellationToken);
+
+        var useApprovedTimeEntriesForLabor = laborBillingSource switch
         {
-            throw new DomainValidationException("Labor item is required to convert labor estimate lines into sales invoice lines.");
+            ServiceLaborBillingSource.ApprovedTimeEntries => true,
+            ServiceLaborBillingSource.Estimate => false,
+            _ => approvedBillableTimeEntries.Count > 0
+        };
+
+        if (laborBillingSource == ServiceLaborBillingSource.ApprovedTimeEntries
+            && approvedBillableTimeEntries.Count == 0)
+        {
+            throw new DomainValidationException("No approved uninvoiced labor entries are available for billing.");
+        }
+
+        var hasEstimateLabor = estimate.Lines.Any(x => x.Kind == ServiceEstimateLineKind.Labor);
+        if ((hasEstimateLabor || useApprovedTimeEntriesForLabor) && laborItemId is null)
+        {
+            throw new DomainValidationException(
+                useApprovedTimeEntriesForLabor
+                    ? "Labor item is required to convert approved labor timesheets into sales invoice lines."
+                    : "Labor item is required to convert labor estimate lines into sales invoice lines.");
         }
 
         var hasExpenseWithoutItem = estimate.Lines.Any(x => x.Kind == ServiceEstimateLineKind.Expense && x.ItemId is null);
@@ -659,6 +685,11 @@ public sealed class ServiceManagementService(
 
         foreach (var line in estimate.Lines)
         {
+            if (line.Kind == ServiceEstimateLineKind.Labor && useApprovedTimeEntriesForLabor)
+            {
+                continue;
+            }
+
             var invoiceItemId = line.Kind switch
             {
                 ServiceEstimateLineKind.Part => line.ItemId ?? throw new DomainValidationException("Part estimate line is missing item."),
@@ -674,6 +705,21 @@ public sealed class ServiceManagementService(
                 discountPercent: 0m,
                 taxPercent: line.TaxPercent);
             dbContext.DbContext.Add(invoiceLine);
+        }
+
+        if (useApprovedTimeEntriesForLabor)
+        {
+            foreach (var timeEntry in approvedBillableTimeEntries)
+            {
+                var invoiceLine = invoice.AddLine(
+                    laborItemId!.Value,
+                    timeEntry.BillableHours,
+                    timeEntry.BillingRate,
+                    discountPercent: 0m,
+                    taxPercent: timeEntry.TaxPercent);
+                dbContext.DbContext.Add(invoiceLine);
+                timeEntry.MarkInvoiced(invoice.Id, invoiceLine.Id, clock.UtcNow);
+            }
         }
 
         handover.LinkSalesInvoice(invoice.Id, clock.UtcNow);
@@ -781,10 +827,145 @@ public sealed class ServiceManagementService(
 
     public async Task<Guid> CreateWorkOrderAsync(Guid serviceJobId, string description, Guid? assignedToUserId, CancellationToken cancellationToken = default)
     {
+        var jobExists = await dbContext.ServiceJobs.AsNoTracking().AnyAsync(x => x.Id == serviceJobId, cancellationToken);
+        if (!jobExists)
+        {
+            throw new NotFoundException("Service job not found.");
+        }
+
         var workOrder = new WorkOrder(serviceJobId, description, assignedToUserId);
         await dbContext.WorkOrders.AddAsync(workOrder, cancellationToken);
         await dbContext.SaveChangesAsync(cancellationToken);
         return workOrder.Id;
+    }
+
+    public async Task AddWorkOrderTimeEntryAsync(
+        Guid workOrderId,
+        Guid? technicianUserId,
+        string technicianName,
+        DateTimeOffset? workDate,
+        string workDescription,
+        decimal hoursWorked,
+        decimal costRate,
+        bool billableToCustomer,
+        decimal? billableHours,
+        decimal? billingRate,
+        decimal? taxPercent,
+        string? notes,
+        CancellationToken cancellationToken = default)
+    {
+        var workOrder = await dbContext.WorkOrders
+            .Include(x => x.TimeEntries)
+            .FirstOrDefaultAsync(x => x.Id == workOrderId, cancellationToken)
+            ?? throw new NotFoundException("Work order not found.");
+
+        var entry = workOrder.AddTimeEntry(
+            technicianUserId,
+            technicianName,
+            workDate ?? clock.UtcNow,
+            workDescription,
+            hoursWorked,
+            costRate,
+            billableToCustomer,
+            billableToCustomer ? billableHours ?? hoursWorked : 0m,
+            billableToCustomer ? billingRate ?? 0m : 0m,
+            billableToCustomer ? taxPercent ?? 0m : 0m,
+            notes);
+
+        dbContext.DbContext.Add(entry);
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task UpdateWorkOrderTimeEntryAsync(
+        Guid workOrderId,
+        Guid timeEntryId,
+        Guid? technicianUserId,
+        string technicianName,
+        DateTimeOffset? workDate,
+        string workDescription,
+        decimal hoursWorked,
+        decimal costRate,
+        bool billableToCustomer,
+        decimal? billableHours,
+        decimal? billingRate,
+        decimal? taxPercent,
+        string? notes,
+        CancellationToken cancellationToken = default)
+    {
+        var workOrder = await dbContext.WorkOrders
+            .Include(x => x.TimeEntries)
+            .FirstOrDefaultAsync(x => x.Id == workOrderId, cancellationToken)
+            ?? throw new NotFoundException("Work order not found.");
+
+        if (!workOrder.TimeEntries.Any(x => x.Id == timeEntryId))
+        {
+            throw new NotFoundException("Work-order labor entry not found.");
+        }
+
+        workOrder.UpdateTimeEntry(
+            timeEntryId,
+            technicianUserId,
+            technicianName,
+            workDate ?? clock.UtcNow,
+            workDescription,
+            hoursWorked,
+            costRate,
+            billableToCustomer,
+            billableToCustomer ? billableHours ?? hoursWorked : 0m,
+            billableToCustomer ? billingRate ?? 0m : 0m,
+            billableToCustomer ? taxPercent ?? 0m : 0m,
+            notes);
+
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task RemoveWorkOrderTimeEntryAsync(Guid workOrderId, Guid timeEntryId, CancellationToken cancellationToken = default)
+    {
+        var workOrder = await dbContext.WorkOrders
+            .Include(x => x.TimeEntries)
+            .FirstOrDefaultAsync(x => x.Id == workOrderId, cancellationToken)
+            ?? throw new NotFoundException("Work order not found.");
+
+        var timeEntry = workOrder.TimeEntries.FirstOrDefault(x => x.Id == timeEntryId)
+            ?? throw new NotFoundException("Work-order labor entry not found.");
+
+        workOrder.RemoveTimeEntry(timeEntryId);
+        dbContext.DbContext.Remove(timeEntry);
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task SubmitWorkOrderTimeEntryAsync(Guid workOrderId, Guid timeEntryId, CancellationToken cancellationToken = default)
+    {
+        var timeEntry = await dbContext.WorkOrderTimeEntries
+            .FirstOrDefaultAsync(x => x.WorkOrderId == workOrderId && x.Id == timeEntryId, cancellationToken)
+            ?? throw new NotFoundException("Work-order labor entry not found.");
+
+        timeEntry.Submit(clock.UtcNow);
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task ApproveWorkOrderTimeEntryAsync(Guid workOrderId, Guid timeEntryId, CancellationToken cancellationToken = default)
+    {
+        var timeEntry = await dbContext.WorkOrderTimeEntries
+            .FirstOrDefaultAsync(x => x.WorkOrderId == workOrderId && x.Id == timeEntryId, cancellationToken)
+            ?? throw new NotFoundException("Work-order labor entry not found.");
+
+        timeEntry.Approve(clock.UtcNow);
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task RejectWorkOrderTimeEntryAsync(
+        Guid workOrderId,
+        Guid timeEntryId,
+        string? rejectionReason,
+        CancellationToken cancellationToken = default)
+    {
+        var timeEntry = await dbContext.WorkOrderTimeEntries
+            .FirstOrDefaultAsync(x => x.WorkOrderId == workOrderId && x.Id == timeEntryId, cancellationToken)
+            ?? throw new NotFoundException("Work-order labor entry not found.");
+
+        timeEntry.Reject(clock.UtcNow, rejectionReason);
+        await dbContext.SaveChangesAsync(cancellationToken);
     }
 
     public async Task<Guid> CreateMaterialRequisitionAsync(Guid serviceJobId, Guid warehouseId, CancellationToken cancellationToken = default)
