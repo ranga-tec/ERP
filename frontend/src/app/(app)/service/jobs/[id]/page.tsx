@@ -87,6 +87,7 @@ type ServiceJobCostingDto = {
     billingRate: number;
     taxPercent: number;
     billableTotal: number;
+    effectiveBillableTotal: number;
     salesInvoiceId?: string | null;
     salesInvoiceLineId?: string | null;
   }[];
@@ -316,7 +317,7 @@ export default async function ServiceJobDetailPage({ params }: { params: Promise
         <Card>
           <div className="text-xs uppercase tracking-wide text-zinc-500">Uninvoiced Billable Labor</div>
           <div className="mt-2 text-2xl font-semibold">{money(costing.uninvoicedBillableLaborRevenue)}</div>
-          <div className="mt-1 text-xs text-zinc-500">Approved timesheets ready for customer billing</div>
+          <div className="mt-1 text-xs text-zinc-500">Approved timesheets ready for customer billing after entitlement coverage</div>
         </Card>
       </div>
 
@@ -534,7 +535,10 @@ export default async function ServiceJobDetailPage({ params }: { params: Promise
                     <td className="py-2 pr-3">{line.hoursWorked.toFixed(2)}</td>
                     <td className="py-2 pr-3">{money(line.laborCost)}</td>
                     <td className="py-2 pr-3">
-                      {line.billableToCustomer ? `${line.billableHours.toFixed(2)} hrs / ${money(line.billableTotal)}` : "No"}
+                      {line.billableToCustomer ? `${line.billableHours.toFixed(2)} hrs / ${money(line.effectiveBillableTotal)}` : "No"}
+                      {line.billableToCustomer && line.effectiveBillableTotal !== line.billableTotal ? (
+                        <div className="text-xs text-zinc-500">Covered from {money(line.billableTotal)}</div>
+                      ) : null}
                     </td>
                     <td className="py-2 pr-3">
                       {line.salesInvoiceId ? (

@@ -3,6 +3,7 @@ using ISS.Application.Common;
 using ISS.Application.Persistence;
 using ISS.Domain.Common;
 using ISS.Domain.Finance;
+using ISS.Domain.MasterData;
 using ISS.Domain.Sales;
 using ISS.Domain.Service;
 using Microsoft.EntityFrameworkCore;
@@ -317,7 +318,8 @@ public sealed class ServiceManagementService(
             }
         }
 
-        var line = estimate.AddLine(kind, itemId, description, quantity, unitPrice, taxPercent);
+        var pricedUnitPrice = await ApplyEstimateUnitPriceAsync(estimate.ServiceJobId, kind, unitPrice, cancellationToken);
+        var line = estimate.AddLine(kind, itemId, description, quantity, pricedUnitPrice, taxPercent);
         dbContext.DbContext.Add(line);
         await dbContext.SaveChangesAsync(cancellationToken);
     }
@@ -351,7 +353,8 @@ public sealed class ServiceManagementService(
             throw new NotFoundException("Service estimate line not found.");
         }
 
-        estimate.UpdateLine(lineId, kind, itemId, description, quantity, unitPrice, taxPercent);
+        var pricedUnitPrice = await ApplyEstimateUnitPriceAsync(estimate.ServiceJobId, kind, unitPrice, cancellationToken);
+        estimate.UpdateLine(lineId, kind, itemId, description, quantity, pricedUnitPrice, taxPercent);
         await dbContext.SaveChangesAsync(cancellationToken);
     }
 
@@ -375,20 +378,20 @@ public sealed class ServiceManagementService(
             .FirstOrDefaultAsync(x => x.Id == serviceEstimateId, cancellationToken)
             ?? throw new NotFoundException("Service estimate not found.");
 
-        estimate.Approve();
+        estimate.Approve(clock.UtcNow);
         await dbContext.SaveChangesAsync(cancellationToken);
     }
 
     public async Task SendServiceEstimateToCustomerAsync(Guid serviceEstimateId, string? appBaseUrl = null, CancellationToken cancellationToken = default)
     {
-        var estimate = await dbContext.ServiceEstimates.AsNoTracking()
+        var estimate = await dbContext.ServiceEstimates
             .Include(x => x.Lines)
             .FirstOrDefaultAsync(x => x.Id == serviceEstimateId, cancellationToken)
             ?? throw new NotFoundException("Service estimate not found.");
 
-        if (estimate.Status == ServiceEstimateStatus.Rejected)
+        if (estimate.Status != ServiceEstimateStatus.Draft)
         {
-            throw new DomainValidationException("Rejected estimates cannot be sent to customer.");
+            throw new DomainValidationException("Only draft estimates can be sent to customer.");
         }
 
         if (estimate.Lines.Count == 0)
@@ -435,6 +438,7 @@ public sealed class ServiceManagementService(
                 referenceId: estimate.Id);
         }
 
+        estimate.MarkSentToCustomer(clock.UtcNow);
         await dbContext.SaveChangesAsync(cancellationToken);
     }
 
@@ -443,7 +447,7 @@ public sealed class ServiceManagementService(
         var estimate = await dbContext.ServiceEstimates.FirstOrDefaultAsync(x => x.Id == serviceEstimateId, cancellationToken)
             ?? throw new NotFoundException("Service estimate not found.");
 
-        estimate.Reject();
+        estimate.Reject(clock.UtcNow);
         await dbContext.SaveChangesAsync(cancellationToken);
     }
 
@@ -637,14 +641,30 @@ public sealed class ServiceManagementService(
             terms,
             cancellationToken);
 
+        var claimItemIds = linesToConvert
+            .Where(x => x.ItemId.HasValue)
+            .Select(x => x.ItemId!.Value)
+            .Distinct()
+            .ToList();
+
+        var itemTypeById = claimItemIds.Count > 0
+            ? await dbContext.Items.AsNoTracking()
+                .Where(x => claimItemIds.Contains(x.Id))
+                .ToDictionaryAsync(x => x.Id, x => x.Type, cancellationToken)
+            : new Dictionary<Guid, ItemType>();
+
         foreach (var line in linesToConvert)
         {
+            var lineKind = line.ItemId is { } itemId && itemTypeById.TryGetValue(itemId, out var itemType) && itemType == ItemType.SparePart
+                ? ServiceEstimateLineKind.Part
+                : ServiceEstimateLineKind.Expense;
+            var pricedUnitPrice = await ApplyEstimateUnitPriceAsync(claim.ServiceJobId, lineKind, line.UnitCost, cancellationToken);
             var estimateLine = estimate.AddLine(
-                ServiceEstimateLineKind.Expense,
+                lineKind,
                 line.ItemId,
                 line.Description,
                 line.Quantity,
-                line.UnitCost,
+                pricedUnitPrice,
                 taxPercent);
             dbContext.DbContext.Add(estimateLine);
             line.MarkConvertedToEstimate(estimate.Id, estimateLine.Id, clock.UtcNow);
@@ -850,7 +870,7 @@ public sealed class ServiceManagementService(
             var invoiceLine = invoice.AddLine(
                 invoiceItemId,
                 line.Quantity,
-                line.UnitPrice,
+                ServiceEntitlementRules.ApplyEstimateUnitPrice(job.EntitlementCoverage, line.Kind, line.UnitPrice),
                 discountPercent: 0m,
                 taxPercent: line.TaxPercent);
             dbContext.DbContext.Add(invoiceLine);
@@ -863,7 +883,7 @@ public sealed class ServiceManagementService(
                 var invoiceLine = invoice.AddLine(
                     laborItemId!.Value,
                     timeEntry.BillableHours,
-                    timeEntry.BillingRate,
+                    ServiceEntitlementRules.ApplyEstimateUnitPrice(job.EntitlementCoverage, ServiceEstimateLineKind.Labor, timeEntry.BillingRate),
                     discountPercent: 0m,
                     taxPercent: timeEntry.TaxPercent);
                 dbContext.DbContext.Add(invoiceLine);
@@ -961,12 +981,17 @@ public sealed class ServiceManagementService(
 
         foreach (var line in sourceEstimate.Lines)
         {
+            var pricedUnitPrice = await ApplyEstimateUnitPriceAsync(
+                sourceEstimate.ServiceJobId,
+                line.Kind,
+                line.UnitPrice,
+                cancellationToken);
             var copiedLine = revisedEstimate.AddLine(
                 line.Kind,
                 line.ItemId,
                 line.Description,
                 line.Quantity,
-                line.UnitPrice,
+                pricedUnitPrice,
                 line.TaxPercent);
             dbContext.DbContext.Add(copiedLine);
         }
@@ -1268,6 +1293,19 @@ public sealed class ServiceManagementService(
             ServiceCoverageScope.None,
             CustomerBillingTreatment.Billable,
             "No active warranty or service contract entitlement was found.");
+    }
+
+    private async Task<decimal> ApplyEstimateUnitPriceAsync(
+        Guid serviceJobId,
+        ServiceEstimateLineKind kind,
+        decimal unitPrice,
+        CancellationToken cancellationToken)
+    {
+        var job = await dbContext.ServiceJobs.AsNoTracking()
+            .FirstOrDefaultAsync(x => x.Id == serviceJobId, cancellationToken)
+            ?? throw new NotFoundException("Service job not found.");
+
+        return ServiceEntitlementRules.ApplyEstimateUnitPrice(job.EntitlementCoverage, kind, unitPrice);
     }
 
     public async Task<Guid> AddQualityCheckAsync(Guid serviceJobId, bool passed, string? notes, CancellationToken cancellationToken = default)

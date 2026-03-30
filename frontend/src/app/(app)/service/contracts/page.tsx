@@ -69,6 +69,7 @@ export default async function ServiceContractsPage() {
                 <th className="py-2 pr-3">Coverage</th>
                 <th className="py-2 pr-3">Dates</th>
                 <th className="py-2 pr-3">State</th>
+                <th className="py-2 pr-3">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -89,11 +90,21 @@ export default async function ServiceContractsPage() {
                     {new Date(contract.startDate).toLocaleDateString()} - {new Date(contract.endDate).toLocaleDateString()}
                   </td>
                   <td className="py-2 pr-3">{contract.currentState}</td>
+                  <td className="py-2 pr-3">
+                    <div className="flex flex-wrap gap-3 text-xs">
+                      <Link className="font-semibold text-[var(--link)] underline underline-offset-2" href={`/service/contracts/${contract.id}`}>
+                        View
+                      </Link>
+                      <Link className="font-semibold text-[var(--link)] underline underline-offset-2" href={`/service/contracts/${contract.id}`}>
+                        Edit
+                      </Link>
+                    </div>
+                  </td>
                 </tr>
               ))}
               {contracts.length === 0 ? (
                 <tr>
-                  <td className="py-6 text-sm text-zinc-500" colSpan={7}>
+                  <td className="py-6 text-sm text-zinc-500" colSpan={8}>
                     No service contracts yet.
                   </td>
                 </tr>

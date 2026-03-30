@@ -280,8 +280,11 @@ Expected result:
 
 - [ ] Create or view an equipment unit.
 - [ ] Create or view a service contract for a customer-owned unit.
+- [ ] Confirm the equipment-unit, contract, job, and estimate lists show explicit `View` / `Edit` actions.
 - [ ] Create a service estimate and add a line.
-- [ ] Send or approve the estimate.
+- [ ] Send the estimate and confirm customer approval becomes `Pending`.
+- [ ] Edit the sent draft estimate and confirm it must be resent.
+- [ ] Resend it and mark the customer approval result.
 - [ ] Create or update a service job.
 - [ ] Open a handover and confirm the page works.
 
@@ -446,6 +449,7 @@ Expected result:
 - [ ] Create an equipment unit for a customer.
 - [ ] Add or edit warranty coverage on the equipment unit.
 - [ ] Create a service contract for the unit or view an existing one.
+- [ ] Confirm service lists show explicit `View` / `Edit` actions where applicable.
 - [ ] Create a service job.
 - [ ] Choose `Service` or `Repair` explicitly when creating the job.
 - [ ] Confirm the job shows entitlement source and billing treatment.
@@ -458,7 +462,10 @@ Expected result:
 - [ ] Create a service estimate and add at least one line.
 - [ ] While the estimate is still `Draft`, edit the estimate header and at least one line.
 - [ ] Confirm estimate lines can use `Part`, `Labor`, or `Expense` as needed.
-- [ ] Send or approve the estimate.
+- [ ] Send the estimate and confirm customer approval becomes `Pending`.
+- [ ] Edit the sent draft and confirm the pending approval resets.
+- [ ] Resend the estimate and mark the customer approval result.
+- [ ] If more findings appear after approval, use `Create Change Order` and confirm a new draft revision opens.
 - [ ] Create a service expense claim and submit it.
 
 Expected result:

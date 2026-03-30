@@ -1,5 +1,7 @@
 namespace ISS.Domain.Service;
 
+using ISS.Domain.Common;
+
 public enum ServiceCoverageScope
 {
     None = 0,
@@ -32,4 +34,22 @@ public static class ServiceEntitlementRules
             ServiceCoverageScope.LaborAndParts => CustomerBillingTreatment.CoveredNoCharge,
             _ => CustomerBillingTreatment.PartiallyCovered
         };
+
+    public static bool CoversParts(ServiceCoverageScope coverage)
+        => coverage is ServiceCoverageScope.PartsOnly or ServiceCoverageScope.LaborAndParts;
+
+    public static bool CoversLabor(ServiceCoverageScope coverage)
+        => coverage is ServiceCoverageScope.LaborOnly or ServiceCoverageScope.LaborAndParts;
+
+    public static decimal ApplyEstimateUnitPrice(ServiceCoverageScope coverage, ServiceEstimateLineKind kind, decimal unitPrice)
+    {
+        Guard.NotNegative(unitPrice, nameof(unitPrice));
+
+        return kind switch
+        {
+            ServiceEstimateLineKind.Part when CoversParts(coverage) => 0m,
+            ServiceEstimateLineKind.Labor when CoversLabor(coverage) => 0m,
+            _ => unitPrice
+        };
+    }
 }

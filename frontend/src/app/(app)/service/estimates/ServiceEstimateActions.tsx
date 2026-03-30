@@ -13,12 +13,16 @@ export function ServiceEstimateActions({
   canReject,
   canSend,
   canRevise,
+  sendLabel = "Send to Customer",
+  reviseLabel = "Create Revision",
 }: {
   estimateId: string;
   canApprove: boolean;
   canReject: boolean;
   canSend: boolean;
   canRevise: boolean;
+  sendLabel?: string;
+  reviseLabel?: string;
 }) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
@@ -52,16 +56,16 @@ export function ServiceEstimateActions({
     <div className="space-y-2">
       <div className="flex flex-wrap gap-2">
         <SecondaryButton type="button" disabled={!canApprove || busy} onClick={() => act("approve")}>
-          {busy ? "Working..." : "Approve"}
+          {busy ? "Working..." : "Customer Approved"}
         </SecondaryButton>
         <SecondaryButton type="button" disabled={!canReject || busy} onClick={() => act("reject")}>
-          Reject
+          Customer Rejected
         </SecondaryButton>
         <SecondaryButton type="button" disabled={!canSend || busy} onClick={() => act("send")}>
-          Send to Customer
+          {busy ? "Working..." : sendLabel}
         </SecondaryButton>
         <SecondaryButton type="button" disabled={!canRevise || busy} onClick={() => act("revise")}>
-          Create Revision
+          {reviseLabel}
         </SecondaryButton>
       </div>
       {error ? (

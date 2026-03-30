@@ -46,6 +46,55 @@ public sealed class ServiceTests
     }
 
     [Fact]
+    public void ServiceEstimate_Sent_For_Customer_Approval_Resets_When_Draft_Is_Edited()
+    {
+        var issuedAt = new DateTimeOffset(2026, 3, 30, 8, 0, 0, TimeSpan.Zero);
+        var estimate = new ServiceEstimate(
+            "SE0002",
+            Guid.NewGuid(),
+            issuedAt,
+            issuedAt.AddDays(7),
+            "Initial terms");
+
+        estimate.AddLine(ServiceEstimateLineKind.Part, Guid.NewGuid(), "Filter", 1m, 50m, 0m);
+
+        var sentAt = issuedAt.AddHours(2);
+        estimate.MarkSentToCustomer(sentAt);
+
+        Assert.Equal(ServiceEstimateCustomerApprovalStatus.Pending, estimate.CustomerApprovalStatus);
+        Assert.Equal(sentAt, estimate.SentToCustomerAt);
+        Assert.Null(estimate.CustomerDecisionAt);
+
+        estimate.UpdateHeader(issuedAt.AddDays(10), "Revised terms");
+
+        Assert.Equal(ServiceEstimateCustomerApprovalStatus.NotSent, estimate.CustomerApprovalStatus);
+        Assert.Null(estimate.SentToCustomerAt);
+        Assert.Null(estimate.CustomerDecisionAt);
+    }
+
+    [Fact]
+    public void ServiceEstimate_Approval_Tracks_Customer_Decision_Timestamp()
+    {
+        var issuedAt = new DateTimeOffset(2026, 3, 30, 8, 0, 0, TimeSpan.Zero);
+        var estimate = new ServiceEstimate(
+            "SE0003",
+            Guid.NewGuid(),
+            issuedAt,
+            issuedAt.AddDays(7),
+            "Terms");
+
+        estimate.AddLine(ServiceEstimateLineKind.Labor, null, "Inspection", 2m, 25m, 0m);
+        estimate.MarkSentToCustomer(issuedAt.AddHours(1));
+
+        var decisionAt = issuedAt.AddHours(5);
+        estimate.Approve(decisionAt);
+
+        Assert.Equal(ServiceEstimateStatus.Approved, estimate.Status);
+        Assert.Equal(ServiceEstimateCustomerApprovalStatus.Approved, estimate.CustomerApprovalStatus);
+        Assert.Equal(decisionAt, estimate.CustomerDecisionAt);
+    }
+
+    [Fact]
     public void EquipmentUnit_Warranty_Coverage_Requires_End_Date()
     {
         Assert.Throws<DomainValidationException>(() => new EquipmentUnit(
@@ -135,6 +184,15 @@ public sealed class ServiceTests
             customerBillingTreatment: CustomerBillingTreatment.Billable,
             entitlementEvaluatedAt: evaluatedAt,
             entitlementSummary: null));
+    }
+
+    [Fact]
+    public void ServiceEntitlementRules_Zero_Covered_Labor_And_Parts()
+    {
+        Assert.Equal(0m, ServiceEntitlementRules.ApplyEstimateUnitPrice(ServiceCoverageScope.LaborOnly, ServiceEstimateLineKind.Labor, 40m));
+        Assert.Equal(0m, ServiceEntitlementRules.ApplyEstimateUnitPrice(ServiceCoverageScope.PartsOnly, ServiceEstimateLineKind.Part, 25m));
+        Assert.Equal(30m, ServiceEntitlementRules.ApplyEstimateUnitPrice(ServiceCoverageScope.PartsOnly, ServiceEstimateLineKind.Labor, 30m));
+        Assert.Equal(15m, ServiceEntitlementRules.ApplyEstimateUnitPrice(ServiceCoverageScope.LaborAndParts, ServiceEstimateLineKind.Expense, 15m));
     }
 
     [Fact]

@@ -84,6 +84,7 @@ public sealed class ServiceCostingService(IIssDbContext dbContext)
         decimal BillingRate,
         decimal TaxPercent,
         decimal BillableTotal,
+        decimal EffectiveBillableTotal,
         Guid? SalesInvoiceId,
         Guid? SalesInvoiceLineId);
 
@@ -220,15 +221,35 @@ public sealed class ServiceCostingService(IIssDbContext dbContext)
                 line.Quantity * line.UnitCost))
             .ToListAsync(cancellationToken);
 
-        var laborLines = await (
+        var laborLineRows = await (
             from workOrder in dbContext.WorkOrders.AsNoTracking()
             from line in workOrder.TimeEntries
             where workOrder.ServiceJobId == serviceJobId
             orderby line.WorkDate descending, line.Id descending
-            select new LaborTimeCostLine(
+            select new
+            {
                 line.WorkDate,
-                workOrder.Id,
-                line.Id,
+                WorkOrderId = workOrder.Id,
+                TimeEntryId = line.Id,
+                line.TechnicianName,
+                line.WorkDescription,
+                line.Status,
+                line.HoursWorked,
+                line.CostRate,
+                line.BillableToCustomer,
+                line.BillableHours,
+                line.BillingRate,
+                line.TaxPercent,
+                line.SalesInvoiceId,
+                line.SalesInvoiceLineId
+            })
+            .ToListAsync(cancellationToken);
+
+        var laborLines = laborLineRows
+            .Select(line => new LaborTimeCostLine(
+                line.WorkDate,
+                line.WorkOrderId,
+                line.TimeEntryId,
                 line.TechnicianName,
                 line.WorkDescription,
                 line.Status,
@@ -240,9 +261,10 @@ public sealed class ServiceCostingService(IIssDbContext dbContext)
                 line.BillingRate,
                 line.TaxPercent,
                 line.BillableHours * line.BillingRate * (1 + (line.TaxPercent / 100m)),
+                CalculateEffectiveLaborBillableTotal(job.EntitlementCoverage, line.BillableHours, line.BillingRate, line.TaxPercent),
                 line.SalesInvoiceId,
                 line.SalesInvoiceLineId))
-            .ToListAsync(cancellationToken);
+            .ToList();
 
         var latestApprovedEstimateTotal = estimates
             .Where(x => x.Status == ServiceEstimateStatus.Approved)
@@ -283,12 +305,12 @@ public sealed class ServiceCostingService(IIssDbContext dbContext)
         var billableLaborRevenue = laborLines
             .Where(x => x.BillableToCustomer
                         && (x.Status is WorkOrderTimeEntryStatus.Approved or WorkOrderTimeEntryStatus.Invoiced))
-            .Sum(x => x.BillableTotal);
+            .Sum(x => x.EffectiveBillableTotal);
         var uninvoicedBillableLaborRevenue = laborLines
             .Where(x => x.BillableToCustomer
                         && x.Status == WorkOrderTimeEntryStatus.Approved
                         && x.SalesInvoiceLineId is null)
-            .Sum(x => x.BillableTotal);
+            .Sum(x => x.EffectiveBillableTotal);
         var billableExpenseClaimCost = expenseClaimLines
             .Where(x => x.BillableToCustomer
                         && (x.Status is ServiceExpenseClaimStatus.Approved or ServiceExpenseClaimStatus.Settled))
@@ -330,5 +352,18 @@ public sealed class ServiceCostingService(IIssDbContext dbContext)
             directPurchaseLines,
             laborLines,
             expenseClaimLines);
+    }
+
+    private static decimal CalculateEffectiveLaborBillableTotal(
+        ServiceCoverageScope entitlementCoverage,
+        decimal billableHours,
+        decimal billingRate,
+        decimal taxPercent)
+    {
+        var effectiveRate = ServiceEntitlementRules.ApplyEstimateUnitPrice(
+            entitlementCoverage,
+            ServiceEstimateLineKind.Labor,
+            billingRate);
+        return billableHours * effectiveRate * (1 + (taxPercent / 100m));
     }
 }

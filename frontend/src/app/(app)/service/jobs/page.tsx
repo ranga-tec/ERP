@@ -88,6 +88,7 @@ export default async function ServiceJobsPage() {
                 <th className="py-2 pr-3">Opened</th>
                 <th className="py-2 pr-3">Status</th>
                 <th className="py-2 pr-3">Completed</th>
+                <th className="py-2 pr-3">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -120,11 +121,25 @@ export default async function ServiceJobsPage() {
                   <td className="py-2 pr-3 text-zinc-500">
                     {j.completedAt ? new Date(j.completedAt).toLocaleString() : "-"}
                   </td>
+                  <td className="py-2 pr-3">
+                    <div className="flex flex-wrap gap-3 text-xs">
+                      <Link className="font-semibold text-[var(--link)] underline underline-offset-2" href={`/service/jobs/${j.id}`}>
+                        View
+                      </Link>
+                      {j.status === 0 ? (
+                        <Link className="font-semibold text-[var(--link)] underline underline-offset-2" href={`/service/jobs/${j.id}`}>
+                          Edit
+                        </Link>
+                      ) : (
+                        <span className="text-zinc-400">Edit</span>
+                      )}
+                    </div>
+                  </td>
                 </tr>
               ))}
               {jobs.length === 0 ? (
                 <tr>
-                  <td className="py-6 text-sm text-zinc-500" colSpan={9}>
+                  <td className="py-6 text-sm text-zinc-500" colSpan={10}>
                     No service jobs yet.
                   </td>
                 </tr>

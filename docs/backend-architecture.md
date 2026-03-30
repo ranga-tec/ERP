@@ -210,8 +210,12 @@ Recent service/finance workflow surfaces:
 - Equipment units and service jobs now carry warranty/entitlement fields so job creation can snapshot customer billing treatment from active warranty or contract coverage.
 - Service jobs expose `GET /api/service/jobs/{id}/costing` for per-job margin and actual-cost rollups, including approved labor and billable-timesheet visibility.
 - Service jobs also expose `POST /api/service/jobs/{id}/refresh-entitlement` so existing jobs can be re-evaluated after contract/warranty maintenance.
+- Service estimates now expose customer-approval tracking fields (`CustomerApprovalStatus`, `SentToCustomerAt`, `CustomerDecisionAt`) so draft edits, resend behavior, and approved/rejected change-order flow are explicit in the API.
+- Estimate line pricing and approved labor invoice conversion now run through entitlement rules so covered labor/part billing is forced to zero from the service layer rather than being left to the UI.
 - Work orders live under `/api/service/work-orders` and now support nested labor-entry/timesheet actions (`add`, `edit`, `delete`, `submit`, `approve`, `reject`).
+- Work-order and job-costing DTOs now include coverage-adjusted labor billing totals so service screens reflect what will actually invoice under warranty/contract coverage.
 - Service expense claims live under `/api/service/expense-claims` and support submit, approve/reject, settle, and billable-line conversion into estimates.
+- Expense-claim conversion classifies spare-part-backed claim lines as `Part` estimate lines so parts entitlement can still apply even when the part came from petty cash or out-of-pocket purchase.
 - Service handover invoice conversion accepts a labor billing source so draft invoices can use estimate labor or approved work-order time entries.
 - Petty cash funds live under `/api/finance/petty-cash-funds` and track opening balance, top-ups, adjustments, and claim-settlement outflows.
 

@@ -19,6 +19,9 @@ type ServiceEstimateDto = {
   revisedFromEstimateId?: string | null;
   revisionNumber: number;
   status: number;
+  customerApprovalStatus: number;
+  sentToCustomerAt?: string | null;
+  customerDecisionAt?: string | null;
   subtotal: number;
   taxTotal: number;
   total: number;
@@ -47,6 +50,13 @@ const statusLabel: Record<number, string> = {
   2: "Rejected",
 };
 
+const approvalLabel: Record<number, string> = {
+  0: "Not Sent",
+  1: "Pending",
+  2: "Approved",
+  3: "Rejected",
+};
+
 const kindLabel: Record<number, string> = {
   1: "Part",
   2: "Labor",
@@ -70,6 +80,8 @@ export default async function ServiceEstimateDetailPage({ params }: { params: Pr
   const job = jobById.get(estimate.serviceJobId);
   const customer = job ? customerById.get(job.customerId) : null;
   const isDraft = estimate.status === 0;
+  const approvalStatus = approvalLabel[estimate.customerApprovalStatus] ?? String(estimate.customerApprovalStatus);
+  const sendLabel = estimate.customerApprovalStatus === 1 ? "Resend to Customer" : "Send to Customer";
 
   return (
     <div className="space-y-6">
@@ -99,12 +111,12 @@ export default async function ServiceEstimateDetailPage({ params }: { params: Pr
             </div>
           ) : null}
           <div>Status: {statusLabel[estimate.status] ?? estimate.status}</div>
+          <div>Customer Approval: {approvalStatus}</div>
           <div>Issued: {new Date(estimate.issuedAt).toLocaleString()}</div>
           <div>Valid till: {estimate.validUntil ? new Date(estimate.validUntil).toLocaleString() : "-"}</div>
         </div>
         <div className="mt-2 text-sm text-zinc-500">
-          Subtotal: {estimate.subtotal.toFixed(2)} · Tax: {estimate.taxTotal.toFixed(2)} · Total:{" "}
-          {estimate.total.toFixed(2)}
+          Subtotal: {estimate.subtotal.toFixed(2)} | Tax: {estimate.taxTotal.toFixed(2)} | Total: {estimate.total.toFixed(2)}
         </div>
       </div>
 
@@ -119,8 +131,10 @@ export default async function ServiceEstimateDetailPage({ params }: { params: Pr
           estimateId={estimate.id}
           canApprove={isDraft && estimate.lines.length > 0}
           canReject={isDraft}
-          canSend={estimate.status !== 2 && estimate.lines.length > 0}
+          canSend={isDraft && estimate.lines.length > 0}
           canRevise={!isDraft}
+          sendLabel={sendLabel}
+          reviseLabel="Create Change Order"
         />
       </Card>
 
@@ -128,16 +142,44 @@ export default async function ServiceEstimateDetailPage({ params }: { params: Pr
         <Card>
           <div className="mb-3 text-sm font-semibold">Edit Estimate</div>
           <ServiceEstimateEditForm estimate={estimate} />
+          <div className="mt-3 text-xs text-zinc-500">
+            Editing a sent draft estimate clears the pending customer-approval state. Resend it after the change so the customer
+            approves the latest scope.
+          </div>
         </Card>
       ) : null}
 
       {!isDraft ? (
         <Card>
           <div className="text-sm text-zinc-500">
-            If more spare parts, external billable expenses, or labor are discovered after approval, create a revision to copy this estimate into a new draft and resend it for customer approval.
+            If more spare parts, external billable expenses, or labor are discovered after approval, create a change order to copy
+            this estimate into a new draft revision and resend it for customer approval.
           </div>
         </Card>
       ) : null}
+
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <Card>
+          <div className="text-xs uppercase tracking-wide text-zinc-500">Customer Approval</div>
+          <div className="mt-2 text-sm font-medium">{approvalStatus}</div>
+        </Card>
+        <Card>
+          <div className="text-xs uppercase tracking-wide text-zinc-500">Sent To Customer</div>
+          <div className="mt-2 text-sm font-medium">
+            {estimate.sentToCustomerAt ? new Date(estimate.sentToCustomerAt).toLocaleString() : "-"}
+          </div>
+        </Card>
+        <Card>
+          <div className="text-xs uppercase tracking-wide text-zinc-500">Customer Decision</div>
+          <div className="mt-2 text-sm font-medium">
+            {estimate.customerDecisionAt ? new Date(estimate.customerDecisionAt).toLocaleString() : "-"}
+          </div>
+        </Card>
+        <Card>
+          <div className="text-xs uppercase tracking-wide text-zinc-500">Change Order Rule</div>
+          <div className="mt-2 text-sm font-medium">{isDraft ? "Edit draft directly" : "Use Create Change Order"}</div>
+        </Card>
+      </div>
 
       {isDraft ? (
         <Card>
@@ -202,11 +244,7 @@ export default async function ServiceEstimateDetailPage({ params }: { params: Pr
         </div>
       </Card>
 
-      <DocumentCollaborationPanel
-        referenceType="SE"
-        referenceId={estimate.id}
-        title="Estimate Comments & Attachments"
-      />
+      <DocumentCollaborationPanel referenceType="SE" referenceId={estimate.id} title="Estimate Comments & Attachments" />
     </div>
   );
 }

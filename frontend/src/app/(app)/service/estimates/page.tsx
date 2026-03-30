@@ -13,6 +13,9 @@ type ServiceEstimateSummaryDto = {
   revisedFromEstimateId?: string | null;
   revisionNumber: number;
   status: number;
+  customerApprovalStatus: number;
+  sentToCustomerAt?: string | null;
+  customerDecisionAt?: string | null;
   subtotal: number;
   taxTotal: number;
   total: number;
@@ -26,6 +29,13 @@ const statusLabel: Record<number, string> = {
   0: "Draft",
   1: "Approved",
   2: "Rejected",
+};
+
+const approvalLabel: Record<number, string> = {
+  0: "Not Sent",
+  1: "Pending",
+  2: "Approved",
+  3: "Rejected",
 };
 
 export default async function ServiceEstimatesPage() {
@@ -64,7 +74,9 @@ export default async function ServiceEstimatesPage() {
                 <th className="py-2 pr-3">Issued</th>
                 <th className="py-2 pr-3">Valid Till</th>
                 <th className="py-2 pr-3">Status</th>
+                <th className="py-2 pr-3">Customer Approval</th>
                 <th className="py-2 pr-3">Total</th>
+                <th className="py-2 pr-3">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -90,13 +102,33 @@ export default async function ServiceEstimatesPage() {
                       {e.validUntil ? new Date(e.validUntil).toLocaleString() : "-"}
                     </td>
                     <td className="py-2 pr-3">{statusLabel[e.status] ?? e.status}</td>
+                    <td className="py-2 pr-3">
+                      <div>{approvalLabel[e.customerApprovalStatus] ?? e.customerApprovalStatus}</div>
+                      <div className="text-xs text-zinc-500">
+                        {e.sentToCustomerAt ? `Sent ${new Date(e.sentToCustomerAt).toLocaleDateString()}` : "-"}
+                      </div>
+                    </td>
                     <td className="py-2 pr-3">{e.total.toFixed(2)}</td>
+                    <td className="py-2 pr-3">
+                      <div className="flex flex-wrap gap-3 text-xs">
+                        <Link className="font-semibold text-[var(--link)] underline underline-offset-2" href={`/service/estimates/${e.id}`}>
+                          View
+                        </Link>
+                        {e.status === 0 ? (
+                          <Link className="font-semibold text-[var(--link)] underline underline-offset-2" href={`/service/estimates/${e.id}`}>
+                            Edit
+                          </Link>
+                        ) : (
+                          <span className="text-zinc-400">Edit</span>
+                        )}
+                      </div>
+                    </td>
                   </tr>
                 );
               })}
               {estimates.length === 0 ? (
                 <tr>
-                  <td className="py-6 text-sm text-zinc-500" colSpan={7}>
+                  <td className="py-6 text-sm text-zinc-500" colSpan={9}>
                     No service estimates yet.
                   </td>
                 </tr>

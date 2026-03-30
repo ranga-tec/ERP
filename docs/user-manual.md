@@ -101,15 +101,18 @@ Note:
 - Equipment units:
   - register serialized customer equipment
   - maintain purchased date, warranty end date, and warranty coverage scope
+  - the list page exposes `View` and `Edit` actions explicitly; both open the unit detail page
   - use the equipment-unit detail page to edit ownership or warranty coverage as the installed base changes
 - Service contracts:
   - create `AMC`, `SLA`, or `Warranty Extension` documents against a specific customer-owned equipment unit
   - set the contract coverage window and coverage scope (`Inspection`, `Labor`, `Parts`, or `Labor and Parts`)
   - use this when the unit is covered by a service agreement beyond or instead of manufacturer warranty
+  - the list page exposes `View` and `Edit` actions explicitly; both open the contract detail page
   - contracts are edited from the contract detail page after creation
 - Service jobs:
   - create -> start -> complete -> close
   - choose `Service` or `Repair` when opening the job
+  - the list page exposes `View` and `Edit`; `Edit` is available while the job is still `Open`
   - while status is still `Open`, you can edit the job header (unit, customer, type, problem) from the detail page
   - once the job is started, header editing is locked and execution should continue through work orders, estimates, material issues, and handover
   - entitlement is captured automatically when the job is created by checking active service contracts first, then manufacturer warranty on the equipment unit
@@ -120,16 +123,23 @@ Note:
   - add labor entries/timesheets with technician, date, hours, cost rate, billing rate, and notes
   - labor entries move through `Draft -> Submitted -> Approved/Rejected -> Invoiced`
   - approved labor feeds job costing; approved billable labor can be billed during handover invoice conversion
+  - labor coverage from warranty or contract is shown as reduced effective billing where applicable
 - Service estimates:
-  - create -> add lines -> approve/reject/send
+  - list page exposes `View` and `Edit`; `Edit` is available while the estimate is still `Draft`
+  - create -> add lines -> send -> mark customer approved/rejected
   - estimates now support `Part`, `Labor`, and billable `Expense` lines
   - while status is `Draft`, the estimate header (`Valid until`, `Terms`) and lines can be edited directly
-  - if extra findings appear after approval or rejection, create a revision instead of overwriting the original estimate
+  - sending a draft estimate marks `Customer Approval = Pending`
+  - if a sent draft is edited, the pending approval is cleared and the estimate must be resent so the customer approves the latest scope
+  - if extra findings appear after approval or rejection, use `Create Change Order` instead of overwriting the original estimate
+  - covered labor or part lines under the job's warranty or service contract are saved and billed at zero automatically
 - Service expense claims:
+  - the list page exposes `View` so users can open the claim detail page directly
   - create against a service job for `Out of Pocket` or `Petty Cash`
   - add free-text or item-linked lines
   - submit -> finance approve/reject -> settle
-  - billable approved/settled claim lines can be pushed into the latest draft estimate or into an automatic estimate revision
+  - billable approved/settled claim lines can be pushed into the latest draft estimate or into an automatic change-order draft revision
+  - if an expense-claim line references a spare part item, conversion classifies it as a part line so entitlement rules can still cover it
   - use this for technician reimbursement, emergency cash buys, and petty-cash clearing that should not be hidden as stock or AP workarounds
 - Material requisitions:
   - create -> add lines -> post
@@ -140,6 +150,7 @@ Note:
   - complete handover and optionally convert to invoice
   - invoice conversion can map expense estimate lines by using the line item when present or a selected fallback expense/service item
   - labor billing can come from estimate labor lines or from approved work-order timesheets when actual labor should drive the invoice
+  - warranty/contract coverage still applies during invoice conversion, so covered labor or parts can invoice at zero
 - Direct purchases linked to service jobs:
   - use when a required part is bought from a supplier and also needs to be received into stock and/or booked to supplier AP
   - the direct purchase can now be linked back to the service job for traceability

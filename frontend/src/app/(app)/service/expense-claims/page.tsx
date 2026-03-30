@@ -69,6 +69,7 @@ export default async function ServiceExpenseClaimsPage() {
                 <th className="py-2 pr-3">Date</th>
                 <th className="py-2 pr-3">Status</th>
                 <th className="py-2 pr-3">Total</th>
+                <th className="py-2 pr-3">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -89,11 +90,18 @@ export default async function ServiceExpenseClaimsPage() {
                   <td className="py-2 pr-3 text-zinc-500">{new Date(claim.expenseDate).toLocaleString()}</td>
                   <td className="py-2 pr-3">{statusLabel[claim.status] ?? claim.status}</td>
                   <td className="py-2 pr-3">{claim.total.toFixed(2)}</td>
+                  <td className="py-2 pr-3">
+                    <div className="flex flex-wrap gap-3 text-xs">
+                      <Link className="font-semibold text-[var(--link)] underline underline-offset-2" href={`/service/expense-claims/${claim.id}`}>
+                        View
+                      </Link>
+                    </div>
+                  </td>
                 </tr>
               ))}
               {claims.length === 0 ? (
                 <tr>
-                  <td className="py-6 text-sm text-zinc-500" colSpan={7}>
+                  <td className="py-6 text-sm text-zinc-500" colSpan={8}>
                     No service expense claims yet.
                   </td>
                 </tr>

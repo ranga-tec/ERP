@@ -62,6 +62,7 @@ export default async function EquipmentUnitsPage() {
                 <th className="py-2 pr-3">Warranty</th>
                 <th className="py-2 pr-3">Coverage</th>
                 <th className="py-2 pr-3">Active</th>
+                <th className="py-2 pr-3">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -86,11 +87,21 @@ export default async function EquipmentUnitsPage() {
                   </td>
                   <td className="py-2 pr-3 text-zinc-500">{coverageLabel[unit.warrantyCoverage] ?? unit.warrantyCoverage}</td>
                   <td className="py-2 pr-3">{unit.hasActiveWarranty ? "Yes" : "No"}</td>
+                  <td className="py-2 pr-3">
+                    <div className="flex flex-wrap gap-3 text-xs">
+                      <Link className="font-semibold text-[var(--link)] underline underline-offset-2" href={`/service/equipment-units/${unit.id}`}>
+                        View
+                      </Link>
+                      <Link className="font-semibold text-[var(--link)] underline underline-offset-2" href={`/service/equipment-units/${unit.id}`}>
+                        Edit
+                      </Link>
+                    </div>
+                  </td>
                 </tr>
               ))}
               {units.length === 0 ? (
                 <tr>
-                  <td className="py-6 text-sm text-zinc-500" colSpan={7}>
+                  <td className="py-6 text-sm text-zinc-500" colSpan={8}>
                     No equipment units yet.
                   </td>
                 </tr>

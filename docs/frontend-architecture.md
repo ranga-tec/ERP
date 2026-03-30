@@ -208,10 +208,11 @@ Recent workflow-specific UI behavior:
 - equipment-unit detail pages support warranty ownership updates and list linked service contracts
 - service-contract list/detail pages manage `AMC`, `SLA`, and warranty-extension coverage for installed units
 - service-job create/detail screens surface entitlement source, coverage, billing treatment, and manual refresh when coverage changes
-- service estimates support `Part`, `Labor`, and `Expense` line kinds plus explicit estimate revision actions
+- service list pages now expose explicit `View` / `Edit` actions for contracts, equipment units, jobs, estimates, and expense claims
+- service estimates support `Part`, `Labor`, and `Expense` line kinds, customer-approval state visibility, resend behavior on edited drafts, and explicit `Create Change Order` actions after approval/rejection
 - service expense claim detail pages let service/finance users submit, approve/reject, settle, and convert billable claim lines into the working estimate
-- service work-order detail pages support labor-entry capture plus submit/approve/reject actions
+- service work-order detail pages support labor-entry capture plus submit/approve/reject actions, and show effective billable labor after entitlement coverage
 - service handover invoice conversion supports fallback item mapping for expense lines and lets users choose estimate labor vs approved timesheet labor
-- service job detail pages render a costing summary with estimate, invoice, material, direct-purchase, labor, and expense-claim breakdowns
+- service job detail pages render a costing summary with estimate, invoice, material, direct-purchase, labor, and expense-claim breakdowns, including entitlement-adjusted labor billing visibility
 - finance petty cash pages provide fund creation, editing, top-up, adjustment, and settlement-ledger visibility
 

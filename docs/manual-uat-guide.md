@@ -229,46 +229,58 @@ Steps:
 1. Go to `Service -> Equipment Units` and register one serialized unit for customer `CUS1`.
    - enter a future `Warranty until` date
    - set `Warranty coverage` to `Labor and Parts`
-2. Go to `Service -> Jobs` and create a job:
+2. Confirm the equipment-unit list shows explicit `View` / `Edit` actions and open the unit from one of them.
+3. Go to `Service -> Jobs` and create a job:
    - Kind: `Repair`
    - Problem Description: `Unit does not power on`
-3. While the job is still open, edit the job header once and save it.
-4. Confirm the job detail page shows warranty-based entitlement and billing treatment.
-5. Go to `Service -> Service Contracts` and create a contract for the same unit:
+4. Confirm the job list shows explicit `View` / `Edit` actions and open the job detail page from the list.
+5. While the job is still open, edit the job header once and save it.
+6. Confirm the job detail page shows warranty-based entitlement and billing treatment.
+7. Go to `Service -> Service Contracts` and create a contract for the same unit:
    - Type: `AMC`
    - Coverage: `Parts Only`
    - Start Date: yesterday
    - End Date: 60 days from now
-6. Return to the job and click `Refresh Entitlement`.
-7. Confirm the job now shows contract-based entitlement instead of warranty.
-8. Start the job.
-9. Go to `Service -> Work Orders` and create a work order for the job.
-10. Add one billable labor entry on the work order, then submit and approve it.
-11. Go to `Service -> Estimates` and create an estimate for the job.
-12. While the estimate is still draft, edit `Valid until` or `Terms`, save, and then add at least:
+8. Confirm the contract list shows explicit `View` / `Edit` actions and open the contract detail page from the list.
+9. Return to the job and click `Refresh Entitlement`.
+10. Confirm the job now shows contract-based entitlement instead of warranty.
+11. Start the job.
+12. Go to `Service -> Work Orders` and create a work order for the job.
+13. Add one billable labor entry on the work order, then submit and approve it.
+14. Confirm the approved billable amount reflects coverage-adjusted billing when entitlement covers labor.
+15. Go to `Service -> Estimates` and create an estimate for the job.
+16. Confirm the estimate list shows explicit `View` / `Edit` actions and open the estimate detail page from the list.
+17. While the estimate is still draft, edit `Valid until` or `Terms`, save, and then add at least:
    - one `Part` line using `SKU1`
-13. Approve the estimate.
-14. Create a service expense claim for the same job:
+18. Send the estimate to the customer and confirm `Customer Approval` becomes `Pending`.
+19. Edit the sent draft estimate again and confirm the pending approval resets to `Not Sent`.
+20. Resend the estimate and then mark it customer approved.
+21. Use `Create Change Order` from the approved estimate and confirm a new draft revision opens.
+22. Create a service expense claim for the same job:
    - Funding Source: `Petty Cash`
    - one billable line for an emergency outside expense
-15. Submit the claim.
-16. Approve and settle the claim against petty cash fund `WORKSHOP`.
-17. Convert the billable claim line into the working estimate.
-18. Create and complete a service handover.
-19. Convert the handover to sales invoice using the labor source that bills approved timesheets.
-20. Open the service job detail page and review the costing section.
+23. Submit the claim.
+24. Approve and settle the claim against petty cash fund `WORKSHOP`.
+25. Convert the billable claim line into the working estimate.
+26. If the claim line used a spare-part item, confirm the new estimate line is classified as `Part`.
+27. Create and complete a service handover.
+28. Convert the handover to sales invoice using the labor source that bills approved timesheets.
+29. Open the service job detail page and review the costing section.
 
 Expected:
 
 - equipment units accept warranty coverage and the unit detail page allows updates
 - the contract can be linked to the same unit and appears on both the contract list and equipment-unit detail page
+- service lists now expose explicit `View` / `Edit` entry points instead of relying only on clickable document numbers
 - open jobs can be edited, but that header locks after the job is started
 - the job first shows warranty entitlement, then changes to contract entitlement after refresh
 - the job can be opened as `Repair` and moved to `In Progress`
-- draft estimate headers and lines are editable until approval
+- draft estimate headers and lines are editable until customer approval or rejection
+- sending a draft estimate sets customer approval to `Pending`, editing that pending draft resets it, and resending/restating approval works
+- approved estimates stay preserved and `Create Change Order` opens a new draft revision for the changed scope
 - the work order accepts labor entries and the approved labor becomes visible on the work order and job costing views
-- the approved estimate stays preserved
-- the approved/settled billable claim can be converted into an estimate or estimate revision
+- covered labor or part lines bill at zero where entitlement applies
+- the approved/settled billable claim can be converted into an estimate or change-order draft revision
 - petty cash balance is reduced by the settled claim amount
 - the handover invoice includes both estimate parts and approved actual labor
 - job costing reflects labor, material, expense-claim, invoice, and quoted value in one view

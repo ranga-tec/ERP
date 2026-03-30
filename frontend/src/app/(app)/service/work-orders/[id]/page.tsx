@@ -29,6 +29,7 @@ type WorkOrderDto = {
     billingRate: number;
     taxPercent: number;
     billableTotal: number;
+    effectiveBillableTotal: number;
     notes?: string | null;
     status: number;
     rejectionReason?: string | null;
@@ -96,7 +97,7 @@ export default async function WorkOrderDetailPage({ params }: { params: Promise<
         <Card>
           <div className="text-xs uppercase tracking-wide text-zinc-500">Approved Billable Labor</div>
           <div className="mt-2 text-2xl font-semibold">{wo.billableApprovedAmount.toFixed(2)}</div>
-          <div className="mt-1 text-xs text-zinc-500">Used by handover invoice conversion when billing actual labor</div>
+          <div className="mt-1 text-xs text-zinc-500">Coverage-adjusted amount used by handover invoice conversion when billing actual labor</div>
         </Card>
       </div>
 
@@ -121,6 +122,9 @@ export default async function WorkOrderDetailPage({ params }: { params: Promise<
       <Card>
         <div className="mb-3 text-sm font-semibold">Add Labor Entry</div>
         <WorkOrderTimeEntryAddForm workOrderId={wo.id} disabled={!canAddLabor} />
+        <div className="mt-3 text-xs text-zinc-500">
+          Warranty or contract coverage can reduce approved labor billing to zero even when the technician entry is marked billable.
+        </div>
       </Card>
 
       <Card>

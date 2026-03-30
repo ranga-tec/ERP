@@ -34,6 +34,7 @@ public sealed class WorkOrdersController(
         decimal BillingRate,
         decimal TaxPercent,
         decimal BillableTotal,
+        decimal EffectiveBillableTotal,
         string? Notes,
         WorkOrderTimeEntryStatus Status,
         DateTimeOffset? SubmittedAt,
@@ -145,7 +146,17 @@ public sealed class WorkOrdersController(
             .Include(x => x.TimeEntries)
             .FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
 
-        return workOrder is null ? NotFound() : Ok(MapWorkOrder(workOrder));
+        if (workOrder is null)
+        {
+            return NotFound();
+        }
+
+        var entitlementCoverage = await dbContext.ServiceJobs.AsNoTracking()
+            .Where(x => x.Id == workOrder.ServiceJobId)
+            .Select(x => x.EntitlementCoverage)
+            .FirstOrDefaultAsync(cancellationToken);
+
+        return Ok(MapWorkOrder(workOrder, entitlementCoverage));
     }
 
     [HttpGet("{id:guid}/pdf")]
@@ -237,7 +248,7 @@ public sealed class WorkOrdersController(
         return NoContent();
     }
 
-    private WorkOrderDto MapWorkOrder(WorkOrder workOrder)
+    private WorkOrderDto MapWorkOrder(WorkOrder workOrder, ServiceCoverageScope entitlementCoverage)
     {
         var orderedEntries = workOrder.TimeEntries
             .OrderByDescending(x => x.WorkDate)
@@ -258,6 +269,7 @@ public sealed class WorkOrdersController(
                 entry.BillingRate,
                 entry.TaxPercent,
                 entry.BillableTotal,
+                CalculateEffectiveLaborBillableTotal(entitlementCoverage, entry.BillableHours, entry.BillingRate, entry.TaxPercent),
                 entry.Notes,
                 entry.Status,
                 entry.SubmittedAt,
@@ -286,8 +298,21 @@ public sealed class WorkOrdersController(
                 .Sum(entry => entry.LaborCost),
             orderedEntries
                 .Where(entry => entry.BillableToCustomer && (entry.Status is WorkOrderTimeEntryStatus.Approved or WorkOrderTimeEntryStatus.Invoiced))
-                .Sum(entry => entry.BillableTotal),
+                .Sum(entry => entry.EffectiveBillableTotal),
             orderedEntries);
+    }
+
+    private static decimal CalculateEffectiveLaborBillableTotal(
+        ServiceCoverageScope entitlementCoverage,
+        decimal billableHours,
+        decimal billingRate,
+        decimal taxPercent)
+    {
+        var effectiveRate = ServiceEntitlementRules.ApplyEstimateUnitPrice(
+            entitlementCoverage,
+            ServiceEstimateLineKind.Labor,
+            billingRate);
+        return billableHours * effectiveRate * (1 + (taxPercent / 100m));
     }
 
     private string ResolveTechnicianName(string? requestedName)

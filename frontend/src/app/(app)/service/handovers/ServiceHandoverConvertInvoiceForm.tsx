@@ -150,7 +150,7 @@ export function ServiceHandoverConvertInvoiceForm({
           {busy ? "Converting..." : "Create Sales Invoice Draft"}
         </SecondaryButton>
         <div className="text-xs text-zinc-500">
-          Labor billing can use estimate labor or approved timesheets. Expense lines without an item still need an expense or misc service item.
+          Labor billing can use estimate labor or approved timesheets. Warranty or contract coverage can reduce covered part or labor lines to zero. Expense lines without an item still need an expense or misc service item.
         </div>
       </div>
 

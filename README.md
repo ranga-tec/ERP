@@ -49,15 +49,18 @@
 - Service workflow now supports:
   - equipment-unit warranty coverage with editable warranty end date and coverage scope
   - service contracts (`AMC`, `SLA`, `Warranty Extension`) linked to specific customer equipment units
+  - service list pages now expose explicit `View` / `Edit` actions for contracts, equipment units, jobs, estimates, and expense claims so operators do not need to infer that the document number opens the detail page
   - `Service` and `Repair` job types on service jobs
   - open service jobs can be edited before work starts; saving re-evaluates entitlement against the selected unit/customer
   - automatic entitlement snapshot on service jobs from active equipment warranty or service contract, plus manual entitlement refresh on the job
   - work-order labor entries with draft, submitted, approved, rejected, and invoiced states
-  - draft service estimate headers and lines remain editable until approval or rejection
-  - estimate revisions so approved/rejected estimates are preserved and additional findings can be resent as a new draft revision
+  - draft service estimate headers and lines remain editable until customer approval or rejection
+  - sent draft estimates show `Customer Approval` status, and editing a pending draft resets that status so the latest scope must be resent
+  - approved/rejected estimates are preserved and additional findings now follow a `Create Change Order` flow that opens a new draft revision for resend
+  - warranty/contract entitlement automatically drives covered labor and part billing to zero on estimate lines, approved labor invoice conversion, and related job-costing views
   - direct purchases linked to service jobs for outside emergency buys
   - service expense claims for petty-cash and out-of-pocket spending, with finance approval and settlement tracking
-  - billable expense-claim lines can be converted into the working estimate or an automatic estimate revision
+  - billable expense-claim lines can be converted into the working estimate or an automatic change-order draft revision
   - handover-to-invoice conversion now supports expense estimate lines with fallback invoice item mapping and approved timesheet-based labor billing
   - service job detail now includes actual job-cost rollup across material issues, direct purchases, approved labor, expense claims, estimates, and invoices
 - Finance workflow now supports:

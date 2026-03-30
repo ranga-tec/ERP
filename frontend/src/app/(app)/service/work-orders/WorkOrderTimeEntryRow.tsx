@@ -18,6 +18,7 @@ type WorkOrderTimeEntryDto = {
   billingRate: number;
   taxPercent: number;
   billableTotal: number;
+  effectiveBillableTotal: number;
   notes?: string | null;
   status: number;
   rejectionReason?: string | null;
@@ -290,7 +291,12 @@ export function WorkOrderTimeEntryRow({
           "No"
         )}
       </td>
-      <td className="py-2 pr-3">{isEditing && Number.isFinite(previewBillableTotal) ? previewBillableTotal.toFixed(2) : entry.billableTotal.toFixed(2)}</td>
+      <td className="py-2 pr-3">
+        {isEditing && Number.isFinite(previewBillableTotal) ? previewBillableTotal.toFixed(2) : entry.effectiveBillableTotal.toFixed(2)}
+        {!isEditing && entry.billableToCustomer && entry.effectiveBillableTotal !== entry.billableTotal ? (
+          <div className="mt-1 text-xs text-zinc-500">Covered from {entry.billableTotal.toFixed(2)}</div>
+        ) : null}
+      </td>
       <td className="py-2 pr-3">{statusLabel[entry.status] ?? entry.status}</td>
       <td className="py-2 pr-3 font-mono text-xs text-zinc-500">
         {entry.salesInvoiceId ? entry.salesInvoiceId.slice(0, 8) : "-"}

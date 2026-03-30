@@ -9,6 +9,14 @@ public enum ServiceEstimateStatus
     Rejected = 2
 }
 
+public enum ServiceEstimateCustomerApprovalStatus
+{
+    NotSent = 0,
+    Pending = 1,
+    Approved = 2,
+    Rejected = 3
+}
+
 public enum ServiceEstimateLineKind
 {
     Part = 1,
@@ -42,6 +50,7 @@ public sealed class ServiceEstimate : AuditableEntity
 
         RevisionNumber = revisionNumber;
         Status = ServiceEstimateStatus.Draft;
+        CustomerApprovalStatus = ServiceEstimateCustomerApprovalStatus.NotSent;
     }
 
     public string Number { get; private set; } = null!;
@@ -52,6 +61,9 @@ public sealed class ServiceEstimate : AuditableEntity
     public Guid? RevisedFromEstimateId { get; private set; }
     public int RevisionNumber { get; private set; }
     public ServiceEstimateStatus Status { get; private set; }
+    public ServiceEstimateCustomerApprovalStatus CustomerApprovalStatus { get; private set; }
+    public DateTimeOffset? SentToCustomerAt { get; private set; }
+    public DateTimeOffset? CustomerDecisionAt { get; private set; }
 
     public List<ServiceEstimateLine> Lines { get; private set; } = new();
 
@@ -64,6 +76,7 @@ public sealed class ServiceEstimate : AuditableEntity
         decimal taxPercent)
     {
         EnsureDraftEditable();
+        ResetPendingCustomerApproval();
 
         var line = new ServiceEstimateLine(
             Id,
@@ -88,6 +101,7 @@ public sealed class ServiceEstimate : AuditableEntity
         decimal taxPercent)
     {
         EnsureDraftEditable();
+        ResetPendingCustomerApproval();
 
         var line = Lines.FirstOrDefault(x => x.Id == lineId)
             ?? throw new DomainValidationException("Service estimate line not found.");
@@ -98,6 +112,7 @@ public sealed class ServiceEstimate : AuditableEntity
     public void RemoveLine(Guid lineId)
     {
         EnsureDraftEditable();
+        ResetPendingCustomerApproval();
 
         var line = Lines.FirstOrDefault(x => x.Id == lineId)
             ?? throw new DomainValidationException("Service estimate line not found.");
@@ -110,6 +125,9 @@ public sealed class ServiceEstimate : AuditableEntity
     public decimal Total => Lines.Sum(l => l.LineTotal);
 
     public void Approve()
+        => Approve(DateTimeOffset.UtcNow);
+
+    public void Approve(DateTimeOffset decisionAt)
     {
         if (Status != ServiceEstimateStatus.Draft)
         {
@@ -122,9 +140,14 @@ public sealed class ServiceEstimate : AuditableEntity
         }
 
         Status = ServiceEstimateStatus.Approved;
+        CustomerApprovalStatus = ServiceEstimateCustomerApprovalStatus.Approved;
+        CustomerDecisionAt = decisionAt;
     }
 
     public void Reject()
+        => Reject(DateTimeOffset.UtcNow);
+
+    public void Reject(DateTimeOffset decisionAt)
     {
         if (Status != ServiceEstimateStatus.Draft)
         {
@@ -132,13 +155,24 @@ public sealed class ServiceEstimate : AuditableEntity
         }
 
         Status = ServiceEstimateStatus.Rejected;
+        CustomerApprovalStatus = ServiceEstimateCustomerApprovalStatus.Rejected;
+        CustomerDecisionAt = decisionAt;
     }
 
     public void UpdateHeader(DateTimeOffset? validUntil, string? terms)
     {
         EnsureDraftEditable();
+        ResetPendingCustomerApproval();
         ValidUntil = validUntil;
         Terms = string.IsNullOrWhiteSpace(terms) ? null : terms.Trim();
+    }
+
+    public void MarkSentToCustomer(DateTimeOffset sentAt)
+    {
+        EnsureDraftEditable();
+        CustomerApprovalStatus = ServiceEstimateCustomerApprovalStatus.Pending;
+        SentToCustomerAt = sentAt;
+        CustomerDecisionAt = null;
     }
 
     private void EnsureDraftEditable()
@@ -147,6 +181,18 @@ public sealed class ServiceEstimate : AuditableEntity
         {
             throw new DomainValidationException("Only draft estimates can be edited.");
         }
+    }
+
+    private void ResetPendingCustomerApproval()
+    {
+        if (CustomerApprovalStatus != ServiceEstimateCustomerApprovalStatus.Pending)
+        {
+            return;
+        }
+
+        CustomerApprovalStatus = ServiceEstimateCustomerApprovalStatus.NotSent;
+        SentToCustomerAt = null;
+        CustomerDecisionAt = null;
     }
 }
 
