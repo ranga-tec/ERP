@@ -28,7 +28,7 @@ public sealed class InvoicesController(IIssDbContext dbContext, SalesService sal
         skip = Math.Max(0, skip);
         take = Math.Clamp(take, 1, 500);
 
-        var invoices = await dbContext.SalesInvoices.AsNoTracking()
+        var invoiceHeaders = await dbContext.SalesInvoices.AsNoTracking()
             .OrderByDescending(x => x.InvoiceDate)
             .Skip(skip)
             .Take(take)
@@ -39,8 +39,50 @@ public sealed class InvoicesController(IIssDbContext dbContext, SalesService sal
                 x.InvoiceDate,
                 x.DueDate,
                 x.Status,
-                x.Lines.Sum(l => (l.Quantity * l.UnitPrice) * (1m - (l.DiscountPercent / 100m)) * (1m + (l.TaxPercent / 100m)))))
+                0m))
             .ToListAsync(cancellationToken);
+
+        if (invoiceHeaders.Count == 0)
+        {
+            return Ok(invoiceHeaders);
+        }
+
+        var invoiceIds = invoiceHeaders.Select(x => x.Id).ToList();
+
+        var totalsByInvoiceId = (await dbContext.Set<SalesInvoiceLine>()
+                .AsNoTracking()
+                .Where(x => invoiceIds.Contains(x.SalesInvoiceId))
+                .Select(x => new
+                {
+                    x.SalesInvoiceId,
+                    x.Quantity,
+                    x.UnitPrice,
+                    x.DiscountPercent,
+                    x.TaxPercent
+                })
+                .ToListAsync(cancellationToken))
+            .GroupBy(x => x.SalesInvoiceId)
+            .ToDictionary(
+                group => group.Key,
+                group => group.Sum(line =>
+                {
+                    var gross = line.Quantity * line.UnitPrice;
+                    var discount = gross * (line.DiscountPercent / 100m);
+                    var subtotal = gross - discount;
+                    var tax = subtotal * (line.TaxPercent / 100m);
+                    return subtotal + tax;
+                }));
+
+        var invoices = invoiceHeaders
+            .Select(invoice => new InvoiceSummaryDto(
+                invoice.Id,
+                invoice.Number,
+                invoice.CustomerId,
+                invoice.InvoiceDate,
+                invoice.DueDate,
+                invoice.Status,
+                totalsByInvoiceId.TryGetValue(invoice.Id, out var total) ? total : 0m))
+            .ToList();
 
         return Ok(invoices);
     }

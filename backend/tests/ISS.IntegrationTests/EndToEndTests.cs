@@ -1169,6 +1169,21 @@ public sealed class EndToEndTests(IssApiFixture fixture) : IClassFixture<IssApiF
     }
 
     [Fact]
+    public async Task Sales_Invoice_List_Includes_Draft_Invoices_With_No_Lines()
+    {
+        var customer = await Post<CustomerDto>("/api/customers", new { code = Code("CUS"), name = "Customer A", phone = "555", email = (string?)null, address = (string?)null });
+
+        var invoice = await Post<InvoiceDto>("/api/sales/invoices", new { customerId = customer.Id, dueDate = (DateTimeOffset?)null });
+
+        var invoices = await Get<List<InvoiceSummaryDto>>("/api/sales/invoices?take=10");
+        var listedInvoice = Assert.Single(invoices, x => x.Id == invoice.Id);
+
+        Assert.Equal(invoice.Number, listedInvoice.Number);
+        Assert.Equal(SalesInvoiceStatus.Draft, listedInvoice.Status);
+        Assert.Equal(0m, listedInvoice.Total);
+    }
+
+    [Fact]
     public async Task Sales_Quote_Can_Be_Created_Lined_And_Sent()
     {
         var customer = await Post<CustomerDto>("/api/customers", new { code = Code("CUS"), name = "Customer A", phone = "555", email = (string?)null, address = (string?)null });
@@ -2951,6 +2966,7 @@ public sealed class EndToEndTests(IssApiFixture fixture) : IClassFixture<IssApiF
     private sealed record DirectDispatchApiDto(Guid Id, string Number, Guid WarehouseId, Guid? CustomerId, Guid? ServiceJobId, DateTimeOffset DispatchedAt, DirectDispatchStatus Status, string? Reason, IReadOnlyList<DirectDispatchLineApiDto> Lines);
     private sealed record CustomerReturnLineApiDto(Guid Id, Guid ItemId, decimal Quantity, decimal UnitPrice, string? BatchNumber, IReadOnlyList<string> Serials);
     private sealed record CustomerReturnApiDto(Guid Id, string Number, Guid CustomerId, Guid WarehouseId, DateTimeOffset ReturnDate, CustomerReturnStatus Status, Guid? SalesInvoiceId, Guid? DispatchNoteId, string? Reason, IReadOnlyList<CustomerReturnLineApiDto> Lines);
+    private sealed record InvoiceSummaryDto(Guid Id, string Number, Guid CustomerId, DateTimeOffset InvoiceDate, DateTimeOffset? DueDate, SalesInvoiceStatus Status, decimal Total);
     private sealed record InvoiceDto(Guid Id, string Number, Guid CustomerId, DateTimeOffset InvoiceDate, DateTimeOffset? DueDate, SalesInvoiceStatus Status, decimal Subtotal, decimal TaxTotal, decimal Total);
     private sealed record InvoiceLineDetailDto(Guid Id, Guid ItemId, decimal Quantity, decimal UnitPrice, decimal DiscountPercent, decimal TaxPercent, decimal LineTotal);
     private sealed record InvoiceDetailDto(Guid Id, string Number, Guid CustomerId, DateTimeOffset InvoiceDate, DateTimeOffset? DueDate, SalesInvoiceStatus Status, decimal Subtotal, decimal TaxTotal, decimal Total, IReadOnlyList<InvoiceLineDetailDto> Lines);
