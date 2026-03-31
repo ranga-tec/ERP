@@ -83,6 +83,7 @@ const sections: NavSection[] = [
   {
     title: "Finance",
     items: [
+      { href: "/finance/accounts", label: "Chart of Accounts" },
       { href: "/finance/ar", label: "Accounts Receivable" },
       { href: "/finance/ap", label: "Accounts Payable" },
       { href: "/finance/payments", label: "Payments" },

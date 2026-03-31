@@ -129,6 +129,7 @@ Audit behavior:
 - `SaveChangesAsync` in `IssDbContext` applies auditing (`CreatedAt`, `CreatedBy`, `LastModifiedAt`, `LastModifiedBy`) for `AuditableEntity`
 - It also writes `AuditLog` rows by inspecting EF change tracker entries
 - Identity user/role changes are excluded from audit log generation
+- the audit API now enriches rows with user labels when available and flags technical tables so the frontend can hide low-signal rows by default
 
 Implication for maintainers:
 
@@ -231,6 +232,7 @@ Master data API surface (current):
 - Core: `/api/items`, `/api/brands`, `/api/warehouses`, `/api/suppliers`, `/api/customers`
 - Classification/units: `/api/item-categories`, `/api/item-subcategories`, `/api/uoms`, `/api/uom-conversions`
 - Finance-related masters: `/api/taxes`, `/api/tax-conversions`, `/api/currencies`, `/api/currency-rates`, `/api/payment-types`
+- Finance account master: `/api/finance/accounts`
 - Operational metadata: `/api/reference-forms`, `/api/reorder-settings`
 
 Master-data API action standard:

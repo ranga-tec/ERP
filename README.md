@@ -34,7 +34,7 @@
 - Service includes:
   - equipment units, service contracts, jobs, work orders, estimates, expense claims, material requisitions, quality checks, handovers
 - Finance includes:
-  - AR/AP, payments + allocations, petty cash funds/ledger, credit notes, debit notes, finance approval/settlement of service expense claims
+  - chart of accounts, AR/AP, payments + allocations, petty cash funds/ledger, credit notes, debit notes, finance approval/settlement of service expense claims
 - Reporting includes:
   - dashboard, stock ledger, aging, tax summary, service KPIs, costing
 - Draft document detail pages with line grids now support row actions:
@@ -65,6 +65,11 @@
   - service job detail now includes actual job-cost rollup across material issues, direct purchases, approved labor, expense claims, estimates, and invoices
 - Finance workflow now supports:
   - petty cash funds with opening balance, top-up, adjustment, and expense-settlement ledger entries
+  - chart-of-accounts maintenance with parent/group vs posting-account setup
+- Audit log UI now supports:
+  - readable before/after field diffs
+  - user labels instead of only raw user IDs where available
+  - optional display of technical/system-maintained audit rows and fields
 - The authenticated sidebar now opens expanded by default and includes top-of-menu search when expanded
 
 ## Local infrastructure (PostgreSQL)

@@ -539,7 +539,7 @@ Key behavior:
   - edit roles
   - reset password
   - enable/disable accounts
-- Audit logs render `changesJson` inside expandable `<details>`
+- Audit logs now parse `changesJson` into readable field-by-field old/new differences, with raw JSON still available as a secondary view
 
 ## 4.9 Frontend route inventory (high-level grouped)
 
@@ -550,7 +550,7 @@ Key behavior:
 - Sales: quotes, orders, dispatches, invoices (+ detail pages)
 - Service: equipment-units, jobs, work-orders, material-requisitions, quality-checks (+ detail pages)
 - Inventory: onhand, reorder-alerts, stock-adjustments, stock-transfers (+ detail pages)
-- Finance: ar, ap, payments, credit-notes, debit-notes (+ detail pages)
+- Finance: accounts, ar, ap, payments, petty-cash, credit-notes, debit-notes (+ detail pages)
 - Admin: import, notifications, users
 - Audit: audit-logs
 

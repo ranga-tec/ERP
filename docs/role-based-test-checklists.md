@@ -57,7 +57,7 @@ Recommended sample data:
 | `Admin` | All modules | None by design |
 | `Procurement` | suppliers, taxes, reference forms, PR, RFQ, PO, GRN, direct purchase, supplier invoice, supplier return | users, notifications, currencies, AR/AP, payments, service work order pages |
 | `Sales` | customers, taxes, reference forms, quotes, orders, dispatches, direct dispatches, invoices, customer returns, equipment units, jobs, estimates, handovers | users, procurement pages, finance pages, currencies, work orders, QC, material requisitions, expense claims |
-| `Finance` | customers, suppliers, currencies, currency rates, payment types, taxes, tax conversions, reference forms, AR/AP, payments, petty cash, credit notes, debit notes, direct purchases, supplier invoices, invoices, service expense claims | users, notifications, audit logs, reporting pages, PO/GRN, service jobs/work orders/estimates/handovers |
+| `Finance` | customers, suppliers, currencies, currency rates, payment types, taxes, tax conversions, reference forms, chart of accounts, AR/AP, payments, petty cash, credit notes, debit notes, direct purchases, supplier invoices, invoices, service expense claims | users, notifications, audit logs, reporting pages, PO/GRN, service jobs/work orders/estimates/handovers |
 | `Service` | customers, taxes, reference forms, equipment units, jobs, estimates, expense claims, work orders, material requisitions, quality checks, handovers, direct dispatches | users, procurement, currencies, payments, AR/AP, petty cash, audit logs, reporting |
 
 ## Admin Checklist
@@ -75,6 +75,7 @@ Use this role to verify full-system access and role setup.
 - [ ] Open `Service -> Work Orders`.
 - [ ] Open `Finance -> Payments`.
 - [ ] Open `Finance -> Petty Cash`.
+- [ ] Open `Finance -> Chart of Accounts`.
 - [ ] Open `Reporting -> Costing`.
 - [ ] Open `Admin -> Users`.
 - [ ] Open `Audit Logs`.
@@ -335,6 +336,7 @@ Use a user with only the `Finance` role.
 - [ ] Open `Finance -> Accounts Payable`.
 - [ ] Open `Finance -> Payments`.
 - [ ] Open `Finance -> Petty Cash`.
+- [ ] Open `Finance -> Chart of Accounts`.
 - [ ] Open `Finance -> Credit Notes`.
 - [ ] Open `Finance -> Debit Notes`.
 - [ ] Open `Procurement -> Direct Purchases`.
@@ -368,6 +370,18 @@ Expected result:
 Expected result:
 
 - payment totals, allocated amounts, and remaining amounts are accurate
+
+### Chart Of Accounts
+
+- [ ] Open `Finance -> Chart of Accounts`.
+- [ ] Create one parent account such as `1000 - Current Assets` with posting disabled.
+- [ ] Create one posting account under it such as `1100 - Cash on Hand`.
+- [ ] Edit the child account and confirm the change saves.
+- [ ] If safe in the test dataset, delete one unused account or mark it inactive.
+
+Expected result:
+
+- finance user can maintain account codes, parent structure, and posting flags successfully
 
 ### Credit And Debit Notes
 

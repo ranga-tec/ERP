@@ -214,5 +214,7 @@ Recent workflow-specific UI behavior:
 - service work-order detail pages support labor-entry capture plus submit/approve/reject actions, and show effective billable labor after entitlement coverage
 - service handover invoice conversion supports fallback item mapping for expense lines and lets users choose estimate labor vs approved timesheet labor
 - service job detail pages render a costing summary with estimate, invoice, material, direct-purchase, labor, and expense-claim breakdowns, including entitlement-adjusted labor billing visibility
+- finance chart-of-accounts pages now support account creation/edit/delete, parent account structure, and posting/group flags
 - finance petty cash pages provide fund creation, editing, top-up, adjustment, and settlement-ledger visibility
+- audit logs now render structured field diffs with filters for technical rows and system-maintained fields instead of only dumping raw JSON
 

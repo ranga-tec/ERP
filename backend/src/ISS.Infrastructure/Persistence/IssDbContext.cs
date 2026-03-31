@@ -77,6 +77,7 @@ public sealed class IssDbContext(
 
     public DbSet<AccountsReceivableEntry> AccountsReceivableEntries => Set<AccountsReceivableEntry>();
     public DbSet<AccountsPayableEntry> AccountsPayableEntries => Set<AccountsPayableEntry>();
+    public DbSet<LedgerAccount> LedgerAccounts => Set<LedgerAccount>();
     public DbSet<Payment> Payments => Set<Payment>();
     public DbSet<PettyCashFund> PettyCashFunds => Set<PettyCashFund>();
     public DbSet<CreditNote> CreditNotes => Set<CreditNote>();
@@ -160,6 +161,16 @@ public sealed class IssDbContext(
             entity.Property(x => x.Source).HasMaxLength(256);
             entity.HasOne(x => x.FromCurrency).WithMany().HasForeignKey(x => x.FromCurrencyId).OnDelete(DeleteBehavior.Restrict);
             entity.HasOne(x => x.ToCurrency).WithMany().HasForeignKey(x => x.ToCurrencyId).OnDelete(DeleteBehavior.Restrict);
+        });
+
+        builder.Entity<LedgerAccount>(entity =>
+        {
+            entity.HasIndex(x => x.Code).IsUnique();
+            entity.HasIndex(x => x.ParentAccountId);
+            entity.Property(x => x.Code).HasMaxLength(32);
+            entity.Property(x => x.Name).HasMaxLength(128);
+            entity.Property(x => x.Description).HasMaxLength(512);
+            entity.HasOne(x => x.ParentAccount).WithMany().HasForeignKey(x => x.ParentAccountId).OnDelete(DeleteBehavior.Restrict);
         });
 
         builder.Entity<ReferenceForm>(entity =>

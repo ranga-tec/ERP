@@ -37,11 +37,19 @@ The page loads successfully even on a fresh system.
 Expected:
 The petty cash fund list loads successfully.
 
-5. Open `Service -> Jobs`.
+5. Open `Finance -> Chart of Accounts`.
+Expected:
+The account list and create form load successfully.
+
+6. Open `Audit Logs`.
+Expected:
+The page loads and shows readable field-by-field audit differences instead of only raw JSON blobs.
+
+7. Open `Service -> Jobs`.
 Expected:
 The job list and create form load without service API errors.
 
-6. Open `Service -> Service Contracts`.
+8. Open `Service -> Service Contracts`.
 Expected:
 The contract list and create form load without service API errors.
 

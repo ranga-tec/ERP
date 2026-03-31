@@ -26,4 +26,23 @@ public sealed class FinanceTests
         payment.AllocateToAr(Guid.NewGuid(), 25m);
         Assert.Single(payment.Allocations);
     }
+
+    [Fact]
+    public void LedgerAccount_Defaults_To_Active_And_Allows_Updates()
+    {
+        var account = new LedgerAccount("1100", "Cash on Hand", LedgerAccountType.Asset, null, true, "Main cash account");
+
+        Assert.True(account.IsActive);
+        Assert.True(account.AllowsPosting);
+        Assert.Equal(LedgerAccountType.Asset, account.AccountType);
+
+        account.Update("1101", "Petty Cash", LedgerAccountType.Asset, Guid.NewGuid(), false, "Grouped under cash", false);
+
+        Assert.Equal("1101", account.Code);
+        Assert.Equal("Petty Cash", account.Name);
+        Assert.False(account.AllowsPosting);
+        Assert.False(account.IsActive);
+        Assert.Equal("Grouped under cash", account.Description);
+        Assert.NotNull(account.ParentAccountId);
+    }
 }

@@ -158,6 +158,10 @@ Note:
 
 ## Finance workflows
 
+- Chart of accounts:
+  - create and maintain finance account codes from `Finance -> Chart of Accounts`
+  - accounts support `Asset`, `Liability`, `Equity`, `Revenue`, and `Expense`
+  - accounts can be grouped under parent accounts and marked as posting or group-only
 - AR and AP:
   - view outstanding entries
 - Payments:
@@ -221,3 +225,6 @@ This applies across procurement, sales, inventory, and service document detail p
 
 - Transaction and entity changes are recorded in audit logs.
 - View at `Audit Logs`.
+- the audit screen now shows readable field-by-field old/new values instead of only raw JSON
+- technical rows such as document-sequence updates are hidden by default and can be shown when needed
+- system-managed fields such as `CreatedAt` and `LastModifiedAt` are hidden by default and can also be shown when needed
