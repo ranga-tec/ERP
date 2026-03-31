@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { usePathname } from "next/navigation";
+import { canAccessPath } from "@/lib/route-access";
 
 type NavItem = { href: string; label: string };
 type NavSection = { title: string; items: NavItem[] };
@@ -119,6 +120,7 @@ const sections: NavSection[] = [
 ];
 
 type SidebarProps = {
+  roles: string[];
   collapsed?: boolean;
   onNavigate?: () => void;
   onToggleCollapse?: () => void;
@@ -215,7 +217,7 @@ function ChevronIcon({ expanded }: { expanded: boolean }) {
   );
 }
 
-export function Sidebar({ collapsed = false, onNavigate, onToggleCollapse }: SidebarProps) {
+export function Sidebar({ roles, collapsed = false, onNavigate, onToggleCollapse }: SidebarProps) {
   const pathname = usePathname();
   const canToggle = typeof onToggleCollapse === "function";
   const pinned = !collapsed;
@@ -241,11 +243,18 @@ export function Sidebar({ collapsed = false, onNavigate, onToggleCollapse }: Sid
   const expandedSectionSet = new Set(expandedSections);
   const normalizedSearch = normalizeSearch(search);
   const filteredSections = useMemo(() => {
+    const visibleSections = sections
+      .map((section) => ({
+        ...section,
+        items: section.items.filter((item) => canAccessPath(roles, item.href)),
+      }))
+      .filter((section) => section.items.length > 0);
+
     if (!normalizedSearch) {
-      return sections;
+      return visibleSections;
     }
 
-    return sections
+    return visibleSections
       .map((section) => {
         const sectionMatches = normalizeSearch(section.title).includes(normalizedSearch);
         const items = sectionMatches
@@ -258,7 +267,7 @@ export function Sidebar({ collapsed = false, onNavigate, onToggleCollapse }: Sid
         };
       })
       .filter((section) => section.items.length > 0);
-  }, [normalizedSearch]);
+  }, [normalizedSearch, roles]);
 
   return (
     <aside

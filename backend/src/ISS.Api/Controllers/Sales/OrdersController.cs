@@ -11,7 +11,7 @@ namespace ISS.Api.Controllers.Sales;
 
 [ApiController]
 [Route("api/sales/orders")]
-[Authorize(Roles = $"{Roles.Admin},{Roles.Sales},{Roles.Finance}")]
+[Authorize(Roles = $"{Roles.Admin},{Roles.Sales},{Roles.Finance},{Roles.Inventory}")]
 public sealed class OrdersController(IIssDbContext dbContext, SalesService salesService, IDocumentPdfService pdfService) : ControllerBase
 {
     public sealed record SalesOrderSummaryDto(Guid Id, string Number, Guid CustomerId, DateTimeOffset OrderDate, SalesOrderStatus Status, decimal Total);

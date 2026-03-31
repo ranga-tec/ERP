@@ -11,7 +11,7 @@ namespace ISS.Api.Controllers.Service;
 
 [ApiController]
 [Route("api/service/jobs")]
-[Authorize(Roles = $"{Roles.Admin},{Roles.Service},{Roles.Sales}")]
+[Authorize(Roles = $"{Roles.Admin},{Roles.Service},{Roles.Sales},{Roles.Inventory}")]
 public sealed class ServiceJobsController(
     IIssDbContext dbContext,
     ServiceManagementService serviceManagementService,
@@ -74,6 +74,7 @@ public sealed class ServiceJobsController(
     }
 
     [HttpPost]
+    [Authorize(Roles = $"{Roles.Admin},{Roles.Service},{Roles.Sales}")]
     public async Task<ActionResult<ServiceJobDto>> Create(CreateServiceJobRequest request, CancellationToken cancellationToken)
     {
         var id = await serviceManagementService.CreateServiceJobAsync(
@@ -86,6 +87,7 @@ public sealed class ServiceJobsController(
     }
 
     [HttpPut("{id:guid}")]
+    [Authorize(Roles = $"{Roles.Admin},{Roles.Service},{Roles.Sales}")]
     public async Task<ActionResult<ServiceJobDto>> Update(Guid id, UpdateServiceJobRequest request, CancellationToken cancellationToken)
     {
         await serviceManagementService.UpdateServiceJobAsync(
@@ -143,6 +145,7 @@ public sealed class ServiceJobsController(
     }
 
     [HttpPost("{id:guid}/start")]
+    [Authorize(Roles = $"{Roles.Admin},{Roles.Service},{Roles.Sales}")]
     public async Task<ActionResult> Start(Guid id, CancellationToken cancellationToken)
     {
         await serviceManagementService.StartServiceJobAsync(id, cancellationToken);
@@ -150,6 +153,7 @@ public sealed class ServiceJobsController(
     }
 
     [HttpPost("{id:guid}/complete")]
+    [Authorize(Roles = $"{Roles.Admin},{Roles.Service},{Roles.Sales}")]
     public async Task<ActionResult> Complete(Guid id, CancellationToken cancellationToken)
     {
         await serviceManagementService.CompleteServiceJobAsync(id, cancellationToken);
@@ -157,6 +161,7 @@ public sealed class ServiceJobsController(
     }
 
     [HttpPost("{id:guid}/close")]
+    [Authorize(Roles = $"{Roles.Admin},{Roles.Service},{Roles.Sales}")]
     public async Task<ActionResult> Close(Guid id, CancellationToken cancellationToken)
     {
         await serviceManagementService.CloseServiceJobAsync(id, cancellationToken);
@@ -164,6 +169,7 @@ public sealed class ServiceJobsController(
     }
 
     [HttpPost("{id:guid}/refresh-entitlement")]
+    [Authorize(Roles = $"{Roles.Admin},{Roles.Service},{Roles.Sales}")]
     public async Task<ActionResult> RefreshEntitlement(Guid id, CancellationToken cancellationToken)
     {
         await serviceManagementService.RefreshServiceJobEntitlementAsync(id, cancellationToken);

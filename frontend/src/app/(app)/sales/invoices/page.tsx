@@ -1,5 +1,8 @@
 import Link from "next/link";
+import { cookies } from "next/headers";
 import { backendFetchJson } from "@/lib/backend.server";
+import { ISS_TOKEN_COOKIE } from "@/lib/env";
+import { sessionFromToken } from "@/lib/jwt";
 import { Card, Table } from "@/components/ui";
 import { InvoiceCreateForm } from "./InvoiceCreateForm";
 
@@ -22,6 +25,12 @@ const statusLabel: Record<number, string> = {
 };
 
 export default async function InvoicesPage() {
+  const cookieStore = await cookies();
+  const token = cookieStore.get(ISS_TOKEN_COOKIE)?.value;
+  const session = token ? sessionFromToken(token) : null;
+  const roles = new Set(session?.roles ?? []);
+  const canManageInvoices = roles.has("Admin") || roles.has("Sales") || roles.has("Finance");
+
   const [invoices, customers] = await Promise.all([
     backendFetchJson<InvoiceSummaryDto[]>("/sales/invoices?take=100"),
     backendFetchJson<CustomerDto[]>("/customers"),
@@ -36,10 +45,12 @@ export default async function InvoicesPage() {
         <p className="mt-1 text-sm text-zinc-500">Draft → add lines → post → pay (via payments).</p>
       </div>
 
-      <Card>
-        <div className="mb-3 text-sm font-semibold">Create</div>
-        <InvoiceCreateForm customers={customers} />
-      </Card>
+      {canManageInvoices ? (
+        <Card>
+          <div className="mb-3 text-sm font-semibold">Create</div>
+          <InvoiceCreateForm customers={customers} />
+        </Card>
+      ) : null}
 
       <Card>
         <div className="mb-3 text-sm font-semibold">List</div>
@@ -86,4 +97,3 @@ export default async function InvoicesPage() {
     </div>
   );
 }
-

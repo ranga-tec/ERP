@@ -48,12 +48,13 @@ export function AppShell({ children, email, roles }: AppShellProps) {
         className="fixed inset-y-0 left-0 z-40 w-[18.5rem] max-w-[86vw] -translate-x-full transition-transform duration-200 lg:hidden data-[open=true]:translate-x-0"
         data-open={mobileSidebarOpen}
       >
-        <Sidebar onNavigate={() => setMobileSidebarOpen(false)} />
+        <Sidebar roles={roles} onNavigate={() => setMobileSidebarOpen(false)} />
       </div>
 
       <div className="relative flex h-full min-h-0">
         <div className="hidden h-full lg:block">
           <Sidebar
+            roles={roles}
             collapsed={sidebarCollapsed}
             onToggleCollapse={toggleDesktopSidebar}
           />

@@ -1,5 +1,8 @@
 import Link from "next/link";
+import { cookies } from "next/headers";
 import { backendFetchJson } from "@/lib/backend.server";
+import { ISS_TOKEN_COOKIE } from "@/lib/env";
+import { sessionFromToken } from "@/lib/jwt";
 import { ItemInlineLink } from "@/components/InlineLink";
 import { Card, SecondaryLink, Table } from "@/components/ui";
 import { InvoiceActions } from "../InvoiceActions";
@@ -41,12 +44,17 @@ const statusLabel: Record<number, string> = {
 
 export default async function InvoiceDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
+  const cookieStore = await cookies();
+  const token = cookieStore.get(ISS_TOKEN_COOKIE)?.value;
+  const session = token ? sessionFromToken(token) : null;
+  const roles = new Set(session?.roles ?? []);
+  const canManageInvoices = roles.has("Admin") || roles.has("Sales") || roles.has("Finance");
 
   const [invoice, customers, items, taxes] = await Promise.all([
     backendFetchJson<InvoiceDto>(`/sales/invoices/${id}`),
     backendFetchJson<CustomerDto[]>("/customers"),
     backendFetchJson<ItemDto[]>("/items"),
-    backendFetchJson<TaxDto[]>("/taxes"),
+    canManageInvoices ? backendFetchJson<TaxDto[]>("/taxes") : Promise.resolve([] as TaxDto[]),
   ]);
 
   const customerById = new Map(customers.map((c) => [c.id, c]));
@@ -91,10 +99,14 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
             Download PDF
           </SecondaryLink>
         </div>
-        <InvoiceActions invoiceId={invoice.id} canPost={isDraft && invoice.lines.length > 0} />
+        {canManageInvoices ? (
+          <InvoiceActions invoiceId={invoice.id} canPost={isDraft && invoice.lines.length > 0} />
+        ) : (
+          <div className="text-sm text-zinc-500">Read-only access.</div>
+        )}
       </Card>
 
-      {isDraft ? (
+      {isDraft && canManageInvoices ? (
         <Card>
           <div className="mb-3 text-sm font-semibold">Add line</div>
           <InvoiceLineAddForm invoiceId={invoice.id} items={items} taxes={taxes} />
@@ -130,7 +142,7 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
                     invoiceId={invoice.id}
                     line={l}
                     itemLabel={itemLabel}
-                    canEdit={isDraft}
+                    canEdit={isDraft && canManageInvoices}
                   />
                 );
               })}

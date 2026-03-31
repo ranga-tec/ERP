@@ -9,7 +9,7 @@ namespace ISS.Api.Controllers;
 
 [ApiController]
 [Route("api/customers")]
-[Authorize(Roles = $"{Roles.Admin},{Roles.Sales},{Roles.Service},{Roles.Finance}")]
+[Authorize(Roles = $"{Roles.Admin},{Roles.Sales},{Roles.Service},{Roles.Finance},{Roles.Inventory}")]
 public sealed class CustomersController(IIssDbContext dbContext) : ControllerBase
 {
     public sealed record CustomerDto(Guid Id, string Code, string Name, string? Phone, string? Email, string? Address, bool IsActive);
@@ -37,6 +37,7 @@ public sealed class CustomersController(IIssDbContext dbContext) : ControllerBas
     }
 
     [HttpPost]
+    [Authorize(Roles = $"{Roles.Admin},{Roles.Sales},{Roles.Service},{Roles.Finance}")]
     public async Task<ActionResult<CustomerDto>> Create(CreateCustomerRequest request, CancellationToken cancellationToken)
     {
         var customer = new Customer(request.Code, request.Name, request.Phone, request.Email, request.Address);
@@ -46,6 +47,7 @@ public sealed class CustomersController(IIssDbContext dbContext) : ControllerBas
     }
 
     [HttpPut("{id:guid}")]
+    [Authorize(Roles = $"{Roles.Admin},{Roles.Sales},{Roles.Service},{Roles.Finance}")]
     public async Task<ActionResult<CustomerDto>> Update(Guid id, UpdateCustomerRequest request, CancellationToken cancellationToken)
     {
         var customer = await dbContext.Customers.FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
@@ -60,6 +62,7 @@ public sealed class CustomersController(IIssDbContext dbContext) : ControllerBas
     }
 
     [HttpDelete("{id:guid}")]
+    [Authorize(Roles = $"{Roles.Admin},{Roles.Sales},{Roles.Service},{Roles.Finance}")]
     public async Task<IActionResult> Delete(Guid id, CancellationToken cancellationToken)
     {
         var customer = await dbContext.Customers.FirstOrDefaultAsync(x => x.Id == id, cancellationToken);

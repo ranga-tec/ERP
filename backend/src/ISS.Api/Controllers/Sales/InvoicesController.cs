@@ -11,7 +11,7 @@ namespace ISS.Api.Controllers.Sales;
 
 [ApiController]
 [Route("api/sales/invoices")]
-[Authorize(Roles = $"{Roles.Admin},{Roles.Sales},{Roles.Finance}")]
+[Authorize(Roles = $"{Roles.Admin},{Roles.Sales},{Roles.Finance},{Roles.Inventory}")]
 public sealed class InvoicesController(IIssDbContext dbContext, SalesService salesService, IDocumentPdfService pdfService) : ControllerBase
 {
     public sealed record InvoiceSummaryDto(Guid Id, string Number, Guid CustomerId, DateTimeOffset InvoiceDate, DateTimeOffset? DueDate, SalesInvoiceStatus Status, decimal Total);
@@ -46,6 +46,7 @@ public sealed class InvoicesController(IIssDbContext dbContext, SalesService sal
     }
 
     [HttpPost]
+    [Authorize(Roles = $"{Roles.Admin},{Roles.Sales},{Roles.Finance}")]
     public async Task<ActionResult<InvoiceDto>> Create(CreateInvoiceRequest request, CancellationToken cancellationToken)
     {
         var id = await salesService.CreateInvoiceAsync(request.CustomerId, request.DueDate, cancellationToken);
@@ -85,6 +86,7 @@ public sealed class InvoicesController(IIssDbContext dbContext, SalesService sal
     }
 
     [HttpPost("{id:guid}/lines")]
+    [Authorize(Roles = $"{Roles.Admin},{Roles.Sales},{Roles.Finance}")]
     public async Task<ActionResult> AddLine(Guid id, AddInvoiceLineRequest request, CancellationToken cancellationToken)
     {
         await salesService.AddInvoiceLineAsync(id, request.ItemId, request.Quantity, request.UnitPrice, request.DiscountPercent, request.TaxPercent, cancellationToken);
@@ -92,6 +94,7 @@ public sealed class InvoicesController(IIssDbContext dbContext, SalesService sal
     }
 
     [HttpPut("{id:guid}/lines/{lineId:guid}")]
+    [Authorize(Roles = $"{Roles.Admin},{Roles.Sales},{Roles.Finance}")]
     public async Task<ActionResult> UpdateLine(Guid id, Guid lineId, UpdateInvoiceLineRequest request, CancellationToken cancellationToken)
     {
         await salesService.UpdateInvoiceLineAsync(
@@ -106,6 +109,7 @@ public sealed class InvoicesController(IIssDbContext dbContext, SalesService sal
     }
 
     [HttpDelete("{id:guid}/lines/{lineId:guid}")]
+    [Authorize(Roles = $"{Roles.Admin},{Roles.Sales},{Roles.Finance}")]
     public async Task<ActionResult> RemoveLine(Guid id, Guid lineId, CancellationToken cancellationToken)
     {
         await salesService.RemoveInvoiceLineAsync(id, lineId, cancellationToken);
@@ -113,6 +117,7 @@ public sealed class InvoicesController(IIssDbContext dbContext, SalesService sal
     }
 
     [HttpPost("{id:guid}/post")]
+    [Authorize(Roles = $"{Roles.Admin},{Roles.Sales},{Roles.Finance}")]
     public async Task<ActionResult> Post(Guid id, CancellationToken cancellationToken)
     {
         await salesService.PostInvoiceAsync(id, cancellationToken);
