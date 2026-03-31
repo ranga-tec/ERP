@@ -14,7 +14,7 @@ namespace ISS.Api.Controllers;
 
 [ApiController]
 [Route("api/items")]
-[Authorize(Roles = $"{Roles.Admin},{Roles.Inventory}")]
+[Authorize(Roles = $"{Roles.Admin},{Roles.Inventory},{Roles.Procurement},{Roles.Sales},{Roles.Service},{Roles.Finance},{Roles.Reporting}")]
 public sealed class ItemsController(IIssDbContext dbContext, IDocumentPdfService pdfService, IWebHostEnvironment hostEnvironment) : ControllerBase
 {
     public sealed record ItemDto(
@@ -177,6 +177,7 @@ public sealed class ItemsController(IIssDbContext dbContext, IDocumentPdfService
     }
 
     [HttpPost]
+    [Authorize(Roles = $"{Roles.Admin},{Roles.Inventory}")]
     public async Task<ActionResult<ItemDto>> Create(CreateItemRequest request, CancellationToken cancellationToken)
     {
         var classificationError = await ValidateClassificationAsync(request.CategoryId, request.SubcategoryId, cancellationToken);
@@ -225,6 +226,7 @@ public sealed class ItemsController(IIssDbContext dbContext, IDocumentPdfService
     }
 
     [HttpPut("{id:guid}")]
+    [Authorize(Roles = $"{Roles.Admin},{Roles.Inventory}")]
     public async Task<ActionResult<ItemDto>> Update(Guid id, UpdateItemRequest request, CancellationToken cancellationToken)
     {
         var classificationError = await ValidateClassificationAsync(request.CategoryId, request.SubcategoryId, cancellationToken);
@@ -279,6 +281,7 @@ public sealed class ItemsController(IIssDbContext dbContext, IDocumentPdfService
     }
 
     [HttpDelete("{id:guid}")]
+    [Authorize(Roles = $"{Roles.Admin},{Roles.Inventory}")]
     public async Task<IActionResult> Delete(Guid id, CancellationToken cancellationToken)
     {
         var item = await dbContext.Items.FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
@@ -352,6 +355,7 @@ public sealed class ItemsController(IIssDbContext dbContext, IDocumentPdfService
     }
 
     [HttpPost("{id:guid}/attachments")]
+    [Authorize(Roles = $"{Roles.Admin},{Roles.Inventory}")]
     public async Task<ActionResult<ItemAttachmentDto>> AddAttachment(Guid id, CreateItemAttachmentRequest request, CancellationToken cancellationToken)
     {
         var itemExists = await dbContext.Items.AsNoTracking().AnyAsync(x => x.Id == id, cancellationToken);
@@ -379,6 +383,7 @@ public sealed class ItemsController(IIssDbContext dbContext, IDocumentPdfService
     }
 
     [HttpPost("{id:guid}/attachments/upload")]
+    [Authorize(Roles = $"{Roles.Admin},{Roles.Inventory}")]
     [RequestSizeLimit(AttachmentUploadPolicy.MaxAttachmentSizeBytes)]
     public async Task<ActionResult<ItemAttachmentDto>> UploadAttachment(
         Guid id,
@@ -489,6 +494,7 @@ public sealed class ItemsController(IIssDbContext dbContext, IDocumentPdfService
     }
 
     [HttpDelete("{id:guid}/attachments/{attachmentId:guid}")]
+    [Authorize(Roles = $"{Roles.Admin},{Roles.Inventory}")]
     public async Task<ActionResult> DeleteAttachment(Guid id, Guid attachmentId, CancellationToken cancellationToken)
     {
         var attachment = await dbContext.ItemAttachments

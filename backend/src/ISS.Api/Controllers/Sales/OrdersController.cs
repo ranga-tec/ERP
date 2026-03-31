@@ -11,7 +11,7 @@ namespace ISS.Api.Controllers.Sales;
 
 [ApiController]
 [Route("api/sales/orders")]
-[Authorize(Roles = $"{Roles.Admin},{Roles.Sales}")]
+[Authorize(Roles = $"{Roles.Admin},{Roles.Sales},{Roles.Finance}")]
 public sealed class OrdersController(IIssDbContext dbContext, SalesService salesService, IDocumentPdfService pdfService) : ControllerBase
 {
     public sealed record SalesOrderSummaryDto(Guid Id, string Number, Guid CustomerId, DateTimeOffset OrderDate, SalesOrderStatus Status, decimal Total);
@@ -45,6 +45,7 @@ public sealed class OrdersController(IIssDbContext dbContext, SalesService sales
     }
 
     [HttpPost]
+    [Authorize(Roles = $"{Roles.Admin},{Roles.Sales}")]
     public async Task<ActionResult<SalesOrderDto>> Create(CreateOrderRequest request, CancellationToken cancellationToken)
     {
         var id = await salesService.CreateOrderAsync(request.CustomerId, cancellationToken);
@@ -81,6 +82,7 @@ public sealed class OrdersController(IIssDbContext dbContext, SalesService sales
     }
 
     [HttpPost("{id:guid}/lines")]
+    [Authorize(Roles = $"{Roles.Admin},{Roles.Sales}")]
     public async Task<ActionResult> AddLine(Guid id, AddOrderLineRequest request, CancellationToken cancellationToken)
     {
         await salesService.AddOrderLineAsync(id, request.ItemId, request.Quantity, request.UnitPrice, cancellationToken);
@@ -88,6 +90,7 @@ public sealed class OrdersController(IIssDbContext dbContext, SalesService sales
     }
 
     [HttpPut("{id:guid}/lines/{lineId:guid}")]
+    [Authorize(Roles = $"{Roles.Admin},{Roles.Sales}")]
     public async Task<ActionResult> UpdateLine(Guid id, Guid lineId, UpdateOrderLineRequest request, CancellationToken cancellationToken)
     {
         await salesService.UpdateOrderLineAsync(id, lineId, request.Quantity, request.UnitPrice, cancellationToken);
@@ -95,6 +98,7 @@ public sealed class OrdersController(IIssDbContext dbContext, SalesService sales
     }
 
     [HttpDelete("{id:guid}/lines/{lineId:guid}")]
+    [Authorize(Roles = $"{Roles.Admin},{Roles.Sales}")]
     public async Task<ActionResult> RemoveLine(Guid id, Guid lineId, CancellationToken cancellationToken)
     {
         await salesService.RemoveOrderLineAsync(id, lineId, cancellationToken);
@@ -102,6 +106,7 @@ public sealed class OrdersController(IIssDbContext dbContext, SalesService sales
     }
 
     [HttpPost("{id:guid}/confirm")]
+    [Authorize(Roles = $"{Roles.Admin},{Roles.Sales}")]
     public async Task<ActionResult> Confirm(Guid id, CancellationToken cancellationToken)
     {
         await salesService.ConfirmOrderAsync(id, cancellationToken);

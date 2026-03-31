@@ -9,7 +9,7 @@ namespace ISS.Api.Controllers;
 
 [ApiController]
 [Route("api/warehouses")]
-[Authorize(Roles = $"{Roles.Admin},{Roles.Inventory}")]
+[Authorize(Roles = $"{Roles.Admin},{Roles.Inventory},{Roles.Procurement},{Roles.Sales},{Roles.Service},{Roles.Finance},{Roles.Reporting}")]
 public sealed class WarehousesController(IIssDbContext dbContext) : ControllerBase
 {
     public sealed record WarehouseDto(Guid Id, string Code, string Name, string? Address, bool IsActive);
@@ -37,6 +37,7 @@ public sealed class WarehousesController(IIssDbContext dbContext) : ControllerBa
     }
 
     [HttpPost]
+    [Authorize(Roles = $"{Roles.Admin},{Roles.Inventory}")]
     public async Task<ActionResult<WarehouseDto>> Create(CreateWarehouseRequest request, CancellationToken cancellationToken)
     {
         var warehouse = new Warehouse(request.Code, request.Name, request.Address);
@@ -46,6 +47,7 @@ public sealed class WarehousesController(IIssDbContext dbContext) : ControllerBa
     }
 
     [HttpPut("{id:guid}")]
+    [Authorize(Roles = $"{Roles.Admin},{Roles.Inventory}")]
     public async Task<ActionResult<WarehouseDto>> Update(Guid id, UpdateWarehouseRequest request, CancellationToken cancellationToken)
     {
         var warehouse = await dbContext.Warehouses.FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
@@ -60,6 +62,7 @@ public sealed class WarehousesController(IIssDbContext dbContext) : ControllerBa
     }
 
     [HttpDelete("{id:guid}")]
+    [Authorize(Roles = $"{Roles.Admin},{Roles.Inventory}")]
     public async Task<IActionResult> Delete(Guid id, CancellationToken cancellationToken)
     {
         var warehouse = await dbContext.Warehouses.FirstOrDefaultAsync(x => x.Id == id, cancellationToken);

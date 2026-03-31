@@ -11,7 +11,7 @@ namespace ISS.Api.Controllers.Sales;
 
 [ApiController]
 [Route("api/sales/dispatches")]
-[Authorize(Roles = $"{Roles.Admin},{Roles.Sales},{Roles.Inventory}")]
+[Authorize(Roles = $"{Roles.Admin},{Roles.Sales},{Roles.Inventory},{Roles.Finance}")]
 public sealed class DispatchesController(IIssDbContext dbContext, SalesService salesService, IDocumentPdfService pdfService) : ControllerBase
 {
     public sealed record DispatchSummaryDto(Guid Id, string Number, Guid SalesOrderId, Guid WarehouseId, DateTimeOffset DispatchedAt, DispatchStatus Status, int LineCount);
@@ -39,6 +39,7 @@ public sealed class DispatchesController(IIssDbContext dbContext, SalesService s
     }
 
     [HttpPost]
+    [Authorize(Roles = $"{Roles.Admin},{Roles.Sales},{Roles.Inventory}")]
     public async Task<ActionResult<DispatchDto>> Create(CreateDispatchRequest request, CancellationToken cancellationToken)
     {
         var id = await salesService.CreateDispatchAsync(request.SalesOrderId, request.WarehouseId, cancellationToken);
@@ -76,6 +77,7 @@ public sealed class DispatchesController(IIssDbContext dbContext, SalesService s
     }
 
     [HttpPost("{id:guid}/lines")]
+    [Authorize(Roles = $"{Roles.Admin},{Roles.Sales},{Roles.Inventory}")]
     public async Task<ActionResult> AddLine(Guid id, AddDispatchLineRequest request, CancellationToken cancellationToken)
     {
         await salesService.AddDispatchLineAsync(id, request.ItemId, request.Quantity, request.BatchNumber, request.Serials, cancellationToken);
@@ -83,6 +85,7 @@ public sealed class DispatchesController(IIssDbContext dbContext, SalesService s
     }
 
     [HttpPut("{id:guid}/lines/{lineId:guid}")]
+    [Authorize(Roles = $"{Roles.Admin},{Roles.Sales},{Roles.Inventory}")]
     public async Task<ActionResult> UpdateLine(Guid id, Guid lineId, UpdateDispatchLineRequest request, CancellationToken cancellationToken)
     {
         await salesService.UpdateDispatchLineAsync(id, lineId, request.Quantity, request.BatchNumber, request.Serials, cancellationToken);
@@ -90,6 +93,7 @@ public sealed class DispatchesController(IIssDbContext dbContext, SalesService s
     }
 
     [HttpDelete("{id:guid}/lines/{lineId:guid}")]
+    [Authorize(Roles = $"{Roles.Admin},{Roles.Sales},{Roles.Inventory}")]
     public async Task<ActionResult> RemoveLine(Guid id, Guid lineId, CancellationToken cancellationToken)
     {
         await salesService.RemoveDispatchLineAsync(id, lineId, cancellationToken);
@@ -97,6 +101,7 @@ public sealed class DispatchesController(IIssDbContext dbContext, SalesService s
     }
 
     [HttpPost("{id:guid}/post")]
+    [Authorize(Roles = $"{Roles.Admin},{Roles.Sales},{Roles.Inventory}")]
     public async Task<ActionResult> Post(Guid id, CancellationToken cancellationToken)
     {
         await salesService.PostDispatchAsync(id, cancellationToken);
