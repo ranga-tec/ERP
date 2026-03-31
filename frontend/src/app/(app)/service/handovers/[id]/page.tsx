@@ -1,5 +1,8 @@
 import Link from "next/link";
+import { cookies } from "next/headers";
 import { backendFetchJson } from "@/lib/backend.server";
+import { ISS_TOKEN_COOKIE } from "@/lib/env";
+import { sessionFromToken } from "@/lib/jwt";
 import { Card, SecondaryLink } from "@/components/ui";
 import { DocumentCollaborationPanel } from "@/components/DocumentCollaborationPanel";
 import { TransactionLink } from "@/components/TransactionLink";
@@ -17,6 +20,7 @@ type ServiceHandoverDto = {
   notes?: string | null;
   status: number;
   salesInvoiceId?: string | null;
+  salesInvoiceNumber?: string | null;
   convertedToInvoiceAt?: string | null;
 };
 
@@ -35,7 +39,6 @@ type ServiceEstimateSummaryDto = {
   lineCount: number;
 };
 type ItemDto = { id: string; sku: string; name: string };
-type InvoiceSummaryDto = { id: string; number: string; customerId: string; total: number; status: number };
 
 const statusLabel: Record<number, string> = {
   0: "Draft",
@@ -45,25 +48,27 @@ const statusLabel: Record<number, string> = {
 
 export default async function ServiceHandoverDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
+  const cookieStore = await cookies();
+  const token = cookieStore.get(ISS_TOKEN_COOKIE)?.value;
+  const session = token ? sessionFromToken(token) : null;
+  const roles = new Set(session?.roles ?? []);
+  const canOpenSalesInvoice = roles.has("Admin") || roles.has("Sales") || roles.has("Finance");
 
-  const [handover, jobs, customers, estimates, items, invoices] = await Promise.all([
+  const [handover, jobs, customers, estimates, items] = await Promise.all([
     backendFetchJson<ServiceHandoverDto>(`/service/handovers/${id}`),
     backendFetchJson<ServiceJobDto[]>("/service/jobs?take=500"),
     backendFetchJson<CustomerDto[]>("/customers"),
     backendFetchJson<ServiceEstimateSummaryDto[]>("/service/estimates?take=500"),
-    backendFetchJson<ItemDto[]>("/items"),
-    backendFetchJson<InvoiceSummaryDto[]>("/sales/invoices?take=500"),
+    backendFetchJson<ItemDto[]>("/items/options"),
   ]);
 
   const jobById = new Map(jobs.map((j) => [j.id, j]));
   const customerById = new Map(customers.map((c) => [c.id, c]));
-  const invoiceById = new Map(invoices.map((i) => [i.id, i]));
   const job = jobById.get(handover.serviceJobId);
   const customer = job ? customerById.get(job.customerId) : null;
   const isDraft = handover.status === 0;
   const isCompleted = handover.status === 1;
   const handoverJobEstimates = estimates.filter((e) => e.serviceJobId === handover.serviceJobId);
-  const linkedInvoice = handover.salesInvoiceId ? invoiceById.get(handover.salesInvoiceId) : null;
 
   return (
     <div className="space-y-6">
@@ -94,9 +99,13 @@ export default async function ServiceHandoverDetailPage({ params }: { params: Pr
           <div>
             Invoice:{" "}
             {handover.salesInvoiceId ? (
-              <TransactionLink referenceType="INV" referenceId={handover.salesInvoiceId}>
-                {linkedInvoice?.number ?? handover.salesInvoiceId}
-              </TransactionLink>
+              canOpenSalesInvoice ? (
+                <TransactionLink referenceType="INV" referenceId={handover.salesInvoiceId}>
+                  {handover.salesInvoiceNumber ?? handover.salesInvoiceId}
+                </TransactionLink>
+              ) : (
+                handover.salesInvoiceNumber ?? handover.salesInvoiceId
+              )
             ) : (
               "-"
             )}
@@ -119,6 +128,7 @@ export default async function ServiceHandoverDetailPage({ params }: { params: Pr
             items={items}
             disabled={!isCompleted}
             existingSalesInvoiceId={handover.salesInvoiceId}
+            redirectToSalesInvoice={canOpenSalesInvoice}
           />
           {handover.convertedToInvoiceAt ? (
             <div className="mt-2 text-xs text-zinc-500">

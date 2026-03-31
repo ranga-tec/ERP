@@ -27,12 +27,14 @@ export function ServiceHandoverConvertInvoiceForm({
   items,
   disabled,
   existingSalesInvoiceId,
+  redirectToSalesInvoice = true,
 }: {
   handoverId: string;
   estimates: EstimateRef[];
   items: ItemRef[];
   disabled: boolean;
   existingSalesInvoiceId?: string | null;
+  redirectToSalesInvoice?: boolean;
 }) {
   const router = useRouter();
   const [serviceEstimateId, setServiceEstimateId] = useState("");
@@ -68,7 +70,12 @@ export function ServiceHandoverConvertInvoiceForm({
         laborBillingSource: Number(laborBillingSource),
         dueDate: dueDate ? new Date(dueDate).toISOString() : null,
       });
-      router.push(`/sales/invoices/${result.salesInvoiceId}`);
+      if (redirectToSalesInvoice) {
+        router.push(`/sales/invoices/${result.salesInvoiceId}`);
+        return;
+      }
+
+      router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {

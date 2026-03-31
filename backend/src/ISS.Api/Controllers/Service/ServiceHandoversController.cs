@@ -28,6 +28,7 @@ public sealed class ServiceHandoversController(
         string? Notes,
         ServiceHandoverStatus Status,
         Guid? SalesInvoiceId,
+        string? SalesInvoiceNumber,
         DateTimeOffset? ConvertedToInvoiceAt);
 
     public sealed record CreateServiceHandoverRequest(
@@ -68,6 +69,12 @@ public sealed class ServiceHandoversController(
                 x.Notes,
                 x.Status,
                 x.SalesInvoiceId,
+                x.SalesInvoiceId == null
+                    ? null
+                    : dbContext.SalesInvoices
+                        .Where(i => i.Id == x.SalesInvoiceId.Value)
+                        .Select(i => i.Number)
+                        .FirstOrDefault(),
                 x.ConvertedToInvoiceAt))
             .ToListAsync(cancellationToken);
 
@@ -103,6 +110,12 @@ public sealed class ServiceHandoversController(
                 x.Notes,
                 x.Status,
                 x.SalesInvoiceId,
+                x.SalesInvoiceId == null
+                    ? null
+                    : dbContext.SalesInvoices
+                        .Where(i => i.Id == x.SalesInvoiceId.Value)
+                        .Select(i => i.Number)
+                        .FirstOrDefault(),
                 x.ConvertedToInvoiceAt))
             .FirstOrDefaultAsync(cancellationToken);
 

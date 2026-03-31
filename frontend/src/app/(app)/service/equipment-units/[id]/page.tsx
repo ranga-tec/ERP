@@ -36,7 +36,7 @@ export default async function EquipmentUnitDetailPage({ params }: { params: Prom
 
   const [unit, items, customers, contracts] = await Promise.all([
     backendFetchJson<EquipmentUnitDto>(`/service/equipment-units/${id}`),
-    backendFetchJson<ItemDto[]>("/items"),
+    backendFetchJson<ItemDto[]>("/items/options"),
     backendFetchJson<CustomerDto[]>("/customers"),
     backendFetchJson<ServiceContractSummaryDto[]>(`/service/contracts?equipmentUnitId=${id}`),
   ]);

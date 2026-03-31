@@ -36,7 +36,7 @@ export default async function MaterialRequisitionDetailPage({ params }: { params
     backendFetchJson<MaterialRequisitionDto>(`/service/material-requisitions/${id}`),
     backendFetchJson<ServiceJobDto[]>("/service/jobs?take=500"),
     backendFetchJson<WarehouseDto[]>("/warehouses"),
-    backendFetchJson<ItemDto[]>("/items"),
+    backendFetchJson<ItemDto[]>("/items/options"),
   ]);
 
   const jobById = new Map(jobs.map((j) => [j.id, j]));

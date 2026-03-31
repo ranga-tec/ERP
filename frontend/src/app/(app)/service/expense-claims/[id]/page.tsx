@@ -77,7 +77,7 @@ export default async function ServiceExpenseClaimDetailPage({ params }: { params
   const [claim, jobs, items, paymentTypes, pettyCashFunds, estimates] = await Promise.all([
     backendFetchJson<ServiceExpenseClaimDto>(`/service/expense-claims/${id}`),
     backendFetchJson<ServiceJobDto[]>("/service/jobs?take=500"),
-    backendFetchJson<ItemDto[]>("/items"),
+    backendFetchJson<ItemDto[]>("/items/options"),
     isFinanceOrAdmin ? backendFetchJson<PaymentTypeDto[]>("/payment-types") : Promise.resolve([]),
     isFinanceOrAdmin ? backendFetchJson<PettyCashFundDto[]>("/finance/petty-cash-funds") : Promise.resolve([]),
     backendFetchJson<ServiceEstimateSummaryDto[]>("/service/estimates?take=500"),

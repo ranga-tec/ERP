@@ -70,7 +70,7 @@ export default async function ServiceEstimateDetailPage({ params }: { params: Pr
     backendFetchJson<ServiceEstimateDto>(`/service/estimates/${id}`),
     backendFetchJson<ServiceJobDto[]>("/service/jobs?take=500"),
     backendFetchJson<CustomerDto[]>("/customers"),
-    backendFetchJson<ItemDto[]>("/items"),
+    backendFetchJson<ItemDto[]>("/items/options"),
     backendFetchJson<TaxDto[]>("/taxes"),
   ]);
 

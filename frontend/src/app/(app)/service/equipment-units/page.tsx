@@ -21,7 +21,7 @@ type CustomerDto = { id: string; code: string; name: string };
 export default async function EquipmentUnitsPage() {
   const [units, items, customers] = await Promise.all([
     backendFetchJson<EquipmentUnitDto[]>("/service/equipment-units?take=100"),
-    backendFetchJson<ItemDto[]>("/items"),
+    backendFetchJson<ItemDto[]>("/items/options"),
     backendFetchJson<CustomerDto[]>("/customers"),
   ]);
 
