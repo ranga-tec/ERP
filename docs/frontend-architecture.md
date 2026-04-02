@@ -156,6 +156,25 @@ Transactional module pages include:
 - finance: AR/AP, payments, petty cash, credit notes, debit notes
 - reporting: dashboard, stock-ledger, aging, tax summary, service KPIs, costing
 
+### Dashboard Standard
+
+The authenticated home route (`/`) is now treated as an operational dashboard rather than a report landing page.
+
+- all business roles can access the dashboard route
+- dashboard data is permission-aware and only returns module sections the signed-in user can act on
+- the page is organized as:
+  - hero KPI cards
+  - attention/exception alerts
+  - role-specific work-queue sections
+  - quick-access links
+- if the dashboard API is temporarily unavailable, the page still renders fallback quick links instead of failing blank
+
+Maintainer rule:
+
+- keep `/` useful for day-to-day operators
+- keep analytical report pages under `/reporting/*` restricted to `Admin` and `Reporting`
+- when adding a new transactional module, extend the dashboard section/quick-action model instead of adding one-off homepage widgets
+
 ### Inventory UI Behavior
 
 Current inventory interaction pattern:
@@ -205,6 +224,8 @@ This page supports:
 
 Recent workflow-specific UI behavior:
 
+- the home dashboard now follows an industry-standard ERP pattern with exception alerts, operational queues, and role-aware quick links instead of a static four-card summary
+- `/api/reporting/dashboard` is available to all business roles because it backs the authenticated home page, while the detailed reporting endpoints remain restricted to `Admin` and `Reporting`
 - procurement list pages now expose explicit `View` / `Edit` actions for purchase requisitions, RFQs, purchase orders, goods receipts, direct purchases, supplier invoices, and supplier returns
 - procurement list-page `Edit` remains available while the document is still `Draft`
 - sales list pages now expose explicit `View` / `Edit` actions for quotes, orders, dispatches, direct dispatches, invoices, and customer returns

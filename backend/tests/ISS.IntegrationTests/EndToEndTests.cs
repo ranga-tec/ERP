@@ -2930,6 +2930,35 @@ public sealed class EndToEndTests(IssApiFixture fixture) : IClassFixture<IssApiF
     }
 
     [Fact]
+    public async Task Dashboard_Is_Available_To_Business_Roles()
+    {
+        var email = $"{Guid.NewGuid():N}@local";
+        var password = "Passw0rd1";
+
+        await Post<AdminUserDto>("/api/admin/users", new
+        {
+            email,
+            password,
+            displayName = "Dashboard User",
+            roles = new[] { "Procurement" }
+        });
+
+        var login = await Post<AuthDto>("/api/auth/login", new { email, password });
+        var adminAuth = _client.DefaultRequestHeaders.Authorization;
+        _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", login.Token);
+
+        try
+        {
+            var dashboard = await Get<DashboardDto>("/api/reporting/dashboard");
+            Assert.True(dashboard.OpenServiceJobs >= 0);
+        }
+        finally
+        {
+            _client.DefaultRequestHeaders.Authorization = adminAuth;
+        }
+    }
+
+    [Fact]
     public async Task Health_Endpoint_Returns_Healthy()
     {
         var resp = await _client.GetAsync("/health");

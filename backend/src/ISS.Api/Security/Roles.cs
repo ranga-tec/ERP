@@ -9,6 +9,15 @@ public static class Roles
     public const string Service = "Service";
     public const string Finance = "Finance";
     public const string Reporting = "Reporting";
+    public const string AdminOrReporting = Admin + "," + Reporting;
+    public const string AllBusiness =
+        Admin + "," +
+        Procurement + "," +
+        Inventory + "," +
+        Sales + "," +
+        Service + "," +
+        Finance + "," +
+        Reporting;
 
     public static readonly string[] All =
     [
@@ -21,4 +30,3 @@ public static class Roles
         Reporting
     ];
 }
-

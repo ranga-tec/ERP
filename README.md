@@ -37,6 +37,10 @@
   - chart of accounts, AR/AP, payments + allocations, petty cash funds/ledger, credit notes, debit notes, finance approval/settlement of service expense claims
 - Reporting includes:
   - dashboard, stock ledger, aging, tax summary, service KPIs, costing
+- Dashboard now uses a role-aware operations layout:
+  - all business roles can open the home dashboard
+  - the dashboard shows only the module queues, alerts, and quick links relevant to the signed-in user's permissions
+  - the full reporting workspace (`/reporting/*`) remains restricted to `Admin` and `Reporting`
 - Draft document detail pages with line grids now support row actions:
   - `Edit`, `Save/Cancel`, and `Delete` (PO/GRN and all other line-based documents)
 - Master-data maintenance grids now support row actions:

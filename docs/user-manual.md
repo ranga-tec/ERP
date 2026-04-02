@@ -186,6 +186,11 @@ Note:
 
 ## Reporting
 
+- Dashboard:
+  - the home page is your operational dashboard
+  - it shows only the queues, alerts, and shortcuts allowed for your role
+  - typical sections include open work, draft transactions, overdue finance balances, reorder pressure, and direct links into the next action screens
+  - if no live metrics are available yet, the dashboard still shows quick access links so the page is not empty
 - Available reports:
   - dashboard, stock ledger, aging, tax summary, service KPIs, costing
 - Costing report:
