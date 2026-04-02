@@ -1,10 +1,10 @@
 import Link from "next/link";
 import { backendFetchJson } from "@/lib/backend.server";
 import { ItemInlineLink } from "@/components/InlineLink";
-import { Card, SecondaryLink, Table } from "@/components/ui";
+import { Card, SecondaryLink } from "@/components/ui";
 import { PurchaseOrderActions } from "../PurchaseOrderActions";
 import { PurchaseOrderLineAddForm } from "../PurchaseOrderLineAddForm";
-import { PurchaseOrderLineRow } from "../PurchaseOrderLineRow";
+import { PurchaseOrderLinesEditor } from "../PurchaseOrderLinesEditor";
 import { DocumentCollaborationPanel } from "@/components/DocumentCollaborationPanel";
 
 type PurchaseOrderDto = {
@@ -45,7 +45,17 @@ export default async function PurchaseOrderDetailPage({ params }: { params: Prom
   ]);
 
   const supplierById = new Map(suppliers.map((s) => [s.id, s]));
-  const itemById = new Map(items.map((i) => [i.id, i]));
+  const itemLabelById = new Map(
+    items.map((item) => [
+      item.id,
+      <ItemInlineLink key={item.id} itemId={item.id}>
+        {`${item.sku} - ${item.name}`}
+      </ItemInlineLink>,
+    ]),
+  );
+  const itemSearchLabelById = new Map(
+    items.map((item) => [item.id, `${item.sku} ${item.name}`.toLowerCase()]),
+  );
   const isDraft = po.status === 0;
 
   return (
@@ -94,46 +104,13 @@ export default async function PurchaseOrderDetailPage({ params }: { params: Prom
 
       <Card>
         <div className="mb-3 text-sm font-semibold">Lines</div>
-        <div className="overflow-auto">
-          <Table>
-            <thead>
-              <tr className="border-b border-zinc-200 text-left text-xs uppercase tracking-wide text-zinc-500 dark:border-zinc-800">
-                <th className="py-2 pr-3">Item</th>
-                <th className="py-2 pr-3">Ordered</th>
-                <th className="py-2 pr-3">Received</th>
-                <th className="py-2 pr-3">Unit Price</th>
-                <th className="py-2 pr-3">Line Total</th>
-                {isDraft ? <th className="py-2 pr-3">Actions</th> : null}
-              </tr>
-            </thead>
-            <tbody>
-              {po.lines.map((l) => {
-                const item = itemById.get(l.itemId);
-                const itemLabel = (
-                  <ItemInlineLink itemId={l.itemId}>
-                    {item ? `${item.sku} - ${item.name}` : l.itemId}
-                  </ItemInlineLink>
-                );
-                return (
-                  <PurchaseOrderLineRow
-                    key={l.id}
-                    purchaseOrderId={po.id}
-                    line={l}
-                    itemLabel={itemLabel}
-                    canEdit={isDraft}
-                  />
-                );
-              })}
-              {po.lines.length === 0 ? (
-                <tr>
-                  <td className="py-6 text-sm text-zinc-500" colSpan={isDraft ? 6 : 5}>
-                    No lines yet.
-                  </td>
-                </tr>
-              ) : null}
-            </tbody>
-          </Table>
-        </div>
+        <PurchaseOrderLinesEditor
+          purchaseOrderId={po.id}
+          lines={po.lines}
+          itemLabelById={itemLabelById}
+          itemSearchLabelById={itemSearchLabelById}
+          canEdit={isDraft}
+        />
       </Card>
 
       <DocumentCollaborationPanel referenceType="PO" referenceId={id} />

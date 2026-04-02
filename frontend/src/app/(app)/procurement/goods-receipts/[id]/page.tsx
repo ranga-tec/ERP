@@ -105,15 +105,27 @@ export default async function GoodsReceiptDetailPage({ params }: { params: Promi
 
       {isDraft ? (
         <Card>
-          <div className="mb-3 text-sm font-semibold">Receive From PO</div>
+          <div className="mb-3 flex flex-col gap-2 lg:flex-row lg:items-start lg:justify-between">
+            <div>
+              <div className="text-sm font-semibold">Receive From PO</div>
+              <p className="mt-1 max-w-3xl text-sm text-zinc-500">
+                Use this as the primary working grid. It already reflects the current draft GRN lines, so a second line table is not shown while the document is still in draft.
+              </p>
+            </div>
+            <div className="rounded-full border border-[var(--input-border)] bg-[var(--surface-soft)] px-3 py-1 text-xs font-medium text-[var(--muted-foreground)]">
+              {grn.lines.length} draft line(s)
+            </div>
+          </div>
           <GoodsReceiptReceiptPlanForm goodsReceiptId={grn.id} lines={receiptPlan?.lines ?? []} items={items} />
         </Card>
       ) : null}
 
-      <Card>
-        <div className="mb-3 text-sm font-semibold">{isDraft ? "Current Draft Lines" : "Posted Lines"}</div>
-        <GoodsReceiptDraftLinesTable goodsReceiptId={grn.id} lines={grn.lines} items={items} canEdit={isDraft} />
-      </Card>
+      {!isDraft ? (
+        <Card>
+          <div className="mb-3 text-sm font-semibold">Posted Lines</div>
+          <GoodsReceiptDraftLinesTable goodsReceiptId={grn.id} lines={grn.lines} items={items} canEdit={false} />
+        </Card>
+      ) : null}
 
       <DocumentCollaborationPanel referenceType="GRN" referenceId={id} />
     </div>

@@ -54,9 +54,13 @@ Note:
   - approved PR can be converted to PO
 - Purchase order:
   - create -> add lines -> approve
+  - while the PO is still `Draft`, existing lines can be edited directly in the line grid
+  - use `Tab` to move between editable cells and `Enter` to save the active line
 - Goods receipt (GRN):
   - create from PO -> add lines -> post
   - posting increases stock and creates AP entry
+  - when a GRN is created from a PO, the receipt page loads all open PO lines into one working grid
+  - enter received qty, cost, batch, and serial details directly in that grid, then use `Save receipt plan`
 - Direct purchase:
   - create -> add lines -> post
   - posting increases stock without PO/GRN chain
@@ -96,6 +100,8 @@ Note:
 - Invoice:
   - create -> add lines -> post
   - posting creates AR entry
+  - while the invoice is still `Draft`, existing lines can be edited directly in the line grid
+  - use `Tab` to move between editable cells and `Enter` to save the active line
 - Customer return:
   - create -> add lines -> post
   - posting returns stock and creates customer credit note
@@ -210,6 +216,8 @@ For line-based documents, while status is draft:
 - you can `Add` line
 - you can `Edit` line (then `Save` or `Cancel`)
 - you can `Delete` line
+- on the newer grid-based screens, `Tab` moves across the editable cells and `Enter` saves the current row
+- GRN receipt planning uses one primary receipt grid and a document-level `Save receipt plan` action instead of row-by-row saving
 
 This applies across procurement, sales, inventory, and service document detail pages.
 

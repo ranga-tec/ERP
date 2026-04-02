@@ -5,6 +5,7 @@ This guide is focused on the Next.js frontend structure, auth/proxy flow, UI com
 Primary references:
 - `docs/system-technical-maintainer-guide.md` (hub)
 - `frontend/README.md` (frontend quick start)
+- `docs/frontend-data-grid-framework.md` (editable grid module)
 
 ## Frontend Architecture
 
@@ -194,6 +195,32 @@ The detail pages for line-based documents use a common behavior:
 - each line row supports `Edit`, `Save/Cancel`, and `Delete`
 
 This is now applied consistently across all line-document detail pages (not just PO/GRN).
+
+### Reusable Data Grid Framework
+
+Transaction-line editing is now moving onto a shared frontend grid module:
+
+- primary module path: `frontend/src/components/data-grid`
+- compatibility shim: `frontend/src/components/EditableDataTable.tsx`
+
+The framework exposes:
+
+- typed column definitions for `display`, `text`, `number`, `money`, `percent`, `date`, `datetime`, `textarea`, `select`, and searchable `lookup`
+- explicit row-submit support via `Enter`
+- natural `Tab` movement through editable controls
+- optional footer rows for visible totals and summaries
+
+Current live rollout:
+
+- GRN receipt-plan editing
+- purchase-order line editing
+- sales-invoice line editing
+
+Maintainer rule:
+
+- keep document validation and save logic outside the reusable grid
+- keep lookup columns only for fields that the backend can really update
+- prefer one primary working grid per document area rather than duplicating the same line set in multiple tables on the same screen
 
 ### Master Data Grid Action Standard
 

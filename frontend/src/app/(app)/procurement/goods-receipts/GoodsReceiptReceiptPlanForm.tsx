@@ -3,8 +3,13 @@
 import { useDeferredValue, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { apiPut } from "@/lib/api-client";
-import { Button, Input, Table } from "@/components/ui";
-import { AutoGrowTextarea } from "./AutoGrowTextarea";
+import {
+  EditableDataTable,
+  formatGridMoney,
+  formatGridNumber,
+  type EditableDataTableColumn,
+} from "@/components/data-grid";
+import { Button, Input } from "@/components/ui";
 
 type ItemRef = {
   id: string;
@@ -235,6 +240,127 @@ export function GoodsReceiptReceiptPlanForm({
     });
   }, [deferredSearch, draftLines, itemById]);
 
+  const columns = useMemo<EditableDataTableColumn<EditableReceiptPlanLine>[]>(() => [
+    {
+      key: "item",
+      header: "Item",
+      kind: "display",
+      render: (line) => {
+        const item = itemById.get(line.itemId);
+        const itemLabel = item ? `${item.sku} - ${item.name}` : line.itemId;
+        const quantity = Number(line.quantity || 0);
+        const lineState = formatLineState(line);
+        const trackingLabel = trackingBadgeLabel(item, Number.isNaN(quantity) ? 0 : quantity);
+
+        return (
+          <>
+            <div className="font-medium">{itemLabel}</div>
+            <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
+              <span className="rounded-full border border-current/10 bg-white/70 px-2 py-0.5 font-medium text-zinc-700 dark:bg-zinc-950/70 dark:text-zinc-200">
+                {lineState.label}
+              </span>
+              {trackingLabel ? (
+                <span className="rounded-full border border-current/10 bg-white/70 px-2 py-0.5 text-zinc-600 dark:bg-zinc-950/70 dark:text-zinc-300">
+                  {trackingLabel}
+                </span>
+              ) : null}
+            </div>
+            <div className="mt-1 text-xs text-zinc-500">{lineState.detail}</div>
+          </>
+        );
+      },
+      footer: "Receipt Value",
+    },
+    {
+      key: "orderedQuantity",
+      header: "Ordered",
+      kind: "display",
+      align: "right",
+      render: (line) => formatGridNumber(line.orderedQuantity),
+    },
+    {
+      key: "previouslyReceivedQuantity",
+      header: "Posted",
+      kind: "display",
+      align: "right",
+      render: (line) => formatGridNumber(line.previouslyReceivedQuantity),
+    },
+    {
+      key: "reservedInOtherDraftsQuantity",
+      header: "Other Drafts",
+      kind: "display",
+      align: "right",
+      render: (line) => formatGridNumber(line.reservedInOtherDraftsQuantity),
+    },
+    {
+      key: "availableQuantity",
+      header: "Available",
+      kind: "display",
+      align: "right",
+      cellClassName: "font-medium",
+      render: (line) => formatGridNumber(line.availableQuantity),
+    },
+    {
+      key: "quantity",
+      header: "This GRN Qty",
+      kind: "number",
+      align: "right",
+      getValue: (line) => line.quantity,
+      setValue: (line, value) => ({ ...line, quantity: value }),
+      placeholder: "0",
+      inputClassName: "min-w-24",
+      renderDisplay: (line) => formatGridNumber(Number(line.quantity || 0)),
+    },
+    {
+      key: "unitCost",
+      header: "Unit Cost",
+      kind: "money",
+      align: "right",
+      getValue: (line) => line.unitCost,
+      setValue: (line, value) => ({ ...line, unitCost: value }),
+      inputClassName: "min-w-28",
+      renderDisplay: (line) => formatGridMoney(Number(line.unitCost || 0)),
+    },
+    {
+      key: "receiptValue",
+      header: "Receipt Value",
+      kind: "display",
+      align: "right",
+      render: (line) => {
+        const quantity = Number(line.quantity || 0);
+        const unitCost = Number(line.unitCost || 0);
+        const total = Number.isFinite(quantity) && Number.isFinite(unitCost) ? quantity * unitCost : NaN;
+        return Number.isFinite(total) ? formatGridMoney(total) : "-";
+      },
+      footer: (visibleLines) =>
+        formatGridMoney(
+          visibleLines.reduce((sum, line) => {
+            const quantity = Number(line.quantity || 0);
+            const unitCost = Number(line.unitCost || 0);
+            return Number.isFinite(quantity) && Number.isFinite(unitCost) ? sum + quantity * unitCost : sum;
+          }, 0),
+        ),
+    },
+    {
+      key: "batchNumber",
+      header: "Batch",
+      kind: "text",
+      getValue: (line) => line.batchNumber,
+      setValue: (line, value) => ({ ...line, batchNumber: value }),
+      inputClassName: "min-w-28",
+    },
+    {
+      key: "serials",
+      header: "Serials",
+      kind: "textarea",
+      getValue: (line) => line.serials,
+      setValue: (line, value) => ({ ...line, serials: value }),
+      placeholder: "One per line or comma-separated",
+      inputClassName: "min-w-56",
+      rows: 4,
+    },
+  ], [itemById]);
+
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -277,109 +403,23 @@ export function GoodsReceiptReceiptPlanForm({
         </div>
       ) : null}
 
-      <div className="overflow-auto">
-        <Table>
-          <thead>
-            <tr className="border-b border-zinc-200 text-left text-xs uppercase tracking-wide text-zinc-500 dark:border-zinc-800">
-              <th className="py-2 pr-3">Item</th>
-              <th className="py-2 pr-3">Ordered</th>
-              <th className="py-2 pr-3">Posted</th>
-              <th className="py-2 pr-3">Other Drafts</th>
-              <th className="py-2 pr-3">Available</th>
-              <th className="py-2 pr-3">This GRN Qty</th>
-              <th className="py-2 pr-3">Unit Cost</th>
-              <th className="py-2 pr-3">Batch</th>
-              <th className="py-2 pr-3">Serials</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filteredLines.map((line) => {
-              const item = itemById.get(line.itemId);
-              const itemLabel = item ? `${item.sku} - ${item.name}` : line.itemId;
-              const quantity = Number(line.quantity || 0);
-              const lineState = formatLineState(line);
-              const trackingLabel = trackingBadgeLabel(item, Number.isNaN(quantity) ? 0 : quantity);
-
-              return (
-                <tr
-                  key={line.purchaseOrderLineId}
-                  className={[
-                    "border-b border-zinc-100 align-top dark:border-zinc-900",
-                    lineState.rowClassName,
-                    quantity > 0 ? "shadow-[inset_4px_0_0_0_rgba(14,165,233,0.55)] dark:shadow-[inset_4px_0_0_0_rgba(56,189,248,0.45)]" : "",
-                  ].join(" ")}
-                >
-                  <td className="py-2 pr-3">
-                    <div className="font-medium">{itemLabel}</div>
-                    <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
-                      <span className="rounded-full border border-current/10 bg-white/70 px-2 py-0.5 font-medium text-zinc-700 dark:bg-zinc-950/70 dark:text-zinc-200">
-                        {lineState.label}
-                      </span>
-                      {trackingLabel ? (
-                        <span className="rounded-full border border-current/10 bg-white/70 px-2 py-0.5 text-zinc-600 dark:bg-zinc-950/70 dark:text-zinc-300">
-                          {trackingLabel}
-                        </span>
-                      ) : null}
-                    </div>
-                    <div className="mt-1 text-xs text-zinc-500">{lineState.detail}</div>
-                  </td>
-                  <td className="py-2 pr-3">{line.orderedQuantity}</td>
-                  <td className="py-2 pr-3">{line.previouslyReceivedQuantity}</td>
-                  <td className="py-2 pr-3">{line.reservedInOtherDraftsQuantity}</td>
-                  <td className="py-2 pr-3 font-medium">{line.availableQuantity}</td>
-                  <td className="py-2 pr-3">
-                    <Input
-                      value={line.quantity}
-                      onChange={(event) =>
-                        updateLine(line.purchaseOrderLineId, (current) => ({ ...current, quantity: event.target.value }))
-                      }
-                      inputMode="decimal"
-                      placeholder="0"
-                      className="min-w-24"
-                    />
-                  </td>
-                  <td className="py-2 pr-3">
-                    <Input
-                      value={line.unitCost}
-                      onChange={(event) =>
-                        updateLine(line.purchaseOrderLineId, (current) => ({ ...current, unitCost: event.target.value }))
-                      }
-                      inputMode="decimal"
-                      className="min-w-28"
-                    />
-                  </td>
-                  <td className="py-2 pr-3">
-                    <Input
-                      value={line.batchNumber}
-                      onChange={(event) =>
-                        updateLine(line.purchaseOrderLineId, (current) => ({ ...current, batchNumber: event.target.value }))
-                      }
-                      className="min-w-28"
-                    />
-                  </td>
-                  <td className="py-2 pr-3">
-                    <AutoGrowTextarea
-                      value={line.serials}
-                      onChange={(event) =>
-                        updateLine(line.purchaseOrderLineId, (current) => ({ ...current, serials: event.target.value }))
-                      }
-                      placeholder="One per line or comma-separated"
-                      className="min-w-56"
-                    />
-                  </td>
-                </tr>
-              );
-            })}
-            {filteredLines.length === 0 ? (
-              <tr>
-                <td className="py-6 text-sm text-zinc-500" colSpan={9}>
-                  {draftLines.length === 0 ? "No PO lines available for receipt." : "No PO lines match the current search."}
-                </td>
-              </tr>
-            ) : null}
-          </tbody>
-        </Table>
-      </div>
+      <EditableDataTable
+        caption="GRN receipt plan lines"
+        columns={columns}
+        rows={filteredLines}
+        rowKey={(line) => line.purchaseOrderLineId}
+        isRowEditing={() => true}
+        onRowChange={(purchaseOrderLineId, updater) => updateLine(purchaseOrderLineId, updater)}
+        rowClassName={(line) => {
+          const lineState = formatLineState(line);
+          const quantity = Number(line.quantity || 0);
+          return [
+            lineState.rowClassName,
+            quantity > 0 ? "shadow-[inset_4px_0_0_0_rgba(14,165,233,0.55)] dark:shadow-[inset_4px_0_0_0_rgba(56,189,248,0.45)]" : "",
+          ].join(" ").trim();
+        }}
+        emptyState={draftLines.length === 0 ? "No PO lines available for receipt." : "No PO lines match the current search."}
+      />
     </div>
   );
 }

@@ -4,10 +4,10 @@ import { backendFetchJson } from "@/lib/backend.server";
 import { ISS_TOKEN_COOKIE } from "@/lib/env";
 import { sessionFromToken } from "@/lib/jwt";
 import { ItemInlineLink } from "@/components/InlineLink";
-import { Card, SecondaryLink, Table } from "@/components/ui";
+import { Card, SecondaryLink } from "@/components/ui";
 import { InvoiceActions } from "../InvoiceActions";
 import { InvoiceLineAddForm } from "../InvoiceLineAddForm";
-import { InvoiceLineRow } from "../InvoiceLineRow";
+import { InvoiceLinesEditor } from "../InvoiceLinesEditor";
 import { DocumentCollaborationPanel } from "@/components/DocumentCollaborationPanel";
 
 type InvoiceDto = {
@@ -58,7 +58,17 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
   ]);
 
   const customerById = new Map(customers.map((c) => [c.id, c]));
-  const itemById = new Map(items.map((i) => [i.id, i]));
+  const itemLabelById = new Map(
+    items.map((item) => [
+      item.id,
+      <ItemInlineLink key={item.id} itemId={item.id}>
+        {`${item.sku} - ${item.name}`}
+      </ItemInlineLink>,
+    ]),
+  );
+  const itemSearchLabelById = new Map(
+    items.map((item) => [item.id, `${item.sku} ${item.name}`.toLowerCase()]),
+  );
   const isDraft = invoice.status === 0;
 
   return (
@@ -115,47 +125,13 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
 
       <Card>
         <div className="mb-3 text-sm font-semibold">Lines</div>
-        <div className="overflow-auto">
-          <Table>
-            <thead>
-              <tr className="border-b border-zinc-200 text-left text-xs uppercase tracking-wide text-zinc-500 dark:border-zinc-800">
-                <th className="py-2 pr-3">Item</th>
-                <th className="py-2 pr-3">Qty</th>
-                <th className="py-2 pr-3">Unit Price</th>
-                <th className="py-2 pr-3">Disc %</th>
-                <th className="py-2 pr-3">Tax %</th>
-                <th className="py-2 pr-3">Line Total</th>
-                {isDraft ? <th className="py-2 pr-3">Actions</th> : null}
-              </tr>
-            </thead>
-            <tbody>
-              {invoice.lines.map((l) => {
-                const item = itemById.get(l.itemId);
-                const itemLabel = (
-                  <ItemInlineLink itemId={l.itemId}>
-                    {item ? `${item.sku} - ${item.name}` : l.itemId}
-                  </ItemInlineLink>
-                );
-                return (
-                  <InvoiceLineRow
-                    key={l.id}
-                    invoiceId={invoice.id}
-                    line={l}
-                    itemLabel={itemLabel}
-                    canEdit={isDraft && canManageInvoices}
-                  />
-                );
-              })}
-              {invoice.lines.length === 0 ? (
-                <tr>
-                  <td className="py-6 text-sm text-zinc-500" colSpan={isDraft ? 7 : 6}>
-                    No lines yet.
-                  </td>
-                </tr>
-              ) : null}
-            </tbody>
-          </Table>
-        </div>
+        <InvoiceLinesEditor
+          invoiceId={invoice.id}
+          lines={invoice.lines}
+          itemLabelById={itemLabelById}
+          itemSearchLabelById={itemSearchLabelById}
+          canEdit={isDraft && canManageInvoices}
+        />
       </Card>
 
       <DocumentCollaborationPanel referenceType="INV" referenceId={id} />

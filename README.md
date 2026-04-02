@@ -15,6 +15,7 @@
 - Assistant progress + GRN handover: `docs/assistant-progress.md`
 - Backend architecture + operations: `docs/backend-architecture.md`
 - Frontend architecture + UI integration: `docs/frontend-architecture.md`
+- Frontend data-grid framework: `docs/frontend-data-grid-framework.md`
 - Agent change playbook + troubleshooting: `docs/agent-change-playbook.md`
 - CSV closure tracking baseline: `docs/csv-closure-audit.md`
 - Session handover notes: `docs/next-session-notes.md`
@@ -50,6 +51,11 @@
   - creating a GRN from a PO loads every open PO line into the `Receive From PO` grid
   - users can receive only the lines/quantities delivered now and leave the balance for later GRNs
   - tracked serial/batch validation happens before posting, and the GRN screen includes search for both receipt-plan and draft-line tables
+- Transaction-line editing now uses a reusable data-grid framework:
+  - the shared grid lives under `frontend/src/components/data-grid`
+  - it supports typed editable cells, searchable lookup dropdowns, keyboard row-submit flow, and optional footer totals
+  - live rollout is currently on GRN receipt planning, purchase-order lines, and invoice lines
+  - GRN draft mode now uses a single primary working grid instead of a duplicate lower draft-line table
 - Procurement list pages now expose explicit `View` / `Edit` actions for purchase requisitions, RFQs, purchase orders, goods receipts, direct purchases, supplier invoices, and supplier returns so operators do not need to rely only on the document number link
 - Sales list pages now expose explicit `View` / `Edit` actions for quotes, orders, dispatches, direct dispatches, invoices, and customer returns so operators do not need to rely only on the document number link
 - Service workflow now supports:
