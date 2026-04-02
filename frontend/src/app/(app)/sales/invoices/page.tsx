@@ -3,6 +3,7 @@ import { cookies } from "next/headers";
 import { backendFetchJson } from "@/lib/backend.server";
 import { ISS_TOKEN_COOKIE } from "@/lib/env";
 import { sessionFromToken } from "@/lib/jwt";
+import { ListViewEditActions } from "@/components/ListViewEditActions";
 import { Card, Table } from "@/components/ui";
 import { InvoiceCreateForm } from "./InvoiceCreateForm";
 
@@ -42,7 +43,7 @@ export default async function InvoicesPage() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-semibold">Sales Invoices</h1>
-        <p className="mt-1 text-sm text-zinc-500">Draft → add lines → post → pay (via payments).</p>
+        <p className="mt-1 text-sm text-zinc-500">Draft -&gt; add lines -&gt; post -&gt; pay (via payments).</p>
       </div>
 
       {canManageInvoices ? (
@@ -64,6 +65,7 @@ export default async function InvoicesPage() {
                 <th className="py-2 pr-3">Due Date</th>
                 <th className="py-2 pr-3">Status</th>
                 <th className="py-2 pr-3">Total</th>
+                <th className="py-2 pr-3">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -77,15 +79,21 @@ export default async function InvoicesPage() {
                   <td className="py-2 pr-3">{customerById.get(i.customerId)?.code ?? i.customerId}</td>
                   <td className="py-2 pr-3 text-zinc-500">{new Date(i.invoiceDate).toLocaleString()}</td>
                   <td className="py-2 pr-3 text-zinc-500">
-                    {i.dueDate ? new Date(i.dueDate).toLocaleDateString() : "—"}
+                    {i.dueDate ? new Date(i.dueDate).toLocaleDateString() : "-"}
                   </td>
                   <td className="py-2 pr-3">{statusLabel[i.status] ?? i.status}</td>
                   <td className="py-2 pr-3">{i.total}</td>
+                  <td className="py-2 pr-3">
+                    <ListViewEditActions
+                      viewHref={`/sales/invoices/${i.id}`}
+                      canEdit={canManageInvoices && i.status === 0}
+                    />
+                  </td>
                 </tr>
               ))}
               {invoices.length === 0 ? (
                 <tr>
-                  <td className="py-6 text-sm text-zinc-500" colSpan={6}>
+                  <td className="py-6 text-sm text-zinc-500" colSpan={7}>
                     No invoices yet.
                   </td>
                 </tr>

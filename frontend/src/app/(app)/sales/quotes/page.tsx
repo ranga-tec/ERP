@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { backendFetchJson } from "@/lib/backend.server";
+import { ListViewEditActions } from "@/components/ListViewEditActions";
 import { Card, Table } from "@/components/ui";
 import { QuoteCreateForm } from "./QuoteCreateForm";
 
@@ -35,7 +36,7 @@ export default async function QuotesPage() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-semibold">Sales Quotes</h1>
-        <p className="mt-1 text-sm text-zinc-500">Draft → add lines → mark sent.</p>
+        <p className="mt-1 text-sm text-zinc-500">Draft -&gt; add lines -&gt; mark sent.</p>
       </div>
 
       <Card>
@@ -55,6 +56,7 @@ export default async function QuotesPage() {
                 <th className="py-2 pr-3">Valid Until</th>
                 <th className="py-2 pr-3">Status</th>
                 <th className="py-2 pr-3">Total</th>
+                <th className="py-2 pr-3">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -68,15 +70,21 @@ export default async function QuotesPage() {
                   <td className="py-2 pr-3">{customerById.get(q.customerId)?.code ?? q.customerId}</td>
                   <td className="py-2 pr-3 text-zinc-500">{new Date(q.quoteDate).toLocaleString()}</td>
                   <td className="py-2 pr-3 text-zinc-500">
-                    {q.validUntil ? new Date(q.validUntil).toLocaleDateString() : "—"}
+                    {q.validUntil ? new Date(q.validUntil).toLocaleDateString() : "-"}
                   </td>
                   <td className="py-2 pr-3">{statusLabel[q.status] ?? q.status}</td>
                   <td className="py-2 pr-3">{q.total}</td>
+                  <td className="py-2 pr-3">
+                    <ListViewEditActions
+                      viewHref={`/sales/quotes/${q.id}`}
+                      canEdit={q.status === 0}
+                    />
+                  </td>
                 </tr>
               ))}
               {quotes.length === 0 ? (
                 <tr>
-                  <td className="py-6 text-sm text-zinc-500" colSpan={6}>
+                  <td className="py-6 text-sm text-zinc-500" colSpan={7}>
                     No quotes yet.
                   </td>
                 </tr>
@@ -88,4 +96,3 @@ export default async function QuotesPage() {
     </div>
   );
 }
-

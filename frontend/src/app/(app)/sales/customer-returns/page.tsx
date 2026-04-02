@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { backendFetchJson } from "@/lib/backend.server";
+import { ListViewEditActions } from "@/components/ListViewEditActions";
 import { TransactionLink } from "@/components/TransactionLink";
 import { Card, Table } from "@/components/ui";
 import { CustomerReturnCreateForm } from "./CustomerReturnCreateForm";
@@ -70,6 +71,7 @@ export default async function CustomerReturnsPage() {
                 <th className="py-2 pr-3">Invoice</th>
                 <th className="py-2 pr-3">Dispatch</th>
                 <th className="py-2 pr-3">Status</th>
+                <th className="py-2 pr-3">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -102,11 +104,17 @@ export default async function CustomerReturnsPage() {
                     )}
                   </td>
                   <td className="py-2 pr-3">{statusLabel[r.status] ?? r.status}</td>
+                  <td className="py-2 pr-3">
+                    <ListViewEditActions
+                      viewHref={`/sales/customer-returns/${r.id}`}
+                      canEdit={r.status === 0}
+                    />
+                  </td>
                 </tr>
               ))}
               {rows.length === 0 ? (
                 <tr>
-                  <td className="py-6 text-sm text-zinc-500" colSpan={7}>
+                  <td className="py-6 text-sm text-zinc-500" colSpan={8}>
                     No customer returns yet.
                   </td>
                 </tr>

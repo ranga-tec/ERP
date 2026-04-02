@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { backendFetchJson } from "@/lib/backend.server";
+import { ListViewEditActions } from "@/components/ListViewEditActions";
 import { Card, Table } from "@/components/ui";
 import { SalesOrderCreateForm } from "./SalesOrderCreateForm";
 
@@ -33,7 +34,7 @@ export default async function SalesOrdersPage() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-semibold">Sales Orders</h1>
-        <p className="mt-1 text-sm text-zinc-500">Draft → add lines → confirm → dispatch.</p>
+        <p className="mt-1 text-sm text-zinc-500">Draft -&gt; add lines -&gt; confirm -&gt; dispatch.</p>
       </div>
 
       <Card>
@@ -52,6 +53,7 @@ export default async function SalesOrdersPage() {
                 <th className="py-2 pr-3">Order Date</th>
                 <th className="py-2 pr-3">Status</th>
                 <th className="py-2 pr-3">Total</th>
+                <th className="py-2 pr-3">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -66,11 +68,17 @@ export default async function SalesOrdersPage() {
                   <td className="py-2 pr-3 text-zinc-500">{new Date(o.orderDate).toLocaleString()}</td>
                   <td className="py-2 pr-3">{statusLabel[o.status] ?? o.status}</td>
                   <td className="py-2 pr-3">{o.total}</td>
+                  <td className="py-2 pr-3">
+                    <ListViewEditActions
+                      viewHref={`/sales/orders/${o.id}`}
+                      canEdit={o.status === 0}
+                    />
+                  </td>
                 </tr>
               ))}
               {orders.length === 0 ? (
                 <tr>
-                  <td className="py-6 text-sm text-zinc-500" colSpan={5}>
+                  <td className="py-6 text-sm text-zinc-500" colSpan={6}>
                     No sales orders yet.
                   </td>
                 </tr>
@@ -82,4 +90,3 @@ export default async function SalesOrdersPage() {
     </div>
   );
 }
-

@@ -83,6 +83,8 @@ Note:
 
 ## Sales workflows
 
+- sales list pages show explicit `View` and `Edit` actions so you can open a document from the actions column instead of only clicking the document number
+- `Edit` stays available while the sales document is still `Draft` (invoice edit also follows invoice-role permissions)
 - Quote:
   - create -> add lines -> send
 - Sales order:

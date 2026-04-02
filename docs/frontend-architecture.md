@@ -207,6 +207,8 @@ Recent workflow-specific UI behavior:
 
 - procurement list pages now expose explicit `View` / `Edit` actions for purchase requisitions, RFQs, purchase orders, goods receipts, direct purchases, supplier invoices, and supplier returns
 - procurement list-page `Edit` remains available while the document is still `Draft`
+- sales list pages now expose explicit `View` / `Edit` actions for quotes, orders, dispatches, direct dispatches, invoices, and customer returns
+- sales list-page `Edit` remains available while the document is still `Draft` (and follows existing invoice permissions)
 - equipment-unit detail pages support warranty ownership updates and list linked service contracts
 - service-contract list/detail pages manage `AMC`, `SLA`, and warranty-extension coverage for installed units
 - service-job create/detail screens surface entitlement source, coverage, billing treatment, and manual refresh when coverage changes
