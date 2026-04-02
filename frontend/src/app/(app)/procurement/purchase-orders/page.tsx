@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { backendFetchJson } from "@/lib/backend.server";
+import { ListViewEditActions } from "@/components/ListViewEditActions";
 import { Card, Table } from "@/components/ui";
 import { PurchaseOrderCreateForm } from "./PurchaseOrderCreateForm";
 
@@ -52,6 +53,7 @@ export default async function PurchaseOrdersPage() {
                 <th className="py-2 pr-3">Order Date</th>
                 <th className="py-2 pr-3">Status</th>
                 <th className="py-2 pr-3">Total</th>
+                <th className="py-2 pr-3">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -66,11 +68,17 @@ export default async function PurchaseOrdersPage() {
                   <td className="py-2 pr-3 text-zinc-500">{new Date(p.orderDate).toLocaleString()}</td>
                   <td className="py-2 pr-3">{statusLabel[p.status] ?? p.status}</td>
                   <td className="py-2 pr-3">{p.total}</td>
+                  <td className="py-2 pr-3">
+                    <ListViewEditActions
+                      viewHref={`/procurement/purchase-orders/${p.id}`}
+                      canEdit={p.status === 0}
+                    />
+                  </td>
                 </tr>
               ))}
               {pos.length === 0 ? (
                 <tr>
-                  <td className="py-6 text-sm text-zinc-500" colSpan={5}>
+                  <td className="py-6 text-sm text-zinc-500" colSpan={6}>
                     No purchase orders yet.
                   </td>
                 </tr>
@@ -82,4 +90,3 @@ export default async function PurchaseOrdersPage() {
     </div>
   );
 }
-

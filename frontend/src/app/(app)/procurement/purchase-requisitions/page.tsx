@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { backendFetchJson } from "@/lib/backend.server";
+import { ListViewEditActions } from "@/components/ListViewEditActions";
 import { Card, Table } from "@/components/ui";
 import { PurchaseRequisitionCreateForm } from "./PurchaseRequisitionCreateForm";
 
@@ -50,6 +51,7 @@ export default async function PurchaseRequisitionsPage() {
                 <th className="py-2 pr-3">Status</th>
                 <th className="py-2 pr-3">Lines</th>
                 <th className="py-2 pr-3">Notes</th>
+                <th className="py-2 pr-3">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -66,11 +68,17 @@ export default async function PurchaseRequisitionsPage() {
                   <td className="py-2 pr-3">{statusLabel[pr.status] ?? pr.status}</td>
                   <td className="py-2 pr-3">{pr.lineCount}</td>
                   <td className="py-2 pr-3 text-zinc-500">{pr.notes ?? "-"}</td>
+                  <td className="py-2 pr-3">
+                    <ListViewEditActions
+                      viewHref={`/procurement/purchase-requisitions/${pr.id}`}
+                      canEdit={pr.status === 0}
+                    />
+                  </td>
                 </tr>
               ))}
               {prs.length === 0 ? (
                 <tr>
-                  <td className="py-6 text-sm text-zinc-500" colSpan={5}>
+                  <td className="py-6 text-sm text-zinc-500" colSpan={6}>
                     No purchase requisitions yet.
                   </td>
                 </tr>

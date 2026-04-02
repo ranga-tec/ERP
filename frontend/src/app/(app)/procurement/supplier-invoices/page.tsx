@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { backendFetchJson } from "@/lib/backend.server";
+import { ListViewEditActions } from "@/components/ListViewEditActions";
 import { TransactionLink } from "@/components/TransactionLink";
 import { Card, Table } from "@/components/ui";
 import { SupplierInvoiceCreateForm } from "./SupplierInvoiceCreateForm";
@@ -109,6 +110,7 @@ export default async function SupplierInvoicesPage() {
                 <th className="py-2 pr-3">Source</th>
                 <th className="py-2 pr-3">Total</th>
                 <th className="py-2 pr-3">Status</th>
+                <th className="py-2 pr-3">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -125,11 +127,17 @@ export default async function SupplierInvoicesPage() {
                   <td className="py-2 pr-3 text-zinc-500">{sourceLabel(i)}</td>
                   <td className="py-2 pr-3">{i.grandTotal.toFixed(2)}</td>
                   <td className="py-2 pr-3">{statusLabel[i.status] ?? i.status}</td>
+                  <td className="py-2 pr-3">
+                    <ListViewEditActions
+                      viewHref={`/procurement/supplier-invoices/${i.id}`}
+                      canEdit={i.status === 0}
+                    />
+                  </td>
                 </tr>
               ))}
               {invoices.length === 0 ? (
                 <tr>
-                  <td className="py-6 text-sm text-zinc-500" colSpan={7}>
+                  <td className="py-6 text-sm text-zinc-500" colSpan={8}>
                     No supplier invoices yet.
                   </td>
                 </tr>

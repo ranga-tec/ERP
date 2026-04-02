@@ -45,6 +45,8 @@ Note:
 
 ## Procurement workflows
 
+- procurement list pages show explicit `View` and `Edit` actions so you can open a document from the actions column instead of only clicking the document number
+- `Edit` stays available while the procurement document is still `Draft`
 - RFQ:
   - create -> add lines -> send
 - Purchase requisition:

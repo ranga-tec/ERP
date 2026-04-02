@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { backendFetchJson } from "@/lib/backend.server";
+import { ListViewEditActions } from "@/components/ListViewEditActions";
 import { Card, Table } from "@/components/ui";
 import { RfqCreateForm } from "./RfqCreateForm";
 
@@ -51,6 +52,7 @@ export default async function RfqsPage() {
                 <th className="py-2 pr-3">Requested</th>
                 <th className="py-2 pr-3">Status</th>
                 <th className="py-2 pr-3">Lines</th>
+                <th className="py-2 pr-3">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -69,11 +71,17 @@ export default async function RfqsPage() {
                   </td>
                   <td className="py-2 pr-3">{statusLabel[r.status] ?? r.status}</td>
                   <td className="py-2 pr-3">{r.lineCount}</td>
+                  <td className="py-2 pr-3">
+                    <ListViewEditActions
+                      viewHref={`/procurement/rfqs/${r.id}`}
+                      canEdit={r.status === 0}
+                    />
+                  </td>
                 </tr>
               ))}
               {rfqs.length === 0 ? (
                 <tr>
-                  <td className="py-6 text-sm text-zinc-500" colSpan={5}>
+                  <td className="py-6 text-sm text-zinc-500" colSpan={6}>
                     No RFQs yet.
                   </td>
                 </tr>
@@ -85,4 +93,3 @@ export default async function RfqsPage() {
     </div>
   );
 }
-

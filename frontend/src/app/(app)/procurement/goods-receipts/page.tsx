@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { backendFetchJson } from "@/lib/backend.server";
+import { ListViewEditActions } from "@/components/ListViewEditActions";
 import { TransactionLink } from "@/components/TransactionLink";
 import { Card, Table } from "@/components/ui";
 import { GoodsReceiptCreateForm } from "./GoodsReceiptCreateForm";
@@ -55,6 +56,7 @@ export default async function GoodsReceiptsPage() {
                 <th className="py-2 pr-3">Warehouse</th>
                 <th className="py-2 pr-3">Received</th>
                 <th className="py-2 pr-3">Status</th>
+                <th className="py-2 pr-3">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -73,11 +75,17 @@ export default async function GoodsReceiptsPage() {
                   <td className="py-2 pr-3">{warehouseById.get(g.warehouseId)?.code ?? g.warehouseId}</td>
                   <td className="py-2 pr-3 text-zinc-500">{new Date(g.receivedAt).toLocaleString()}</td>
                   <td className="py-2 pr-3">{statusLabel[g.status] ?? g.status}</td>
+                  <td className="py-2 pr-3">
+                    <ListViewEditActions
+                      viewHref={`/procurement/goods-receipts/${g.id}`}
+                      canEdit={g.status === 0}
+                    />
+                  </td>
                 </tr>
               ))}
               {grns.length === 0 ? (
                 <tr>
-                  <td className="py-6 text-sm text-zinc-500" colSpan={5}>
+                  <td className="py-6 text-sm text-zinc-500" colSpan={6}>
                     No GRNs yet.
                   </td>
                 </tr>

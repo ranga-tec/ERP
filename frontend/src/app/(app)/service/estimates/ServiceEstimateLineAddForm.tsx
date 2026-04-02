@@ -181,7 +181,8 @@ export function ServiceEstimateLineAddForm({
       </div>
 
       <div className="text-xs text-zinc-500">
-        Covered labor or part lines under the job's warranty or contract entitlement are saved at zero unit price automatically.
+        Covered labor or part lines under the job&apos;s warranty or contract entitlement are saved at zero unit price
+        automatically.
       </div>
 
       {error ? (

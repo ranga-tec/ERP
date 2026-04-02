@@ -46,6 +46,7 @@
   - creating a GRN from a PO loads every open PO line into the `Receive From PO` grid
   - users can receive only the lines/quantities delivered now and leave the balance for later GRNs
   - tracked serial/batch validation happens before posting, and the GRN screen includes search for both receipt-plan and draft-line tables
+- Procurement list pages now expose explicit `View` / `Edit` actions for purchase requisitions, RFQs, purchase orders, goods receipts, direct purchases, supplier invoices, and supplier returns so operators do not need to rely only on the document number link
 - Service workflow now supports:
   - equipment-unit warranty coverage with editable warranty end date and coverage scope
   - service contracts (`AMC`, `SLA`, `Warranty Extension`) linked to specific customer equipment units

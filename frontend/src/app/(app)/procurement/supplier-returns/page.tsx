@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { backendFetchJson } from "@/lib/backend.server";
+import { ListViewEditActions } from "@/components/ListViewEditActions";
 import { Card, Table } from "@/components/ui";
 import { SupplierReturnCreateForm } from "./SupplierReturnCreateForm";
 
@@ -56,6 +57,7 @@ export default async function SupplierReturnsPage() {
                 <th className="py-2 pr-3">Return Date</th>
                 <th className="py-2 pr-3">Status</th>
                 <th className="py-2 pr-3">Reason</th>
+                <th className="py-2 pr-3">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -70,12 +72,18 @@ export default async function SupplierReturnsPage() {
                   <td className="py-2 pr-3">{warehouseById.get(r.warehouseId)?.code ?? r.warehouseId}</td>
                   <td className="py-2 pr-3 text-zinc-500">{new Date(r.returnDate).toLocaleString()}</td>
                   <td className="py-2 pr-3">{statusLabel[r.status] ?? r.status}</td>
-                  <td className="py-2 pr-3 text-zinc-500">{r.reason ?? "—"}</td>
+                  <td className="py-2 pr-3 text-zinc-500">{r.reason ?? "-"}</td>
+                  <td className="py-2 pr-3">
+                    <ListViewEditActions
+                      viewHref={`/procurement/supplier-returns/${r.id}`}
+                      canEdit={r.status === 0}
+                    />
+                  </td>
                 </tr>
               ))}
               {returns.length === 0 ? (
                 <tr>
-                  <td className="py-6 text-sm text-zinc-500" colSpan={6}>
+                  <td className="py-6 text-sm text-zinc-500" colSpan={7}>
                     No supplier returns yet.
                   </td>
                 </tr>
@@ -87,4 +95,3 @@ export default async function SupplierReturnsPage() {
     </div>
   );
 }
-
