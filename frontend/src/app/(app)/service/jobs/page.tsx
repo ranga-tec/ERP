@@ -54,7 +54,7 @@ const billingTreatmentLabel: Record<number, string> = {
 export default async function ServiceJobsPage() {
   const [jobs, units, customers] = await Promise.all([
     backendFetchJson<ServiceJobDto[]>("/service/jobs?take=100"),
-    backendFetchJson<EquipmentUnitDto[]>("/service/equipment-units?take=500"),
+    backendFetchJson<EquipmentUnitDto[]>("/service/equipment-units?take=2000"),
     backendFetchJson<CustomerDto[]>("/customers"),
   ]);
 

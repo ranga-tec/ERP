@@ -1,6 +1,7 @@
 "use client";
 
 import type { ComponentProps } from "react";
+import { Select as SearchableSelect } from "@/components/SearchableSelect";
 import { LookupCell } from "./LookupCell";
 import type {
   CellClassName,
@@ -147,7 +148,7 @@ function renderColumnContent<Row>(
   if (column.kind === "select") {
     const options = resolveOptions(column, row);
     return (
-      <select
+      <SearchableSelect
         value={column.getValue(row)}
         onChange={(event) => updateValue(event.target.value)}
         className={cx(selectClassName, column.inputClassName)}
@@ -155,11 +156,11 @@ function renderColumnContent<Row>(
         onKeyDown={handleKeyDown}
       >
         {options.map((option) => (
-          <option key={option.value} value={option.value}>
+          <option key={option.value} value={option.value} disabled={option.disabled}>
             {option.label}
           </option>
         ))}
-      </select>
+      </SearchableSelect>
     );
   }
 

@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { apiPut } from "@/lib/api-client";
+import { EquipmentUnitLookupField } from "@/components/EquipmentUnitLookupField";
 import { Button, Select, Textarea } from "@/components/ui";
 
 type EquipmentUnitRef = { id: string; serialNumber: string; customerId: string };
@@ -28,10 +29,6 @@ export function ServiceJobEditForm({
   customers: CustomerRef[];
 }) {
   const router = useRouter();
-  const unitOptions = useMemo(
-    () => equipmentUnits.slice().sort((a, b) => a.serialNumber.localeCompare(b.serialNumber)),
-    [equipmentUnits],
-  );
   const customerOptions = useMemo(
     () => customers.slice().sort((a, b) => a.code.localeCompare(b.code)),
     [customers],
@@ -45,6 +42,13 @@ export function ServiceJobEditForm({
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    setEquipmentUnitId(job.equipmentUnitId);
+    setCustomerId(job.customerId);
+    setKind(String(job.kind));
+    setProblemDescription(job.problemDescription);
+  }, [job]);
+
+  useEffect(() => {
     const selected = equipmentUnits.find((unit) => unit.id === equipmentUnitId);
     if (selected) {
       setCustomerId(selected.customerId);
@@ -54,6 +58,12 @@ export function ServiceJobEditForm({
   async function onSubmit(event: React.FormEvent) {
     event.preventDefault();
     setError(null);
+
+    if (!equipmentUnitId) {
+      setError("Select an equipment unit.");
+      return;
+    }
+
     setBusy(true);
     try {
       await apiPut(`service/jobs/${job.id}`, {
@@ -75,13 +85,7 @@ export function ServiceJobEditForm({
       <div className="grid gap-3 sm:grid-cols-2">
         <div>
           <label className="mb-1 block text-sm font-medium">Equipment unit</label>
-          <Select value={equipmentUnitId} onChange={(event) => setEquipmentUnitId(event.target.value)} required>
-            {unitOptions.map((unit) => (
-              <option key={unit.id} value={unit.id}>
-                {unit.serialNumber}
-              </option>
-            ))}
-          </Select>
+          <EquipmentUnitLookupField equipmentUnits={equipmentUnits} value={equipmentUnitId} onChange={setEquipmentUnitId} />
         </div>
         <div>
           <label className="mb-1 block text-sm font-medium">Customer</label>

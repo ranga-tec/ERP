@@ -178,12 +178,18 @@ export default async function ServiceJobDetailPage({ params }: { params: Promise
 
   const [job, units, customers, costing] = await Promise.all([
     backendFetchJson<ServiceJobDto>(`/service/jobs/${id}`),
-    backendFetchJson<EquipmentUnitDto[]>("/service/equipment-units?take=500"),
+    backendFetchJson<EquipmentUnitDto[]>("/service/equipment-units?take=2000"),
     backendFetchJson<CustomerDto[]>("/customers"),
     backendFetchJson<ServiceJobCostingDto>(`/service/jobs/${id}/costing`),
   ]);
 
-  const unitById = new Map(units.map((u) => [u.id, u]));
+  const selectedUnit =
+    units.some((unit) => unit.id === job.equipmentUnitId)
+      ? null
+      : await backendFetchJson<EquipmentUnitDto>(`/service/equipment-units/${job.equipmentUnitId}`).catch(() => null);
+  const availableUnits = selectedUnit ? [selectedUnit, ...units] : units;
+
+  const unitById = new Map(availableUnits.map((u) => [u.id, u]));
   const customerById = new Map(customers.map((c) => [c.id, c]));
 
   const canStart = job.status === 0;
@@ -232,7 +238,7 @@ export default async function ServiceJobDetailPage({ params }: { params: Promise
       {job.status === 0 ? (
         <Card>
           <div className="mb-3 text-sm font-semibold">Edit Job</div>
-          <ServiceJobEditForm job={job} equipmentUnits={units} customers={customers} />
+          <ServiceJobEditForm job={job} equipmentUnits={availableUnits} customers={customers} />
         </Card>
       ) : (
         <Card>

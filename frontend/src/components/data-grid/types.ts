@@ -6,6 +6,7 @@ export type DataGridOption = {
   description?: string;
   searchText?: string;
   keywords?: string[];
+  disabled?: boolean;
 };
 
 export type DataGridAlignment = "left" | "center" | "right";

@@ -1,4 +1,5 @@
 import type { ComponentProps, ReactNode } from "react";
+export { Select } from "./SearchableSelect";
 
 function buttonLabelText(children: ReactNode): string {
   if (typeof children === "string" || typeof children === "number") {
@@ -88,19 +89,6 @@ export function Textarea(props: ComponentProps<"textarea">) {
     <textarea
       className={[
         "w-full min-h-20 rounded-md border border-[var(--input-border)] bg-[var(--surface)] px-2.5 py-1.5 text-[13px] text-[var(--foreground)] shadow-[var(--shadow-control)] outline-none transition focus-visible:border-[var(--link)] focus-visible:ring-2 focus-visible:ring-[var(--ring-accent)] placeholder:text-[var(--muted-foreground)]/80",
-        className ?? "",
-      ].join(" ")}
-      {...rest}
-    />
-  );
-}
-
-export function Select(props: ComponentProps<"select">) {
-  const { className, ...rest } = props;
-  return (
-    <select
-      className={[
-        "w-full rounded-md border border-[var(--input-border)] bg-[var(--surface)] px-2.5 py-1.5 text-[13px] text-[var(--foreground)] shadow-[var(--shadow-control)] outline-none transition focus-visible:border-[var(--link)] focus-visible:ring-2 focus-visible:ring-[var(--ring-accent)]",
         className ?? "",
       ].join(" ")}
       {...rest}

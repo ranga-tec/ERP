@@ -54,7 +54,8 @@ export function LookupCell({
   const wrapperRef = useRef<HTMLDivElement | null>(null);
   const listboxId = useId();
   const selectedOption = useMemo(() => options.find((option) => option.value === value) ?? null, [options, value]);
-  const [query, setQuery] = useState(selectedOption?.label ?? "");
+  const selectedLabel = selectedOption?.label ?? value;
+  const [query, setQuery] = useState(selectedLabel);
   const [open, setOpen] = useState(false);
   const [activeIndex, setActiveIndex] = useState(0);
 
@@ -79,7 +80,7 @@ export function LookupCell({
   }, [options, query]);
 
   const clampedActiveIndex = filteredOptions.length === 0 ? 0 : Math.min(activeIndex, filteredOptions.length - 1);
-  const inputValue = open ? query : selectedOption?.label ?? "";
+  const inputValue = open ? query : selectedLabel;
 
   function selectOption(option: DataGridOption) {
     onChange(option.value);
@@ -109,7 +110,7 @@ export function LookupCell({
     if (event.key === "Escape") {
       event.preventDefault();
       setOpen(false);
-      setQuery(selectedOption?.label ?? "");
+      setQuery(selectedLabel);
       return;
     }
 
@@ -136,7 +137,7 @@ export function LookupCell({
       <input
         value={inputValue}
         onFocus={() => {
-          setQuery(selectedOption?.label ?? "");
+          setQuery(selectedLabel);
           setOpen(true);
         }}
         onChange={(event) => {
