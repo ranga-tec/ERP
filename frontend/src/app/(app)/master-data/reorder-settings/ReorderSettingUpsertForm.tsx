@@ -1,8 +1,9 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { apiPost } from "@/lib/api-client";
+import { ItemLookupField } from "@/components/ItemLookupField";
 import { Button, Input, Select } from "@/components/ui";
 
 type WarehouseRef = { id: string; code: string; name: string };
@@ -36,16 +37,20 @@ export function ReorderSettingUpsertForm({
     () => warehouses.slice().sort((a, b) => a.code.localeCompare(b.code)),
     [warehouses],
   );
-  const itemOptions = useMemo(
-    () => items.slice().sort((a, b) => a.sku.localeCompare(b.sku)),
-    [items],
-  );
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
     setBusy(true);
     try {
+      if (!warehouseId) {
+        throw new Error("Warehouse is required.");
+      }
+
+      if (!itemId) {
+        throw new Error("Item is required.");
+      }
+
       const rp = Number(reorderPoint);
       const rq = Number(reorderQuantity);
       if (Number.isNaN(rp) || Number.isNaN(rq)) {
@@ -74,27 +79,18 @@ export function ReorderSettingUpsertForm({
           <label className="mb-1 block text-sm font-medium">Warehouse</label>
           <Select value={warehouseId} onChange={(e) => setWarehouseId(e.target.value)} required>
             <option value="" disabled>
-              Select…
+              Select...
             </option>
             {warehouseOptions.map((w) => (
               <option key={w.id} value={w.id}>
-                {w.code} — {w.name}
+                {w.code} - {w.name}
               </option>
             ))}
           </Select>
         </div>
         <div>
           <label className="mb-1 block text-sm font-medium">Item</label>
-          <Select value={itemId} onChange={(e) => setItemId(e.target.value)} required>
-            <option value="" disabled>
-              Select…
-            </option>
-            {itemOptions.map((i) => (
-              <option key={i.id} value={i.id}>
-                {i.sku} — {i.name}
-              </option>
-            ))}
-          </Select>
+          <ItemLookupField items={items} value={itemId} onChange={setItemId} />
         </div>
       </div>
 
@@ -116,9 +112,8 @@ export function ReorderSettingUpsertForm({
       ) : null}
 
       <Button type="submit" disabled={busy}>
-        {busy ? "Saving…" : "Upsert Reorder Setting"}
+        {busy ? "Saving..." : "Upsert Reorder Setting"}
       </Button>
     </form>
   );
 }
-

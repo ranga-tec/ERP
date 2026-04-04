@@ -4,7 +4,8 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { apiDeleteNoContent, apiPutNoContent } from "@/lib/api-client";
 import { ItemInlineLink } from "@/components/InlineLink";
-import { Button, Input, SecondaryButton, Select } from "@/components/ui";
+import { ItemLookupField } from "@/components/ItemLookupField";
+import { Button, Input, SecondaryButton } from "@/components/ui";
 
 type ItemRef = { id: string; sku: string; name: string };
 type ServiceExpenseClaimLineDto = {
@@ -94,7 +95,6 @@ export function ServiceExpenseClaimLineRow({
   }
 
   const itemById = new Map(items.map((item) => [item.id, item]));
-  const sortedItems = items.slice().sort((a, b) => a.sku.localeCompare(b.sku));
   const currentItem = line.itemId ? itemById.get(line.itemId) : null;
   const previewTotal = Number(quantity) * Number(unitCost);
 
@@ -102,14 +102,13 @@ export function ServiceExpenseClaimLineRow({
     <tr className="border-b border-zinc-100 align-top dark:border-zinc-900">
       <td className="py-2 pr-3">
         {isEditing ? (
-          <Select value={itemId} onChange={(event) => setItemId(event.target.value)} className="min-w-52">
-            <option value="">Ad-hoc / outside buy</option>
-            {sortedItems.map((item) => (
-              <option key={item.id} value={item.id}>
-                {item.sku} - {item.name}
-              </option>
-            ))}
-          </Select>
+          <ItemLookupField
+            items={items}
+            value={itemId}
+            onChange={setItemId}
+            emptyLabel="Ad-hoc / outside buy"
+            className="min-w-52"
+          />
         ) : currentItem ? (
           <ItemInlineLink itemId={currentItem.id}>
             {currentItem.sku} - {currentItem.name}

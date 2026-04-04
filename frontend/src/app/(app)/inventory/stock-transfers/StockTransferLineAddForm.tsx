@@ -1,8 +1,9 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { apiPostNoContent } from "@/lib/api-client";
+import { ItemLookupField } from "@/components/ItemLookupField";
 import { Button, Input, Select, Textarea } from "@/components/ui";
 import { LineStockInsight } from "@/components/LineStockInsight";
 
@@ -28,10 +29,6 @@ export function StockTransferLineAddForm({
   warehouseId: string;
 }) {
   const router = useRouter();
-  const itemOptions = useMemo(
-    () => items.slice().sort((a, b) => a.sku.localeCompare(b.sku)),
-    [items],
-  );
 
   const [itemId, setItemId] = useState("");
   const [quantity, setQuantity] = useState("1");
@@ -48,6 +45,10 @@ export function StockTransferLineAddForm({
     setError(null);
     setBusy(true);
     try {
+      if (!itemId) {
+        throw new Error("Item is required.");
+      }
+
       const qty = Number(quantity);
       if (Number.isNaN(qty) || qty <= 0) {
         throw new Error("Quantity must be positive.");
@@ -85,16 +86,7 @@ export function StockTransferLineAddForm({
       <div className="grid gap-3 sm:grid-cols-4">
         <div className="sm:col-span-2">
           <label className="mb-1 block text-sm font-medium">Item</label>
-          <Select value={itemId} onChange={(e) => setItemId(e.target.value)} required>
-            <option value="" disabled>
-              Select...
-            </option>
-            {itemOptions.map((i) => (
-              <option key={i.id} value={i.id}>
-                {i.sku} - {i.name}
-              </option>
-            ))}
-          </Select>
+          <ItemLookupField items={items} value={itemId} onChange={setItemId} />
         </div>
         <div>
           <label className="mb-1 block text-sm font-medium">Move qty</label>

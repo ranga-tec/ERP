@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { apiPostNoContent } from "@/lib/api-client";
+import { ItemLookupField } from "@/components/ItemLookupField";
 import { Button, Input, Select, Textarea } from "@/components/ui";
 
 type ItemRef = { id: string; sku: string; name: string; trackingType: number; defaultUnitCost: number };
@@ -47,6 +48,10 @@ export function DirectPurchaseLineAddForm({
     setError(null);
     setBusy(true);
     try {
+      if (!itemId) {
+        throw new Error("Item is required.");
+      }
+
       const qty = Number(quantity);
       if (Number.isNaN(qty) || qty <= 0) {
         throw new Error("Quantity must be positive.");
@@ -93,16 +98,7 @@ export function DirectPurchaseLineAddForm({
       <div className="grid gap-3 sm:grid-cols-6">
         <div className="sm:col-span-2">
           <label className="mb-1 block text-sm font-medium">Item</label>
-          <Select value={itemId} onChange={(e) => setItemId(e.target.value)} required>
-            <option value="" disabled>
-              Select...
-            </option>
-            {sortedItems.map((i) => (
-              <option key={i.id} value={i.id}>
-                {i.sku} - {i.name}
-              </option>
-            ))}
-          </Select>
+          <ItemLookupField items={sortedItems} value={itemId} onChange={setItemId} />
         </div>
         <div>
           <label className="mb-1 block text-sm font-medium">Qty</label>

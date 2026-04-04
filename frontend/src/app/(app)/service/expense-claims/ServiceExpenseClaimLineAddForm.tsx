@@ -3,7 +3,8 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { apiPostNoContent } from "@/lib/api-client";
-import { Button, Input, Select } from "@/components/ui";
+import { ItemLookupField } from "@/components/ItemLookupField";
+import { Button, Input } from "@/components/ui";
 
 type ItemRef = { id: string; sku: string; name: string };
 
@@ -46,6 +47,7 @@ export function ServiceExpenseClaimLineAddForm({
         billableToCustomer,
       });
 
+      setItemId("");
       setDescription("");
       setQuantity("1");
       setUnitCost("");
@@ -58,21 +60,18 @@ export function ServiceExpenseClaimLineAddForm({
     }
   }
 
-  const sortedItems = items.slice().sort((a, b) => a.sku.localeCompare(b.sku));
-
   return (
     <form onSubmit={onSubmit} className="space-y-3">
       <div className="grid gap-3 sm:grid-cols-2">
         <div>
           <label className="mb-1 block text-sm font-medium">Item (optional)</label>
-          <Select value={itemId} onChange={(event) => setItemId(event.target.value)}>
-            <option value="">Ad-hoc / outside buy</option>
-            {sortedItems.map((item) => (
-              <option key={item.id} value={item.id}>
-                {item.sku} - {item.name}
-              </option>
-            ))}
-          </Select>
+          <ItemLookupField
+            items={items}
+            value={itemId}
+            onChange={setItemId}
+            emptyLabel="Ad-hoc / outside buy"
+            searchPlaceholder="Search item by SKU or name..."
+          />
         </div>
         <div>
           <label className="mb-1 block text-sm font-medium">Description</label>

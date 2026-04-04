@@ -1,9 +1,10 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { apiPostNoContent } from "@/lib/api-client";
-import { Button, Input, Select } from "@/components/ui";
+import { ItemLookupField } from "@/components/ItemLookupField";
+import { Button, Input } from "@/components/ui";
 import { AutoGrowTextarea } from "./AutoGrowTextarea";
 
 type ItemRef = { id: string; sku: string; name: string; trackingType: number; defaultUnitCost: number };
@@ -17,10 +18,6 @@ function parseList(text: string): string[] {
 
 export function GoodsReceiptLineAddForm({ goodsReceiptId, items }: { goodsReceiptId: string; items: ItemRef[] }) {
   const router = useRouter();
-  const itemOptions = useMemo(
-    () => items.slice().sort((a, b) => a.sku.localeCompare(b.sku)),
-    [items],
-  );
 
   const [itemId, setItemId] = useState("");
   const [quantity, setQuantity] = useState("1");
@@ -37,6 +34,10 @@ export function GoodsReceiptLineAddForm({ goodsReceiptId, items }: { goodsReceip
     setError(null);
     setBusy(true);
     try {
+      if (!itemId) {
+        throw new Error("Item is required.");
+      }
+
       const qty = Number(quantity);
       if (Number.isNaN(qty) || qty <= 0) {
         throw new Error("Quantity must be positive.");
@@ -74,16 +75,7 @@ export function GoodsReceiptLineAddForm({ goodsReceiptId, items }: { goodsReceip
       <div className="grid gap-3 sm:grid-cols-4">
         <div className="sm:col-span-2">
           <label className="mb-1 block text-sm font-medium">Item</label>
-          <Select value={itemId} onChange={(e) => setItemId(e.target.value)} required>
-            <option value="" disabled>
-              Select...
-            </option>
-            {itemOptions.map((i) => (
-              <option key={i.id} value={i.id}>
-                {i.sku} — {i.name}
-              </option>
-            ))}
-          </Select>
+          <ItemLookupField items={items} value={itemId} onChange={setItemId} />
         </div>
         <div>
           <label className="mb-1 block text-sm font-medium">Qty</label>

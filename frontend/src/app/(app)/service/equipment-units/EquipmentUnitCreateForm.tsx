@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { apiPost } from "@/lib/api-client";
+import { ItemLookupField } from "@/components/ItemLookupField";
 import { Button, Input, Select } from "@/components/ui";
 
 type ItemRef = { id: string; sku: string; name: string };
@@ -26,10 +27,6 @@ export function EquipmentUnitCreateForm({
   customers: CustomerRef[];
 }) {
   const router = useRouter();
-  const itemOptions = useMemo(
-    () => equipmentItems.slice().sort((a, b) => a.sku.localeCompare(b.sku)),
-    [equipmentItems],
-  );
   const customerOptions = useMemo(
     () => customers.slice().sort((a, b) => a.code.localeCompare(b.code)),
     [customers],
@@ -49,6 +46,10 @@ export function EquipmentUnitCreateForm({
     setError(null);
     setBusy(true);
     try {
+      if (!itemId) {
+        throw new Error("Equipment item is required.");
+      }
+
       const unit = await apiPost<EquipmentUnitDto>("service/equipment-units", {
         itemId,
         serialNumber: serialNumber.trim(),
@@ -70,16 +71,7 @@ export function EquipmentUnitCreateForm({
       <div className="grid gap-3 sm:grid-cols-2">
         <div>
           <label className="mb-1 block text-sm font-medium">Equipment item</label>
-          <Select value={itemId} onChange={(e) => setItemId(e.target.value)} required>
-            <option value="" disabled>
-              Select...
-            </option>
-            {itemOptions.map((i) => (
-              <option key={i.id} value={i.id}>
-                {i.sku} - {i.name}
-              </option>
-            ))}
-          </Select>
+          <ItemLookupField items={equipmentItems} value={itemId} onChange={setItemId} />
         </div>
         <div>
           <label className="mb-1 block text-sm font-medium">Customer</label>
