@@ -272,17 +272,17 @@ export function Sidebar({ roles, collapsed = false, onNavigate, onToggleCollapse
   return (
     <aside
       className={[
-        "flex h-full max-h-screen shrink-0 flex-col overflow-hidden border-r border-[var(--card-border)] bg-[var(--surface-soft)] p-4 shadow-[var(--shadow-soft)] backdrop-blur-xl transition-all duration-200",
-        collapsed ? "w-20" : "w-[18.5rem]",
+        "flex h-full max-h-screen shrink-0 flex-col overflow-hidden border-r border-[var(--card-border)] bg-[var(--surface)] p-3 shadow-[var(--shadow-soft)] transition-all duration-200",
+        collapsed ? "w-[4.5rem]" : "w-[17rem]",
       ].join(" ")}
     >
-      <div className="mb-4 flex shrink-0 items-start justify-between gap-2">
+      <div className="mb-3 flex shrink-0 items-start justify-between gap-2">
         <div>
-          <div className="text-sm font-semibold tracking-tight text-[var(--foreground)]">
+          <div className="text-[13px] font-semibold tracking-tight text-[var(--foreground)]">
             {collapsed ? "ISS" : "ISS ERP"}
           </div>
           {!collapsed ? (
-            <div className="text-xs text-[var(--muted-foreground)]">Service + Inventory + Sales</div>
+            <div className="text-[11px] text-[var(--muted-foreground)]">Service + Inventory + Sales</div>
           ) : null}
         </div>
         {canToggle ? (
@@ -292,7 +292,7 @@ export function Sidebar({ roles, collapsed = false, onNavigate, onToggleCollapse
             aria-pressed={pinned}
             aria-label={pinned ? "Unpin sidebar" : "Pin sidebar"}
             title={pinned ? "Unpin sidebar" : "Pin sidebar"}
-            className="inline-flex h-8 w-8 items-center justify-center rounded-xl border border-[var(--input-border)] bg-[var(--surface)] text-[var(--muted-foreground)] shadow-[var(--shadow-control)] transition-all duration-200 hover:-translate-y-px hover:text-[var(--foreground)] hover:shadow-[var(--shadow-soft)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring-accent)]"
+            className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-[var(--input-border)] bg-[var(--surface-soft)] text-[var(--muted-foreground)] shadow-[var(--shadow-control)] transition-colors duration-150 hover:text-[var(--foreground)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring-accent)]"
           >
             <PinIcon pinned={pinned} />
           </button>
@@ -300,7 +300,7 @@ export function Sidebar({ roles, collapsed = false, onNavigate, onToggleCollapse
       </div>
 
       {!collapsed ? (
-        <div className="mb-4 shrink-0">
+        <div className="mb-3 shrink-0">
           <label htmlFor="sidebar-search" className="sr-only">
             Search menu items
           </label>
@@ -327,14 +327,14 @@ export function Sidebar({ roles, collapsed = false, onNavigate, onToggleCollapse
               value={search}
               onChange={(event) => setSearch(event.target.value)}
               placeholder="Search menu items"
-              className="w-full rounded-[1.15rem] border border-[var(--input-border)] bg-[linear-gradient(180deg,var(--surface)_0%,var(--surface-soft)_100%)] py-2.5 pl-9 pr-10 text-sm text-[var(--foreground)] shadow-[var(--shadow-control)] outline-none transition focus-visible:border-[var(--link)] focus-visible:ring-2 focus-visible:ring-[var(--ring-accent)] placeholder:text-[var(--muted-foreground)]/80"
+              className="w-full rounded-md border border-[var(--input-border)] bg-[var(--surface-soft)] py-1.5 pl-9 pr-10 text-[13px] text-[var(--foreground)] shadow-[var(--shadow-control)] outline-none transition focus-visible:border-[var(--link)] focus-visible:ring-2 focus-visible:ring-[var(--ring-accent)] placeholder:text-[var(--muted-foreground)]/80"
             />
             {search ? (
               <button
                 type="button"
                 onClick={() => setSearch("")}
                 aria-label="Clear menu search"
-                className="absolute right-2 top-1/2 inline-flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-lg text-[var(--muted-foreground)] transition-colors hover:bg-[var(--surface)] hover:text-[var(--foreground)]"
+                className="absolute right-2 top-1/2 inline-flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-md text-[var(--muted-foreground)] transition-colors hover:bg-[var(--surface)] hover:text-[var(--foreground)]"
               >
                 <svg viewBox="0 0 20 20" className="h-4 w-4" fill="none" aria-hidden="true">
                   <path
@@ -353,7 +353,7 @@ export function Sidebar({ roles, collapsed = false, onNavigate, onToggleCollapse
       <nav
         className={[
           "sidebar-scrollbar flex-1 overflow-y-auto overscroll-contain pr-2",
-          collapsed ? "space-y-3" : "space-y-4",
+          collapsed ? "space-y-2" : "space-y-3",
         ].join(" ")}
       >
         {filteredSections.map((section) => {
@@ -361,23 +361,22 @@ export function Sidebar({ roles, collapsed = false, onNavigate, onToggleCollapse
           const activeSection = sectionIsActive(pathname, section);
 
           return (
-            <div key={section.title} className={collapsed ? "" : "rounded-[1.65rem]"}>
+            <div key={section.title} className={collapsed ? "" : "rounded-lg"}>
               {!collapsed ? (
                 <button
                   type="button"
                   onClick={() => toggleSection(section.title)}
                   aria-expanded={expanded}
                   className={[
-                    "group relative flex w-full items-center justify-between gap-3 overflow-hidden rounded-[1.35rem] border px-3.5 py-3 text-left transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring-accent)]",
+                    "group relative flex w-full items-center justify-between gap-3 overflow-hidden rounded-lg border px-3 py-2.5 text-left transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring-accent)]",
                     activeSection
-                      ? "border-[var(--accent)] bg-[linear-gradient(180deg,var(--accent-muted)_0%,var(--surface)_100%)] text-[var(--foreground)] shadow-[0_18px_30px_-24px_rgba(15,23,42,0.72),0_8px_0_0_rgba(29,78,216,0.18)]"
-                      : "border-[var(--input-border)] bg-[linear-gradient(180deg,var(--surface)_0%,var(--surface-soft)_100%)] text-[var(--foreground)] shadow-[0_18px_30px_-24px_rgba(15,23,42,0.6),0_8px_0_0_rgba(148,163,184,0.12)] hover:-translate-y-px hover:shadow-[0_24px_34px_-24px_rgba(15,23,42,0.72),0_10px_0_0_rgba(29,78,216,0.14)]",
-                    expanded ? "translate-y-0.5" : "",
+                      ? "border-[var(--accent)] bg-[var(--accent-muted)] text-[var(--foreground)] shadow-[var(--shadow-soft)]"
+                      : "border-[var(--input-border)] bg-[var(--surface-soft)] text-[var(--foreground)] hover:bg-[var(--surface)]",
                   ].join(" ")}
                 >
                   <div
                     className={[
-                      "flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border text-[11px] font-black uppercase tracking-[0.18em] shadow-[inset_0_1px_0_rgba(255,255,255,0.65)] transition-colors duration-200",
+                      "flex h-9 w-9 shrink-0 items-center justify-center rounded-md border text-[10px] font-black uppercase tracking-[0.14em] transition-colors duration-150",
                       activeSection
                         ? "border-[var(--accent)] bg-[var(--accent)] text-[var(--accent-contrast)]"
                         : "border-[var(--card-border)] bg-[var(--surface)] text-[var(--link)] group-hover:text-[var(--foreground)]",
@@ -387,17 +386,17 @@ export function Sidebar({ roles, collapsed = false, onNavigate, onToggleCollapse
                   </div>
 
                   <div className="min-w-0 flex-1">
-                    <div className="truncate text-sm font-semibold tracking-tight">{section.title}</div>
+                    <div className="truncate text-[13px] font-semibold tracking-tight">{section.title}</div>
                     <div className="mt-0.5 text-[11px] text-[var(--muted-foreground)]">
                       {section.items.length} {section.items.length === 1 ? "menu item" : "menu items"}
                     </div>
                   </div>
 
                   <div className="flex items-center gap-2">
-                    <span className="rounded-full border border-[var(--card-border)] bg-[var(--surface)] px-2 py-0.5 text-[10px] font-semibold text-[var(--muted-foreground)] shadow-[var(--shadow-control)]">
+                    <span className="rounded-full border border-[var(--card-border)] bg-[var(--surface)] px-2 py-0.5 text-[10px] font-semibold text-[var(--muted-foreground)]">
                       {section.items.length}
                     </span>
-                    <span className="inline-flex h-8 w-8 items-center justify-center rounded-xl border border-[var(--card-border)] bg-[var(--surface)] text-[var(--muted-foreground)] shadow-[var(--shadow-control)] transition-colors duration-200 group-hover:text-[var(--foreground)]">
+                    <span className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-[var(--card-border)] bg-[var(--surface)] text-[var(--muted-foreground)] transition-colors duration-150 group-hover:text-[var(--foreground)]">
                       <ChevronIcon expanded={expanded} />
                     </span>
                   </div>
@@ -421,7 +420,7 @@ export function Sidebar({ roles, collapsed = false, onNavigate, onToggleCollapse
                     className={[
                       collapsed
                         ? "space-y-1"
-                        : "space-y-1 rounded-[1.25rem] border border-[var(--card-border)] bg-[var(--card-bg)] p-2.5 shadow-[0_18px_30px_-28px_rgba(15,23,42,0.85),inset_0_1px_0_rgba(255,255,255,0.45)] backdrop-blur-md",
+                        : "space-y-1 rounded-lg border border-[var(--card-border)] bg-[var(--card-bg)] p-2 shadow-[var(--shadow-soft)]",
                     ].join(" ")}
                   >
                     {section.items.map((item) => {
@@ -435,11 +434,11 @@ export function Sidebar({ roles, collapsed = false, onNavigate, onToggleCollapse
                             title={collapsed ? item.label : undefined}
                             aria-label={item.label}
                             className={[
-                              "block rounded-xl border px-2.5 py-2.5 text-sm transition-all duration-200",
-                              collapsed ? "text-center font-medium" : "px-3.5",
+                              "block rounded-md border px-2.5 py-1.5 text-[13px] transition-colors duration-150",
+                              collapsed ? "text-center font-medium" : "px-3",
                               active
                                 ? "border-[var(--accent)] bg-[var(--accent)] text-[var(--accent-contrast)] shadow-[var(--shadow-button)]"
-                                : "border-transparent bg-transparent text-[var(--foreground)]/85 hover:-translate-y-px hover:border-[var(--card-border)] hover:bg-[var(--surface)] hover:text-[var(--foreground)] hover:shadow-[var(--shadow-control)]",
+                                : "border-transparent bg-transparent text-[var(--foreground)]/85 hover:border-[var(--card-border)] hover:bg-[var(--surface)] hover:text-[var(--foreground)]",
                             ].join(" ")}
                           >
                             {collapsed ? compactLabel(item.label) : item.label}
@@ -455,7 +454,7 @@ export function Sidebar({ roles, collapsed = false, onNavigate, onToggleCollapse
         })}
 
         {filteredSections.length === 0 && !collapsed ? (
-          <div className="rounded-[1.4rem] border border-[var(--card-border)] bg-[var(--card-bg)] px-4 py-4 text-sm text-[var(--muted-foreground)] shadow-[var(--shadow-soft)]">
+          <div className="rounded-lg border border-[var(--card-border)] bg-[var(--card-bg)] px-3 py-3 text-[13px] text-[var(--muted-foreground)] shadow-[var(--shadow-soft)]">
             No menu items match your search.
           </div>
         ) : null}

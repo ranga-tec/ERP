@@ -21,7 +21,7 @@ type LookupCellProps = {
 };
 
 const inputClassName =
-  "w-full rounded-xl border border-[var(--input-border)] bg-[var(--surface)] px-3 py-2 text-sm text-[var(--foreground)] shadow-[var(--shadow-control)] outline-none transition focus-visible:border-[var(--link)] focus-visible:ring-2 focus-visible:ring-[var(--ring-accent)] placeholder:text-[var(--muted-foreground)]/80";
+  "w-full rounded-md border border-[var(--input-border)] bg-[var(--surface)] px-2.5 py-1.5 text-[13px] text-[var(--foreground)] shadow-[var(--shadow-control)] outline-none transition focus-visible:border-[var(--link)] focus-visible:ring-2 focus-visible:ring-[var(--ring-accent)] placeholder:text-[var(--muted-foreground)]/80";
 
 function cx(...parts: Array<string | null | undefined | false>) {
   return parts.filter(Boolean).join(" ");
@@ -159,7 +159,7 @@ export function LookupCell({
         <div
           id={listboxId}
           role="listbox"
-          className="absolute z-30 mt-1 w-full overflow-hidden rounded-xl border border-[var(--input-border)] bg-[var(--surface)] shadow-xl"
+          className="absolute z-30 mt-1 w-full overflow-hidden rounded-md border border-[var(--input-border)] bg-[var(--surface)] shadow-[var(--shadow-card)]"
         >
           <div className="max-h-64 overflow-auto py-1">
             {filteredOptions.length > 0 ? (
@@ -173,7 +173,7 @@ export function LookupCell({
                     role="option"
                     aria-selected={selected}
                     className={cx(
-                      "block w-full px-3 py-2 text-left text-sm transition",
+                      "block w-full px-2.5 py-1.5 text-left text-[13px] transition-colors",
                       active ? "bg-[var(--surface-soft)]" : "",
                       selected ? "text-[var(--link)]" : "text-[var(--foreground)]",
                     )}
@@ -188,7 +188,7 @@ export function LookupCell({
                       <>
                         <div className="font-medium">{option.label}</div>
                         {option.description ? (
-                          <div className="mt-0.5 text-xs text-[var(--muted-foreground)]">{option.description}</div>
+                          <div className="mt-0.5 text-[12px] text-[var(--muted-foreground)]">{option.description}</div>
                         ) : null}
                       </>
                     )}
@@ -196,7 +196,7 @@ export function LookupCell({
                 );
               })
             ) : (
-              <div className="px-3 py-2 text-sm text-[var(--muted-foreground)]">{noOptionsLabel}</div>
+              <div className="px-2.5 py-1.5 text-[13px] text-[var(--muted-foreground)]">{noOptionsLabel}</div>
             )}
           </div>
         </div>

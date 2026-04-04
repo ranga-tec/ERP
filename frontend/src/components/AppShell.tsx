@@ -45,7 +45,7 @@ export function AppShell({ children, email, roles }: AppShellProps) {
       ) : null}
 
       <div
-        className="fixed inset-y-0 left-0 z-40 w-[18.5rem] max-w-[86vw] -translate-x-full transition-transform duration-200 lg:hidden data-[open=true]:translate-x-0"
+        className="fixed inset-y-0 left-0 z-40 w-[17rem] max-w-[86vw] -translate-x-full transition-transform duration-200 lg:hidden data-[open=true]:translate-x-0"
         data-open={mobileSidebarOpen}
       >
         <Sidebar roles={roles} onNavigate={() => setMobileSidebarOpen(false)} />
@@ -61,18 +61,18 @@ export function AppShell({ children, email, roles }: AppShellProps) {
         </div>
 
         <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
-          <header className="z-20 shrink-0 flex items-center justify-between border-b border-[var(--card-border)] bg-[var(--surface-soft)] px-4 py-4 shadow-[var(--shadow-soft)] backdrop-blur-xl sm:px-6">
+          <header className="z-20 flex shrink-0 items-center justify-between border-b border-[var(--card-border)] bg-[var(--surface)] px-3 py-2.5 shadow-[var(--shadow-soft)] sm:px-4">
             <div className="flex min-w-0 items-center gap-2">
               <button
                 type="button"
-                className="inline-flex items-center justify-center rounded-xl border border-[var(--input-border)] bg-[var(--surface)] px-3 py-1.5 text-sm font-medium text-[var(--foreground)] shadow-[var(--shadow-control)] transition-all duration-200 hover:-translate-y-px hover:bg-[var(--surface-soft)] hover:shadow-[var(--shadow-soft)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring-accent)] lg:hidden"
+                className="inline-flex min-h-8 items-center justify-center rounded-md border border-[var(--input-border)] bg-[var(--surface-soft)] px-3 py-1.5 text-[13px] font-medium text-[var(--foreground)] shadow-[var(--shadow-control)] transition-colors duration-150 hover:bg-[var(--surface)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring-accent)] lg:hidden"
                 onClick={() => setMobileSidebarOpen(true)}
               >
                 Menu
               </button>
               <div className="min-w-0">
-                <div className="truncate text-sm font-semibold">{email}</div>
-                <div className="truncate text-xs text-[var(--muted-foreground)]">
+                <div className="truncate text-[13px] font-semibold">{email}</div>
+                <div className="truncate text-[11px] text-[var(--muted-foreground)]">
                   {roles.length > 0 ? roles.join(", ") : "-"}
                 </div>
               </div>
@@ -81,7 +81,7 @@ export function AppShell({ children, email, roles }: AppShellProps) {
             <div className="ml-3 flex items-center gap-2">
               <Link
                 href="/settings"
-                className="inline-flex items-center justify-center rounded-xl border border-[var(--input-border)] bg-[var(--surface)] px-3.5 py-2 text-sm font-medium text-[var(--foreground)] shadow-[var(--shadow-control)] transition-all duration-200 hover:-translate-y-px hover:bg-[var(--surface-soft)] hover:shadow-[var(--shadow-soft)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring-accent)]"
+                className="inline-flex min-h-8 items-center justify-center rounded-md border border-[var(--input-border)] bg-[var(--surface-soft)] px-3 py-1.5 text-[13px] font-medium text-[var(--foreground)] shadow-[var(--shadow-control)] transition-colors duration-150 hover:bg-[var(--surface)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring-accent)]"
               >
                 Settings
               </Link>
@@ -89,7 +89,7 @@ export function AppShell({ children, email, roles }: AppShellProps) {
             </div>
           </header>
 
-          <main className="min-h-0 flex-1 overflow-y-auto overscroll-contain animate-[pageFade_.28s_ease-out] p-4 sm:p-6 lg:p-8">
+          <main className="min-h-0 flex-1 overflow-y-auto overscroll-contain animate-[pageFade_.28s_ease-out] p-3 sm:p-4 lg:p-5">
             {children}
           </main>
         </div>
