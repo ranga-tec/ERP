@@ -1,10 +1,10 @@
 import Link from "next/link";
 import { backendFetchJson } from "@/lib/backend.server";
 import { ItemInlineLink } from "@/components/InlineLink";
-import { Card, SecondaryLink, Table } from "@/components/ui";
+import { Card, SecondaryLink } from "@/components/ui";
 import { SalesOrderActions } from "../SalesOrderActions";
 import { SalesOrderLineAddForm } from "../SalesOrderLineAddForm";
-import { SalesOrderLineRow } from "../SalesOrderLineRow";
+import { SalesOrderLinesEditor } from "../SalesOrderLinesEditor";
 import { DocumentCollaborationPanel } from "@/components/DocumentCollaborationPanel";
 
 type SalesOrderDto = {
@@ -38,7 +38,6 @@ export default async function SalesOrderDetailPage({ params }: { params: Promise
   ]);
 
   const customerById = new Map(customers.map((c) => [c.id, c]));
-  const itemById = new Map(items.map((i) => [i.id, i]));
   const isDraft = order.status === 0;
 
   return (
@@ -87,37 +86,20 @@ export default async function SalesOrderDetailPage({ params }: { params: Promise
 
       <Card>
         <div className="mb-3 text-sm font-semibold">Lines</div>
-        <div className="overflow-auto">
-          <Table>
-            <thead>
-              <tr className="border-b border-zinc-200 text-left text-xs uppercase tracking-wide text-zinc-500 dark:border-zinc-800">
-                <th className="py-2 pr-3">Item</th>
-                <th className="py-2 pr-3">Qty</th>
-                <th className="py-2 pr-3">Unit Price</th>
-                <th className="py-2 pr-3">Line Total</th>
-                {isDraft ? <th className="py-2 pr-3">Actions</th> : null}
-              </tr>
-            </thead>
-            <tbody>
-              {order.lines.map((l) => {
-                const item = itemById.get(l.itemId);
-                const itemLabel = (
-                  <ItemInlineLink itemId={l.itemId}>
-                    {item ? `${item.sku} - ${item.name}` : l.itemId}
-                  </ItemInlineLink>
-                );
-                return <SalesOrderLineRow key={l.id} salesOrderId={order.id} line={l} itemLabel={itemLabel} canEdit={isDraft} />;
-              })}
-              {order.lines.length === 0 ? (
-                <tr>
-                  <td className="py-6 text-sm text-zinc-500" colSpan={isDraft ? 5 : 4}>
-                    No lines yet.
-                  </td>
-                </tr>
-              ) : null}
-            </tbody>
-          </Table>
-        </div>
+        <SalesOrderLinesEditor
+          salesOrderId={order.id}
+          lines={order.lines}
+          itemLabelById={new Map(
+            items.map((item) => [
+              item.id,
+              <ItemInlineLink key={item.id} itemId={item.id}>
+                {`${item.sku} - ${item.name}`}
+              </ItemInlineLink>,
+            ]),
+          )}
+          itemSearchLabelById={new Map(items.map((item) => [item.id, `${item.sku} ${item.name}`.toLowerCase()]))}
+          canEdit={isDraft}
+        />
       </Card>
 
       <DocumentCollaborationPanel referenceType="SO" referenceId={id} />

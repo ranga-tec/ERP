@@ -1,11 +1,11 @@
 import Link from "next/link";
 import { backendFetchJson } from "@/lib/backend.server";
 import { ItemInlineLink } from "@/components/InlineLink";
-import { Card, Table } from "@/components/ui";
+import { Card } from "@/components/ui";
 import { PurchaseRequisitionActions } from "../PurchaseRequisitionActions";
 import { PurchaseRequisitionConvertToPoForm } from "../PurchaseRequisitionConvertToPoForm";
 import { PurchaseRequisitionLineAddForm } from "../PurchaseRequisitionLineAddForm";
-import { PurchaseRequisitionLineRow } from "../PurchaseRequisitionLineRow";
+import { PurchaseRequisitionLinesEditor } from "../PurchaseRequisitionLinesEditor";
 import { DocumentCollaborationPanel } from "@/components/DocumentCollaborationPanel";
 
 type PurchaseRequisitionDto = {
@@ -51,7 +51,6 @@ export default async function PurchaseRequisitionDetailPage({
     backendFetchJson<UnitConversionDto[]>("/uom-conversions"),
   ]);
 
-  const itemById = new Map(items.map((i) => [i.id, i]));
   const isDraft = pr.status === 0;
   const isSubmitted = pr.status === 1;
 
@@ -108,46 +107,21 @@ export default async function PurchaseRequisitionDetailPage({
 
       <Card>
         <div className="mb-3 text-sm font-semibold">Lines</div>
-        <div className="overflow-auto">
-          <Table>
-            <thead>
-              <tr className="border-b border-zinc-200 text-left text-xs uppercase tracking-wide text-zinc-500 dark:border-zinc-800">
-                <th className="py-2 pr-3">Item</th>
-                <th className="py-2 pr-3">Qty (Base)</th>
-                <th className="py-2 pr-3">Base UoM</th>
-                <th className="py-2 pr-3">Notes</th>
-                {isDraft ? <th className="py-2 pr-3">Actions</th> : null}
-              </tr>
-            </thead>
-            <tbody>
-              {pr.lines.map((line) => {
-                const item = itemById.get(line.itemId);
-                const itemLabel = (
-                  <ItemInlineLink itemId={line.itemId}>
-                    {item ? `${item.sku} - ${item.name}` : line.itemId}
-                  </ItemInlineLink>
-                );
-                return (
-                  <PurchaseRequisitionLineRow
-                    key={line.id}
-                    purchaseRequisitionId={pr.id}
-                    line={line}
-                    itemLabel={itemLabel}
-                    baseUom={item?.unitOfMeasure ?? "-"}
-                    canEdit={isDraft}
-                  />
-                );
-              })}
-              {pr.lines.length === 0 ? (
-                <tr>
-                  <td className="py-6 text-sm text-zinc-500" colSpan={isDraft ? 5 : 4}>
-                    No lines yet.
-                  </td>
-                </tr>
-              ) : null}
-            </tbody>
-          </Table>
-        </div>
+        <PurchaseRequisitionLinesEditor
+          purchaseRequisitionId={pr.id}
+          lines={pr.lines}
+          itemLabelById={new Map(
+            items.map((item) => [
+              item.id,
+              <ItemInlineLink key={item.id} itemId={item.id}>
+                {`${item.sku} - ${item.name}`}
+              </ItemInlineLink>,
+            ]),
+          )}
+          itemSearchLabelById={new Map(items.map((item) => [item.id, `${item.sku} ${item.name}`.toLowerCase()]))}
+          baseUomByItemId={new Map(items.map((item) => [item.id, item.unitOfMeasure]))}
+          canEdit={isDraft}
+        />
       </Card>
 
       <DocumentCollaborationPanel referenceType="PR" referenceId={id} />
