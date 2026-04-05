@@ -4,31 +4,45 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { apiDeleteNoContent, apiPut } from "@/lib/api-client";
 import { Button, Input, SecondaryButton, Select } from "@/components/ui";
-
-type CategoryDto = { id: string; code: string; name: string; isActive: boolean };
+import { formatLedgerAccountOptionLabel, type CategoryDto, type LedgerAccountOptionDto } from "../items/item-definitions";
 type SubcategoryDto = { id: string; code: string; name: string };
 
 const actionButtonClass = "px-2 py-1 text-xs";
 
 export function ItemCategoryRow({
   category,
+  accountOptions,
   subcategories,
 }: {
   category: CategoryDto;
+  accountOptions: LedgerAccountOptionDto[];
   subcategories: SubcategoryDto[];
 }) {
   const router = useRouter();
   const [isEditing, setIsEditing] = useState(false);
   const [code, setCode] = useState(category.code);
   const [name, setName] = useState(category.name);
+  const [revenueAccountId, setRevenueAccountId] = useState(category.revenueAccountId ?? "");
+  const [expenseAccountId, setExpenseAccountId] = useState(category.expenseAccountId ?? "");
   const [isActive, setIsActive] = useState(category.isActive ? "true" : "false");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const revenueAccountOptions = accountOptions
+    .filter((account) => account.accountType === 4)
+    .slice()
+    .sort((a, b) => a.code.localeCompare(b.code));
+  const expenseAccountOptions = accountOptions
+    .filter((account) => account.accountType === 5)
+    .slice()
+    .sort((a, b) => a.code.localeCompare(b.code));
 
   function beginEdit() {
     setError(null);
     setCode(category.code);
     setName(category.name);
+    setRevenueAccountId(category.revenueAccountId ?? "");
+    setExpenseAccountId(category.expenseAccountId ?? "");
     setIsActive(category.isActive ? "true" : "false");
     setIsEditing(true);
   }
@@ -40,6 +54,8 @@ export function ItemCategoryRow({
       await apiPut(`item-categories/${category.id}`, {
         code,
         name,
+        revenueAccountId: revenueAccountId || null,
+        expenseAccountId: expenseAccountId || null,
         isActive: isActive === "true",
       });
       setIsEditing(false);
@@ -72,6 +88,38 @@ export function ItemCategoryRow({
       </td>
       <td className="py-2 pr-3">
         {isEditing ? <Input value={name} onChange={(e) => setName(e.target.value)} className="min-w-32" /> : category.name}
+      </td>
+      <td className="py-2 pr-3">
+        {isEditing ? (
+          <Select value={revenueAccountId} onChange={(e) => setRevenueAccountId(e.target.value)} className="min-w-52">
+            <option value="">(None)</option>
+            {revenueAccountOptions.map((account) => (
+              <option key={account.id} value={account.id}>
+                {formatLedgerAccountOptionLabel(account)}
+              </option>
+            ))}
+          </Select>
+        ) : category.revenueAccountCode ? (
+          <span className="text-sm">{`${category.revenueAccountCode} - ${category.revenueAccountName ?? ""}`}</span>
+        ) : (
+          <span className="text-zinc-500">-</span>
+        )}
+      </td>
+      <td className="py-2 pr-3">
+        {isEditing ? (
+          <Select value={expenseAccountId} onChange={(e) => setExpenseAccountId(e.target.value)} className="min-w-52">
+            <option value="">(None)</option>
+            {expenseAccountOptions.map((account) => (
+              <option key={account.id} value={account.id}>
+                {formatLedgerAccountOptionLabel(account)}
+              </option>
+            ))}
+          </Select>
+        ) : category.expenseAccountCode ? (
+          <span className="text-sm">{`${category.expenseAccountCode} - ${category.expenseAccountName ?? ""}`}</span>
+        ) : (
+          <span className="text-zinc-500">-</span>
+        )}
       </td>
       <td className="py-2 pr-3">
         {subcategories.length > 0 ? (

@@ -82,6 +82,10 @@ export function ItemCreateForm({
         .sort((a, b) => a.code.localeCompare(b.code)),
     [accountOptions],
   );
+  const selectedCategory = useMemo(
+    () => categoryOptions.find((category) => category.id === categoryId) ?? null,
+    [categoryId, categoryOptions],
+  );
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -192,16 +196,28 @@ export function ItemCreateForm({
             value={categoryId}
             onChange={(e) => {
               const nextCategoryId = e.target.value;
+              const previousCategory = categoryOptions.find((category) => category.id === categoryId) ?? null;
+              const nextCategory = categoryOptions.find((category) => category.id === nextCategoryId) ?? null;
               setCategoryId(nextCategoryId);
               if (!nextCategoryId) {
                 setSubcategoryId("");
-                return;
+              } else {
+                const selectedSub = subcategories.find((s) => s.id === subcategoryId);
+                if (selectedSub && selectedSub.categoryId !== nextCategoryId) {
+                  setSubcategoryId("");
+                }
               }
 
-              const selectedSub = subcategories.find((s) => s.id === subcategoryId);
-              if (selectedSub && selectedSub.categoryId !== nextCategoryId) {
-                setSubcategoryId("");
-              }
+              setRevenueAccountId((current) =>
+                !current || current === (previousCategory?.revenueAccountId ?? "")
+                  ? nextCategory?.revenueAccountId ?? ""
+                  : current,
+              );
+              setExpenseAccountId((current) =>
+                !current || current === (previousCategory?.expenseAccountId ?? "")
+                  ? nextCategory?.expenseAccountId ?? ""
+                  : current,
+              );
             }}
           >
             <option value="">(None)</option>
@@ -250,6 +266,11 @@ export function ItemCreateForm({
           <div className="mt-1 text-xs text-[var(--muted-foreground)]">
             Assign default income and expense accounts for this item. These values are stored on the item master for later finance posting setup.
           </div>
+          {selectedCategory && (selectedCategory.revenueAccountCode || selectedCategory.expenseAccountCode) ? (
+            <div className="mt-1 text-xs text-[var(--muted-foreground)]">
+              Category defaults: revenue {selectedCategory.revenueAccountCode ?? "-"} / expense {selectedCategory.expenseAccountCode ?? "-"}.
+            </div>
+          ) : null}
         </div>
         <div className="grid gap-3 sm:grid-cols-2">
           <div>

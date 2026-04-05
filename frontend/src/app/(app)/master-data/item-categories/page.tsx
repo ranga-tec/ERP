@@ -4,8 +4,8 @@ import { ItemCategoryCreateForm } from "./ItemCategoryCreateForm";
 import { ItemSubcategoryCreateForm } from "./ItemSubcategoryCreateForm";
 import { ItemCategoryRow } from "./ItemCategoryRow";
 import { ItemSubcategoryRow } from "./ItemSubcategoryRow";
+import type { CategoryDto, LedgerAccountOptionDto } from "../items/item-definitions";
 
-type CategoryDto = { id: string; code: string; name: string; isActive: boolean };
 type SubcategoryDto = {
   id: string;
   categoryId: string;
@@ -17,9 +17,10 @@ type SubcategoryDto = {
 };
 
 export default async function ItemCategoriesPage() {
-  const [categories, subcategories] = await Promise.all([
+  const [categories, subcategories, accountOptions] = await Promise.all([
     backendFetchJson<CategoryDto[]>("/item-categories"),
     backendFetchJson<SubcategoryDto[]>("/item-subcategories"),
+    backendFetchJson<LedgerAccountOptionDto[]>("/items/account-options"),
   ]);
 
   const subcategoriesByCategory = new Map<string, SubcategoryDto[]>();
@@ -38,7 +39,7 @@ export default async function ItemCategoriesPage() {
 
       <Card>
         <div className="mb-3 text-sm font-semibold">Create Category</div>
-        <ItemCategoryCreateForm />
+        <ItemCategoryCreateForm accountOptions={accountOptions} />
       </Card>
 
       <Card>
@@ -56,6 +57,8 @@ export default async function ItemCategoriesPage() {
               <tr className="border-b border-zinc-200 text-left text-xs uppercase tracking-wide text-zinc-500 dark:border-zinc-800">
                 <th className="py-2 pr-3">Category</th>
                 <th className="py-2 pr-3">Name</th>
+                <th className="py-2 pr-3">Income Acct</th>
+                <th className="py-2 pr-3">Expense Acct</th>
                 <th className="py-2 pr-3">Subcategories</th>
                 <th className="py-2 pr-3">Active</th>
                 <th className="py-2 pr-3">Actions</th>
@@ -71,13 +74,14 @@ export default async function ItemCategoriesPage() {
                   <ItemCategoryRow
                     key={category.id}
                     category={category}
+                    accountOptions={accountOptions}
                     subcategories={subs.map((sub) => ({ id: sub.id, code: sub.code, name: sub.name }))}
                   />
                 );
               })}
               {categories.length === 0 ? (
                 <tr>
-                  <td className="py-6 text-sm text-zinc-500" colSpan={5}>
+                  <td className="py-6 text-sm text-zinc-500" colSpan={7}>
                     No categories yet.
                   </td>
                 </tr>

@@ -2,7 +2,18 @@ export type BrandDto = { id: string; code: string; name: string; isActive: boole
 
 export type UomDto = { id: string; code: string; name: string; isActive: boolean };
 
-export type CategoryDto = { id: string; code: string; name: string; isActive: boolean };
+export type CategoryDto = {
+  id: string;
+  code: string;
+  name: string;
+  revenueAccountId?: string | null;
+  revenueAccountCode?: string | null;
+  revenueAccountName?: string | null;
+  expenseAccountId?: string | null;
+  expenseAccountCode?: string | null;
+  expenseAccountName?: string | null;
+  isActive: boolean;
+};
 
 export type SubcategoryDto = {
   id: string;

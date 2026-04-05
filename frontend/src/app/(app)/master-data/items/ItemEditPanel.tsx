@@ -83,6 +83,10 @@ export function ItemEditPanel({
         .sort((a, b) => a.code.localeCompare(b.code)),
     [accountOptions],
   );
+  const selectedCategory = useMemo(
+    () => categoryOptions.find((category) => category.id === categoryId) ?? null,
+    [categoryId, categoryOptions],
+  );
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -206,15 +210,32 @@ export function ItemEditPanel({
             value={categoryId}
             onChange={(e) => {
               const nextCategoryId = e.target.value;
+              const previousCategory = categoryOptions.find((category) => category.id === categoryId) ?? null;
+              const nextCategory = categoryOptions.find((category) => category.id === nextCategoryId) ?? null;
               setCategoryId(nextCategoryId);
               if (!nextCategoryId) {
                 setSubcategoryId("");
-                return;
+              } else {
+                const selectedSub = subcategories.find((s) => s.id === subcategoryId);
+                if (selectedSub && selectedSub.categoryId !== nextCategoryId) {
+                  setSubcategoryId("");
+                }
               }
 
-              const selectedSub = subcategories.find((s) => s.id === subcategoryId);
-              if (selectedSub && selectedSub.categoryId !== nextCategoryId) {
-                setSubcategoryId("");
+              if (!item.revenueAccountId) {
+                setRevenueAccountId((current) =>
+                  !current || current === (previousCategory?.revenueAccountId ?? "")
+                    ? nextCategory?.revenueAccountId ?? ""
+                    : current,
+                );
+              }
+
+              if (!item.expenseAccountId) {
+                setExpenseAccountId((current) =>
+                  !current || current === (previousCategory?.expenseAccountId ?? "")
+                    ? nextCategory?.expenseAccountId ?? ""
+                    : current,
+                );
               }
             }}
           >
@@ -271,6 +292,11 @@ export function ItemEditPanel({
           <div className="mt-1 text-xs text-[var(--muted-foreground)]">
             Maintain the default income and expense accounts attached to this item master.
           </div>
+          {selectedCategory && (selectedCategory.revenueAccountCode || selectedCategory.expenseAccountCode) ? (
+            <div className="mt-1 text-xs text-[var(--muted-foreground)]">
+              Category defaults: revenue {selectedCategory.revenueAccountCode ?? "-"} / expense {selectedCategory.expenseAccountCode ?? "-"}.
+            </div>
+          ) : null}
         </div>
         <div className="grid gap-3 sm:grid-cols-2">
           <div>

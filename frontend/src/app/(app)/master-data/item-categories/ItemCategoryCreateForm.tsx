@@ -3,25 +3,42 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { apiPost } from "@/lib/api-client";
-import { Button, Input } from "@/components/ui";
+import { Button, Input, Select } from "@/components/ui";
+import { formatLedgerAccountOptionLabel, type CategoryDto, type LedgerAccountOptionDto } from "../items/item-definitions";
 
-type CategoryDto = { id: string; code: string; name: string; isActive: boolean };
-
-export function ItemCategoryCreateForm() {
+export function ItemCategoryCreateForm({ accountOptions }: { accountOptions: LedgerAccountOptionDto[] }) {
   const router = useRouter();
   const [code, setCode] = useState("");
   const [name, setName] = useState("");
+  const [revenueAccountId, setRevenueAccountId] = useState("");
+  const [expenseAccountId, setExpenseAccountId] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const revenueAccountOptions = accountOptions
+    .filter((account) => account.accountType === 4)
+    .slice()
+    .sort((a, b) => a.code.localeCompare(b.code));
+  const expenseAccountOptions = accountOptions
+    .filter((account) => account.accountType === 5)
+    .slice()
+    .sort((a, b) => a.code.localeCompare(b.code));
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
     setBusy(true);
     try {
-      await apiPost<CategoryDto>("item-categories", { code, name });
+      await apiPost<CategoryDto>("item-categories", {
+        code,
+        name,
+        revenueAccountId: revenueAccountId || null,
+        expenseAccountId: expenseAccountId || null,
+      });
       setCode("");
       setName("");
+      setRevenueAccountId("");
+      setExpenseAccountId("");
       router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
@@ -40,6 +57,31 @@ export function ItemCategoryCreateForm() {
         <div>
           <label className="mb-1 block text-sm font-medium">Name</label>
           <Input value={name} onChange={(e) => setName(e.target.value)} required />
+        </div>
+      </div>
+
+      <div className="grid gap-3 sm:grid-cols-2">
+        <div>
+          <label className="mb-1 block text-sm font-medium">Default Income / Revenue Account</label>
+          <Select value={revenueAccountId} onChange={(e) => setRevenueAccountId(e.target.value)}>
+            <option value="">(None)</option>
+            {revenueAccountOptions.map((account) => (
+              <option key={account.id} value={account.id}>
+                {formatLedgerAccountOptionLabel(account)}
+              </option>
+            ))}
+          </Select>
+        </div>
+        <div>
+          <label className="mb-1 block text-sm font-medium">Default Expense Account</label>
+          <Select value={expenseAccountId} onChange={(e) => setExpenseAccountId(e.target.value)}>
+            <option value="">(None)</option>
+            {expenseAccountOptions.map((account) => (
+              <option key={account.id} value={account.id}>
+                {formatLedgerAccountOptionLabel(account)}
+              </option>
+            ))}
+          </Select>
         </div>
       </div>
 

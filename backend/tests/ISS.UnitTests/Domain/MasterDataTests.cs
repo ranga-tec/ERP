@@ -50,4 +50,20 @@ public sealed class MasterDataTests
         Assert.Equal(expenseAccountId, item.ExpenseAccountId);
         Assert.False(item.IsActive);
     }
+
+    [Fact]
+    public void ItemCategory_Can_Store_Default_Accounts()
+    {
+        var revenueAccountId = Guid.NewGuid();
+        var expenseAccountId = Guid.NewGuid();
+
+        var category = new ItemCategory("CAT-1", "Parts", revenueAccountId, expenseAccountId);
+        category.Update("CAT-2", "Service Parts", isActive: false, revenueAccountId, expenseAccountId);
+
+        Assert.Equal("CAT-2", category.Code);
+        Assert.Equal("Service Parts", category.Name);
+        Assert.Equal(revenueAccountId, category.RevenueAccountId);
+        Assert.Equal(expenseAccountId, category.ExpenseAccountId);
+        Assert.False(category.IsActive);
+    }
 }
