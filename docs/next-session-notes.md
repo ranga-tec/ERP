@@ -4,101 +4,159 @@
 
 - Repo: `D:\VScode Projects\ISS`
 - Branch: `main`
-- Current purpose: resume from the completed finance bootstrap/auth recovery + Railway deploy-hardening checkpoint
-- Current local follow-up: assistant + GRN partial-receipt checkpoint details are documented in `docs/assistant-progress.md`
-- GitHub:
-  - `99e5685` `Add auth bootstrap recovery and live capability checks`
-  - `c0d424f` `Add Docker-based Railway deploy for API`
-- Railway production state at handoff:
-  - `iss-api`: latest deployment `SUCCESS`
-  - `iss-web`: latest deployment `SUCCESS`
-  - live URLs:
-    - `https://iss-api-production.up.railway.app`
-    - `https://iss-web-production.up.railway.app`
+- Current purpose: resume from the deployed ERP-density, searchable-dropdown, finance account-mapping, chart-of-accounts workspace, and reusable line-grid rollout checkpoints
+- Current tracked code state: no pending tracked code WIP
+- Current local artifacts:
+  - untracked `.playwright-cli/`
+  - untracked `images/`
 
-## What Was Completed (Latest)
+## Current GitHub Checkpoints
 
-### Finance/bootstrap fixes
+Most relevant recent commits on `main`:
 
-- Fresh databases now auto-seed required finance/reporting reference data:
-  - currencies
-  - payment types
-  - tax codes
-  - reference forms
-- The fresh-DB payment creation failure caused by missing active currencies was fixed.
-- Manual UAT was previously completed for:
-  - GRN -> AP
-  - dispatch -> stock reduction
-  - invoice -> AR
-  - payment allocation
-  - stock-take adjustment
-  - costing
+- `20225c0` `Tighten ERP UI density and shared grid styling`
+- `a1d7ed2` `Make app dropdowns searchable`
+- `fd7426a` `Add category default account mappings`
+- `97a359d` `Resolve accounts on transaction lines`
+- `dc50cab` `Roll out shared line editors to wave 2 documents`
+- `5f69cda` `Add chart of accounts workspace modes`
+- `cc0f80b` `Roll out tracked document line editors`
 
-### Auth recovery + login UX
+## Railway Production State
 
-- Added backend auth capability endpoint:
-  - `GET /api/auth/capabilities`
-- Added frontend login-page capability detection so the UI no longer relies only on a production env guess to decide whether registration/bootstrap should be shown.
-- Added optional bootstrap admin seeding from `Auth__BootstrapAdmin*` environment variables for managed-environment recovery.
-- Confirmed live Railway login through both:
-  - direct API `POST /api/auth/login`
-  - web proxy `POST /api/auth/login`
+- `iss-api`: latest deployment `b96ede1d-f774-4115-8acd-cd58c53355b6`
+- `iss-web`: latest deployment `a50572cc-d1fc-40bb-a027-560d102d23af`
+- Live URLs:
+  - `https://iss-api-production.up.railway.app`
+  - `https://iss-web-production.up.railway.app`
 
-### Railway deployment hardening
+## Current Frontend State
 
-- Root cause of failed Railway redeploys:
-  - `railway up` kept uploading the monorepo root
-  - Railpack then could not infer the intended app root reliably
-- Stable deploy path now uses explicit archive roots from repo root:
+### Shared UI behavior now live
+
+- compact ERP-style density is live across the app
+- the shared `Select` now routes through `frontend/src/components/SearchableSelect.tsx`
+- editable grid select cells also use searchable selection
+- lookup/grid rendering now falls back to the stored value when an option list is incomplete
+- service job equipment-unit selection is searchable and preserves the saved value on reopen
+
+### Reusable line-grid rollout now live
+
+Shared module:
+
+- `frontend/src/components/data-grid/`
+
+Live screens on the reusable grid:
+
+- GRN receipt plan
+- purchase-order lines
+- invoice lines
+- quotes
+- sales orders
+- RFQs
+- purchase requisitions
+- dispatches
+- direct dispatches
+- customer returns
+- supplier returns
+
+Wave checkpoints:
+
+- framework extraction: `8ebd929`
+- quotes / sales orders / RFQs / purchase requisitions: `dc50cab`
+- dispatches / direct dispatches / customer returns / supplier returns: `cc0f80b`
+
+### Chart of accounts UI now live
+
+Finance accounts page now supports:
+
+- `Classic` workspace mode
+- `Priority Grid` workspace mode
+- inline row create/edit/delete in the dense grid mode
+
+Relevant files:
+
+- `frontend/src/app/(app)/finance/accounts/page.tsx`
+- `frontend/src/app/(app)/finance/accounts/LedgerAccountsWorkspace.tsx`
+- `frontend/src/app/(app)/finance/accounts/LedgerAccountsClassicView.tsx`
+- `frontend/src/app/(app)/finance/accounts/LedgerAccountsGrid.tsx`
+
+Commit:
+
+- `5f69cda`
+
+## Current Finance Mapping State
+
+Implemented:
+
+- item-level default revenue / expense account assignment
+- category-level default revenue / expense account assignment
+- transaction-line account resolution snapshots on:
+  - sales invoices
+  - direct purchases
+  - service expense claims
+
+Relevant commits:
+
+- `fd7426a` category defaults
+- `97a359d` transaction-line account resolution
+
+Important scope limit:
+
+- this is account determination / mapping support
+- it is not yet a full GL journal posting engine
+- it does not yet mean all operational documents create balanced ledger journals automatically
+
+## Recommended Next Engineering Steps
+
+1. Continue the reusable line-grid rollout to the remaining one-off line screens:
+   - direct purchases
+   - stock transfers
+   - stock adjustments
+   - service estimates
+   - service expense claims
+   - material requisitions
+2. Decide whether finance should stop at account determination or continue into real journal posting automation.
+3. After the remaining grid rollout is stable, remove or archive unused `*LineRow.tsx` components that are no longer wired into detail pages.
+
+## Files Most Relevant For The Next Agent
+
+- Searchable shared controls:
+  - `frontend/src/components/SearchableSelect.tsx`
+  - `frontend/src/components/ui.tsx`
+  - `frontend/src/components/data-grid/EditableDataTable.tsx`
+  - `frontend/src/components/data-grid/LookupCell.tsx`
+- Finance account mapping:
+  - `backend/src/ISS.Api/Controllers/ItemsController.cs`
+  - `backend/src/ISS.Api/Controllers/MasterData/ItemCategoriesController.cs`
+  - `backend/src/ISS.Application/Services/DocumentAccountMappingService.cs`
+  - `backend/src/ISS.Application/Services/SalesService.cs`
+  - `backend/src/ISS.Application/Services/ProcurementService.cs`
+  - `backend/src/ISS.Application/Services/ServiceManagementService.cs`
+- Finance accounts workspace:
+  - `frontend/src/app/(app)/finance/accounts/page.tsx`
+  - `frontend/src/app/(app)/finance/accounts/LedgerAccountsWorkspace.tsx`
+  - `frontend/src/app/(app)/finance/accounts/LedgerAccountsGrid.tsx`
+- Remaining non-grid line-row screens:
+  - `frontend/src/app/(app)/procurement/direct-purchases/DirectPurchaseLineRow.tsx`
+  - `frontend/src/app/(app)/inventory/stock-transfers/StockTransferLineRow.tsx`
+  - `frontend/src/app/(app)/inventory/stock-adjustments/StockAdjustmentLineRow.tsx`
+  - `frontend/src/app/(app)/service/estimates/ServiceEstimateLineRow.tsx`
+  - `frontend/src/app/(app)/service/expense-claims/ServiceExpenseClaimLineRow.tsx`
+  - `frontend/src/app/(app)/service/material-requisitions/MaterialRequisitionLineRow.tsx`
+
+## Operational Notes
+
+- if another push hangs locally, use the explicit owner-qualified remote form:
 
 ```powershell
-railway up .\backend\src --path-as-root -s iss-api -e production -c
-railway up .\frontend --path-as-root -s iss-web -e production -c
+$env:GCM_INTERACTIVE='Never'
+git push "https://ranga-tec@github.com/ranga-tec/ERP.git" main:main
 ```
 
-- `backend/src/Dockerfile` and `backend/src/.dockerignore` were added so API deploys no longer depend on Railpack inference.
-- Frontend already had a Dockerfile; using explicit `.\frontend --path-as-root` makes Railway consume it correctly.
+- if another Railway deploy is needed, use a detached worktree from the exact commit being released and deploy only the intended root:
 
-## Current Operational Notes
-
-- Railway production already had persisted users; local test credentials such as `admin@local / Passw0rd1` do not apply there.
-- Production had `Auth__AllowFirstUserBootstrapRegistration=false`, so the original Railway login problem was not an API outage; it was a missing known-admin/recovery path.
-- A recovery admin account was provisioned on Railway to restore access.
-- Important:
-  - do not store the recovery password in repo docs
-  - the Railway API service still has `Auth__BootstrapAdmin*` variables populated
-  - after the owner rotates to their preferred admin account/password, remove those vars from Railway
-
-## Validation Summary
-
-- Unit tests: passed `26/26`
-- Integration tests: passed `36/36`
-- Frontend lint: passed
-- Frontend production build: passed
-- Local Docker build:
-  - API Dockerfile built successfully
-- Live verification:
-  - `GET /api/auth/capabilities` returns `hasUsers=true`, registration disabled
-  - live admin login through web and API succeeded
-
-## Files/Areas Most Relevant for the Next Agent
-
-- Auth backend:
-  - `backend/src/ISS.Api/Controllers/AuthController.cs`
-  - `backend/src/ISS.Api/Security/BootstrapAdminSeeder.cs`
-  - `backend/src/ISS.Application/Options/AuthOptions.cs`
-  - `backend/src/ISS.Api/Program.cs`
-- Railway/API deploy:
-  - `backend/src/Dockerfile`
-  - `backend/src/.dockerignore`
-  - `docs/deployment.md`
-- Login UI:
-  - `frontend/src/app/(auth)/login/page.tsx`
-  - `frontend/src/app/api/auth/capabilities/route.ts`
-  - `frontend/src/app/api/auth/login/route.ts`
-
-## Immediate Next Checks
-
-1. Remove or rotate the temporary Railway recovery admin once the owner confirms permanent access.
-2. If another Railway deploy fails, use `railway status --json` first and inspect the latest deployment root/builder before changing code.
-3. If workspace cleanliness matters for the next checkpoint, remove the local untracked folder `.railway-api-publish/` left from publish verification.
+```powershell
+git worktree add --detach D:\VScode Projects\ISS-deploy-<commit> <commit>
+railway up D:\VScode Projects\ISS-deploy-<commit>\frontend --path-as-root --service iss-web --environment production --detach
+```

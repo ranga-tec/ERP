@@ -49,9 +49,13 @@ Note:
 - `Edit` stays available while the procurement document is still `Draft`
 - RFQ:
   - create -> add lines -> send
+  - while the RFQ is still `Draft`, existing lines can be edited directly in the line grid
+  - use `Tab` to move between editable cells and `Enter` to save the active line
 - Purchase requisition:
   - create -> add lines -> submit -> approve/reject/cancel
   - approved PR can be converted to PO
+  - while the requisition is still `Draft`, existing lines can be edited directly in the line grid
+  - use `Tab` to move between editable cells and `Enter` to save the active line
 - Purchase order:
   - create -> add lines -> approve
   - while the PO is still `Draft`, existing lines can be edited directly in the line grid
@@ -69,6 +73,8 @@ Note:
 - Supplier return:
   - create -> add lines -> post
   - posting issues stock and creates supplier credit note
+  - while the return is still `Draft`, existing lines can be edited directly in the line grid
+  - use `Tab` to move between editable cells and `Enter` to save the active line
 
 ## Inventory workflows
 
@@ -91,12 +97,20 @@ Note:
 - `Edit` stays available while the sales document is still `Draft` (invoice edit also follows invoice-role permissions)
 - Quote:
   - create -> add lines -> send
+  - while the quote is still `Draft`, existing lines can be edited directly in the line grid
+  - use `Tab` to move between editable cells and `Enter` to save the active line
 - Sales order:
   - create -> add lines -> confirm
+  - while the sales order is still `Draft`, existing lines can be edited directly in the line grid
+  - use `Tab` to move between editable cells and `Enter` to save the active line
 - Dispatch:
   - create -> add lines -> post
+  - while the dispatch is still `Draft`, existing lines can be edited directly in the line grid
+  - use `Tab` to move between editable cells and `Enter` to save the active line
 - Direct dispatch:
   - create -> add lines -> post
+  - while the direct dispatch is still `Draft`, existing lines can be edited directly in the line grid
+  - use `Tab` to move between editable cells and `Enter` to save the active line
 - Invoice:
   - create -> add lines -> post
   - posting creates AR entry
@@ -105,6 +119,8 @@ Note:
 - Customer return:
   - create -> add lines -> post
   - posting returns stock and creates customer credit note
+  - while the return is still `Draft`, existing lines can be edited directly in the line grid
+  - use `Tab` to move between editable cells and `Enter` to save the active line
 
 ## Service workflows
 
@@ -170,6 +186,11 @@ Note:
 
 - Chart of accounts:
   - create and maintain finance account codes from `Finance -> Chart of Accounts`
+  - use `Classic` mode for the dedicated create form and standard row editing
+  - use `Priority Grid` mode for dense inline create/edit/delete behavior
+- Item and item category account mapping:
+  - maintain default income / expense accounts on item categories
+  - override or confirm income / expense accounts on individual items when needed
   - accounts support `Asset`, `Liability`, `Equity`, `Revenue`, and `Expense`
   - accounts can be grouped under parent accounts and marked as posting or group-only
 - AR and AP:

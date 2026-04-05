@@ -81,25 +81,33 @@ The framework is currently applied to:
 - `Procurement -> Goods Receipts` receipt-plan grid
 - `Procurement -> Purchase Orders` line editor
 - `Sales -> Invoices` line editor
+- `Sales -> Quotes` line editor
+- `Sales -> Orders` line editor
+- `Procurement -> RFQs` line editor
+- `Procurement -> Purchase Requisitions` line editor
+- `Sales -> Dispatches` line editor
+- `Sales -> Direct Dispatches` line editor
+- `Sales -> Customer Returns` line editor
+- `Procurement -> Supplier Returns` line editor
 
 Notable behaviors in the current rollout:
 
 - GRN draft mode now uses a single primary `Receive From PO` working grid instead of a second duplicate draft-line table
 - PO and invoice line tables keep explicit row-level `Save` / `Cancel` / `Delete`
+- quotes, sales orders, RFQs, and purchase requisitions now follow the same explicit-save row editing pattern
+- dispatches, direct dispatches, customer returns, and supplier returns now use the same pattern, including multiline serial capture and stock insight below the active row
 - line totals and visible totals are rendered through shared grid formatting and footer support
 
 ## Recommended rollout order
 
 Best next modules for the same pattern:
 
-- quotes
-- sales orders
-- RFQs
-- purchase requisitions
-- dispatches
 - direct purchases
-- returns
 - stock transfers
+- stock adjustments
+- service estimates
+- service expense claims
+- material requisitions
 
 ## Integration pattern
 

@@ -12,7 +12,7 @@
 - Deployment / installation: `docs/deployment.md`
 - Manual UAT / test script: `docs/manual-uat-guide.md`
 - System + technical maintainer guide: `docs/system-technical-maintainer-guide.md`
-- Assistant progress + GRN handover: `docs/assistant-progress.md`
+- Assistant progress + frontend handover: `docs/assistant-progress.md`
 - Backend architecture + operations: `docs/backend-architecture.md`
 - Frontend architecture + UI integration: `docs/frontend-architecture.md`
 - Frontend data-grid framework: `docs/frontend-data-grid-framework.md`
@@ -54,7 +54,7 @@
 - Transaction-line editing now uses a reusable data-grid framework:
   - the shared grid lives under `frontend/src/components/data-grid`
   - it supports typed editable cells, searchable lookup dropdowns, keyboard row-submit flow, and optional footer totals
-  - live rollout is currently on GRN receipt planning, purchase-order lines, and invoice lines
+  - live rollout is currently on GRN receipt planning, purchase-order lines, invoice lines, quotes, sales orders, RFQs, purchase requisitions, dispatches, direct dispatches, customer returns, and supplier returns
   - GRN draft mode now uses a single primary working grid instead of a duplicate lower draft-line table
 - Procurement list pages now expose explicit `View` / `Edit` actions for purchase requisitions, RFQs, purchase orders, goods receipts, direct purchases, supplier invoices, and supplier returns so operators do not need to rely only on the document number link
 - Sales list pages now expose explicit `View` / `Edit` actions for quotes, orders, dispatches, direct dispatches, invoices, and customer returns so operators do not need to rely only on the document number link
@@ -77,7 +77,9 @@
   - service job detail now includes actual job-cost rollup across material issues, direct purchases, approved labor, expense claims, estimates, and invoices
 - Finance workflow now supports:
   - petty cash funds with opening balance, top-up, adjustment, and expense-settlement ledger entries
-  - chart-of-accounts maintenance with parent/group vs posting-account setup
+  - chart-of-accounts maintenance with parent/group vs posting-account setup, including `Classic` and `Priority Grid` workspace modes
+  - item-level and category-level default revenue / expense account mapping
+  - resolved income / expense account snapshots on invoice, direct-purchase, and service expense-claim lines
 - Audit log UI now supports:
   - readable before/after field diffs
   - user labels instead of only raw user IDs where available

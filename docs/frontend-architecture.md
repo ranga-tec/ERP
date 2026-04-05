@@ -194,7 +194,7 @@ The detail pages for line-based documents use a common behavior:
 - show an `Actions` column in the line grid while draft
 - each line row supports `Edit`, `Save/Cancel`, and `Delete`
 
-This is now applied consistently across all line-document detail pages (not just PO/GRN).
+This behavior is now applied across the draft document detail pages currently on the shared grid, while the remaining inventory/service/direct-purchase screens still use older per-row components with the same visible action pattern.
 
 ### Reusable Data Grid Framework
 
@@ -215,6 +215,14 @@ Current live rollout:
 - GRN receipt-plan editing
 - purchase-order line editing
 - sales-invoice line editing
+- sales-quote line editing
+- sales-order line editing
+- RFQ line editing
+- purchase-requisition line editing
+- dispatch line editing
+- direct-dispatch line editing
+- customer-return line editing
+- supplier-return line editing
 
 Maintainer rule:
 
@@ -254,6 +262,8 @@ Recent workflow-specific UI behavior:
 - the home dashboard now follows an industry-standard ERP pattern with exception alerts, operational queues, and role-aware quick links instead of a static four-card summary
 - `/api/reporting/dashboard` is available to all business roles because it backs the authenticated home page, while the detailed reporting endpoints remain restricted to `Admin` and `Reporting`
 - procurement list pages now expose explicit `View` / `Edit` actions for purchase requisitions, RFQs, purchase orders, goods receipts, direct purchases, supplier invoices, and supplier returns
+- `Finance -> Chart of Accounts` now supports `Classic` and `Priority Grid` workspace modes for dense ERP-style maintenance
+- finance item/category account mapping is surfaced in the item and item-category maintenance flows, while resolved account snapshots are displayed on invoice, direct-purchase, and service expense-claim lines
 - procurement list-page `Edit` remains available while the document is still `Draft`
 - sales list pages now expose explicit `View` / `Edit` actions for quotes, orders, dispatches, direct dispatches, invoices, and customer returns
 - sales list-page `Edit` remains available while the document is still `Draft` (and follows existing invoice permissions)

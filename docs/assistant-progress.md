@@ -1,10 +1,215 @@
-# Assistant Progress and GRN Handover
+# Assistant Progress and Frontend Handover
 
 ## Purpose
 
-This document captures the current state of the AI assistant work and the GRN partial-receipt checkpoint so a later session can continue without rebuilding context from code.
+This document captures the current state of the AI assistant work, the GRN partial-receipt checkpoint, and the newer frontend UI/data-grid rollout so a later session can continue without rebuilding context from code.
 
-This checkpoint is still local workspace state, not a fully documented or fully committed feature branch.
+Important status note:
+
+- the older assistant / GRN sections later in this file are historical checkpoint notes and should be treated as design context, not a description of the current worktree
+- the reusable frontend data-grid framework is now live through three rollout waves
+- shared searchable dropdown behavior and compact ERP-style density are live
+- the chart-of-accounts workspace-mode UI is live
+- current non-doc local artifacts are untracked `.playwright-cli/` and `images/`
+
+## Frontend Data-Grid Framework Checkpoint
+
+### Product intent
+
+The frontend is moving toward an ERP-style reusable editable table model rather than one-off row components per document.
+
+The goal is:
+
+- one shared transaction-grid framework
+- document-specific validation and save logic outside the grid
+- explicit save behavior instead of cell auto-save
+- keyboard-friendly editing (`Tab` across cells, `Enter` to save row)
+- reusable enough to copy into another React/Tailwind project if needed
+
+### Shared module now present
+
+The reusable grid framework now lives under:
+
+- `frontend/src/components/data-grid/`
+
+Main files:
+
+- `frontend/src/components/data-grid/EditableDataTable.tsx`
+- `frontend/src/components/data-grid/LookupCell.tsx`
+- `frontend/src/components/data-grid/formatters.ts`
+- `frontend/src/components/data-grid/types.ts`
+- `frontend/src/components/data-grid/index.ts`
+- `frontend/src/components/data-grid/README.md`
+
+Compatibility shim:
+
+- `frontend/src/components/EditableDataTable.tsx`
+
+Framework capabilities now implemented:
+
+- typed editable column kinds:
+  - `display`
+  - `text`
+  - `number`
+  - `money`
+  - `percent`
+  - `date`
+  - `datetime`
+  - `textarea`
+  - `select`
+  - `lookup`
+- searchable lookup dropdown cell
+- optional footer totals
+- explicit row submit callback
+- `Tab` cell movement through natural DOM order
+- `Enter` row save for row-edit screens
+
+### Rollout wave 1: committed, pushed, deployed
+
+This wave is already in GitHub and production.
+
+Commit:
+
+- `8ebd929` `Extract reusable transaction data-grid framework`
+
+Docs added/updated for this wave:
+
+- `README.md`
+- `docs/frontend-architecture.md`
+- `docs/frontend-data-grid-framework.md`
+- `docs/user-manual.md`
+
+Live screens already on the shared grid:
+
+- `frontend/src/app/(app)/procurement/goods-receipts/GoodsReceiptReceiptPlanForm.tsx`
+- `frontend/src/app/(app)/procurement/purchase-orders/PurchaseOrderLinesEditor.tsx`
+- `frontend/src/app/(app)/sales/invoices/InvoiceLinesEditor.tsx`
+
+Operational notes for wave 1:
+
+- GRN draft mode now uses one primary `Receive From PO` working grid instead of a duplicate lower draft-line table
+- PO and invoice line screens use row-level `Edit` / `Save` / `Cancel` / `Delete`
+- GRN uses document-level `Save receipt plan`
+
+Validation previously completed for wave 1:
+
+- `npm run lint`
+- `npx tsc --noEmit`
+- `npm run build` with `ISS_API_BASE_URL` pointed at the deployed API
+
+Deployment previously completed for wave 1:
+
+- `iss-web` Railway deployment `b6ba1095-06d0-437c-a897-961b04591048`
+- live URL: `https://iss-web-production.up.railway.app`
+
+### Rollout wave 2: committed, pushed, deployed
+
+Additional transaction screens now live on the shared grid:
+
+- `frontend/src/app/(app)/sales/quotes/QuoteLinesEditor.tsx`
+- `frontend/src/app/(app)/sales/orders/SalesOrderLinesEditor.tsx`
+- `frontend/src/app/(app)/procurement/rfqs/RfqLinesEditor.tsx`
+- `frontend/src/app/(app)/procurement/purchase-requisitions/PurchaseRequisitionLinesEditor.tsx`
+
+Detail pages rewired:
+
+- `frontend/src/app/(app)/sales/quotes/[id]/page.tsx`
+- `frontend/src/app/(app)/sales/orders/[id]/page.tsx`
+- `frontend/src/app/(app)/procurement/rfqs/[id]/page.tsx`
+- `frontend/src/app/(app)/procurement/purchase-requisitions/[id]/page.tsx`
+
+Commit:
+
+- `dc50cab` `Roll out shared line editors to wave 2 documents`
+
+Validation completed for wave 2:
+
+- `npx tsc --noEmit` passed
+- `npm run build` passed
+
+### Rollout wave 3: committed, pushed, deployed
+
+Tracked document screens now live on the shared grid:
+
+- `frontend/src/app/(app)/sales/dispatches/DispatchLinesEditor.tsx`
+- `frontend/src/app/(app)/sales/direct-dispatches/DirectDispatchLinesEditor.tsx`
+- `frontend/src/app/(app)/sales/customer-returns/CustomerReturnLinesEditor.tsx`
+- `frontend/src/app/(app)/procurement/supplier-returns/SupplierReturnLinesEditor.tsx`
+
+Detail pages rewired:
+
+- `frontend/src/app/(app)/sales/dispatches/[id]/page.tsx`
+- `frontend/src/app/(app)/sales/direct-dispatches/[id]/page.tsx`
+- `frontend/src/app/(app)/sales/customer-returns/[id]/page.tsx`
+- `frontend/src/app/(app)/procurement/supplier-returns/[id]/page.tsx`
+
+Commit:
+
+- `cc0f80b` `Roll out tracked document line editors`
+
+Validation completed for wave 3:
+
+- `npx tsc --noEmit` passed
+- `npm run build` passed
+
+### Searchable dropdown and density checkpoints
+
+Frontend UX changes already live:
+
+- `20225c0` `Tighten ERP UI density and shared grid styling`
+- `443093f` `Make item dropdowns searchable across forms`
+- `a1d7ed2` `Make app dropdowns searchable`
+
+Live behavior now includes:
+
+- smaller ERP-style density across shared surfaces and tables
+- searchable shared `Select` controls
+- searchable select/grid editors through the common UI layer
+- fallback display of stored lookup values when an option list is incomplete
+- searchable service-job equipment-unit selection with saved-value preservation on reopen
+
+### Finance accounts workspace checkpoint
+
+Chart-of-accounts workspace modes are already live:
+
+- `frontend/src/app/(app)/finance/accounts/page.tsx`
+- `frontend/src/app/(app)/finance/accounts/LedgerAccountsWorkspace.tsx`
+- `frontend/src/app/(app)/finance/accounts/LedgerAccountsClassicView.tsx`
+- `frontend/src/app/(app)/finance/accounts/LedgerAccountsGrid.tsx`
+- `frontend/src/app/(app)/finance/accounts/LedgerAccountCreateRow.tsx`
+
+Commit:
+
+- `5f69cda` `Add chart of accounts workspace modes`
+
+Behavior now live:
+
+- classic dedicated create form + row editing
+- dense Priority-style grid mode
+- remembered workspace mode on the current device
+- inline create/edit/delete inside the grid mode
+
+### Current next best rollout targets
+
+The next candidates that fit the same pattern best are:
+
+- direct purchases
+- stock transfers
+- stock adjustments
+- service estimates
+- service expense claims
+- material requisitions
+
+Do those before more complex stock/service documents unless business priority says otherwise.
+
+### Important workspace hygiene note
+
+Current non-doc local artifacts are:
+
+- untracked `.playwright-cli/`
+- untracked `images/`
+
+Any next agent should still stage files explicitly and never use `git add .` in this workspace.
 
 ## Intended Product Goal
 
