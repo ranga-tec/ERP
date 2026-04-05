@@ -6,14 +6,20 @@ import { apiDeleteNoContent, apiPut } from "@/lib/api-client";
 import { Button, Input, SecondaryButton, Select } from "@/components/ui";
 import { type LedgerAccountDto, ledgerAccountTypeLabel, ledgerAccountTypeOptions } from "./types";
 
-const actionButtonClass = "px-2 py-1 text-xs";
+const actionButtonClass = "px-2.5 py-1.5 text-xs";
+const gridInputClass =
+  "min-w-[8rem] rounded-lg border-[var(--table-grid-strong)] bg-white/90 px-2.5 py-1.5 text-xs shadow-none dark:bg-[var(--surface)]";
+const gridSelectClass =
+  "min-w-[8rem] rounded-lg border-[var(--table-grid-strong)] bg-white/90 px-2.5 py-1.5 text-xs shadow-none dark:bg-[var(--surface)]";
 
 export function LedgerAccountRow({
   account,
   accounts,
+  variant = "priority",
 }: {
   account: LedgerAccountDto;
   accounts: LedgerAccountDto[];
+  variant?: "classic" | "priority";
 }) {
   const router = useRouter();
   const [isEditing, setIsEditing] = useState(false);
@@ -28,6 +34,10 @@ export function LedgerAccountRow({
   const [error, setError] = useState<string | null>(null);
 
   const parentOptions = accounts.filter((candidate) => candidate.id !== account.id);
+  const isPriorityVariant = variant === "priority";
+  const baseInputClass = isPriorityVariant
+    ? "rounded-lg border-[var(--table-grid-strong)] bg-white/90 px-2.5 py-1.5 text-xs shadow-none dark:bg-[var(--surface)]"
+    : "";
 
   function beginEdit() {
     setError(null);
@@ -79,16 +89,46 @@ export function LedgerAccountRow({
   }
 
   return (
-    <tr className="border-b border-zinc-100 align-top dark:border-zinc-900">
+    <tr
+      className={[
+        isPriorityVariant
+          ? "align-top transition-colors"
+          : "cursor-pointer border-b border-zinc-100 align-top transition-colors dark:border-zinc-900",
+        isEditing ? "grid-row-editing" : "",
+      ].join(" ")}
+      onClick={!isPriorityVariant && !isEditing ? beginEdit : undefined}
+      onDoubleClick={isPriorityVariant && !isEditing ? beginEdit : undefined}
+      title={!isEditing && !isPriorityVariant ? "Click row to edit" : undefined}
+    >
       <td className="py-2 pr-3 font-mono text-xs">
-        {isEditing ? <Input value={code} onChange={(e) => setCode(e.target.value)} className="min-w-20" /> : account.code}
-      </td>
-      <td className="py-2 pr-3">
-        {isEditing ? <Input value={name} onChange={(e) => setName(e.target.value)} className="min-w-36" /> : account.name}
+        {isEditing ? (
+          <Input
+            value={code}
+            onChange={(e) => setCode(e.target.value)}
+            className={isPriorityVariant ? gridInputClass : `min-w-20 ${baseInputClass}`}
+          />
+        ) : (
+          account.code
+        )}
       </td>
       <td className="py-2 pr-3">
         {isEditing ? (
-          <Select value={accountType} onChange={(e) => setAccountType(e.target.value)} className="min-w-28">
+          <Input
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            className={isPriorityVariant ? "min-w-[11rem] rounded-lg border-[var(--table-grid-strong)] bg-white/90 px-2.5 py-1.5 text-xs shadow-none dark:bg-[var(--surface)]" : `min-w-36 ${baseInputClass}`}
+          />
+        ) : (
+          <div className="font-medium text-[var(--foreground)]">{account.name}</div>
+        )}
+      </td>
+      <td className="py-2 pr-3">
+        {isEditing ? (
+          <Select
+            value={accountType}
+            onChange={(e) => setAccountType(e.target.value)}
+            className={isPriorityVariant ? gridSelectClass : `min-w-28 ${baseInputClass}`}
+          >
             {ledgerAccountTypeOptions.map((option) => (
               <option key={option.value} value={option.value}>
                 {option.label}
@@ -96,12 +136,18 @@ export function LedgerAccountRow({
             ))}
           </Select>
         ) : (
-          ledgerAccountTypeLabel(account.accountType)
+          <span className="inline-flex rounded-full border border-[var(--table-grid)] bg-[var(--surface)] px-2.5 py-1 text-[11px] font-semibold text-[var(--foreground)]">
+            {ledgerAccountTypeLabel(account.accountType)}
+          </span>
         )}
       </td>
-      <td className="py-2 pr-3 text-zinc-500">
+      <td className="py-2 pr-3 text-[var(--muted-foreground)]">
         {isEditing ? (
-          <Select value={parentAccountId} onChange={(e) => setParentAccountId(e.target.value)} className="min-w-48">
+          <Select
+            value={parentAccountId}
+            onChange={(e) => setParentAccountId(e.target.value)}
+            className={isPriorityVariant ? "min-w-[12rem] rounded-lg border-[var(--table-grid-strong)] bg-white/90 px-2.5 py-1.5 text-xs shadow-none dark:bg-[var(--surface)]" : `min-w-48 ${baseInputClass}`}
+          >
             <option value="">None</option>
             {parentOptions.map((candidate) => (
               <option key={candidate.id} value={candidate.id}>
@@ -110,53 +156,86 @@ export function LedgerAccountRow({
             ))}
           </Select>
         ) : account.parentAccountCode ? (
-          `${account.parentAccountCode} - ${account.parentAccountName}`
+          <div className="max-w-[18rem] truncate" title={`${account.parentAccountCode} - ${account.parentAccountName}`}>
+            {account.parentAccountCode} - {account.parentAccountName}
+          </div>
         ) : (
           "-"
         )}
       </td>
       <td className="py-2 pr-3">
         {isEditing ? (
-          <Select value={allowsPosting} onChange={(e) => setAllowsPosting(e.target.value)} className="min-w-24">
+          <Select
+            value={allowsPosting}
+            onChange={(e) => setAllowsPosting(e.target.value)}
+            className={isPriorityVariant ? "min-w-[7rem] rounded-lg border-[var(--table-grid-strong)] bg-white/90 px-2.5 py-1.5 text-xs shadow-none dark:bg-[var(--surface)]" : `min-w-24 ${baseInputClass}`}
+          >
             <option value="true">Yes</option>
             <option value="false">No</option>
           </Select>
         ) : account.allowsPosting ? (
-          "Yes"
+          <span className="inline-flex rounded-full border border-emerald-300/70 bg-emerald-50 px-2.5 py-1 text-[11px] font-semibold text-emerald-700 dark:border-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-200">
+            Posting
+          </span>
         ) : (
-          "No"
+          <span className="inline-flex rounded-full border border-slate-300/70 bg-slate-100 px-2.5 py-1 text-[11px] font-semibold text-slate-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200">
+            Group
+          </span>
         )}
       </td>
-      <td className="py-2 pr-3 text-zinc-500">
+      <td className="py-2 pr-3 text-[var(--muted-foreground)]">
         {isEditing ? (
-          <Input value={description} onChange={(e) => setDescription(e.target.value)} className="min-w-40" />
+          <Input
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            className={isPriorityVariant ? "min-w-[12rem] rounded-lg border-[var(--table-grid-strong)] bg-white/90 px-2.5 py-1.5 text-xs shadow-none dark:bg-[var(--surface)]" : `min-w-40 ${baseInputClass}`}
+          />
         ) : (
-          account.description ?? "-"
+          <div className="max-w-[18rem] truncate" title={account.description ?? undefined}>
+            {account.description ?? "-"}
+          </div>
         )}
       </td>
       <td className="py-2 pr-3">
         {isEditing ? (
-          <Select value={isActive} onChange={(e) => setIsActive(e.target.value)} className="min-w-20">
+          <Select
+            value={isActive}
+            onChange={(e) => setIsActive(e.target.value)}
+            className={isPriorityVariant ? "min-w-[7rem] rounded-lg border-[var(--table-grid-strong)] bg-white/90 px-2.5 py-1.5 text-xs shadow-none dark:bg-[var(--surface)]" : `min-w-20 ${baseInputClass}`}
+          >
             <option value="true">Yes</option>
             <option value="false">No</option>
           </Select>
         ) : account.isActive ? (
-          "Yes"
+          <span className="inline-flex rounded-full border border-sky-300/70 bg-sky-50 px-2.5 py-1 text-[11px] font-semibold text-sky-700 dark:border-sky-700 dark:bg-sky-950/40 dark:text-sky-200">
+            Active
+          </span>
         ) : (
-          "No"
+          <span className="inline-flex rounded-full border border-amber-300/70 bg-amber-50 px-2.5 py-1 text-[11px] font-semibold text-amber-700 dark:border-amber-700 dark:bg-amber-950/40 dark:text-amber-200">
+            Inactive
+          </span>
         )}
       </td>
       <td className="py-2 pr-3">
         <div className="flex flex-wrap items-center gap-2">
           {isEditing ? (
             <>
-              <Button type="button" className={actionButtonClass} onClick={saveEdit} disabled={busy}>
+              <Button
+                type="button"
+                className={actionButtonClass}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  void saveEdit();
+                }}
+                disabled={busy}
+              >
                 {busy ? "Saving..." : "Save"}
               </Button>
               <SecondaryButton
                 type="button"
                 className={actionButtonClass}
-                onClick={() => {
+                onClick={(event) => {
+                  event.stopPropagation();
                   setError(null);
                   setIsEditing(false);
                 }}
@@ -166,11 +245,27 @@ export function LedgerAccountRow({
               </SecondaryButton>
             </>
           ) : (
-            <SecondaryButton type="button" className={actionButtonClass} onClick={beginEdit} disabled={busy}>
+            <SecondaryButton
+              type="button"
+              className={actionButtonClass}
+              onClick={(event) => {
+                event.stopPropagation();
+                beginEdit();
+              }}
+              disabled={busy}
+            >
               Edit
             </SecondaryButton>
           )}
-          <SecondaryButton type="button" className={actionButtonClass} onClick={deleteRow} disabled={busy}>
+          <SecondaryButton
+            type="button"
+            className={actionButtonClass}
+            onClick={(event) => {
+              event.stopPropagation();
+              void deleteRow();
+            }}
+            disabled={busy}
+          >
             Delete
           </SecondaryButton>
         </div>
