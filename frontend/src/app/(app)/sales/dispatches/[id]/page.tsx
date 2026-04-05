@@ -29,8 +29,16 @@ const statusLabel: Record<number, string> = {
   2: "Voided",
 };
 
-export default async function DispatchDetailPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function DispatchDetailPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ mode?: string }>;
+}) {
   const { id } = await params;
+  const { mode } = await searchParams;
+  const startInEditMode = mode === "edit";
 
   const [dispatch, orders, warehouses, items] = await Promise.all([
     backendFetchJson<DispatchDto>(`/sales/dispatches/${id}`),
@@ -110,6 +118,7 @@ export default async function DispatchDetailPage({ params }: { params: Promise<{
             ]),
           )}
           itemSearchLabelById={new Map(items.map((item) => [item.id, `${item.sku} ${item.name}`.toLowerCase()]))}
+          startInEditMode={startInEditMode}
           canEdit={isDraft}
         />
       </Card>

@@ -40,6 +40,7 @@ type SupplierReturnLinesEditorProps = {
   itemLabelById: Map<string, ReactNode>;
   itemSearchLabelById: Map<string, string>;
   canEdit: boolean;
+  startInEditMode?: boolean;
 };
 
 function normalizeSearch(value: string): string {
@@ -81,6 +82,7 @@ export function SupplierReturnLinesEditor({
   itemLabelById,
   itemSearchLabelById,
   canEdit,
+  startInEditMode = false,
 }: SupplierReturnLinesEditorProps) {
   const router = useRouter();
   const [draftLines, setDraftLines] = useState<EditableSupplierReturnLine[]>(() => toEditableLines(lines));
@@ -89,6 +91,7 @@ export function SupplierReturnLinesEditor({
   const [errorByLineId, setErrorByLineId] = useState<Record<string, string | null>>({});
   const [search, setSearch] = useState("");
   const deferredSearch = useDeferredValue(search);
+  const allRowsEditing = canEdit && startInEditMode;
 
   useEffect(() => {
     setDraftLines(toEditableLines(lines));
@@ -99,6 +102,20 @@ export function SupplierReturnLinesEditor({
     updater: (line: EditableSupplierReturnLine) => EditableSupplierReturnLine,
   ) {
     setDraftLines((current) => current.map((line) => (line.id === lineId ? updater(line) : line)));
+  }
+
+  function resetLine(lineId: string) {
+    const originalLine = lines.find((candidate) => candidate.id === lineId);
+    if (!originalLine) {
+      return;
+    }
+
+    setErrorByLineId((current) => ({ ...current, [lineId]: null }));
+    updateRow(lineId, () => toEditableLines([originalLine])[0]);
+
+    if (!allRowsEditing) {
+      setEditingLineId(null);
+    }
   }
 
   async function saveLine(lineId: string) {
@@ -130,7 +147,9 @@ export function SupplierReturnLinesEditor({
         serials: serials.length ? serials : null,
       });
 
-      setEditingLineId(null);
+      if (!allRowsEditing) {
+        setEditingLineId(null);
+      }
       router.refresh();
     } catch (error) {
       setErrorByLineId((current) => ({
@@ -183,7 +202,9 @@ export function SupplierReturnLinesEditor({
     );
   }, [deferredSearch, draftLines, itemSearchLabelById]);
 
-  const editingLine = editingLineId
+  const editingLine = allRowsEditing
+    ? null
+    : editingLineId
     ? draftLines.find((line) => line.id === editingLineId) ?? null
     : null;
 
@@ -269,7 +290,7 @@ export function SupplierReturnLinesEditor({
           header: "Actions",
           kind: "display",
           render: (line) => {
-            const isEditing = editingLineId === line.id;
+            const isEditing = allRowsEditing || editingLineId === line.id;
             const busy = busyLineId === line.id;
             const error = errorByLineId[line.id];
 
@@ -290,15 +311,11 @@ export function SupplierReturnLinesEditor({
                       <SecondaryButton
                         type="button"
                         className="px-2 py-1 text-xs"
-                        onClick={() => {
-                          setErrorByLineId((current) => ({ ...current, [line.id]: null }));
-                          setEditingLineId(null);
-                          setDraftLines(toEditableLines(lines));
-                        }}
+                        onClick={() => resetLine(line.id)}
                         disabled={busy}
                         tabIndex={-1}
                       >
-                        Cancel
+                        {allRowsEditing ? "Reset" : "Cancel"}
                       </SecondaryButton>
                     </>
                   ) : (
@@ -351,7 +368,7 @@ export function SupplierReturnLinesEditor({
         columns={columns}
         rows={filteredLines}
         rowKey={(line) => line.id}
-        isRowEditing={(line) => canEdit && editingLineId === line.id}
+        isRowEditing={(line) => canEdit && (allRowsEditing || editingLineId === line.id)}
         onRowChange={(lineId, updater) => updateRow(lineId, updater)}
         onSubmitRow={(lineId) => void saveLine(lineId)}
         emptyColSpan={columns.length}

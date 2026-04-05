@@ -9,9 +9,13 @@ type ListViewEditActionsProps = {
   canEdit?: boolean;
 };
 
+function buildDefaultEditHref(viewHref: string): string {
+  return viewHref.includes("?") ? `${viewHref}&mode=edit` : `${viewHref}?mode=edit`;
+}
+
 export function ListViewEditActions({
   viewHref,
-  editHref = viewHref,
+  editHref = buildDefaultEditHref(viewHref),
   canEdit = true,
 }: ListViewEditActionsProps) {
   return (

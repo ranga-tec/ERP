@@ -30,8 +30,16 @@ type DispatchSummaryDto = { id: string; number: string; salesOrderId: string; st
 
 const statusLabel: Record<number, string> = { 0: "Draft", 1: "Posted", 2: "Voided" };
 
-export default async function CustomerReturnDetailPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function CustomerReturnDetailPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ mode?: string }>;
+}) {
   const { id } = await params;
+  const { mode } = await searchParams;
+  const startInEditMode = mode === "edit";
 
   const [customerReturn, customers, warehouses, items, invoices, dispatches] = await Promise.all([
     backendFetchJson<CustomerReturnDto>(`/sales/customer-returns/${id}`),
@@ -134,6 +142,7 @@ export default async function CustomerReturnDetailPage({ params }: { params: Pro
             ]),
           )}
           itemSearchLabelById={new Map(items.map((item) => [item.id, `${item.sku} ${item.name}`.toLowerCase()]))}
+          startInEditMode={startInEditMode}
           canEdit={isDraft}
         />
       </Card>

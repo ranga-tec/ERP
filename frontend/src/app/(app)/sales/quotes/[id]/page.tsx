@@ -30,8 +30,16 @@ const statusLabel: Record<number, string> = {
   5: "Cancelled",
 };
 
-export default async function QuoteDetailPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function QuoteDetailPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ mode?: string }>;
+}) {
   const { id } = await params;
+  const { mode } = await searchParams;
+  const startInEditMode = mode === "edit";
 
   const [quote, customers, items] = await Promise.all([
     backendFetchJson<SalesQuoteDto>(`/sales/quotes/${id}`),
@@ -101,6 +109,7 @@ export default async function QuoteDetailPage({ params }: { params: Promise<{ id
             ]),
           )}
           itemSearchLabelById={new Map(items.map((item) => [item.id, `${item.sku} ${item.name}`.toLowerCase()]))}
+          startInEditMode={startInEditMode}
           canEdit={isDraft}
         />
       </Card>

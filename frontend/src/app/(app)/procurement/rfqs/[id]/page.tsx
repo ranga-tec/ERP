@@ -26,8 +26,16 @@ const statusLabel: Record<number, string> = {
   3: "Cancelled",
 };
 
-export default async function RfqDetailPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function RfqDetailPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ mode?: string }>;
+}) {
   const { id } = await params;
+  const { mode } = await searchParams;
+  const startInEditMode = mode === "edit";
 
   const [rfq, suppliers, items] = await Promise.all([
     backendFetchJson<RfqDto>(`/procurement/rfqs/${id}`),
@@ -95,6 +103,7 @@ export default async function RfqDetailPage({ params }: { params: Promise<{ id: 
             ]),
           )}
           itemSearchLabelById={new Map(items.map((item) => [item.id, `${item.sku} ${item.name}`.toLowerCase()]))}
+          startInEditMode={startInEditMode}
           canEdit={isDraft}
         />
       </Card>

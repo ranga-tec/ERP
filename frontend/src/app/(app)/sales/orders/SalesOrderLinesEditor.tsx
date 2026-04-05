@@ -32,6 +32,7 @@ type SalesOrderLinesEditorProps = {
   itemLabelById: Map<string, ReactNode>;
   itemSearchLabelById: Map<string, string>;
   canEdit: boolean;
+  startInEditMode?: boolean;
 };
 
 function normalizeSearch(value: string): string {
@@ -57,6 +58,7 @@ export function SalesOrderLinesEditor({
   itemLabelById,
   itemSearchLabelById,
   canEdit,
+  startInEditMode = false,
 }: SalesOrderLinesEditorProps) {
   const router = useRouter();
   const [draftLines, setDraftLines] = useState<EditableSalesOrderLine[]>(() => toEditableLines(lines));
@@ -65,6 +67,7 @@ export function SalesOrderLinesEditor({
   const [errorByLineId, setErrorByLineId] = useState<Record<string, string | null>>({});
   const [search, setSearch] = useState("");
   const deferredSearch = useDeferredValue(search);
+  const allRowsEditing = canEdit && startInEditMode;
 
   useEffect(() => {
     setDraftLines(toEditableLines(lines));
@@ -72,6 +75,20 @@ export function SalesOrderLinesEditor({
 
   function updateRow(lineId: string, updater: (line: EditableSalesOrderLine) => EditableSalesOrderLine) {
     setDraftLines((current) => current.map((line) => (line.id === lineId ? updater(line) : line)));
+  }
+
+  function resetLine(lineId: string) {
+    const originalLine = lines.find((candidate) => candidate.id === lineId);
+    if (!originalLine) {
+      return;
+    }
+
+    setErrorByLineId((current) => ({ ...current, [lineId]: null }));
+    updateRow(lineId, () => toEditableLines([originalLine])[0]);
+
+    if (!allRowsEditing) {
+      setEditingLineId(null);
+    }
   }
 
   async function saveLine(lineId: string) {
@@ -99,7 +116,9 @@ export function SalesOrderLinesEditor({
         unitPrice,
       });
 
-      setEditingLineId(null);
+      if (!allRowsEditing) {
+        setEditingLineId(null);
+      }
       router.refresh();
     } catch (error) {
       setErrorByLineId((current) => ({
@@ -201,7 +220,7 @@ export function SalesOrderLinesEditor({
           header: "Actions",
           kind: "display",
           render: (line) => {
-            const isEditing = editingLineId === line.id;
+            const isEditing = allRowsEditing || editingLineId === line.id;
             const busy = busyLineId === line.id;
             const error = errorByLineId[line.id];
 
@@ -222,15 +241,11 @@ export function SalesOrderLinesEditor({
                       <SecondaryButton
                         type="button"
                         className="px-2 py-1 text-xs"
-                        onClick={() => {
-                          setErrorByLineId((current) => ({ ...current, [line.id]: null }));
-                          setEditingLineId(null);
-                          setDraftLines(toEditableLines(lines));
-                        }}
+                        onClick={() => resetLine(line.id)}
                         disabled={busy}
                         tabIndex={-1}
                       >
-                        Cancel
+                        {allRowsEditing ? "Reset" : "Cancel"}
                       </SecondaryButton>
                     </>
                   ) : (
@@ -283,7 +298,7 @@ export function SalesOrderLinesEditor({
         columns={columns}
         rows={filteredLines}
         rowKey={(line) => line.id}
-        isRowEditing={(line) => canEdit && editingLineId === line.id}
+        isRowEditing={(line) => canEdit && (allRowsEditing || editingLineId === line.id)}
         onRowChange={(lineId, updater) => updateRow(lineId, updater)}
         onSubmitRow={(lineId) => void saveLine(lineId)}
         emptyColSpan={columns.length}

@@ -28,8 +28,16 @@ type ItemDto = { id: string; sku: string; name: string; trackingType: number };
 
 const statusLabel: Record<number, string> = { 0: "Draft", 1: "Posted", 2: "Voided" };
 
-export default async function DirectDispatchDetailPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function DirectDispatchDetailPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ mode?: string }>;
+}) {
   const { id } = await params;
+  const { mode } = await searchParams;
+  const startInEditMode = mode === "edit";
 
   const [dispatch, customers, jobs, warehouses, items] = await Promise.all([
     backendFetchJson<DirectDispatchDto>(`/sales/direct-dispatches/${id}`),
@@ -122,6 +130,7 @@ export default async function DirectDispatchDetailPage({ params }: { params: Pro
             ]),
           )}
           itemSearchLabelById={new Map(items.map((item) => [item.id, `${item.sku} ${item.name}`.toLowerCase()]))}
+          startInEditMode={startInEditMode}
           canEdit={isDraft}
         />
       </Card>

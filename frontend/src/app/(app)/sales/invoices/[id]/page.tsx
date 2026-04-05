@@ -45,8 +45,16 @@ const statusLabel: Record<number, string> = {
   3: "Voided",
 };
 
-export default async function InvoiceDetailPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function InvoiceDetailPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ mode?: string }>;
+}) {
   const { id } = await params;
+  const { mode } = await searchParams;
+  const startInEditMode = mode === "edit";
   const cookieStore = await cookies();
   const token = cookieStore.get(ISS_TOKEN_COOKIE)?.value;
   const session = token ? sessionFromToken(token) : null;
@@ -134,6 +142,7 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
           lines={invoice.lines}
           itemLabelById={itemLabelById}
           itemSearchLabelById={itemSearchLabelById}
+          startInEditMode={startInEditMode}
           canEdit={isDraft && canManageInvoices}
         />
       </Card>

@@ -31,6 +31,7 @@ type PurchaseRequisitionLinesEditorProps = {
   itemSearchLabelById: Map<string, string>;
   baseUomByItemId: Map<string, string>;
   canEdit: boolean;
+  startInEditMode?: boolean;
 };
 
 function normalizeSearch(value: string): string {
@@ -57,6 +58,7 @@ export function PurchaseRequisitionLinesEditor({
   itemSearchLabelById,
   baseUomByItemId,
   canEdit,
+  startInEditMode = false,
 }: PurchaseRequisitionLinesEditorProps) {
   const router = useRouter();
   const [draftLines, setDraftLines] = useState<EditablePurchaseRequisitionLine[]>(() => toEditableLines(lines));
@@ -65,6 +67,7 @@ export function PurchaseRequisitionLinesEditor({
   const [errorByLineId, setErrorByLineId] = useState<Record<string, string | null>>({});
   const [search, setSearch] = useState("");
   const deferredSearch = useDeferredValue(search);
+  const allRowsEditing = canEdit && startInEditMode;
 
   useEffect(() => {
     setDraftLines(toEditableLines(lines));
@@ -72,6 +75,20 @@ export function PurchaseRequisitionLinesEditor({
 
   function updateRow(lineId: string, updater: (line: EditablePurchaseRequisitionLine) => EditablePurchaseRequisitionLine) {
     setDraftLines((current) => current.map((line) => (line.id === lineId ? updater(line) : line)));
+  }
+
+  function resetLine(lineId: string) {
+    const originalLine = lines.find((candidate) => candidate.id === lineId);
+    if (!originalLine) {
+      return;
+    }
+
+    setErrorByLineId((current) => ({ ...current, [lineId]: null }));
+    updateRow(lineId, () => toEditableLines([originalLine])[0]);
+
+    if (!allRowsEditing) {
+      setEditingLineId(null);
+    }
   }
 
   async function saveLine(lineId: string) {
@@ -94,7 +111,9 @@ export function PurchaseRequisitionLinesEditor({
         notes: line.notes.trim() || null,
       });
 
-      setEditingLineId(null);
+      if (!allRowsEditing) {
+        setEditingLineId(null);
+      }
       router.refresh();
     } catch (error) {
       setErrorByLineId((current) => ({
@@ -198,7 +217,7 @@ export function PurchaseRequisitionLinesEditor({
           header: "Actions",
           kind: "display",
           render: (line) => {
-            const isEditing = editingLineId === line.id;
+            const isEditing = allRowsEditing || editingLineId === line.id;
             const busy = busyLineId === line.id;
             const error = errorByLineId[line.id];
 
@@ -219,15 +238,11 @@ export function PurchaseRequisitionLinesEditor({
                       <SecondaryButton
                         type="button"
                         className="px-2 py-1 text-xs"
-                        onClick={() => {
-                          setErrorByLineId((current) => ({ ...current, [line.id]: null }));
-                          setEditingLineId(null);
-                          setDraftLines(toEditableLines(lines));
-                        }}
+                        onClick={() => resetLine(line.id)}
                         disabled={busy}
                         tabIndex={-1}
                       >
-                        Cancel
+                        {allRowsEditing ? "Reset" : "Cancel"}
                       </SecondaryButton>
                     </>
                   ) : (
@@ -280,7 +295,7 @@ export function PurchaseRequisitionLinesEditor({
         columns={columns}
         rows={filteredLines}
         rowKey={(line) => line.id}
-        isRowEditing={(line) => canEdit && editingLineId === line.id}
+        isRowEditing={(line) => canEdit && (allRowsEditing || editingLineId === line.id)}
         onRowChange={(lineId, updater) => updateRow(lineId, updater)}
         onSubmitRow={(lineId) => void saveLine(lineId)}
         emptyColSpan={columns.length}

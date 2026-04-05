@@ -38,10 +38,14 @@ const statusLabel: Record<number, string> = {
 
 export default async function PurchaseRequisitionDetailPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ mode?: string }>;
 }) {
   const { id } = await params;
+  const { mode } = await searchParams;
+  const startInEditMode = mode === "edit";
 
   const [pr, items, suppliers, uoms, conversions] = await Promise.all([
     backendFetchJson<PurchaseRequisitionDto>(`/procurement/purchase-requisitions/${id}`),
@@ -120,6 +124,7 @@ export default async function PurchaseRequisitionDetailPage({
           )}
           itemSearchLabelById={new Map(items.map((item) => [item.id, `${item.sku} ${item.name}`.toLowerCase()]))}
           baseUomByItemId={new Map(items.map((item) => [item.id, item.unitOfMeasure]))}
+          startInEditMode={startInEditMode}
           canEdit={isDraft}
         />
       </Card>

@@ -29,8 +29,16 @@ const statusLabel: Record<number, string> = {
   2: "Voided",
 };
 
-export default async function SupplierReturnDetailPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function SupplierReturnDetailPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ mode?: string }>;
+}) {
   const { id } = await params;
+  const { mode } = await searchParams;
+  const startInEditMode = mode === "edit";
 
   const [sr, suppliers, warehouses, items] = await Promise.all([
     backendFetchJson<SupplierReturnDto>(`/procurement/supplier-returns/${id}`),
@@ -111,6 +119,7 @@ export default async function SupplierReturnDetailPage({ params }: { params: Pro
             ]),
           )}
           itemSearchLabelById={new Map(items.map((item) => [item.id, `${item.sku} ${item.name}`.toLowerCase()]))}
+          startInEditMode={startInEditMode}
           canEdit={isDraft}
         />
       </Card>

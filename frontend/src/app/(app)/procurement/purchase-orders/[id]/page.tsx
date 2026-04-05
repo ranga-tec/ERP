@@ -35,8 +35,16 @@ const statusLabel: Record<number, string> = {
   4: "Cancelled",
 };
 
-export default async function PurchaseOrderDetailPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function PurchaseOrderDetailPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ mode?: string }>;
+}) {
   const { id } = await params;
+  const { mode } = await searchParams;
+  const startInEditMode = mode === "edit";
 
   const [po, suppliers, items] = await Promise.all([
     backendFetchJson<PurchaseOrderDto>(`/procurement/purchase-orders/${id}`),
@@ -109,6 +117,7 @@ export default async function PurchaseOrderDetailPage({ params }: { params: Prom
           lines={po.lines}
           itemLabelById={itemLabelById}
           itemSearchLabelById={itemSearchLabelById}
+          startInEditMode={startInEditMode}
           canEdit={isDraft}
         />
       </Card>
