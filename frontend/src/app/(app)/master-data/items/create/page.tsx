@@ -2,14 +2,15 @@ import Link from "next/link";
 import { backendFetchJson } from "@/lib/backend.server";
 import { Card } from "@/components/ui";
 import { ItemCreateForm } from "../ItemCreateForm";
-import type { BrandDto, CategoryDto, SubcategoryDto, UomDto } from "../item-definitions";
+import type { BrandDto, CategoryDto, LedgerAccountOptionDto, SubcategoryDto, UomDto } from "../item-definitions";
 
 export default async function ItemCreatePage() {
-  const [brands, uoms, categories, subcategories] = await Promise.all([
+  const [brands, uoms, categories, subcategories, accountOptions] = await Promise.all([
     backendFetchJson<BrandDto[]>("/brands"),
     backendFetchJson<UomDto[]>("/uoms"),
     backendFetchJson<CategoryDto[]>("/item-categories"),
     backendFetchJson<SubcategoryDto[]>("/item-subcategories"),
+    backendFetchJson<LedgerAccountOptionDto[]>("/items/account-options"),
   ]);
 
   return (
@@ -23,7 +24,7 @@ export default async function ItemCreatePage() {
         </div>
         <h1 className="mt-1 text-2xl font-semibold">Create Item</h1>
         <p className="mt-1 text-sm text-zinc-500">
-          Add a new item, equipment record, or service master.
+          Add a new item, equipment record, or service master with optional default income and expense account mapping.
         </p>
       </div>
 
@@ -34,6 +35,7 @@ export default async function ItemCreatePage() {
           uoms={uoms}
           categories={categories}
           subcategories={subcategories}
+          accountOptions={accountOptions}
         />
       </Card>
     </div>

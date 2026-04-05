@@ -9,7 +9,7 @@ namespace ISS.Api.Controllers;
 
 [ApiController]
 [Route("api/item-subcategories")]
-[Authorize(Roles = $"{Roles.Admin},{Roles.Inventory}")]
+[Authorize(Roles = Roles.AllBusiness)]
 public sealed class ItemSubcategoriesController(IIssDbContext dbContext) : ControllerBase
 {
     public sealed record ItemSubcategoryDto(
@@ -68,6 +68,7 @@ public sealed class ItemSubcategoriesController(IIssDbContext dbContext) : Contr
     }
 
     [HttpPost]
+    [Authorize(Roles = $"{Roles.Admin},{Roles.Inventory}")]
     public async Task<ActionResult<ItemSubcategoryDto>> Create(CreateItemSubcategoryRequest request, CancellationToken cancellationToken)
     {
         var categoryExists = await dbContext.ItemCategories.AsNoTracking()
@@ -97,6 +98,7 @@ public sealed class ItemSubcategoriesController(IIssDbContext dbContext) : Contr
     }
 
     [HttpPut("{id:guid}")]
+    [Authorize(Roles = $"{Roles.Admin},{Roles.Inventory}")]
     public async Task<ActionResult<ItemSubcategoryDto>> Update(Guid id, UpdateItemSubcategoryRequest request, CancellationToken cancellationToken)
     {
         var categoryExists = await dbContext.ItemCategories.AsNoTracking()
@@ -131,6 +133,7 @@ public sealed class ItemSubcategoriesController(IIssDbContext dbContext) : Contr
     }
 
     [HttpDelete("{id:guid}")]
+    [Authorize(Roles = $"{Roles.Admin},{Roles.Inventory}")]
     public async Task<IActionResult> Delete(Guid id, CancellationToken cancellationToken)
     {
         var item = await dbContext.ItemSubcategories.FirstOrDefaultAsync(x => x.Id == id, cancellationToken);

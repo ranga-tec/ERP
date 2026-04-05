@@ -30,6 +30,21 @@ export type ItemDto = {
   subcategoryName?: string | null;
   barcode?: string | null;
   defaultUnitCost: number;
+  revenueAccountId?: string | null;
+  revenueAccountCode?: string | null;
+  revenueAccountName?: string | null;
+  expenseAccountId?: string | null;
+  expenseAccountCode?: string | null;
+  expenseAccountName?: string | null;
+  isActive: boolean;
+};
+
+export type LedgerAccountOptionDto = {
+  id: string;
+  code: string;
+  name: string;
+  accountType: number;
+  allowsPosting: boolean;
   isActive: boolean;
 };
 
@@ -79,3 +94,19 @@ export const trackingLabel: Record<number, string> = {
   1: "Serial",
   2: "Batch",
 };
+
+export function formatLedgerAccountOptionLabel(account: LedgerAccountOptionDto): string {
+  const flags: string[] = [];
+
+  if (!account.allowsPosting) {
+    flags.push("group");
+  }
+
+  if (!account.isActive) {
+    flags.push("inactive");
+  }
+
+  return flags.length > 0
+    ? `${account.code} - ${account.name} (${flags.join(", ")})`
+    : `${account.code} - ${account.name}`;
+}

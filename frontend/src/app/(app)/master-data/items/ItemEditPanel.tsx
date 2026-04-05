@@ -5,11 +5,13 @@ import { useRouter } from "next/navigation";
 import { apiDeleteNoContent, apiPut } from "@/lib/api-client";
 import { Button, Input, SecondaryButton, Select } from "@/components/ui";
 import {
+  formatLedgerAccountOptionLabel,
   itemTypes,
   trackingTypes,
   type BrandDto,
   type CategoryDto,
   type ItemDto,
+  type LedgerAccountOptionDto,
   type SubcategoryDto,
   type UomDto,
 } from "./item-definitions";
@@ -20,12 +22,14 @@ export function ItemEditPanel({
   uoms,
   categories,
   subcategories,
+  accountOptions,
 }: {
   item: ItemDto;
   brands: BrandDto[];
   uoms: UomDto[];
   categories: CategoryDto[];
   subcategories: SubcategoryDto[];
+  accountOptions: LedgerAccountOptionDto[];
 }) {
   const router = useRouter();
   const [sku, setSku] = useState(item.sku);
@@ -38,6 +42,8 @@ export function ItemEditPanel({
   const [subcategoryId, setSubcategoryId] = useState(item.subcategoryId ?? "");
   const [barcode, setBarcode] = useState(item.barcode ?? "");
   const [defaultUnitCost, setDefaultUnitCost] = useState(String(item.defaultUnitCost));
+  const [revenueAccountId, setRevenueAccountId] = useState(item.revenueAccountId ?? "");
+  const [expenseAccountId, setExpenseAccountId] = useState(item.expenseAccountId ?? "");
   const [isActive, setIsActive] = useState(item.isActive);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -61,6 +67,22 @@ export function ItemEditPanel({
       .slice()
       .sort((a, b) => a.code.localeCompare(b.code));
   }, [categoryId, subcategories]);
+  const revenueAccountOptions = useMemo(
+    () =>
+      accountOptions
+        .filter((account) => account.accountType === 4)
+        .slice()
+        .sort((a, b) => a.code.localeCompare(b.code)),
+    [accountOptions],
+  );
+  const expenseAccountOptions = useMemo(
+    () =>
+      accountOptions
+        .filter((account) => account.accountType === 5)
+        .slice()
+        .sort((a, b) => a.code.localeCompare(b.code)),
+    [accountOptions],
+  );
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -84,6 +106,8 @@ export function ItemEditPanel({
         subcategoryId: subcategoryId || null,
         barcode: barcode || null,
         defaultUnitCost: cost,
+        revenueAccountId: revenueAccountId || null,
+        expenseAccountId: expenseAccountId || null,
         isActive,
       });
 
@@ -238,6 +262,39 @@ export function ItemEditPanel({
             <option value="true">Yes</option>
             <option value="false">No</option>
           </Select>
+        </div>
+      </div>
+
+      <div className="space-y-2 rounded-lg border border-[var(--card-border)] bg-[var(--surface-soft)] p-3">
+        <div>
+          <div className="text-sm font-semibold">Finance Account Mapping</div>
+          <div className="mt-1 text-xs text-[var(--muted-foreground)]">
+            Maintain the default income and expense accounts attached to this item master.
+          </div>
+        </div>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <div>
+            <label className="mb-1 block text-sm font-medium">Income / Revenue Account</label>
+            <Select value={revenueAccountId} onChange={(e) => setRevenueAccountId(e.target.value)}>
+              <option value="">(None)</option>
+              {revenueAccountOptions.map((account) => (
+                <option key={account.id} value={account.id}>
+                  {formatLedgerAccountOptionLabel(account)}
+                </option>
+              ))}
+            </Select>
+          </div>
+          <div>
+            <label className="mb-1 block text-sm font-medium">Expense Account</label>
+            <Select value={expenseAccountId} onChange={(e) => setExpenseAccountId(e.target.value)}>
+              <option value="">(None)</option>
+              {expenseAccountOptions.map((account) => (
+                <option key={account.id} value={account.id}>
+                  {formatLedgerAccountOptionLabel(account)}
+                </option>
+              ))}
+            </Select>
+          </div>
         </div>
       </div>
 

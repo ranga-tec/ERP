@@ -1,4 +1,5 @@
 using ISS.Domain.Common;
+using ISS.Domain.Finance;
 
 namespace ISS.Domain.MasterData;
 
@@ -30,7 +31,9 @@ public sealed class Item : AuditableEntity
         string? barcode,
         decimal defaultUnitCost,
         Guid? categoryId = null,
-        Guid? subcategoryId = null)
+        Guid? subcategoryId = null,
+        Guid? revenueAccountId = null,
+        Guid? expenseAccountId = null)
     {
         Sku = Guard.NotNullOrWhiteSpace(sku, nameof(Sku), maxLength: 64);
         Name = Guard.NotNullOrWhiteSpace(name, nameof(Name), maxLength: 256);
@@ -42,6 +45,8 @@ public sealed class Item : AuditableEntity
         DefaultUnitCost = Guard.NotNegative(defaultUnitCost, nameof(DefaultUnitCost));
         CategoryId = categoryId;
         SubcategoryId = subcategoryId;
+        RevenueAccountId = revenueAccountId;
+        ExpenseAccountId = expenseAccountId;
         IsActive = true;
     }
 
@@ -58,6 +63,10 @@ public sealed class Item : AuditableEntity
     public ItemSubcategory? Subcategory { get; private set; }
     public string? Barcode { get; private set; }
     public decimal DefaultUnitCost { get; private set; }
+    public Guid? RevenueAccountId { get; private set; }
+    public LedgerAccount? RevenueAccount { get; private set; }
+    public Guid? ExpenseAccountId { get; private set; }
+    public LedgerAccount? ExpenseAccount { get; private set; }
     public bool IsActive { get; private set; }
 
     public void Update(
@@ -69,7 +78,9 @@ public sealed class Item : AuditableEntity
         Guid? brandId,
         string? barcode,
         decimal defaultUnitCost,
-        bool isActive)
+        bool isActive,
+        Guid? revenueAccountId = null,
+        Guid? expenseAccountId = null)
         => Update(
             sku,
             name,
@@ -81,7 +92,9 @@ public sealed class Item : AuditableEntity
             defaultUnitCost,
             isActive,
             CategoryId,
-            SubcategoryId);
+            SubcategoryId,
+            revenueAccountId,
+            expenseAccountId);
 
     public void Update(
         string sku,
@@ -94,7 +107,9 @@ public sealed class Item : AuditableEntity
         decimal defaultUnitCost,
         bool isActive,
         Guid? categoryId,
-        Guid? subcategoryId)
+        Guid? subcategoryId,
+        Guid? revenueAccountId = null,
+        Guid? expenseAccountId = null)
     {
         Sku = Guard.NotNullOrWhiteSpace(sku, nameof(Sku), maxLength: 64);
         Name = Guard.NotNullOrWhiteSpace(name, nameof(Name), maxLength: 256);
@@ -106,6 +121,8 @@ public sealed class Item : AuditableEntity
         DefaultUnitCost = Guard.NotNegative(defaultUnitCost, nameof(DefaultUnitCost));
         CategoryId = categoryId;
         SubcategoryId = subcategoryId;
+        RevenueAccountId = revenueAccountId;
+        ExpenseAccountId = expenseAccountId;
         IsActive = isActive;
     }
 }

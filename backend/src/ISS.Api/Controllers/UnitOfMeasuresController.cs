@@ -9,7 +9,7 @@ namespace ISS.Api.Controllers;
 
 [ApiController]
 [Route("api/uoms")]
-[Authorize(Roles = $"{Roles.Admin},{Roles.Inventory}")]
+[Authorize(Roles = Roles.AllBusiness)]
 public sealed class UnitOfMeasuresController(IIssDbContext dbContext) : ControllerBase
 {
     public sealed record UnitOfMeasureDto(Guid Id, string Code, string Name, bool IsActive);
@@ -38,6 +38,7 @@ public sealed class UnitOfMeasuresController(IIssDbContext dbContext) : Controll
     }
 
     [HttpPost]
+    [Authorize(Roles = $"{Roles.Admin},{Roles.Inventory}")]
     public async Task<ActionResult<UnitOfMeasureDto>> Create(CreateUnitOfMeasureRequest request, CancellationToken cancellationToken)
     {
         var item = new UnitOfMeasure(request.Code, request.Name);
@@ -47,6 +48,7 @@ public sealed class UnitOfMeasuresController(IIssDbContext dbContext) : Controll
     }
 
     [HttpPut("{id:guid}")]
+    [Authorize(Roles = $"{Roles.Admin},{Roles.Inventory}")]
     public async Task<ActionResult<UnitOfMeasureDto>> Update(Guid id, UpdateUnitOfMeasureRequest request, CancellationToken cancellationToken)
     {
         var item = await dbContext.UnitOfMeasures.FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
@@ -61,6 +63,7 @@ public sealed class UnitOfMeasuresController(IIssDbContext dbContext) : Controll
     }
 
     [HttpDelete("{id:guid}")]
+    [Authorize(Roles = $"{Roles.Admin},{Roles.Inventory}")]
     public async Task<IActionResult> Delete(Guid id, CancellationToken cancellationToken)
     {
         var item = await dbContext.UnitOfMeasures.FirstOrDefaultAsync(x => x.Id == id, cancellationToken);

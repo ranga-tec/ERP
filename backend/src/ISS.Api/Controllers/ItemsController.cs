@@ -2,6 +2,7 @@ using ISS.Api.Security;
 using ISS.Api.Files;
 using ISS.Application.Abstractions;
 using ISS.Application.Persistence;
+using ISS.Domain.Finance;
 using ISS.Domain.MasterData;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -33,6 +34,12 @@ public sealed class ItemsController(IIssDbContext dbContext, IDocumentPdfService
         string? SubcategoryName,
         string? Barcode,
         decimal DefaultUnitCost,
+        Guid? RevenueAccountId,
+        string? RevenueAccountCode,
+        string? RevenueAccountName,
+        Guid? ExpenseAccountId,
+        string? ExpenseAccountCode,
+        string? ExpenseAccountName,
         bool IsActive);
 
     public sealed record CreateItemRequest(
@@ -45,7 +52,9 @@ public sealed class ItemsController(IIssDbContext dbContext, IDocumentPdfService
         Guid? CategoryId,
         Guid? SubcategoryId,
         string? Barcode,
-        decimal DefaultUnitCost);
+        decimal DefaultUnitCost,
+        Guid? RevenueAccountId,
+        Guid? ExpenseAccountId);
 
     public sealed record UpdateItemRequest(
         string Sku,
@@ -58,6 +67,8 @@ public sealed class ItemsController(IIssDbContext dbContext, IDocumentPdfService
         Guid? SubcategoryId,
         string? Barcode,
         decimal DefaultUnitCost,
+        Guid? RevenueAccountId,
+        Guid? ExpenseAccountId,
         bool IsActive);
 
     public sealed record ItemAttachmentDto(
@@ -108,6 +119,12 @@ public sealed class ItemsController(IIssDbContext dbContext, IDocumentPdfService
                 x.Subcategory != null ? x.Subcategory.Name : null,
                 x.Barcode,
                 x.DefaultUnitCost,
+                x.RevenueAccountId,
+                x.RevenueAccount != null ? x.RevenueAccount.Code : null,
+                x.RevenueAccount != null ? x.RevenueAccount.Name : null,
+                x.ExpenseAccountId,
+                x.ExpenseAccount != null ? x.ExpenseAccount.Code : null,
+                x.ExpenseAccount != null ? x.ExpenseAccount.Name : null,
                 x.IsActive))
             .ToListAsync(cancellationToken);
         return Ok(items);
@@ -134,6 +151,12 @@ public sealed class ItemsController(IIssDbContext dbContext, IDocumentPdfService
                 x.Subcategory != null ? x.Subcategory.Name : null,
                 x.Barcode,
                 x.DefaultUnitCost,
+                x.RevenueAccountId,
+                x.RevenueAccount != null ? x.RevenueAccount.Code : null,
+                x.RevenueAccount != null ? x.RevenueAccount.Name : null,
+                x.ExpenseAccountId,
+                x.ExpenseAccount != null ? x.ExpenseAccount.Code : null,
+                x.ExpenseAccount != null ? x.ExpenseAccount.Name : null,
                 x.IsActive))
             .FirstOrDefaultAsync(cancellationToken);
 
@@ -170,6 +193,12 @@ public sealed class ItemsController(IIssDbContext dbContext, IDocumentPdfService
                 x.Subcategory != null ? x.Subcategory.Name : null,
                 x.Barcode,
                 x.DefaultUnitCost,
+                x.RevenueAccountId,
+                x.RevenueAccount != null ? x.RevenueAccount.Code : null,
+                x.RevenueAccount != null ? x.RevenueAccount.Name : null,
+                x.ExpenseAccountId,
+                x.ExpenseAccount != null ? x.ExpenseAccount.Code : null,
+                x.ExpenseAccount != null ? x.ExpenseAccount.Name : null,
                 x.IsActive))
             .FirstOrDefaultAsync(cancellationToken);
 
@@ -186,6 +215,16 @@ public sealed class ItemsController(IIssDbContext dbContext, IDocumentPdfService
             return BadRequest(classificationError);
         }
 
+        var accountAssignmentError = await ValidateAccountAssignmentsAsync(
+            existingItem: null,
+            request.RevenueAccountId,
+            request.ExpenseAccountId,
+            cancellationToken);
+        if (accountAssignmentError is not null)
+        {
+            return BadRequest(accountAssignmentError);
+        }
+
         var item = new Item(
             request.Sku,
             request.Name,
@@ -196,7 +235,9 @@ public sealed class ItemsController(IIssDbContext dbContext, IDocumentPdfService
             request.Barcode,
             request.DefaultUnitCost,
             request.CategoryId,
-            request.SubcategoryId);
+            request.SubcategoryId,
+            request.RevenueAccountId,
+            request.ExpenseAccountId);
 
         await dbContext.Items.AddAsync(item, cancellationToken);
         await dbContext.SaveChangesAsync(cancellationToken);
@@ -219,6 +260,12 @@ public sealed class ItemsController(IIssDbContext dbContext, IDocumentPdfService
                 x.Subcategory != null ? x.Subcategory.Name : null,
                 x.Barcode,
                 x.DefaultUnitCost,
+                x.RevenueAccountId,
+                x.RevenueAccount != null ? x.RevenueAccount.Code : null,
+                x.RevenueAccount != null ? x.RevenueAccount.Name : null,
+                x.ExpenseAccountId,
+                x.ExpenseAccount != null ? x.ExpenseAccount.Code : null,
+                x.ExpenseAccount != null ? x.ExpenseAccount.Name : null,
                 x.IsActive))
             .FirstAsync(cancellationToken);
 
@@ -226,7 +273,7 @@ public sealed class ItemsController(IIssDbContext dbContext, IDocumentPdfService
     }
 
     [HttpPut("{id:guid}")]
-    [Authorize(Roles = $"{Roles.Admin},{Roles.Inventory}")]
+    [Authorize(Roles = $"{Roles.Admin},{Roles.Inventory},{Roles.Finance}")]
     public async Task<ActionResult<ItemDto>> Update(Guid id, UpdateItemRequest request, CancellationToken cancellationToken)
     {
         var classificationError = await ValidateClassificationAsync(request.CategoryId, request.SubcategoryId, cancellationToken);
@@ -241,6 +288,16 @@ public sealed class ItemsController(IIssDbContext dbContext, IDocumentPdfService
             return NotFound();
         }
 
+        var accountAssignmentError = await ValidateAccountAssignmentsAsync(
+            item,
+            request.RevenueAccountId,
+            request.ExpenseAccountId,
+            cancellationToken);
+        if (accountAssignmentError is not null)
+        {
+            return BadRequest(accountAssignmentError);
+        }
+
         item.Update(
             request.Sku,
             request.Name,
@@ -252,7 +309,9 @@ public sealed class ItemsController(IIssDbContext dbContext, IDocumentPdfService
             request.DefaultUnitCost,
             request.IsActive,
             request.CategoryId,
-            request.SubcategoryId);
+            request.SubcategoryId,
+            request.RevenueAccountId,
+            request.ExpenseAccountId);
 
         await dbContext.SaveChangesAsync(cancellationToken);
 
@@ -274,6 +333,12 @@ public sealed class ItemsController(IIssDbContext dbContext, IDocumentPdfService
                 x.Subcategory != null ? x.Subcategory.Name : null,
                 x.Barcode,
                 x.DefaultUnitCost,
+                x.RevenueAccountId,
+                x.RevenueAccount != null ? x.RevenueAccount.Code : null,
+                x.RevenueAccount != null ? x.RevenueAccount.Name : null,
+                x.ExpenseAccountId,
+                x.ExpenseAccount != null ? x.ExpenseAccount.Code : null,
+                x.ExpenseAccount != null ? x.ExpenseAccount.Name : null,
                 x.IsActive))
             .FirstAsync(cancellationToken);
 
@@ -598,6 +663,89 @@ public sealed class ItemsController(IIssDbContext dbContext, IDocumentPdfService
             {
                 return "Selected category does not exist.";
             }
+        }
+
+        return null;
+    }
+
+    private async Task<string?> ValidateAccountAssignmentsAsync(
+        Item? existingItem,
+        Guid? revenueAccountId,
+        Guid? expenseAccountId,
+        CancellationToken cancellationToken)
+    {
+        var revenueError = await ValidateLedgerAccountAssignmentAsync(
+            selectedAccountId: revenueAccountId,
+            existingAccountId: existingItem?.RevenueAccountId,
+            expectedType: LedgerAccountType.Revenue,
+            label: "Revenue",
+            cancellationToken);
+        if (revenueError is not null)
+        {
+            return revenueError;
+        }
+
+        var expenseError = await ValidateLedgerAccountAssignmentAsync(
+            selectedAccountId: expenseAccountId,
+            existingAccountId: existingItem?.ExpenseAccountId,
+            expectedType: LedgerAccountType.Expense,
+            label: "Expense",
+            cancellationToken);
+        if (expenseError is not null)
+        {
+            return expenseError;
+        }
+
+        return null;
+    }
+
+    private async Task<string?> ValidateLedgerAccountAssignmentAsync(
+        Guid? selectedAccountId,
+        Guid? existingAccountId,
+        LedgerAccountType expectedType,
+        string label,
+        CancellationToken cancellationToken)
+    {
+        if (selectedAccountId is null)
+        {
+            return null;
+        }
+
+        var account = await dbContext.LedgerAccounts.AsNoTracking()
+            .Where(x => x.Id == selectedAccountId.Value)
+            .Select(x => new
+            {
+                x.Id,
+                x.AccountType,
+                x.AllowsPosting,
+                x.IsActive
+            })
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (account is null)
+        {
+            return $"{label} account does not exist.";
+        }
+
+        if (account.AccountType != expectedType)
+        {
+            return $"{label} account must be a {expectedType} account.";
+        }
+
+        var unchangedExistingAssignment = existingAccountId == selectedAccountId.Value;
+        if (unchangedExistingAssignment)
+        {
+            return null;
+        }
+
+        if (!account.AllowsPosting)
+        {
+            return $"{label} account must allow posting.";
+        }
+
+        if (!account.IsActive)
+        {
+            return $"{label} account must be active.";
         }
 
         return null;

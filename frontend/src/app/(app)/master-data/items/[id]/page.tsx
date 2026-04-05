@@ -95,6 +95,18 @@ export default async function ItemDetailPage({ params }: { params: Promise<{ id:
             <div className="mt-1 text-sm">{item.defaultUnitCost}</div>
           </div>
           <div>
+            <div className="text-xs uppercase tracking-wide text-zinc-500">Income / Revenue Account</div>
+            <div className="mt-1 text-sm">
+              {item.revenueAccountCode ? `${item.revenueAccountCode} - ${item.revenueAccountName ?? ""}` : "-"}
+            </div>
+          </div>
+          <div>
+            <div className="text-xs uppercase tracking-wide text-zinc-500">Expense Account</div>
+            <div className="mt-1 text-sm">
+              {item.expenseAccountCode ? `${item.expenseAccountCode} - ${item.expenseAccountName ?? ""}` : "-"}
+            </div>
+          </div>
+          <div>
             <div className="text-xs uppercase tracking-wide text-zinc-500">Active</div>
             <div className="mt-1 text-sm">{item.isActive ? "Yes" : "No"}</div>
           </div>

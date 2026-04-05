@@ -9,7 +9,7 @@ namespace ISS.Api.Controllers;
 
 [ApiController]
 [Route("api/brands")]
-[Authorize(Roles = $"{Roles.Admin},{Roles.Inventory}")]
+[Authorize(Roles = Roles.AllBusiness)]
 public sealed class BrandsController(IIssDbContext dbContext) : ControllerBase
 {
     public sealed record BrandDto(Guid Id, string Code, string Name, bool IsActive);
@@ -38,6 +38,7 @@ public sealed class BrandsController(IIssDbContext dbContext) : ControllerBase
     }
 
     [HttpPost]
+    [Authorize(Roles = $"{Roles.Admin},{Roles.Inventory}")]
     public async Task<ActionResult<BrandDto>> Create(CreateBrandRequest request, CancellationToken cancellationToken)
     {
         var brand = new Brand(request.Code, request.Name);
@@ -47,6 +48,7 @@ public sealed class BrandsController(IIssDbContext dbContext) : ControllerBase
     }
 
     [HttpPut("{id:guid}")]
+    [Authorize(Roles = $"{Roles.Admin},{Roles.Inventory}")]
     public async Task<ActionResult<BrandDto>> Update(Guid id, UpdateBrandRequest request, CancellationToken cancellationToken)
     {
         var brand = await dbContext.Brands.FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
@@ -61,6 +63,7 @@ public sealed class BrandsController(IIssDbContext dbContext) : ControllerBase
     }
 
     [HttpDelete("{id:guid}")]
+    [Authorize(Roles = $"{Roles.Admin},{Roles.Inventory}")]
     public async Task<IActionResult> Delete(Guid id, CancellationToken cancellationToken)
     {
         var brand = await dbContext.Brands.FirstOrDefaultAsync(x => x.Id == id, cancellationToken);

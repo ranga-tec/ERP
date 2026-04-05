@@ -224,6 +224,8 @@ public sealed class IssDbContext(
             entity.HasIndex(x => x.Barcode).IsUnique();
             entity.HasIndex(x => x.CategoryId);
             entity.HasIndex(x => x.SubcategoryId);
+            entity.HasIndex(x => x.RevenueAccountId);
+            entity.HasIndex(x => x.ExpenseAccountId);
             entity.Property(x => x.Sku).HasMaxLength(64);
             entity.Property(x => x.Name).HasMaxLength(256);
             entity.Property(x => x.UnitOfMeasure).HasMaxLength(32);
@@ -231,6 +233,8 @@ public sealed class IssDbContext(
             entity.HasOne(x => x.Brand).WithMany().HasForeignKey(x => x.BrandId);
             entity.HasOne(x => x.Category).WithMany().HasForeignKey(x => x.CategoryId);
             entity.HasOne(x => x.Subcategory).WithMany().HasForeignKey(x => x.SubcategoryId);
+            entity.HasOne(x => x.RevenueAccount).WithMany().HasForeignKey(x => x.RevenueAccountId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(x => x.ExpenseAccount).WithMany().HasForeignKey(x => x.ExpenseAccountId).OnDelete(DeleteBehavior.Restrict);
         });
 
         builder.Entity<ItemAttachment>(entity =>

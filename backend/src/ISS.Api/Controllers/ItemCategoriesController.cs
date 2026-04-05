@@ -9,7 +9,7 @@ namespace ISS.Api.Controllers;
 
 [ApiController]
 [Route("api/item-categories")]
-[Authorize(Roles = $"{Roles.Admin},{Roles.Inventory}")]
+[Authorize(Roles = Roles.AllBusiness)]
 public sealed class ItemCategoriesController(IIssDbContext dbContext) : ControllerBase
 {
     public sealed record ItemCategoryDto(Guid Id, string Code, string Name, bool IsActive);
@@ -38,6 +38,7 @@ public sealed class ItemCategoriesController(IIssDbContext dbContext) : Controll
     }
 
     [HttpPost]
+    [Authorize(Roles = $"{Roles.Admin},{Roles.Inventory}")]
     public async Task<ActionResult<ItemCategoryDto>> Create(CreateItemCategoryRequest request, CancellationToken cancellationToken)
     {
         var item = new ItemCategory(request.Code, request.Name);
@@ -47,6 +48,7 @@ public sealed class ItemCategoriesController(IIssDbContext dbContext) : Controll
     }
 
     [HttpPut("{id:guid}")]
+    [Authorize(Roles = $"{Roles.Admin},{Roles.Inventory}")]
     public async Task<ActionResult<ItemCategoryDto>> Update(Guid id, UpdateItemCategoryRequest request, CancellationToken cancellationToken)
     {
         var item = await dbContext.ItemCategories.FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
@@ -61,6 +63,7 @@ public sealed class ItemCategoriesController(IIssDbContext dbContext) : Controll
     }
 
     [HttpDelete("{id:guid}")]
+    [Authorize(Roles = $"{Roles.Admin},{Roles.Inventory}")]
     public async Task<IActionResult> Delete(Guid id, CancellationToken cancellationToken)
     {
         var item = await dbContext.ItemCategories.FirstOrDefaultAsync(x => x.Id == id, cancellationToken);

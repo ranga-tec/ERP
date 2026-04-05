@@ -72,6 +72,24 @@ function ItemListRow({
       <td className="py-2 pr-3 text-zinc-500">{brandCode || "-"}</td>
       <td className="py-2 pr-3 font-mono text-xs text-zinc-500">{item.barcode ?? "-"}</td>
       <td className="py-2 pr-3">{item.defaultUnitCost}</td>
+      <td className="py-2 pr-3 text-zinc-500">
+        {item.revenueAccountCode ? (
+          <>
+            <span className="font-mono text-xs">{item.revenueAccountCode}</span> {item.revenueAccountName ?? ""}
+          </>
+        ) : (
+          "-"
+        )}
+      </td>
+      <td className="py-2 pr-3 text-zinc-500">
+        {item.expenseAccountCode ? (
+          <>
+            <span className="font-mono text-xs">{item.expenseAccountCode}</span> {item.expenseAccountName ?? ""}
+          </>
+        ) : (
+          "-"
+        )}
+      </td>
       <td className="py-2 pr-3">{item.isActive ? "Yes" : "No"}</td>
       <td className="py-2 pr-3">
         <div className="flex flex-wrap items-center gap-2">
@@ -154,6 +172,10 @@ export function ItemListPanel({
         item.categoryName ?? "",
         item.subcategoryCode ?? "",
         item.subcategoryName ?? "",
+        item.revenueAccountCode ?? "",
+        item.revenueAccountName ?? "",
+        item.expenseAccountCode ?? "",
+        item.expenseAccountName ?? "",
       ]
         .join(" ")
         .toLowerCase();
@@ -268,6 +290,8 @@ export function ItemListPanel({
               <th className="py-2 pr-3">Brand</th>
               <th className="py-2 pr-3">Barcode</th>
               <th className="py-2 pr-3">Default Cost</th>
+              <th className="py-2 pr-3">Income Acct</th>
+              <th className="py-2 pr-3">Expense Acct</th>
               <th className="py-2 pr-3">Active</th>
               <th className="py-2 pr-3">Actions</th>
               <th className="py-2 pr-3">Links</th>
@@ -284,7 +308,7 @@ export function ItemListPanel({
             ))}
             {filteredItems.length === 0 ? (
               <tr>
-                <td className="py-6 text-sm text-zinc-500" colSpan={13}>
+                <td className="py-6 text-sm text-zinc-500" colSpan={15}>
                   No items match the current filters.
                 </td>
               </tr>

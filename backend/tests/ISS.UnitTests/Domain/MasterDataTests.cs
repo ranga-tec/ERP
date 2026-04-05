@@ -15,14 +15,39 @@ public sealed class MasterDataTests
     [Fact]
     public void Item_Can_Be_Created_And_Updated()
     {
-        var item = new Item("SKU-1", "Bolt", ItemType.SparePart, TrackingType.None, "PCS", null, "123", 10m);
-        item.Update("SKU-2", "Bolt M8", ItemType.SparePart, TrackingType.Batch, "PCS", null, "456", 12m, isActive: false);
+        var revenueAccountId = Guid.NewGuid();
+        var expenseAccountId = Guid.NewGuid();
+
+        var item = new Item(
+            "SKU-1",
+            "Bolt",
+            ItemType.SparePart,
+            TrackingType.None,
+            "PCS",
+            null,
+            "123",
+            10m,
+            revenueAccountId: revenueAccountId,
+            expenseAccountId: expenseAccountId);
+        item.Update(
+            "SKU-2",
+            "Bolt M8",
+            ItemType.SparePart,
+            TrackingType.Batch,
+            "PCS",
+            null,
+            "456",
+            12m,
+            isActive: false,
+            revenueAccountId: revenueAccountId,
+            expenseAccountId: expenseAccountId);
 
         Assert.Equal("SKU-2", item.Sku);
         Assert.Equal("Bolt M8", item.Name);
         Assert.Equal(TrackingType.Batch, item.TrackingType);
         Assert.Equal("456", item.Barcode);
+        Assert.Equal(revenueAccountId, item.RevenueAccountId);
+        Assert.Equal(expenseAccountId, item.ExpenseAccountId);
         Assert.False(item.IsActive);
     }
 }
-

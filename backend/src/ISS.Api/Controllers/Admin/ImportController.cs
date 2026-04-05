@@ -2,6 +2,7 @@ using ClosedXML.Excel;
 using ISS.Api.Security;
 using ISS.Application.Persistence;
 using ISS.Domain.Common;
+using ISS.Domain.Finance;
 using ISS.Domain.MasterData;
 using ISS.Domain.Service;
 using Microsoft.AspNetCore.Authorization;
@@ -41,7 +42,7 @@ public sealed class ImportController(IIssDbContext dbContext) : ControllerBase
         AddHeaders(workbook.AddWorksheet("Warehouses"), ["Code", "Name", "Address", "IsActive"]);
         AddHeaders(workbook.AddWorksheet("Suppliers"), ["Code", "Name", "Phone", "Email", "Address", "IsActive"]);
         AddHeaders(workbook.AddWorksheet("Customers"), ["Code", "Name", "Phone", "Email", "Address", "IsActive"]);
-        AddHeaders(workbook.AddWorksheet("Items"), ["Sku", "Name", "Type", "TrackingType", "UnitOfMeasure", "BrandCode", "Barcode", "DefaultUnitCost", "IsActive"]);
+        AddHeaders(workbook.AddWorksheet("Items"), ["Sku", "Name", "Type", "TrackingType", "UnitOfMeasure", "BrandCode", "Barcode", "DefaultUnitCost", "RevenueAccountCode", "ExpenseAccountCode", "IsActive"]);
         AddHeaders(workbook.AddWorksheet("ReorderSettings"), ["WarehouseCode", "ItemSku", "ReorderPoint", "ReorderQuantity"]);
         AddHeaders(workbook.AddWorksheet("EquipmentUnits"), ["ItemSku", "SerialNumber", "CustomerCode", "PurchasedAt", "WarrantyUntil"]);
 
@@ -75,6 +76,8 @@ public sealed class ImportController(IIssDbContext dbContext) : ControllerBase
             .ToDictionary(x => x.Code, x => x, StringComparer.OrdinalIgnoreCase);
         var customerByCode = (await dbContext.Customers.ToListAsync(cancellationToken))
             .ToDictionary(x => x.Code, x => x, StringComparer.OrdinalIgnoreCase);
+        var ledgerAccountByCode = (await dbContext.LedgerAccounts.ToListAsync(cancellationToken))
+            .ToDictionary(x => x.Code, x => x, StringComparer.OrdinalIgnoreCase);
         var itemBySku = (await dbContext.Items.ToListAsync(cancellationToken))
             .ToDictionary(x => x.Sku, x => x, StringComparer.OrdinalIgnoreCase);
         var reorderByKey = await dbContext.ReorderSettings.ToDictionaryAsync(x => $"{x.WarehouseId:N}:{x.ItemId:N}", x => x, cancellationToken);
@@ -87,7 +90,7 @@ public sealed class ImportController(IIssDbContext dbContext) : ControllerBase
         ImportWarehouses(workbook, dbContext, warehouseByCode, counters, errors);
         ImportSuppliers(workbook, dbContext, supplierByCode, counters, errors);
         ImportCustomers(workbook, dbContext, customerByCode, counters, errors);
-        ImportItems(workbook, dbContext, itemBySku, brandByCode, counters, errors);
+        ImportItems(workbook, dbContext, itemBySku, brandByCode, ledgerAccountByCode, counters, errors);
         ImportReorderSettings(workbook, dbContext, reorderByKey, warehouseByCode, itemBySku, counters, errors);
         ImportEquipmentUnits(workbook, dbContext, equipmentBySerial, itemBySku, customerByCode, counters, errors);
 
@@ -319,6 +322,7 @@ public sealed class ImportController(IIssDbContext dbContext) : ControllerBase
         IIssDbContext dbContext,
         Dictionary<string, Item> itemBySku,
         Dictionary<string, Brand> brandByCode,
+        Dictionary<string, LedgerAccount> ledgerAccountByCode,
         Counters counters,
         List<string> errors)
     {
@@ -337,7 +341,9 @@ public sealed class ImportController(IIssDbContext dbContext) : ControllerBase
             var brandCode = GetNullableString(row, 6);
             var barcode = GetNullableString(row, 7);
             var unitCost = GetDecimal(row, 8, defaultValue: 0m);
-            var isActive = GetBool(row, 9, defaultValue: true);
+            var revenueAccountCode = GetNullableString(row, 9);
+            var expenseAccountCode = GetNullableString(row, 10);
+            var isActive = GetBool(row, 11, defaultValue: true);
 
             if (IsBlankRow(sku, name, typeRaw, trackingRaw, uom, brandCode, barcode))
             {
@@ -379,15 +385,51 @@ public sealed class ImportController(IIssDbContext dbContext) : ControllerBase
                 brandId = brand.Id;
             }
 
+            Guid? revenueAccountId = null;
+            if (!string.IsNullOrWhiteSpace(revenueAccountCode))
+            {
+                if (!ledgerAccountByCode.TryGetValue(revenueAccountCode, out var revenueAccount))
+                {
+                    errors.Add($"Items row {row.RowNumber()}: RevenueAccountCode '{revenueAccountCode}' not found.");
+                    continue;
+                }
+
+                if (revenueAccount.AccountType != LedgerAccountType.Revenue)
+                {
+                    errors.Add($"Items row {row.RowNumber()}: RevenueAccountCode '{revenueAccountCode}' is not a Revenue account.");
+                    continue;
+                }
+
+                revenueAccountId = revenueAccount.Id;
+            }
+
+            Guid? expenseAccountId = null;
+            if (!string.IsNullOrWhiteSpace(expenseAccountCode))
+            {
+                if (!ledgerAccountByCode.TryGetValue(expenseAccountCode, out var expenseAccount))
+                {
+                    errors.Add($"Items row {row.RowNumber()}: ExpenseAccountCode '{expenseAccountCode}' not found.");
+                    continue;
+                }
+
+                if (expenseAccount.AccountType != LedgerAccountType.Expense)
+                {
+                    errors.Add($"Items row {row.RowNumber()}: ExpenseAccountCode '{expenseAccountCode}' is not an Expense account.");
+                    continue;
+                }
+
+                expenseAccountId = expenseAccount.Id;
+            }
+
             if (itemBySku.TryGetValue(sku, out var existing))
             {
-                existing.Update(sku, name, itemType, trackingType, uom, brandId, barcode, unitCost, isActive);
+                existing.Update(sku, name, itemType, trackingType, uom, brandId, barcode, unitCost, isActive, revenueAccountId, expenseAccountId);
                 counters.ItemsUpdated++;
                 continue;
             }
 
-            var created = new Item(sku, name, itemType, trackingType, uom, brandId, barcode, unitCost);
-            created.Update(sku, name, itemType, trackingType, uom, brandId, barcode, unitCost, isActive);
+            var created = new Item(sku, name, itemType, trackingType, uom, brandId, barcode, unitCost, revenueAccountId: revenueAccountId, expenseAccountId: expenseAccountId);
+            created.Update(sku, name, itemType, trackingType, uom, brandId, barcode, unitCost, isActive, revenueAccountId, expenseAccountId);
             dbContext.Items.Add(created);
             itemBySku[sku] = created;
             counters.ItemsCreated++;
