@@ -7,6 +7,9 @@ import { Button, Input, SecondaryButton, Textarea } from "@/components/ui";
 
 type DirectPurchaseLineDto = {
   id: string;
+  expenseAccountId?: string | null;
+  expenseAccountCode?: string | null;
+  expenseAccountName?: string | null;
   quantity: number;
   unitPrice: number;
   taxPercent: number;
@@ -110,6 +113,11 @@ export function DirectPurchaseLineRow({
   return (
     <tr className="border-b border-zinc-100 align-top dark:border-zinc-900">
       <td className="py-2 pr-3">{itemLabel}</td>
+      <td className="py-2 pr-3 text-sm">
+        {line.expenseAccountCode ? `${line.expenseAccountCode}${line.expenseAccountName ? ` - ${line.expenseAccountName}` : ""}` : (
+          <span className="text-amber-700 dark:text-amber-300">Unassigned</span>
+        )}
+      </td>
       <td className="py-2 pr-3">
         {isEditing ? (
           <Input value={quantity} onChange={(e) => setQuantity(e.target.value)} inputMode="decimal" className="min-w-20" />

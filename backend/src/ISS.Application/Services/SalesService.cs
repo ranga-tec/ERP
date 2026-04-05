@@ -13,7 +13,8 @@ public sealed class SalesService(
     IDocumentNumberService documentNumberService,
     IClock clock,
     InventoryService inventoryService,
-    NotificationService notificationService)
+    NotificationService notificationService,
+    DocumentAccountMappingService documentAccountMappingService)
 {
     public async Task<Guid> CreateQuoteAsync(Guid customerId, DateTimeOffset? validUntil, CancellationToken cancellationToken = default)
     {
@@ -405,7 +406,8 @@ public sealed class SalesService(
         var invoice = await dbContext.SalesInvoices.Include(x => x.Lines).FirstOrDefaultAsync(x => x.Id == invoiceId, cancellationToken)
                       ?? throw new NotFoundException("Sales invoice not found.");
 
-        var line = invoice.AddLine(itemId, quantity, unitPrice, discountPercent, taxPercent);
+        var revenueAccountId = await documentAccountMappingService.ResolveRevenueAccountIdAsync(itemId, cancellationToken);
+        var line = invoice.AddLine(itemId, quantity, unitPrice, discountPercent, taxPercent, revenueAccountId);
         dbContext.DbContext.Add(line);
         await dbContext.SaveChangesAsync(cancellationToken);
     }
@@ -427,7 +429,9 @@ public sealed class SalesService(
             throw new NotFoundException("Sales invoice line not found.");
         }
 
-        invoice.UpdateLine(lineId, quantity, unitPrice, discountPercent, taxPercent);
+        var line = invoice.Lines.First(x => x.Id == lineId);
+        var revenueAccountId = await documentAccountMappingService.ResolveRevenueAccountIdAsync(line.ItemId, cancellationToken);
+        invoice.UpdateLine(lineId, quantity, unitPrice, discountPercent, taxPercent, revenueAccountId);
         await dbContext.SaveChangesAsync(cancellationToken);
     }
 
@@ -449,6 +453,7 @@ public sealed class SalesService(
         var invoice = await dbContext.SalesInvoices.Include(x => x.Lines).FirstOrDefaultAsync(x => x.Id == invoiceId, cancellationToken)
                       ?? throw new NotFoundException("Sales invoice not found.");
 
+        await RefreshInvoiceRevenueAccountsAsync(invoice, cancellationToken);
         invoice.Post();
 
         await dbContext.AccountsReceivableEntries.AddAsync(
@@ -481,6 +486,21 @@ public sealed class SalesService(
         }
 
         await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    internal async Task RefreshInvoiceRevenueAccountsAsync(SalesInvoice invoice, CancellationToken cancellationToken)
+    {
+        var revenueAccountsByItemId = await documentAccountMappingService.ResolveForItemsAsync(
+            invoice.Lines.Select(line => line.ItemId),
+            cancellationToken);
+
+        foreach (var line in invoice.Lines)
+        {
+            line.AssignRevenueAccount(
+                revenueAccountsByItemId.TryGetValue(line.ItemId, out var mapping)
+                    ? mapping.RevenueAccountId
+                    : null);
+        }
     }
 
     public async Task<Guid> CreateCustomerReturnAsync(

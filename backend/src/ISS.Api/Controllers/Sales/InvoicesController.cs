@@ -16,7 +16,17 @@ public sealed class InvoicesController(IIssDbContext dbContext, SalesService sal
 {
     public sealed record InvoiceSummaryDto(Guid Id, string Number, Guid CustomerId, DateTimeOffset InvoiceDate, DateTimeOffset? DueDate, SalesInvoiceStatus Status, decimal Total);
     public sealed record InvoiceDto(Guid Id, string Number, Guid CustomerId, DateTimeOffset InvoiceDate, DateTimeOffset? DueDate, SalesInvoiceStatus Status, decimal Subtotal, decimal TaxTotal, decimal Total, IReadOnlyList<InvoiceLineDto> Lines);
-    public sealed record InvoiceLineDto(Guid Id, Guid ItemId, decimal Quantity, decimal UnitPrice, decimal DiscountPercent, decimal TaxPercent, decimal LineTotal);
+    public sealed record InvoiceLineDto(
+        Guid Id,
+        Guid ItemId,
+        Guid? RevenueAccountId,
+        string? RevenueAccountCode,
+        string? RevenueAccountName,
+        decimal Quantity,
+        decimal UnitPrice,
+        decimal DiscountPercent,
+        decimal TaxPercent,
+        decimal LineTotal);
 
     public sealed record CreateInvoiceRequest(Guid CustomerId, DateTimeOffset? DueDate);
     public sealed record AddInvoiceLineRequest(Guid ItemId, decimal Quantity, decimal UnitPrice, decimal DiscountPercent, decimal TaxPercent);
@@ -100,6 +110,7 @@ public sealed class InvoicesController(IIssDbContext dbContext, SalesService sal
     {
         var invoice = await dbContext.SalesInvoices.AsNoTracking()
             .Include(x => x.Lines)
+            .ThenInclude(x => x.RevenueAccount)
             .FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
 
         if (invoice is null)
@@ -117,7 +128,17 @@ public sealed class InvoicesController(IIssDbContext dbContext, SalesService sal
             invoice.Subtotal,
             invoice.TaxTotal,
             invoice.Total,
-            invoice.Lines.Select(l => new InvoiceLineDto(l.Id, l.ItemId, l.Quantity, l.UnitPrice, l.DiscountPercent, l.TaxPercent, l.LineTotal)).ToList()));
+            invoice.Lines.Select(l => new InvoiceLineDto(
+                l.Id,
+                l.ItemId,
+                l.RevenueAccountId,
+                l.RevenueAccount != null ? l.RevenueAccount.Code : null,
+                l.RevenueAccount != null ? l.RevenueAccount.Name : null,
+                l.Quantity,
+                l.UnitPrice,
+                l.DiscountPercent,
+                l.TaxPercent,
+                l.LineTotal)).ToList()));
     }
 
     [HttpGet("{id:guid}/pdf")]

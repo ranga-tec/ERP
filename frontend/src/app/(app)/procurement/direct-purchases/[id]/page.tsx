@@ -23,6 +23,9 @@ type DirectPurchaseDto = {
   lines: {
     id: string;
     itemId: string;
+    expenseAccountId?: string | null;
+    expenseAccountCode?: string | null;
+    expenseAccountName?: string | null;
     quantity: number;
     unitPrice: number;
     taxPercent: number;
@@ -63,6 +66,7 @@ export default async function DirectPurchaseDetailPage({ params }: { params: Pro
   const itemById = new Map(items.map((i) => [i.id, i]));
   const jobById = new Map(serviceJobs.map((job) => [job.id, job]));
   const isDraft = dp.status === 0;
+  const unresolvedExpenseLineCount = dp.lines.filter((line) => !line.expenseAccountId).length;
 
   return (
     <div className="space-y-6">
@@ -122,6 +126,7 @@ export default async function DirectPurchaseDetailPage({ params }: { params: Pro
             <thead>
               <tr className="border-b border-zinc-200 text-left text-xs uppercase tracking-wide text-zinc-500 dark:border-zinc-800">
                 <th className="py-2 pr-3">Item</th>
+                <th className="py-2 pr-3">Expense Acct</th>
                 <th className="py-2 pr-3">Qty</th>
                 <th className="py-2 pr-3">Unit Price</th>
                 <th className="py-2 pr-3">Tax %</th>
@@ -151,7 +156,7 @@ export default async function DirectPurchaseDetailPage({ params }: { params: Pro
               })}
               {dp.lines.length === 0 ? (
                 <tr>
-                  <td className="py-6 text-sm text-zinc-500" colSpan={isDraft ? 8 : 7}>
+                  <td className="py-6 text-sm text-zinc-500" colSpan={isDraft ? 9 : 8}>
                     No lines yet.
                   </td>
                 </tr>
@@ -160,6 +165,14 @@ export default async function DirectPurchaseDetailPage({ params }: { params: Pro
           </Table>
         </div>
       </Card>
+
+      {unresolvedExpenseLineCount > 0 ? (
+        <Card>
+          <div className="text-sm text-amber-700 dark:text-amber-300">
+            {unresolvedExpenseLineCount} direct-purchase line(s) do not have a resolved expense account from the item or item category mapping.
+          </div>
+        </Card>
+      ) : null}
 
       <DocumentCollaborationPanel referenceType="DPR" referenceId={id} />
     </div>

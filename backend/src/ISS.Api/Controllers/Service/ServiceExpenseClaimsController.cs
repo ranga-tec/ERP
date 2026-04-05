@@ -36,6 +36,9 @@ public sealed class ServiceExpenseClaimsController(
     public sealed record ServiceExpenseClaimLineDto(
         Guid Id,
         Guid? ItemId,
+        Guid? ExpenseAccountId,
+        string? ExpenseAccountCode,
+        string? ExpenseAccountName,
         string Description,
         decimal Quantity,
         decimal UnitCost,
@@ -157,6 +160,7 @@ public sealed class ServiceExpenseClaimsController(
     {
         var claim = await dbContext.ServiceExpenseClaims.AsNoTracking()
             .Include(x => x.Lines)
+            .ThenInclude(line => line.ExpenseAccount)
             .FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
 
         if (claim is null)
@@ -189,6 +193,9 @@ public sealed class ServiceExpenseClaimsController(
             claim.Lines.Select(line => new ServiceExpenseClaimLineDto(
                 line.Id,
                 line.ItemId,
+                line.ExpenseAccountId,
+                line.ExpenseAccount != null ? line.ExpenseAccount.Code : null,
+                line.ExpenseAccount != null ? line.ExpenseAccount.Name : null,
                 line.Description,
                 line.Quantity,
                 line.UnitCost,

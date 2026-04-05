@@ -1,4 +1,5 @@
 using ISS.Domain.Common;
+using ISS.Domain.Finance;
 
 namespace ISS.Domain.Procurement;
 
@@ -40,7 +41,13 @@ public sealed class DirectPurchase : AuditableEntity
 
     public List<DirectPurchaseLine> Lines { get; private set; } = new();
 
-    public DirectPurchaseLine AddLine(Guid itemId, decimal quantity, decimal unitPrice, decimal taxPercent, string? batchNumber)
+    public DirectPurchaseLine AddLine(
+        Guid itemId,
+        decimal quantity,
+        decimal unitPrice,
+        decimal taxPercent,
+        string? batchNumber,
+        Guid? expenseAccountId = null)
     {
         EnsureDraftEditable();
 
@@ -50,7 +57,8 @@ public sealed class DirectPurchase : AuditableEntity
             Guard.Positive(quantity, nameof(quantity)),
             Guard.NotNegative(unitPrice, nameof(unitPrice)),
             Guard.NotNegative(taxPercent, nameof(taxPercent)),
-            batchNumber);
+            batchNumber,
+            expenseAccountId);
 
         Lines.Add(line);
         return line;
@@ -62,14 +70,15 @@ public sealed class DirectPurchase : AuditableEntity
         decimal unitPrice,
         decimal taxPercent,
         string? batchNumber,
-        IReadOnlyCollection<string>? serialNumbers)
+        IReadOnlyCollection<string>? serialNumbers,
+        Guid? expenseAccountId = null)
     {
         EnsureDraftEditable();
 
         var line = Lines.FirstOrDefault(x => x.Id == lineId)
             ?? throw new DomainValidationException("Direct purchase line not found.");
 
-        line.Update(quantity, unitPrice, taxPercent, batchNumber);
+        line.Update(quantity, unitPrice, taxPercent, batchNumber, expenseAccountId);
         line.ReplaceSerials(serialNumbers);
     }
 
@@ -130,7 +139,14 @@ public sealed class DirectPurchaseLine : Entity
 {
     private DirectPurchaseLine() { }
 
-    public DirectPurchaseLine(Guid directPurchaseId, Guid itemId, decimal quantity, decimal unitPrice, decimal taxPercent, string? batchNumber)
+    public DirectPurchaseLine(
+        Guid directPurchaseId,
+        Guid itemId,
+        decimal quantity,
+        decimal unitPrice,
+        decimal taxPercent,
+        string? batchNumber,
+        Guid? expenseAccountId = null)
     {
         DirectPurchaseId = directPurchaseId;
         ItemId = itemId;
@@ -138,6 +154,7 @@ public sealed class DirectPurchaseLine : Entity
         UnitPrice = unitPrice;
         TaxPercent = taxPercent;
         BatchNumber = batchNumber?.Trim();
+        ExpenseAccountId = expenseAccountId;
     }
 
     public Guid DirectPurchaseId { get; private set; }
@@ -146,6 +163,8 @@ public sealed class DirectPurchaseLine : Entity
     public decimal UnitPrice { get; private set; }
     public decimal TaxPercent { get; private set; }
     public string? BatchNumber { get; private set; }
+    public Guid? ExpenseAccountId { get; private set; }
+    public LedgerAccount? ExpenseAccount { get; private set; }
 
     public List<DirectPurchaseLineSerial> Serials { get; private set; } = new();
 
@@ -153,13 +172,16 @@ public sealed class DirectPurchaseLine : Entity
     public decimal LineTax => LineSubTotal * (TaxPercent / 100m);
     public decimal LineTotal => LineSubTotal + LineTax;
 
-    public void Update(decimal quantity, decimal unitPrice, decimal taxPercent, string? batchNumber)
+    public void Update(decimal quantity, decimal unitPrice, decimal taxPercent, string? batchNumber, Guid? expenseAccountId = null)
     {
         Quantity = Guard.Positive(quantity, nameof(quantity));
         UnitPrice = Guard.NotNegative(unitPrice, nameof(unitPrice));
         TaxPercent = Guard.NotNegative(taxPercent, nameof(taxPercent));
         BatchNumber = batchNumber?.Trim();
+        ExpenseAccountId = expenseAccountId;
     }
+
+    public void AssignExpenseAccount(Guid? expenseAccountId) => ExpenseAccountId = expenseAccountId;
 
     public void AddSerial(string serialNumber)
     {

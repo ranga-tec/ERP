@@ -23,6 +23,9 @@ type InvoiceDto = {
   lines: {
     id: string;
     itemId: string;
+    revenueAccountId?: string | null;
+    revenueAccountCode?: string | null;
+    revenueAccountName?: string | null;
     quantity: number;
     unitPrice: number;
     discountPercent: number;
@@ -70,6 +73,7 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
     items.map((item) => [item.id, `${item.sku} ${item.name}`.toLowerCase()]),
   );
   const isDraft = invoice.status === 0;
+  const unresolvedRevenueLineCount = invoice.lines.filter((line) => !line.revenueAccountId).length;
 
   return (
     <div className="space-y-6">
@@ -133,6 +137,14 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
           canEdit={isDraft && canManageInvoices}
         />
       </Card>
+
+      {unresolvedRevenueLineCount > 0 ? (
+        <Card>
+          <div className="text-sm text-amber-700 dark:text-amber-300">
+            {unresolvedRevenueLineCount} invoice line(s) do not have a resolved income account from the item or item category mapping.
+          </div>
+        </Card>
+      ) : null}
 
       <DocumentCollaborationPanel referenceType="INV" referenceId={id} />
     </div>

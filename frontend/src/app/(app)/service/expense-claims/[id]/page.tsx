@@ -36,6 +36,9 @@ type ServiceExpenseClaimDto = {
   lines: {
     id: string;
     itemId?: string | null;
+    expenseAccountId?: string | null;
+    expenseAccountCode?: string | null;
+    expenseAccountName?: string | null;
     description: string;
     quantity: number;
     unitCost: number;
@@ -93,6 +96,7 @@ export default async function ServiceExpenseClaimDetailPage({ params }: { params
   const canSettle = claim.status === 2 && isFinanceOrAdmin;
   const canConvertBillable = !isDraft && claim.billableUnconvertedLineCount > 0 && (claim.status === 2 || claim.status === 4);
   const jobEstimates = estimates.filter((estimate) => estimate.serviceJobId === claim.serviceJobId);
+  const unresolvedExpenseLineCount = claim.lines.filter((line) => !line.expenseAccountId).length;
 
   return (
     <div className="space-y-6">
@@ -199,6 +203,7 @@ export default async function ServiceExpenseClaimDetailPage({ params }: { params
               <tr className="border-b border-zinc-200 text-left text-xs uppercase tracking-wide text-zinc-500 dark:border-zinc-800">
                 <th className="py-2 pr-3">Item</th>
                 <th className="py-2 pr-3">Description</th>
+                <th className="py-2 pr-3">Expense Acct</th>
                 <th className="py-2 pr-3">Qty</th>
                 <th className="py-2 pr-3">Unit Cost</th>
                 <th className="py-2 pr-3">Billable</th>
@@ -223,6 +228,11 @@ export default async function ServiceExpenseClaimDetailPage({ params }: { params
                       {line.itemId ? `${items.find((item) => item.id === line.itemId)?.sku ?? line.itemId}` : "-"}
                     </td>
                     <td className="py-2 pr-3 text-zinc-500">{line.description}</td>
+                    <td className="py-2 pr-3 text-sm">
+                      {line.expenseAccountCode ? `${line.expenseAccountCode}${line.expenseAccountName ? ` - ${line.expenseAccountName}` : ""}` : (
+                        <span className="text-amber-700 dark:text-amber-300">Unassigned</span>
+                      )}
+                    </td>
                     <td className="py-2 pr-3">{line.quantity}</td>
                     <td className="py-2 pr-3">{line.unitCost.toFixed(2)}</td>
                     <td className="py-2 pr-3">{line.billableToCustomer ? "Yes" : "No"}</td>
@@ -241,7 +251,7 @@ export default async function ServiceExpenseClaimDetailPage({ params }: { params
               )}
               {claim.lines.length === 0 ? (
                 <tr>
-                  <td className="py-6 text-sm text-zinc-500" colSpan={isDraft ? 8 : 7}>
+                  <td className="py-6 text-sm text-zinc-500" colSpan={isDraft ? 9 : 8}>
                     No lines yet.
                   </td>
                 </tr>
@@ -250,6 +260,14 @@ export default async function ServiceExpenseClaimDetailPage({ params }: { params
           </Table>
         </div>
       </Card>
+
+      {unresolvedExpenseLineCount > 0 ? (
+        <Card>
+          <div className="text-sm text-amber-700 dark:text-amber-300">
+            {unresolvedExpenseLineCount} expense-claim line(s) do not have a resolved expense account from the item or item category mapping.
+          </div>
+        </Card>
+      ) : null}
 
       {!isDraft && claim.lines.some((line) => line.billableToCustomer) ? (
         <Card>

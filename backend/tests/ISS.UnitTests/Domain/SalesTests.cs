@@ -35,5 +35,16 @@ public sealed class SalesTests
         Assert.Equal(27m, invoice.TaxTotal);  // 15% of 180
         Assert.Equal(207m, invoice.Total);
     }
-}
 
+    [Fact]
+    public void Invoice_Line_Can_Store_Revenue_Account()
+    {
+        var revenueAccountId = Guid.NewGuid();
+        var invoice = new SalesInvoice("INV0002", Guid.NewGuid(), DateTimeOffset.UtcNow, dueDate: null);
+        var line = invoice.AddLine(Guid.NewGuid(), quantity: 1m, unitPrice: 100m, discountPercent: 0m, taxPercent: 0m, revenueAccountId: revenueAccountId);
+
+        invoice.UpdateLine(line.Id, quantity: 2m, unitPrice: 120m, discountPercent: 0m, taxPercent: 0m, revenueAccountId: revenueAccountId);
+
+        Assert.Equal(revenueAccountId, line.RevenueAccountId);
+    }
+}

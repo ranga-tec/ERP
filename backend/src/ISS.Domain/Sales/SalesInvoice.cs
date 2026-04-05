@@ -1,4 +1,5 @@
 using ISS.Domain.Common;
+using ISS.Domain.Finance;
 
 namespace ISS.Domain.Sales;
 
@@ -31,7 +32,13 @@ public sealed class SalesInvoice : AuditableEntity
 
     public List<SalesInvoiceLine> Lines { get; private set; } = new();
 
-    public SalesInvoiceLine AddLine(Guid itemId, decimal quantity, decimal unitPrice, decimal discountPercent, decimal taxPercent)
+    public SalesInvoiceLine AddLine(
+        Guid itemId,
+        decimal quantity,
+        decimal unitPrice,
+        decimal discountPercent,
+        decimal taxPercent,
+        Guid? revenueAccountId = null)
     {
         EnsureDraftEditable();
 
@@ -41,7 +48,8 @@ public sealed class SalesInvoice : AuditableEntity
             Guard.Positive(quantity, nameof(quantity)),
             Guard.NotNegative(unitPrice, nameof(unitPrice)),
             Guard.NotNegative(discountPercent, nameof(discountPercent)),
-            Guard.NotNegative(taxPercent, nameof(taxPercent)));
+            Guard.NotNegative(taxPercent, nameof(taxPercent)),
+            revenueAccountId);
 
         Lines.Add(line);
         return line;
@@ -52,14 +60,15 @@ public sealed class SalesInvoice : AuditableEntity
         decimal quantity,
         decimal unitPrice,
         decimal discountPercent,
-        decimal taxPercent)
+        decimal taxPercent,
+        Guid? revenueAccountId = null)
     {
         EnsureDraftEditable();
 
         var line = Lines.FirstOrDefault(x => x.Id == lineId)
             ?? throw new DomainValidationException("Invoice line not found.");
 
-        line.Update(quantity, unitPrice, discountPercent, taxPercent);
+        line.Update(quantity, unitPrice, discountPercent, taxPercent, revenueAccountId);
     }
 
     public void RemoveLine(Guid lineId)
@@ -129,7 +138,14 @@ public sealed class SalesInvoiceLine : Entity
 {
     private SalesInvoiceLine() { }
 
-    public SalesInvoiceLine(Guid salesInvoiceId, Guid itemId, decimal quantity, decimal unitPrice, decimal discountPercent, decimal taxPercent)
+    public SalesInvoiceLine(
+        Guid salesInvoiceId,
+        Guid itemId,
+        decimal quantity,
+        decimal unitPrice,
+        decimal discountPercent,
+        decimal taxPercent,
+        Guid? revenueAccountId = null)
     {
         SalesInvoiceId = salesInvoiceId;
         ItemId = itemId;
@@ -137,6 +153,7 @@ public sealed class SalesInvoiceLine : Entity
         UnitPrice = unitPrice;
         DiscountPercent = discountPercent;
         TaxPercent = taxPercent;
+        RevenueAccountId = revenueAccountId;
     }
 
     public Guid SalesInvoiceId { get; private set; }
@@ -145,14 +162,19 @@ public sealed class SalesInvoiceLine : Entity
     public decimal UnitPrice { get; private set; }
     public decimal DiscountPercent { get; private set; }
     public decimal TaxPercent { get; private set; }
+    public Guid? RevenueAccountId { get; private set; }
+    public LedgerAccount? RevenueAccount { get; private set; }
 
-    public void Update(decimal quantity, decimal unitPrice, decimal discountPercent, decimal taxPercent)
+    public void Update(decimal quantity, decimal unitPrice, decimal discountPercent, decimal taxPercent, Guid? revenueAccountId = null)
     {
         Quantity = Guard.Positive(quantity, nameof(quantity));
         UnitPrice = Guard.NotNegative(unitPrice, nameof(unitPrice));
         DiscountPercent = Guard.NotNegative(discountPercent, nameof(discountPercent));
         TaxPercent = Guard.NotNegative(taxPercent, nameof(taxPercent));
+        RevenueAccountId = revenueAccountId;
     }
+
+    public void AssignRevenueAccount(Guid? revenueAccountId) => RevenueAccountId = revenueAccountId;
 
     public decimal LineSubtotal
     {

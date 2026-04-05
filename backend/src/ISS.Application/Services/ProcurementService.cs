@@ -14,7 +14,8 @@ public sealed class ProcurementService(
     IDocumentNumberService documentNumberService,
     IClock clock,
     InventoryService inventoryService,
-    NotificationService notificationService)
+    NotificationService notificationService,
+    DocumentAccountMappingService documentAccountMappingService)
 {
     public sealed record GoodsReceiptReceiptPlanLineInput(
         Guid PurchaseOrderLineId,
@@ -365,7 +366,8 @@ public sealed class ProcurementService(
                      .FirstOrDefaultAsync(x => x.Id == directPurchaseId, cancellationToken)
                  ?? throw new NotFoundException("Direct purchase not found.");
 
-        var line = dp.AddLine(itemId, quantity, unitPrice, taxPercent, batchNumber);
+        var expenseAccountId = await documentAccountMappingService.ResolveExpenseAccountIdAsync(itemId, cancellationToken);
+        var line = dp.AddLine(itemId, quantity, unitPrice, taxPercent, batchNumber, expenseAccountId);
         if (serialNumbers is { Count: > 0 })
         {
             foreach (var serial in serialNumbers)
@@ -397,7 +399,9 @@ public sealed class ProcurementService(
             throw new NotFoundException("Direct purchase line not found.");
         }
 
-        dp.UpdateLine(lineId, quantity, unitPrice, taxPercent, batchNumber, serialNumbers);
+        var line = dp.Lines.First(x => x.Id == lineId);
+        var expenseAccountId = await documentAccountMappingService.ResolveExpenseAccountIdAsync(line.ItemId, cancellationToken);
+        dp.UpdateLine(lineId, quantity, unitPrice, taxPercent, batchNumber, serialNumbers, expenseAccountId);
         await dbContext.SaveChangesAsync(cancellationToken);
     }
 
@@ -425,6 +429,7 @@ public sealed class ProcurementService(
         var items = await dbContext.Items.Where(i => itemIds.Contains(i.Id)).ToListAsync(cancellationToken);
         var itemById = items.ToDictionary(i => i.Id, i => i);
 
+        await RefreshDirectPurchaseExpenseAccountsAsync(dp, cancellationToken);
         dp.Post();
 
         foreach (var line in dp.Lines)
@@ -449,6 +454,21 @@ public sealed class ProcurementService(
         }
 
         await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    internal async Task RefreshDirectPurchaseExpenseAccountsAsync(DirectPurchase directPurchase, CancellationToken cancellationToken)
+    {
+        var expenseAccountsByItemId = await documentAccountMappingService.ResolveForItemsAsync(
+            directPurchase.Lines.Select(line => line.ItemId),
+            cancellationToken);
+
+        foreach (var line in directPurchase.Lines)
+        {
+            line.AssignExpenseAccount(
+                expenseAccountsByItemId.TryGetValue(line.ItemId, out var mapping)
+                    ? mapping.ExpenseAccountId
+                    : null);
+        }
     }
 
     public async Task AddGoodsReceiptLineAsync(

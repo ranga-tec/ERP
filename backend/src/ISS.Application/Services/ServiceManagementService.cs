@@ -15,7 +15,8 @@ public sealed class ServiceManagementService(
     IDocumentNumberService documentNumberService,
     IClock clock,
     InventoryService inventoryService,
-    NotificationService notificationService)
+    NotificationService notificationService,
+    DocumentAccountMappingService documentAccountMappingService)
 {
     private sealed record ServiceEntitlementSnapshot(
         Guid? ServiceContractId,
@@ -473,7 +474,8 @@ public sealed class ServiceManagementService(
             }
         }
 
-        var line = claim.AddLine(itemId, description, quantity, unitCost, billableToCustomer);
+        var expenseAccountId = await documentAccountMappingService.ResolveExpenseAccountIdAsync(itemId, cancellationToken);
+        var line = claim.AddLine(itemId, description, quantity, unitCost, billableToCustomer, expenseAccountId);
         dbContext.DbContext.Add(line);
         await dbContext.SaveChangesAsync(cancellationToken);
     }
@@ -506,7 +508,8 @@ public sealed class ServiceManagementService(
             throw new NotFoundException("Service expense claim line not found.");
         }
 
-        claim.UpdateLine(lineId, itemId, description, quantity, unitCost, billableToCustomer);
+        var expenseAccountId = await documentAccountMappingService.ResolveExpenseAccountIdAsync(itemId, cancellationToken);
+        claim.UpdateLine(lineId, itemId, description, quantity, unitCost, billableToCustomer, expenseAccountId);
         await dbContext.SaveChangesAsync(cancellationToken);
     }
 
@@ -530,6 +533,7 @@ public sealed class ServiceManagementService(
             .FirstOrDefaultAsync(x => x.Id == serviceExpenseClaimId, cancellationToken)
             ?? throw new NotFoundException("Service expense claim not found.");
 
+        await RefreshServiceExpenseClaimAccountsAsync(claim, cancellationToken);
         claim.Submit(clock.UtcNow);
         await dbContext.SaveChangesAsync(cancellationToken);
     }
@@ -537,9 +541,11 @@ public sealed class ServiceManagementService(
     public async Task ApproveServiceExpenseClaimAsync(Guid serviceExpenseClaimId, CancellationToken cancellationToken = default)
     {
         var claim = await dbContext.ServiceExpenseClaims
+            .Include(x => x.Lines)
             .FirstOrDefaultAsync(x => x.Id == serviceExpenseClaimId, cancellationToken)
             ?? throw new NotFoundException("Service expense claim not found.");
 
+        await RefreshServiceExpenseClaimAccountsAsync(claim, cancellationToken);
         claim.Approve(clock.UtcNow);
         await dbContext.SaveChangesAsync(cancellationToken);
     }
@@ -672,6 +678,23 @@ public sealed class ServiceManagementService(
 
         await dbContext.SaveChangesAsync(cancellationToken);
         return (estimate.Id, linesToConvert.Count);
+    }
+
+    internal async Task RefreshServiceExpenseClaimAccountsAsync(ServiceExpenseClaim claim, CancellationToken cancellationToken)
+    {
+        var expenseAccountsByItemId = await documentAccountMappingService.ResolveForItemsAsync(
+            claim.Lines
+                .Where(line => line.ItemId is not null)
+                .Select(line => line.ItemId!.Value),
+            cancellationToken);
+
+        foreach (var line in claim.Lines)
+        {
+            line.AssignExpenseAccount(
+                line.ItemId is { } itemId && expenseAccountsByItemId.TryGetValue(itemId, out var mapping)
+                    ? mapping.ExpenseAccountId
+                    : null);
+        }
     }
 
     public async Task<Guid> CreateServiceHandoverAsync(
@@ -866,13 +889,15 @@ public sealed class ServiceManagementService(
                 ServiceEstimateLineKind.Expense => line.ItemId ?? expenseItemId!.Value,
                 _ => throw new DomainValidationException("Unsupported service estimate line kind.")
             };
+            var revenueAccountId = await documentAccountMappingService.ResolveRevenueAccountIdAsync(invoiceItemId, cancellationToken);
 
             var invoiceLine = invoice.AddLine(
                 invoiceItemId,
                 line.Quantity,
                 ServiceEntitlementRules.ApplyEstimateUnitPrice(job.EntitlementCoverage, line.Kind, line.UnitPrice),
                 discountPercent: 0m,
-                taxPercent: line.TaxPercent);
+                taxPercent: line.TaxPercent,
+                revenueAccountId: revenueAccountId);
             dbContext.DbContext.Add(invoiceLine);
         }
 
@@ -880,12 +905,14 @@ public sealed class ServiceManagementService(
         {
             foreach (var timeEntry in approvedBillableTimeEntries)
             {
+                var revenueAccountId = await documentAccountMappingService.ResolveRevenueAccountIdAsync(laborItemId!.Value, cancellationToken);
                 var invoiceLine = invoice.AddLine(
                     laborItemId!.Value,
                     timeEntry.BillableHours,
                     ServiceEntitlementRules.ApplyEstimateUnitPrice(job.EntitlementCoverage, ServiceEstimateLineKind.Labor, timeEntry.BillingRate),
                     discountPercent: 0m,
-                    taxPercent: timeEntry.TaxPercent);
+                    taxPercent: timeEntry.TaxPercent,
+                    revenueAccountId: revenueAccountId);
                 dbContext.DbContext.Add(invoiceLine);
                 timeEntry.MarkInvoiced(invoice.Id, invoiceLine.Id, clock.UtcNow);
             }

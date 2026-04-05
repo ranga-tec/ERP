@@ -11,6 +11,9 @@ type ItemRef = { id: string; sku: string; name: string };
 type ServiceExpenseClaimLineDto = {
   id: string;
   itemId?: string | null;
+  expenseAccountId?: string | null;
+  expenseAccountCode?: string | null;
+  expenseAccountName?: string | null;
   description: string;
   quantity: number;
   unitCost: number;
@@ -122,6 +125,11 @@ export function ServiceExpenseClaimLineRow({
           <Input value={description} onChange={(event) => setDescription(event.target.value)} className="min-w-56" />
         ) : (
           line.description
+        )}
+      </td>
+      <td className="py-2 pr-3 text-sm">
+        {line.expenseAccountCode ? `${line.expenseAccountCode}${line.expenseAccountName ? ` - ${line.expenseAccountName}` : ""}` : (
+          <span className="text-amber-700 dark:text-amber-300">Unassigned</span>
         )}
       </td>
       <td className="py-2 pr-3">

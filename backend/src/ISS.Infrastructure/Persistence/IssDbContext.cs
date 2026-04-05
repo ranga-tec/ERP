@@ -410,10 +410,12 @@ public sealed class IssDbContext(
         });
         builder.Entity<DirectPurchaseLine>(entity =>
         {
+            entity.HasIndex(x => x.ExpenseAccountId);
             entity.Property(x => x.Quantity).HasPrecision(18, 4);
             entity.Property(x => x.UnitPrice).HasPrecision(18, 4);
             entity.Property(x => x.TaxPercent).HasPrecision(18, 4);
             entity.Property(x => x.BatchNumber).HasMaxLength(128);
+            entity.HasOne(x => x.ExpenseAccount).WithMany().HasForeignKey(x => x.ExpenseAccountId).OnDelete(DeleteBehavior.Restrict);
             entity.HasMany(x => x.Serials).WithOne().HasForeignKey(x => x.DirectPurchaseLineId).OnDelete(DeleteBehavior.Cascade);
         });
         builder.Entity<DirectPurchaseLineSerial>(entity =>
@@ -524,10 +526,12 @@ public sealed class IssDbContext(
         });
         builder.Entity<SalesInvoiceLine>(entity =>
         {
+            entity.HasIndex(x => x.RevenueAccountId);
             entity.Property(x => x.Quantity).HasPrecision(18, 4);
             entity.Property(x => x.UnitPrice).HasPrecision(18, 4);
             entity.Property(x => x.DiscountPercent).HasPrecision(18, 4);
             entity.Property(x => x.TaxPercent).HasPrecision(18, 4);
+            entity.HasOne(x => x.RevenueAccount).WithMany().HasForeignKey(x => x.RevenueAccountId).OnDelete(DeleteBehavior.Restrict);
         });
 
         builder.Entity<CustomerReturn>(entity =>
@@ -618,8 +622,10 @@ public sealed class IssDbContext(
             entity.Property(x => x.Quantity).HasPrecision(18, 4);
             entity.Property(x => x.UnitCost).HasPrecision(18, 4);
             entity.HasIndex(x => x.ItemId);
+            entity.HasIndex(x => x.ExpenseAccountId);
             entity.HasIndex(x => x.ConvertedToServiceEstimateId);
             entity.HasIndex(x => x.ConvertedToServiceEstimateLineId);
+            entity.HasOne(x => x.ExpenseAccount).WithMany().HasForeignKey(x => x.ExpenseAccountId).OnDelete(DeleteBehavior.Restrict);
         });
 
         builder.Entity<ServiceHandover>(entity =>

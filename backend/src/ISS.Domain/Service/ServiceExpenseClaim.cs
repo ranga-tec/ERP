@@ -1,4 +1,5 @@
 using ISS.Domain.Common;
+using ISS.Domain.Finance;
 
 namespace ISS.Domain.Service;
 
@@ -74,7 +75,8 @@ public sealed class ServiceExpenseClaim : AuditableEntity
         string description,
         decimal quantity,
         decimal unitCost,
-        bool billableToCustomer)
+        bool billableToCustomer,
+        Guid? expenseAccountId = null)
     {
         EnsureDraftEditable();
 
@@ -84,7 +86,8 @@ public sealed class ServiceExpenseClaim : AuditableEntity
             Guard.NotNullOrWhiteSpace(description, nameof(description), maxLength: 512),
             Guard.Positive(quantity, nameof(quantity)),
             Guard.NotNegative(unitCost, nameof(unitCost)),
-            billableToCustomer);
+            billableToCustomer,
+            expenseAccountId);
 
         Lines.Add(line);
         return line;
@@ -96,14 +99,15 @@ public sealed class ServiceExpenseClaim : AuditableEntity
         string description,
         decimal quantity,
         decimal unitCost,
-        bool billableToCustomer)
+        bool billableToCustomer,
+        Guid? expenseAccountId = null)
     {
         EnsureDraftEditable();
 
         var line = Lines.FirstOrDefault(x => x.Id == lineId)
             ?? throw new DomainValidationException("Service expense claim line not found.");
 
-        line.Update(itemId, description, quantity, unitCost, billableToCustomer);
+        line.Update(itemId, description, quantity, unitCost, billableToCustomer, expenseAccountId);
     }
 
     public void RemoveLine(Guid lineId)
@@ -201,7 +205,8 @@ public sealed class ServiceExpenseClaimLine : Entity
         string description,
         decimal quantity,
         decimal unitCost,
-        bool billableToCustomer)
+        bool billableToCustomer,
+        Guid? expenseAccountId = null)
     {
         ServiceExpenseClaimId = serviceExpenseClaimId;
         ItemId = itemId;
@@ -209,6 +214,7 @@ public sealed class ServiceExpenseClaimLine : Entity
         Quantity = quantity;
         UnitCost = unitCost;
         BillableToCustomer = billableToCustomer;
+        ExpenseAccountId = expenseAccountId;
     }
 
     public Guid ServiceExpenseClaimId { get; private set; }
@@ -217,6 +223,8 @@ public sealed class ServiceExpenseClaimLine : Entity
     public decimal Quantity { get; private set; }
     public decimal UnitCost { get; private set; }
     public bool BillableToCustomer { get; private set; }
+    public Guid? ExpenseAccountId { get; private set; }
+    public LedgerAccount? ExpenseAccount { get; private set; }
     public Guid? ConvertedToServiceEstimateId { get; private set; }
     public Guid? ConvertedToServiceEstimateLineId { get; private set; }
     public DateTimeOffset? ConvertedToEstimateAt { get; private set; }
@@ -227,14 +235,18 @@ public sealed class ServiceExpenseClaimLine : Entity
         string description,
         decimal quantity,
         decimal unitCost,
-        bool billableToCustomer)
+        bool billableToCustomer,
+        Guid? expenseAccountId = null)
     {
         ItemId = itemId;
         Description = Guard.NotNullOrWhiteSpace(description, nameof(description), maxLength: 512);
         Quantity = Guard.Positive(quantity, nameof(quantity));
         UnitCost = Guard.NotNegative(unitCost, nameof(unitCost));
         BillableToCustomer = billableToCustomer;
+        ExpenseAccountId = expenseAccountId;
     }
+
+    public void AssignExpenseAccount(Guid? expenseAccountId) => ExpenseAccountId = expenseAccountId;
 
     public void MarkConvertedToEstimate(Guid serviceEstimateId, Guid serviceEstimateLineId, DateTimeOffset convertedAt)
     {

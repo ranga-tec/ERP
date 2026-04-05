@@ -206,6 +206,27 @@ public sealed class ServiceTests
     }
 
     [Fact]
+    public void ServiceExpenseClaim_Line_Can_Store_Expense_Account()
+    {
+        var expenseAccountId = Guid.NewGuid();
+        var claim = new ServiceExpenseClaim(
+            "SEC0001",
+            Guid.NewGuid(),
+            claimedByUserId: null,
+            claimedByName: "Tech A",
+            fundingSource: ServiceExpenseFundingSource.OutOfPocket,
+            expenseDate: DateTimeOffset.UtcNow,
+            merchantName: null,
+            receiptReference: null,
+            notes: null);
+
+        var line = claim.AddLine(Guid.NewGuid(), "Taxi", 1m, 20m, billableToCustomer: false, expenseAccountId: expenseAccountId);
+        claim.UpdateLine(line.Id, line.ItemId, "Taxi to site", 2m, 25m, billableToCustomer: true, expenseAccountId: expenseAccountId);
+
+        Assert.Equal(expenseAccountId, line.ExpenseAccountId);
+    }
+
+    [Fact]
     public void WorkOrder_TimeEntry_Approval_And_Invoicing_Follow_State_Rules()
     {
         var workOrder = new WorkOrder(Guid.NewGuid(), "Inspect compressor", assignedToUserId: null);

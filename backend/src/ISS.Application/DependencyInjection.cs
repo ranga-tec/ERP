@@ -11,6 +11,7 @@ public static class DependencyInjection
         services.AddSingleton<IClock, SystemClock>();
         services.AddScoped<InventoryService>();
         services.AddScoped<InventoryOperationsService>();
+        services.AddScoped<DocumentAccountMappingService>();
         services.AddScoped<IDocumentNumberService, DocumentNumberService>();
         services.AddScoped<ProcurementService>();
         services.AddScoped<SalesService>();

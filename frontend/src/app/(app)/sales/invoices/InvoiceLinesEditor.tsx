@@ -15,6 +15,9 @@ import { apiDeleteNoContent, apiPutNoContent } from "@/lib/api-client";
 type InvoiceLineDto = {
   id: string;
   itemId: string;
+  revenueAccountId?: string | null;
+  revenueAccountCode?: string | null;
+  revenueAccountName?: string | null;
   quantity: number;
   unitPrice: number;
   discountPercent: number;
@@ -25,6 +28,9 @@ type InvoiceLineDto = {
 type EditableInvoiceLine = {
   id: string;
   itemId: string;
+  revenueAccountId?: string | null;
+  revenueAccountCode?: string | null;
+  revenueAccountName?: string | null;
   quantity: string;
   unitPrice: string;
   discountPercent: string;
@@ -47,6 +53,9 @@ function toEditableLines(lines: InvoiceLineDto[]): EditableInvoiceLine[] {
   return lines.map((line) => ({
     id: line.id,
     itemId: line.itemId,
+    revenueAccountId: line.revenueAccountId ?? null,
+    revenueAccountCode: line.revenueAccountCode ?? null,
+    revenueAccountName: line.revenueAccountName ?? null,
     quantity: line.quantity.toString(),
     unitPrice: line.unitPrice.toString(),
     discountPercent: line.discountPercent.toString(),
@@ -169,6 +178,15 @@ export function InvoiceLinesEditor({
       kind: "display",
       render: (line) => itemLabelById.get(line.itemId) ?? line.itemId,
       footer: "Visible Total",
+    },
+    {
+      key: "revenueAccount",
+      header: "Income Acct",
+      kind: "display",
+      render: (line) =>
+        line.revenueAccountCode
+          ? `${line.revenueAccountCode}${line.revenueAccountName ? ` - ${line.revenueAccountName}` : ""}`
+          : <span className="text-amber-700 dark:text-amber-300">Unassigned</span>,
     },
     {
       key: "quantity",

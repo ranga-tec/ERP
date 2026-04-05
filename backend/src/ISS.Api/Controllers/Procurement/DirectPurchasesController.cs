@@ -33,6 +33,9 @@ public sealed class DirectPurchasesController(
     public sealed record DirectPurchaseLineDto(
         Guid Id,
         Guid ItemId,
+        Guid? ExpenseAccountId,
+        string? ExpenseAccountCode,
+        string? ExpenseAccountName,
         decimal Quantity,
         decimal UnitPrice,
         decimal TaxPercent,
@@ -109,6 +112,8 @@ public sealed class DirectPurchasesController(
     {
         var dp = await dbContext.DirectPurchases.AsNoTracking()
             .Include(x => x.Lines)
+            .ThenInclude(l => l.ExpenseAccount)
+            .Include(x => x.Lines)
             .ThenInclude(l => l.Serials)
             .FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
 
@@ -120,6 +125,9 @@ public sealed class DirectPurchasesController(
         var lineDtos = dp.Lines.Select(l => new DirectPurchaseLineDto(
             l.Id,
             l.ItemId,
+            l.ExpenseAccountId,
+            l.ExpenseAccount != null ? l.ExpenseAccount.Code : null,
+            l.ExpenseAccount != null ? l.ExpenseAccount.Name : null,
             l.Quantity,
             l.UnitPrice,
             l.TaxPercent,

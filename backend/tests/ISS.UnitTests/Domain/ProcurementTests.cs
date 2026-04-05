@@ -84,4 +84,16 @@ public sealed class ProcurementTests
         sr.Post();
         Assert.Equal(SupplierReturnStatus.Posted, sr.Status);
     }
+
+    [Fact]
+    public void DirectPurchase_Line_Can_Store_Expense_Account()
+    {
+        var expenseAccountId = Guid.NewGuid();
+        var dp = new DirectPurchase("DP0001", Guid.NewGuid(), Guid.NewGuid(), DateTimeOffset.UtcNow, remarks: null);
+        var line = dp.AddLine(Guid.NewGuid(), 1m, 25m, 0m, batchNumber: null, expenseAccountId: expenseAccountId);
+
+        dp.UpdateLine(line.Id, quantity: 2m, unitPrice: 30m, taxPercent: 5m, batchNumber: "B1", serialNumbers: null, expenseAccountId: expenseAccountId);
+
+        Assert.Equal(expenseAccountId, line.ExpenseAccountId);
+    }
 }
