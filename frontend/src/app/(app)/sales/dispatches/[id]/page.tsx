@@ -2,10 +2,10 @@ import Link from "next/link";
 import { backendFetchJson } from "@/lib/backend.server";
 import { ItemInlineLink } from "@/components/InlineLink";
 import { TransactionLink } from "@/components/TransactionLink";
-import { Card, SecondaryLink, Table } from "@/components/ui";
+import { Card, SecondaryLink } from "@/components/ui";
 import { DispatchActions } from "../DispatchActions";
 import { DispatchLineAddForm } from "../DispatchLineAddForm";
-import { DispatchLineRow } from "../DispatchLineRow";
+import { DispatchLinesEditor } from "../DispatchLinesEditor";
 import { DocumentCollaborationPanel } from "@/components/DocumentCollaborationPanel";
 import { StockAvailabilityExplorer } from "@/components/StockAvailabilityExplorer";
 
@@ -41,7 +41,6 @@ export default async function DispatchDetailPage({ params }: { params: Promise<{
 
   const orderById = new Map(orders.map((o) => [o.id, o]));
   const warehouseById = new Map(warehouses.map((w) => [w.id, w]));
-  const itemById = new Map(items.map((i) => [i.id, i]));
   const isDraft = dispatch.status === 0;
 
   return (
@@ -97,48 +96,22 @@ export default async function DispatchDetailPage({ params }: { params: Promise<{
 
       <Card>
         <div className="mb-3 text-sm font-semibold">Lines</div>
-        <div className="overflow-auto">
-          <Table>
-            <thead>
-              <tr className="border-b border-zinc-200 text-left text-xs uppercase tracking-wide text-zinc-500 dark:border-zinc-800">
-                <th className="py-2 pr-3">Item</th>
-                <th className="py-2 pr-3">Qty</th>
-                <th className="py-2 pr-3">Batch</th>
-                <th className="py-2 pr-3">Serials</th>
-                {isDraft ? <th className="py-2 pr-3">Actions</th> : null}
-              </tr>
-            </thead>
-            <tbody>
-              {dispatch.lines.map((l) => {
-                const item = itemById.get(l.itemId);
-                const itemLabel = (
-                  <ItemInlineLink itemId={l.itemId}>
-                    {item ? `${item.sku} - ${item.name}` : l.itemId}
-                  </ItemInlineLink>
-                );
-                return (
-                  <DispatchLineRow
-                    key={l.id}
-                    dispatchId={dispatch.id}
-                    line={l}
-                    itemId={l.itemId}
-                    warehouseId={dispatch.warehouseId}
-                    warehouses={warehouses}
-                    itemLabel={itemLabel}
-                    canEdit={isDraft}
-                  />
-                );
-              })}
-              {dispatch.lines.length === 0 ? (
-                <tr>
-                  <td className="py-6 text-sm text-zinc-500" colSpan={isDraft ? 5 : 4}>
-                    No lines yet.
-                  </td>
-                </tr>
-              ) : null}
-            </tbody>
-          </Table>
-        </div>
+        <DispatchLinesEditor
+          dispatchId={dispatch.id}
+          warehouseId={dispatch.warehouseId}
+          warehouses={warehouses}
+          lines={dispatch.lines}
+          itemLabelById={new Map(
+            items.map((item) => [
+              item.id,
+              <ItemInlineLink key={item.id} itemId={item.id}>
+                {`${item.sku} - ${item.name}`}
+              </ItemInlineLink>,
+            ]),
+          )}
+          itemSearchLabelById={new Map(items.map((item) => [item.id, `${item.sku} ${item.name}`.toLowerCase()]))}
+          canEdit={isDraft}
+        />
       </Card>
 
       <DocumentCollaborationPanel referenceType="DN" referenceId={id} />

@@ -1,10 +1,10 @@
 import Link from "next/link";
 import { backendFetchJson } from "@/lib/backend.server";
 import { ItemInlineLink } from "@/components/InlineLink";
-import { Card, SecondaryLink, Table } from "@/components/ui";
+import { Card, SecondaryLink } from "@/components/ui";
 import { SupplierReturnActions } from "../SupplierReturnActions";
 import { SupplierReturnLineAddForm } from "../SupplierReturnLineAddForm";
-import { SupplierReturnLineRow } from "../SupplierReturnLineRow";
+import { SupplierReturnLinesEditor } from "../SupplierReturnLinesEditor";
 import { DocumentCollaborationPanel } from "@/components/DocumentCollaborationPanel";
 import { StockAvailabilityExplorer } from "@/components/StockAvailabilityExplorer";
 
@@ -41,7 +41,6 @@ export default async function SupplierReturnDetailPage({ params }: { params: Pro
 
   const supplierById = new Map(suppliers.map((s) => [s.id, s]));
   const warehouseById = new Map(warehouses.map((w) => [w.id, w]));
-  const itemById = new Map(items.map((i) => [i.id, i]));
   const isDraft = sr.status === 0;
 
   return (
@@ -98,49 +97,22 @@ export default async function SupplierReturnDetailPage({ params }: { params: Pro
 
       <Card>
         <div className="mb-3 text-sm font-semibold">Lines</div>
-        <div className="overflow-auto">
-          <Table>
-            <thead>
-              <tr className="border-b border-zinc-200 text-left text-xs uppercase tracking-wide text-zinc-500 dark:border-zinc-800">
-                <th className="py-2 pr-3">Item</th>
-                <th className="py-2 pr-3">Qty</th>
-                <th className="py-2 pr-3">Unit Cost</th>
-                <th className="py-2 pr-3">Batch</th>
-                <th className="py-2 pr-3">Serials</th>
-                {isDraft ? <th className="py-2 pr-3">Actions</th> : null}
-              </tr>
-            </thead>
-            <tbody>
-              {sr.lines.map((l) => {
-                const item = itemById.get(l.itemId);
-                const itemLabel = (
-                  <ItemInlineLink itemId={l.itemId}>
-                    {item ? `${item.sku} - ${item.name}` : l.itemId}
-                  </ItemInlineLink>
-                );
-                return (
-                  <SupplierReturnLineRow
-                    key={l.id}
-                    supplierReturnId={sr.id}
-                    line={l}
-                    itemId={l.itemId}
-                    warehouseId={sr.warehouseId}
-                    warehouses={warehouses}
-                    itemLabel={itemLabel}
-                    canEdit={isDraft}
-                  />
-                );
-              })}
-              {sr.lines.length === 0 ? (
-                <tr>
-                  <td className="py-6 text-sm text-zinc-500" colSpan={isDraft ? 6 : 5}>
-                    No lines yet.
-                  </td>
-                </tr>
-              ) : null}
-            </tbody>
-          </Table>
-        </div>
+        <SupplierReturnLinesEditor
+          supplierReturnId={sr.id}
+          warehouseId={sr.warehouseId}
+          warehouses={warehouses}
+          lines={sr.lines}
+          itemLabelById={new Map(
+            items.map((item) => [
+              item.id,
+              <ItemInlineLink key={item.id} itemId={item.id}>
+                {`${item.sku} - ${item.name}`}
+              </ItemInlineLink>,
+            ]),
+          )}
+          itemSearchLabelById={new Map(items.map((item) => [item.id, `${item.sku} ${item.name}`.toLowerCase()]))}
+          canEdit={isDraft}
+        />
       </Card>
 
       <DocumentCollaborationPanel referenceType="SR" referenceId={id} />

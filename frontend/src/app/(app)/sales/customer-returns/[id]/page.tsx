@@ -2,10 +2,10 @@ import Link from "next/link";
 import { backendFetchJson } from "@/lib/backend.server";
 import { ItemInlineLink } from "@/components/InlineLink";
 import { TransactionLink } from "@/components/TransactionLink";
-import { Card, SecondaryLink, Table } from "@/components/ui";
+import { Card, SecondaryLink } from "@/components/ui";
 import { CustomerReturnActions } from "../CustomerReturnActions";
 import { CustomerReturnLineAddForm } from "../CustomerReturnLineAddForm";
-import { CustomerReturnLineRow } from "../CustomerReturnLineRow";
+import { CustomerReturnLinesEditor } from "../CustomerReturnLinesEditor";
 import { DocumentCollaborationPanel } from "@/components/DocumentCollaborationPanel";
 import { StockAvailabilityExplorer } from "@/components/StockAvailabilityExplorer";
 
@@ -44,7 +44,6 @@ export default async function CustomerReturnDetailPage({ params }: { params: Pro
 
   const customerById = new Map(customers.map((customer) => [customer.id, customer]));
   const warehouseById = new Map(warehouses.map((warehouse) => [warehouse.id, warehouse]));
-  const itemById = new Map(items.map((item) => [item.id, item]));
   const invoiceById = new Map(invoices.map((invoice) => [invoice.id, invoice]));
   const dispatchById = new Map(dispatches.map((dispatch) => [dispatch.id, dispatch]));
   const isDraft = customerReturn.status === 0;
@@ -121,50 +120,22 @@ export default async function CustomerReturnDetailPage({ params }: { params: Pro
 
       <Card>
         <div className="mb-3 text-sm font-semibold">Lines</div>
-        <div className="overflow-auto">
-          <Table>
-            <thead>
-              <tr className="border-b border-zinc-200 text-left text-xs uppercase tracking-wide text-zinc-500 dark:border-zinc-800">
-                <th className="py-2 pr-3">Item</th>
-                <th className="py-2 pr-3">Qty</th>
-                <th className="py-2 pr-3">Unit Price</th>
-                <th className="py-2 pr-3">Batch</th>
-                <th className="py-2 pr-3">Serials</th>
-                {isDraft ? <th className="py-2 pr-3">Actions</th> : null}
-              </tr>
-            </thead>
-            <tbody>
-              {customerReturn.lines.map((line) => {
-                const item = itemById.get(line.itemId);
-                const itemLabel = (
-                  <ItemInlineLink itemId={line.itemId}>
-                    {item ? `${item.sku} - ${item.name}` : line.itemId}
-                  </ItemInlineLink>
-                );
-
-                return (
-                  <CustomerReturnLineRow
-                    key={line.id}
-                    customerReturnId={customerReturn.id}
-                    line={line}
-                    itemId={line.itemId}
-                    warehouseId={customerReturn.warehouseId}
-                    warehouses={warehouses}
-                    itemLabel={itemLabel}
-                    canEdit={isDraft}
-                  />
-                );
-              })}
-              {customerReturn.lines.length === 0 ? (
-                <tr>
-                  <td className="py-6 text-sm text-zinc-500" colSpan={isDraft ? 6 : 5}>
-                    No lines yet.
-                  </td>
-                </tr>
-              ) : null}
-            </tbody>
-          </Table>
-        </div>
+        <CustomerReturnLinesEditor
+          customerReturnId={customerReturn.id}
+          warehouseId={customerReturn.warehouseId}
+          warehouses={warehouses}
+          lines={customerReturn.lines}
+          itemLabelById={new Map(
+            items.map((item) => [
+              item.id,
+              <ItemInlineLink key={item.id} itemId={item.id}>
+                {`${item.sku} - ${item.name}`}
+              </ItemInlineLink>,
+            ]),
+          )}
+          itemSearchLabelById={new Map(items.map((item) => [item.id, `${item.sku} ${item.name}`.toLowerCase()]))}
+          canEdit={isDraft}
+        />
       </Card>
 
       <DocumentCollaborationPanel referenceType="CRTN" referenceId={id} />
