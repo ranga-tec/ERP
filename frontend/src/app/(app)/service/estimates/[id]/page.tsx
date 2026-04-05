@@ -63,8 +63,16 @@ const kindLabel: Record<number, string> = {
   3: "Expense",
 };
 
-export default async function ServiceEstimateDetailPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function ServiceEstimateDetailPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ mode?: string }>;
+}) {
   const { id } = await params;
+  const { mode } = await searchParams;
+  const startInEditMode = mode === "edit";
 
   const [estimate, jobs, customers, items, taxes] = await Promise.all([
     backendFetchJson<ServiceEstimateDto>(`/service/estimates/${id}`),
@@ -229,6 +237,7 @@ export default async function ServiceEstimateDetailPage({ params }: { params: Pr
                     kindLabel={kindLabel[line.kind] ?? String(line.kind)}
                     itemLabel={itemLabel}
                     canEdit={isDraft}
+                    startInEditMode={startInEditMode}
                   />
                 );
               })}

@@ -3,6 +3,7 @@ import { backendFetchJson } from "@/lib/backend.server";
 import { TransactionLink } from "@/components/TransactionLink";
 import { Card, SecondaryLink } from "@/components/ui";
 import { SupplierInvoiceActions } from "../SupplierInvoiceActions";
+import { SupplierInvoiceEditForm } from "../SupplierInvoiceEditForm";
 import { DocumentCollaborationPanel } from "@/components/DocumentCollaborationPanel";
 
 type SupplierInvoiceDto = {
@@ -38,8 +39,16 @@ const statusLabel: Record<number, string> = {
   2: "Voided",
 };
 
-export default async function SupplierInvoiceDetailPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function SupplierInvoiceDetailPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ mode?: string }>;
+}) {
   const { id } = await params;
+  const { mode } = await searchParams;
+  const startInEditMode = mode === "edit";
 
   const [invoice, suppliers, purchaseOrders, goodsReceipts, directPurchases] = await Promise.all([
     backendFetchJson<SupplierInvoiceDto>(`/procurement/supplier-invoices/${id}`),
@@ -134,6 +143,19 @@ export default async function SupplierInvoiceDetailPage({ params }: { params: Pr
         </div>
         <SupplierInvoiceActions supplierInvoiceId={invoice.id} canPost={isDraft} />
       </Card>
+
+      {isDraft && startInEditMode ? (
+        <Card>
+          <div className="mb-3 text-sm font-semibold">Edit Supplier Invoice</div>
+          <SupplierInvoiceEditForm
+            invoice={invoice}
+            suppliers={suppliers}
+            purchaseOrders={purchaseOrders}
+            goodsReceipts={goodsReceipts}
+            directPurchases={directPurchases}
+          />
+        </Card>
+      ) : null}
 
       <DocumentCollaborationPanel referenceType="SINV" referenceId={id} />
     </div>

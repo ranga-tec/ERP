@@ -53,6 +53,21 @@ public sealed class SupplierInvoicesController(
         decimal RoundingAmount,
         string? Notes);
 
+    public sealed record UpdateSupplierInvoiceRequest(
+        Guid SupplierId,
+        string InvoiceNumber,
+        DateTimeOffset InvoiceDate,
+        DateTimeOffset? DueDate,
+        Guid? PurchaseOrderId,
+        Guid? GoodsReceiptId,
+        Guid? DirectPurchaseId,
+        decimal Subtotal,
+        decimal DiscountAmount,
+        decimal TaxAmount,
+        decimal FreightAmount,
+        decimal RoundingAmount,
+        string? Notes);
+
     [HttpGet]
     public async Task<ActionResult<IReadOnlyList<SupplierInvoiceDto>>> List(
         [FromQuery] int skip = 0,
@@ -96,6 +111,29 @@ public sealed class SupplierInvoicesController(
     public async Task<ActionResult<SupplierInvoiceDto>> Create(CreateSupplierInvoiceRequest request, CancellationToken cancellationToken)
     {
         var id = await procurementService.CreateSupplierInvoiceAsync(
+            request.SupplierId,
+            request.InvoiceNumber,
+            request.InvoiceDate,
+            request.DueDate,
+            request.PurchaseOrderId,
+            request.GoodsReceiptId,
+            request.DirectPurchaseId,
+            request.Subtotal,
+            request.DiscountAmount,
+            request.TaxAmount,
+            request.FreightAmount,
+            request.RoundingAmount,
+            request.Notes,
+            cancellationToken);
+
+        return await Get(id, cancellationToken);
+    }
+
+    [HttpPut("{id:guid}")]
+    public async Task<ActionResult<SupplierInvoiceDto>> Update(Guid id, UpdateSupplierInvoiceRequest request, CancellationToken cancellationToken)
+    {
+        await procurementService.UpdateSupplierInvoiceAsync(
+            id,
             request.SupplierId,
             request.InvoiceNumber,
             request.InvoiceDate,

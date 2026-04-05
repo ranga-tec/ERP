@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { apiDeleteNoContent, apiPutNoContent } from "@/lib/api-client";
 import { Button, Input, SecondaryButton } from "@/components/ui";
 
@@ -22,21 +22,36 @@ export function ServiceEstimateLineRow({
   kindLabel,
   itemLabel,
   canEdit,
+  startInEditMode = false,
 }: {
   estimateId: string;
   line: ServiceEstimateLineDto;
   kindLabel: string;
   itemLabel: ReactNode;
   canEdit: boolean;
+  startInEditMode?: boolean;
 }) {
   const router = useRouter();
-  const [isEditing, setIsEditing] = useState(false);
+  const allRowsEditing = canEdit && startInEditMode;
+  const [isEditing, setIsEditing] = useState(allRowsEditing);
   const [description, setDescription] = useState(line.description);
   const [quantity, setQuantity] = useState(line.quantity.toString());
   const [unitPrice, setUnitPrice] = useState(line.unitPrice.toString());
   const [taxPercent, setTaxPercent] = useState(line.taxPercent.toString());
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!allRowsEditing) {
+      return;
+    }
+
+    setDescription(line.description);
+    setQuantity(line.quantity.toString());
+    setUnitPrice(line.unitPrice.toString());
+    setTaxPercent(line.taxPercent.toString());
+    setIsEditing(true);
+  }, [allRowsEditing, line.description, line.quantity, line.taxPercent, line.unitPrice]);
 
   function beginEdit() {
     setError(null);
@@ -79,7 +94,9 @@ export function ServiceEstimateLineRow({
         taxPercent: tax,
       });
 
-      setIsEditing(false);
+      if (!allRowsEditing) {
+        setIsEditing(false);
+      }
       router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
@@ -108,44 +125,45 @@ export function ServiceEstimateLineRow({
   const previewTotal = Number.isFinite(qty) && Number.isFinite(price) && Number.isFinite(tax)
     ? qty * price * (1 + tax / 100)
     : NaN;
+  const editing = allRowsEditing || isEditing;
 
   return (
     <tr className="border-b border-zinc-100 align-top dark:border-zinc-900">
       <td className="py-2 pr-3">{kindLabel}</td>
       <td className="py-2 pr-3">{itemLabel}</td>
       <td className="py-2 pr-3 text-zinc-500">
-        {isEditing ? (
+        {editing ? (
           <Input value={description} onChange={(e) => setDescription(e.target.value)} className="min-w-56" />
         ) : (
           line.description
         )}
       </td>
       <td className="py-2 pr-3">
-        {isEditing ? (
+        {editing ? (
           <Input value={quantity} onChange={(e) => setQuantity(e.target.value)} inputMode="decimal" className="min-w-20" />
         ) : (
           line.quantity
         )}
       </td>
       <td className="py-2 pr-3">
-        {isEditing ? (
+        {editing ? (
           <Input value={unitPrice} onChange={(e) => setUnitPrice(e.target.value)} inputMode="decimal" className="min-w-24" />
         ) : (
           line.unitPrice.toFixed(2)
         )}
       </td>
       <td className="py-2 pr-3">
-        {isEditing ? (
+        {editing ? (
           <Input value={taxPercent} onChange={(e) => setTaxPercent(e.target.value)} inputMode="decimal" className="min-w-20" />
         ) : (
           line.taxPercent.toFixed(2)
         )}
       </td>
-      <td className="py-2 pr-3">{isEditing && Number.isFinite(previewTotal) ? previewTotal.toFixed(2) : line.lineTotal.toFixed(2)}</td>
+      <td className="py-2 pr-3">{editing && Number.isFinite(previewTotal) ? previewTotal.toFixed(2) : line.lineTotal.toFixed(2)}</td>
       {canEdit ? (
         <td className="py-2 pr-3">
           <div className="flex flex-wrap items-center gap-2">
-            {isEditing ? (
+            {editing ? (
               <>
                 <Button type="button" className="px-2 py-1 text-xs" onClick={saveEdit} disabled={busy}>
                   {busy ? "Saving..." : "Save"}
@@ -155,11 +173,17 @@ export function ServiceEstimateLineRow({
                   className="px-2 py-1 text-xs"
                   onClick={() => {
                     setError(null);
-                    setIsEditing(false);
+                    setDescription(line.description);
+                    setQuantity(line.quantity.toString());
+                    setUnitPrice(line.unitPrice.toString());
+                    setTaxPercent(line.taxPercent.toString());
+                    if (!allRowsEditing) {
+                      setIsEditing(false);
+                    }
                   }}
                   disabled={busy}
                 >
-                  Cancel
+                  {allRowsEditing ? "Reset" : "Cancel"}
                 </SecondaryButton>
               </>
             ) : (

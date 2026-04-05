@@ -922,6 +922,51 @@ public sealed class ProcurementService(
         return invoice.Id;
     }
 
+    public async Task UpdateSupplierInvoiceAsync(
+        Guid supplierInvoiceId,
+        Guid supplierId,
+        string invoiceNumber,
+        DateTimeOffset invoiceDate,
+        DateTimeOffset? dueDate,
+        Guid? purchaseOrderId,
+        Guid? goodsReceiptId,
+        Guid? directPurchaseId,
+        decimal subtotal,
+        decimal discountAmount,
+        decimal taxAmount,
+        decimal freightAmount,
+        decimal roundingAmount,
+        string? notes,
+        CancellationToken cancellationToken = default)
+    {
+        var invoice = await dbContext.SupplierInvoices.FirstOrDefaultAsync(x => x.Id == supplierInvoiceId, cancellationToken)
+                      ?? throw new NotFoundException("Supplier invoice not found.");
+
+        await ValidateSupplierInvoiceLinksAsync(
+            supplierId,
+            purchaseOrderId,
+            goodsReceiptId,
+            directPurchaseId,
+            cancellationToken);
+
+        invoice.Update(
+            supplierId,
+            invoiceNumber,
+            invoiceDate,
+            dueDate,
+            purchaseOrderId,
+            goodsReceiptId,
+            directPurchaseId,
+            subtotal,
+            discountAmount,
+            taxAmount,
+            freightAmount,
+            roundingAmount,
+            notes);
+
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
     public async Task PostSupplierInvoiceAsync(Guid supplierInvoiceId, CancellationToken cancellationToken = default)
     {
         var invoice = await dbContext.SupplierInvoices.FirstOrDefaultAsync(x => x.Id == supplierInvoiceId, cancellationToken)

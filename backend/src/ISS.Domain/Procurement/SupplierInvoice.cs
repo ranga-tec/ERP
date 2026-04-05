@@ -72,6 +72,46 @@ public sealed class SupplierInvoice : AuditableEntity
 
     public decimal GrandTotal => Subtotal - DiscountAmount + TaxAmount + FreightAmount + RoundingAmount;
 
+    public void Update(
+        Guid supplierId,
+        string invoiceNumber,
+        DateTimeOffset invoiceDate,
+        DateTimeOffset? dueDate,
+        Guid? purchaseOrderId,
+        Guid? goodsReceiptId,
+        Guid? directPurchaseId,
+        decimal subtotal,
+        decimal discountAmount,
+        decimal taxAmount,
+        decimal freightAmount,
+        decimal roundingAmount,
+        string? notes)
+    {
+        if (Status != SupplierInvoiceStatus.Draft)
+        {
+            throw new DomainValidationException("Only draft supplier invoices can be edited.");
+        }
+
+        SupplierId = supplierId;
+        InvoiceNumber = Guard.NotNullOrWhiteSpace(invoiceNumber, nameof(invoiceNumber), maxLength: 64);
+        InvoiceDate = invoiceDate;
+        DueDate = dueDate;
+        PurchaseOrderId = purchaseOrderId;
+        GoodsReceiptId = goodsReceiptId;
+        DirectPurchaseId = directPurchaseId;
+        Subtotal = Guard.NotNegative(subtotal, nameof(subtotal));
+        DiscountAmount = Guard.NotNegative(discountAmount, nameof(discountAmount));
+        TaxAmount = Guard.NotNegative(taxAmount, nameof(taxAmount));
+        FreightAmount = Guard.NotNegative(freightAmount, nameof(freightAmount));
+        RoundingAmount = roundingAmount;
+        Notes = notes?.Trim();
+
+        if (GrandTotal <= 0)
+        {
+            throw new DomainValidationException("Supplier invoice grand total must be positive.");
+        }
+    }
+
     public void Post(Guid? accountsPayableEntryId, DateTimeOffset postedAt)
     {
         if (Status != SupplierInvoiceStatus.Draft)

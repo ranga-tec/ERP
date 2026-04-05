@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { backendFetchJson } from "@/lib/backend.server";
+import { ListViewEditActions } from "@/components/ListViewEditActions";
 import { TransactionLink } from "@/components/TransactionLink";
 import { Card, Table } from "@/components/ui";
 import { ServiceEstimateCreateForm } from "./ServiceEstimateCreateForm";
@@ -110,18 +111,7 @@ export default async function ServiceEstimatesPage() {
                     </td>
                     <td className="py-2 pr-3">{e.total.toFixed(2)}</td>
                     <td className="py-2 pr-3">
-                      <div className="flex flex-wrap gap-3 text-xs">
-                        <Link className="font-semibold text-[var(--link)] underline underline-offset-2" href={`/service/estimates/${e.id}`}>
-                          View
-                        </Link>
-                        {e.status === 0 ? (
-                          <Link className="font-semibold text-[var(--link)] underline underline-offset-2" href={`/service/estimates/${e.id}`}>
-                            Edit
-                          </Link>
-                        ) : (
-                          <span className="text-zinc-400">Edit</span>
-                        )}
-                      </div>
+                      <ListViewEditActions viewHref={`/service/estimates/${e.id}`} canEdit={e.status === 0} />
                     </td>
                   </tr>
                 );

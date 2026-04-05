@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { apiDeleteNoContent, apiPutNoContent } from "@/lib/api-client";
 import { Button, Input, SecondaryButton, Textarea } from "@/components/ui";
 
@@ -30,14 +30,17 @@ export function DirectPurchaseLineRow({
   line,
   itemLabel,
   canEdit,
+  startInEditMode = false,
 }: {
   directPurchaseId: string;
   line: DirectPurchaseLineDto;
   itemLabel: ReactNode;
   canEdit: boolean;
+  startInEditMode?: boolean;
 }) {
   const router = useRouter();
-  const [isEditing, setIsEditing] = useState(false);
+  const allRowsEditing = canEdit && startInEditMode;
+  const [isEditing, setIsEditing] = useState(allRowsEditing);
   const [quantity, setQuantity] = useState(line.quantity.toString());
   const [unitPrice, setUnitPrice] = useState(line.unitPrice.toString());
   const [taxPercent, setTaxPercent] = useState(line.taxPercent.toString());
@@ -45,6 +48,19 @@ export function DirectPurchaseLineRow({
   const [serials, setSerials] = useState(line.serials.join("\n"));
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!allRowsEditing) {
+      return;
+    }
+
+    setQuantity(line.quantity.toString());
+    setUnitPrice(line.unitPrice.toString());
+    setTaxPercent(line.taxPercent.toString());
+    setBatchNumber(line.batchNumber ?? "");
+    setSerials(line.serials.join("\n"));
+    setIsEditing(true);
+  }, [allRowsEditing, line.batchNumber, line.quantity, line.serials, line.taxPercent, line.unitPrice]);
 
   function beginEdit() {
     setError(null);
@@ -85,7 +101,9 @@ export function DirectPurchaseLineRow({
         serials: serialList.length ? serialList : null,
       });
 
-      setIsEditing(false);
+      if (!allRowsEditing) {
+        setIsEditing(false);
+      }
       router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
@@ -109,6 +127,7 @@ export function DirectPurchaseLineRow({
   }
 
   const previewTotal = Number(quantity) * Number(unitPrice) * (1 + Number(taxPercent) / 100);
+  const editing = allRowsEditing || isEditing;
 
   return (
     <tr className="border-b border-zinc-100 align-top dark:border-zinc-900">
@@ -119,36 +138,36 @@ export function DirectPurchaseLineRow({
         )}
       </td>
       <td className="py-2 pr-3">
-        {isEditing ? (
+        {editing ? (
           <Input value={quantity} onChange={(e) => setQuantity(e.target.value)} inputMode="decimal" className="min-w-20" />
         ) : (
           line.quantity
         )}
       </td>
       <td className="py-2 pr-3">
-        {isEditing ? (
+        {editing ? (
           <Input value={unitPrice} onChange={(e) => setUnitPrice(e.target.value)} inputMode="decimal" className="min-w-24" />
         ) : (
           line.unitPrice
         )}
       </td>
       <td className="py-2 pr-3">
-        {isEditing ? (
+        {editing ? (
           <Input value={taxPercent} onChange={(e) => setTaxPercent(e.target.value)} inputMode="decimal" className="min-w-20" />
         ) : (
           line.taxPercent
         )}
       </td>
-      <td className="py-2 pr-3">{isEditing && Number.isFinite(previewTotal) ? previewTotal.toFixed(2) : line.lineTotal.toFixed(2)}</td>
+      <td className="py-2 pr-3">{editing && Number.isFinite(previewTotal) ? previewTotal.toFixed(2) : line.lineTotal.toFixed(2)}</td>
       <td className="py-2 pr-3">
-        {isEditing ? (
+        {editing ? (
           <Input value={batchNumber} onChange={(e) => setBatchNumber(e.target.value)} className="min-w-24" />
         ) : (
           <span className="font-mono text-xs text-zinc-500">{line.batchNumber ?? "-"}</span>
         )}
       </td>
       <td className="py-2 pr-3">
-        {isEditing ? (
+        {editing ? (
           <Textarea
             value={serials}
             onChange={(e) => setSerials(e.target.value)}
@@ -162,7 +181,7 @@ export function DirectPurchaseLineRow({
       {canEdit ? (
         <td className="py-2 pr-3">
           <div className="flex flex-wrap items-center gap-2">
-            {isEditing ? (
+            {editing ? (
               <>
                 <Button type="button" className="px-2 py-1 text-xs" onClick={saveEdit} disabled={busy}>
                   {busy ? "Saving..." : "Save"}
@@ -172,11 +191,18 @@ export function DirectPurchaseLineRow({
                   className="px-2 py-1 text-xs"
                   onClick={() => {
                     setError(null);
-                    setIsEditing(false);
+                    setQuantity(line.quantity.toString());
+                    setUnitPrice(line.unitPrice.toString());
+                    setTaxPercent(line.taxPercent.toString());
+                    setBatchNumber(line.batchNumber ?? "");
+                    setSerials(line.serials.join("\n"));
+                    if (!allRowsEditing) {
+                      setIsEditing(false);
+                    }
                   }}
                   disabled={busy}
                 >
-                  Cancel
+                  {allRowsEditing ? "Reset" : "Cancel"}
                 </SecondaryButton>
               </>
             ) : (

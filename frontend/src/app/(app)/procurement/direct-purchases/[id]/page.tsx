@@ -49,8 +49,16 @@ const statusLabel: Record<number, string> = {
   2: "Voided",
 };
 
-export default async function DirectPurchaseDetailPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function DirectPurchaseDetailPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ mode?: string }>;
+}) {
   const { id } = await params;
+  const { mode } = await searchParams;
+  const startInEditMode = mode === "edit";
 
   const [dp, suppliers, warehouses, items, taxes, serviceJobs] = await Promise.all([
     backendFetchJson<DirectPurchaseDto>(`/procurement/direct-purchases/${id}`),
@@ -151,6 +159,7 @@ export default async function DirectPurchaseDetailPage({ params }: { params: Pro
                     line={l}
                     itemLabel={itemLabel}
                     canEdit={isDraft}
+                    startInEditMode={startInEditMode}
                   />
                 );
               })}
