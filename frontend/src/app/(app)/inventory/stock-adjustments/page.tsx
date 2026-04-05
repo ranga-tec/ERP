@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { backendFetchJson } from "@/lib/backend.server";
+import { ListViewEditActions } from "@/components/ListViewEditActions";
 import { Card, Table } from "@/components/ui";
 import { StockAdjustmentCreateForm } from "./StockAdjustmentCreateForm";
 
@@ -49,6 +50,7 @@ export default async function StockAdjustmentsPage() {
                 <th className="py-2 pr-3">Warehouse</th>
                 <th className="py-2 pr-3">Adjusted</th>
                 <th className="py-2 pr-3">Status</th>
+                <th className="py-2 pr-3">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -62,11 +64,14 @@ export default async function StockAdjustmentsPage() {
                   <td className="py-2 pr-3">{warehouseById.get(a.warehouseId)?.code ?? a.warehouseId}</td>
                   <td className="py-2 pr-3 text-zinc-500">{new Date(a.adjustedAt).toLocaleString()}</td>
                   <td className="py-2 pr-3">{statusLabel[a.status] ?? a.status}</td>
+                  <td className="py-2 pr-3">
+                    <ListViewEditActions viewHref={`/inventory/stock-adjustments/${a.id}`} canEdit={a.status === 0} />
+                  </td>
                 </tr>
               ))}
               {adjustments.length === 0 ? (
                 <tr>
-                  <td className="py-6 text-sm text-zinc-500" colSpan={4}>
+                  <td className="py-6 text-sm text-zinc-500" colSpan={5}>
                     No stock adjustments yet.
                   </td>
                 </tr>
@@ -78,4 +83,3 @@ export default async function StockAdjustmentsPage() {
     </div>
   );
 }
-

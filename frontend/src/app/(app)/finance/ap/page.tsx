@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { backendFetchJson } from "@/lib/backend.server";
+import { ListViewEditActions } from "@/components/ListViewEditActions";
 import { Button, Card, Select, Table } from "@/components/ui";
 import { buildReferenceRouteMap, resolveReferenceHref } from "@/lib/reference-routing";
 
@@ -61,6 +62,7 @@ export default async function AccountsPayablePage({ searchParams }: { searchPara
                 <th className="py-2 pr-3">Ref</th>
                 <th className="py-2 pr-3">Amount</th>
                 <th className="py-2 pr-3">Outstanding</th>
+                <th className="py-2 pr-3">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -83,12 +85,19 @@ export default async function AccountsPayablePage({ searchParams }: { searchPara
                     </td>
                     <td className="py-2 pr-3">{e.amount}</td>
                     <td className="py-2 pr-3">{e.outstanding}</td>
+                    <td className="py-2 pr-3">
+                      {href ? (
+                        <ListViewEditActions viewHref={href} canEdit={false} />
+                      ) : (
+                        <span className="text-xs text-zinc-400">No link</span>
+                      )}
+                    </td>
                   </tr>
                 );
               })}
               {entries.length === 0 ? (
                 <tr>
-                  <td className="py-6 text-sm text-zinc-500" colSpan={5}>
+                  <td className="py-6 text-sm text-zinc-500" colSpan={6}>
                     No AP entries.
                   </td>
                 </tr>

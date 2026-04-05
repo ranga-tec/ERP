@@ -1,5 +1,6 @@
 import { backendFetchJson } from "@/lib/backend.server";
 import { ItemInlineLink } from "@/components/InlineLink";
+import { ListViewEditActions } from "@/components/ListViewEditActions";
 import { Button, Card, Select, Table } from "@/components/ui";
 import { ReorderAlertsCreatePrButton } from "./ReorderAlertsCreatePrButton";
 
@@ -79,6 +80,7 @@ export default async function ReorderAlertsPage({ searchParams }: { searchParams
                 <th className="py-2 pr-3">On Hand</th>
                 <th className="py-2 pr-3">Reorder Point</th>
                 <th className="py-2 pr-3">Reorder Qty</th>
+                <th className="py-2 pr-3">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -93,11 +95,17 @@ export default async function ReorderAlertsPage({ searchParams }: { searchParams
                   <td className="py-2 pr-3">{alert.onHand}</td>
                   <td className="py-2 pr-3">{alert.reorderPoint}</td>
                   <td className="py-2 pr-3">{alert.reorderQuantity}</td>
+                  <td className="py-2 pr-3">
+                    <ListViewEditActions
+                      viewHref={`/master-data/items/${alert.itemId}`}
+                      editHref={`/master-data/items/${alert.itemId}/edit`}
+                    />
+                  </td>
                 </tr>
               ))}
               {alerts.length === 0 ? (
                 <tr>
-                  <td className="py-6 text-sm text-zinc-500" colSpan={5}>
+                  <td className="py-6 text-sm text-zinc-500" colSpan={6}>
                     No reorder alerts.
                   </td>
                 </tr>

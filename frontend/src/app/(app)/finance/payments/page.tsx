@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { backendFetchJson } from "@/lib/backend.server";
+import { ListViewEditActions } from "@/components/ListViewEditActions";
 import { Card, Table } from "@/components/ui";
 import { PaymentCreateForm } from "./PaymentCreateForm";
 
@@ -78,6 +79,7 @@ export default async function PaymentsPage() {
                 <th className="py-2 pr-3">Amount</th>
                 <th className="py-2 pr-3">Base Amount</th>
                 <th className="py-2 pr-3">Notes</th>
+                <th className="py-2 pr-3">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -103,11 +105,14 @@ export default async function PaymentsPage() {
                   <td className="py-2 pr-3">{p.amount}</td>
                   <td className="py-2 pr-3">{p.baseAmount}</td>
                   <td className="py-2 pr-3 text-zinc-500">{p.notes ?? "-"}</td>
+                  <td className="py-2 pr-3">
+                    <ListViewEditActions viewHref={`/finance/payments/${p.id}`} canEdit={false} />
+                  </td>
                 </tr>
               ))}
               {payments.length === 0 ? (
                 <tr>
-                  <td className="py-6 text-sm text-zinc-500" colSpan={9}>
+                  <td className="py-6 text-sm text-zinc-500" colSpan={10}>
                     No payments yet.
                   </td>
                 </tr>

@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { apiDeleteNoContent, apiPutNoContent } from "@/lib/api-client";
 import { Button, Input, SecondaryButton, Textarea } from "@/components/ui";
 import { LineStockInsight } from "@/components/LineStockInsight";
@@ -49,6 +49,7 @@ export function StockAdjustmentLineRow({
   warehouses,
   itemLabel,
   canEdit,
+  startInEditMode = false,
 }: {
   adjustmentId: string;
   line: StockAdjustmentLineDto;
@@ -57,9 +58,11 @@ export function StockAdjustmentLineRow({
   warehouses: WarehouseRef[];
   itemLabel: ReactNode;
   canEdit: boolean;
+  startInEditMode?: boolean;
 }) {
   const router = useRouter();
-  const [isEditing, setIsEditing] = useState(false);
+  const allRowsEditing = canEdit && startInEditMode;
+  const [isEditing, setIsEditing] = useState(allRowsEditing);
   const [countedQuantity, setCountedQuantity] = useState(
     line.countedQuantity != null ? line.countedQuantity.toString() : line.quantityDelta.toString(),
   );
@@ -68,6 +71,18 @@ export function StockAdjustmentLineRow({
   const [serials, setSerials] = useState(line.serials.join("\n"));
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!allRowsEditing) {
+      return;
+    }
+
+    setCountedQuantity(line.countedQuantity != null ? line.countedQuantity.toString() : line.quantityDelta.toString());
+    setUnitCost(line.unitCost.toString());
+    setBatchNumber(line.batchNumber ?? "");
+    setSerials(line.serials.join("\n"));
+    setIsEditing(true);
+  }, [allRowsEditing, line.batchNumber, line.countedQuantity, line.quantityDelta, line.serials, line.unitCost]);
 
   function beginEdit() {
     setError(null);
@@ -101,7 +116,9 @@ export function StockAdjustmentLineRow({
         serials: serialList.length ? serialList : null,
       });
 
-      setIsEditing(false);
+      if (!allRowsEditing) {
+        setIsEditing(false);
+      }
       router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
@@ -125,13 +142,14 @@ export function StockAdjustmentLineRow({
   }
 
   const colSpan = canEdit ? 8 : 7;
+  const editing = allRowsEditing || isEditing;
 
   return (
     <>
       <tr className="border-b border-zinc-100 align-top dark:border-zinc-900">
         <td className="py-2 pr-3">{itemLabel}</td>
         <td className="py-2 pr-3">
-          {isEditing ? (
+          {editing ? (
             <Input value={countedQuantity} onChange={(e) => setCountedQuantity(e.target.value)} inputMode="decimal" className="min-w-20" />
           ) : (
             line.countedQuantity == null ? "-" : formatNumber(line.countedQuantity)
@@ -141,28 +159,28 @@ export function StockAdjustmentLineRow({
           {line.systemQuantity == null ? "-" : formatNumber(line.systemQuantity)}
         </td>
         <td className="py-2 pr-3">
-          {isEditing ? (
+          {editing ? (
             <span className="text-xs text-zinc-500">Calculated on save/post</span>
           ) : (
             formatSignedNumber(line.quantityDelta)
           )}
         </td>
         <td className="py-2 pr-3">
-          {isEditing ? (
+          {editing ? (
             <Input value={unitCost} onChange={(e) => setUnitCost(e.target.value)} inputMode="decimal" className="min-w-24" />
           ) : (
             formatNumber(line.unitCost)
           )}
         </td>
         <td className="py-2 pr-3">
-          {isEditing ? (
+          {editing ? (
             <Input value={batchNumber} onChange={(e) => setBatchNumber(e.target.value)} className="min-w-24" />
           ) : (
             <span className="font-mono text-xs text-zinc-500">{line.batchNumber ?? "-"}</span>
           )}
         </td>
         <td className="py-2 pr-3">
-          {isEditing ? (
+          {editing ? (
             <Textarea
               value={serials}
               onChange={(e) => setSerials(e.target.value)}
@@ -176,7 +194,7 @@ export function StockAdjustmentLineRow({
         {canEdit ? (
           <td className="py-2 pr-3">
             <div className="flex flex-wrap items-center gap-2">
-              {isEditing ? (
+              {editing ? (
                 <>
                   <Button type="button" className="px-2 py-1 text-xs" onClick={saveEdit} disabled={busy}>
                     {busy ? "Saving..." : "Save"}
@@ -186,11 +204,19 @@ export function StockAdjustmentLineRow({
                     className="px-2 py-1 text-xs"
                     onClick={() => {
                       setError(null);
-                      setIsEditing(false);
+                      setCountedQuantity(
+                        line.countedQuantity != null ? line.countedQuantity.toString() : line.quantityDelta.toString(),
+                      );
+                      setUnitCost(line.unitCost.toString());
+                      setBatchNumber(line.batchNumber ?? "");
+                      setSerials(line.serials.join("\n"));
+                      if (!allRowsEditing) {
+                        setIsEditing(false);
+                      }
                     }}
                     disabled={busy}
                   >
-                    Cancel
+                    {allRowsEditing ? "Reset" : "Cancel"}
                   </SecondaryButton>
                 </>
               ) : (
@@ -206,7 +232,7 @@ export function StockAdjustmentLineRow({
           </td>
         ) : null}
       </tr>
-      {isEditing ? (
+      {editing ? (
         <tr className="border-b border-zinc-100 dark:border-zinc-900">
           <td className="pb-3 pr-3" colSpan={colSpan}>
             <LineStockInsight

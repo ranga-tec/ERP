@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { backendFetchJson } from "@/lib/backend.server";
+import { ListViewEditActions } from "@/components/ListViewEditActions";
 import { TransactionLink } from "@/components/TransactionLink";
 import { Card, Table } from "@/components/ui";
 import { CreditNoteCreateForm } from "./CreditNoteCreateForm";
@@ -63,6 +64,7 @@ export default async function CreditNotesPage() {
                 <th className="py-2 pr-3">Remaining</th>
                 <th className="py-2 pr-3">Source</th>
                 <th className="py-2 pr-3">Notes</th>
+                <th className="py-2 pr-3">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -90,11 +92,14 @@ export default async function CreditNotesPage() {
                     )}
                   </td>
                   <td className="py-2 pr-3 text-zinc-500">{note.notes ?? "-"}</td>
+                  <td className="py-2 pr-3">
+                    <ListViewEditActions viewHref={`/finance/credit-notes/${note.id}`} canEdit={false} />
+                  </td>
                 </tr>
               ))}
               {notes.length === 0 ? (
                 <tr>
-                  <td className="py-6 text-sm text-zinc-500" colSpan={7}>
+                  <td className="py-6 text-sm text-zinc-500" colSpan={8}>
                     No credit notes yet.
                   </td>
                 </tr>

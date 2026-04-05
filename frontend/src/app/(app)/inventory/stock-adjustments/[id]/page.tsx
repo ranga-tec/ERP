@@ -36,8 +36,16 @@ const statusLabel: Record<number, string> = {
   2: "Voided",
 };
 
-export default async function StockAdjustmentDetailPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function StockAdjustmentDetailPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ mode?: string }>;
+}) {
   const { id } = await params;
+  const { mode } = await searchParams;
+  const startInEditMode = mode === "edit";
 
   const [adj, warehouses, items] = await Promise.all([
     backendFetchJson<StockAdjustmentDto>(`/inventory/stock-adjustments/${id}`),
@@ -129,6 +137,7 @@ export default async function StockAdjustmentDetailPage({ params }: { params: Pr
                     warehouses={warehouses}
                     itemLabel={itemLabel}
                     canEdit={isDraft}
+                    startInEditMode={startInEditMode}
                   />
                 );
               })}

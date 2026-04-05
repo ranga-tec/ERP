@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { backendFetchJson } from "@/lib/backend.server";
+import { ListViewEditActions } from "@/components/ListViewEditActions";
 import { Card, Table } from "@/components/ui";
 import { PettyCashFundCreateForm } from "./PettyCashFundCreateForm";
 
@@ -50,6 +51,7 @@ export default async function PettyCashFundsPage() {
                 <th className="py-2 pr-3">Transactions</th>
                 <th className="py-2 pr-3">Last Activity</th>
                 <th className="py-2 pr-3">Status</th>
+                <th className="py-2 pr-3">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -69,11 +71,14 @@ export default async function PettyCashFundsPage() {
                     {fund.lastActivityAt ? new Date(fund.lastActivityAt).toLocaleString() : "-"}
                   </td>
                   <td className="py-2 pr-3">{fund.isActive ? "Active" : "Inactive"}</td>
+                  <td className="py-2 pr-3">
+                    <ListViewEditActions viewHref={`/finance/petty-cash/${fund.id}`} />
+                  </td>
                 </tr>
               ))}
               {funds.length === 0 ? (
                 <tr>
-                  <td className="py-6 text-sm text-zinc-500" colSpan={8}>
+                  <td className="py-6 text-sm text-zinc-500" colSpan={9}>
                     No petty cash funds yet.
                   </td>
                 </tr>
