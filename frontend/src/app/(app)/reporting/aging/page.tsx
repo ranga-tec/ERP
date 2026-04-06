@@ -1,5 +1,5 @@
 import { backendFetchJson } from "@/lib/backend.server";
-import { Card, Table } from "@/components/ui";
+import { Button, Card, Input, SecondaryLink, Select, Table } from "@/components/ui";
 import { userSettingsFromCookies } from "@/lib/user-settings.server";
 
 type AgingBuckets = {
@@ -32,6 +32,66 @@ type AgingReport = {
   accountsPayable: ApRow[];
   apTotals: AgingBuckets;
 };
+
+type AgingEntity = "both" | "ar" | "ap";
+type BucketFilter = "all" | "current" | "1-30" | "31-60" | "61-90" | "90+" | "overdue";
+
+function emptyBuckets(): AgingBuckets {
+  return {
+    current: 0,
+    days1To30: 0,
+    days31To60: 0,
+    days61To90: 0,
+    daysOver90: 0,
+    total: 0,
+  };
+}
+
+function sumBuckets(rows: Array<{ buckets: AgingBuckets }>): AgingBuckets {
+  return rows.reduce<AgingBuckets>(
+    (acc, row) => ({
+      current: acc.current + row.buckets.current,
+      days1To30: acc.days1To30 + row.buckets.days1To30,
+      days31To60: acc.days31To60 + row.buckets.days31To60,
+      days61To90: acc.days61To90 + row.buckets.days61To90,
+      daysOver90: acc.daysOver90 + row.buckets.daysOver90,
+      total: acc.total + row.buckets.total,
+    }),
+    emptyBuckets(),
+  );
+}
+
+function matchesBucket(buckets: AgingBuckets, filter: BucketFilter) {
+  switch (filter) {
+    case "current":
+      return buckets.current > 0;
+    case "1-30":
+      return buckets.days1To30 > 0;
+    case "31-60":
+      return buckets.days31To60 > 0;
+    case "61-90":
+      return buckets.days61To90 > 0;
+    case "90+":
+      return buckets.daysOver90 > 0;
+    case "overdue":
+      return buckets.days1To30 + buckets.days31To60 + buckets.days61To90 + buckets.daysOver90 > 0;
+    default:
+      return buckets.total > 0;
+  }
+}
+
+function normalizeDateInput(value?: string | null) {
+  if (!value) {
+    return "";
+  }
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return "";
+  }
+
+  return date.toISOString().slice(0, 10);
+}
 
 function AgingTable({
   title,
@@ -98,9 +158,25 @@ function AgingTable({
   );
 }
 
-export default async function AgingPage() {
+export default async function AgingPage({
+  searchParams,
+}: {
+  searchParams?: Promise<{ asOf?: string; q?: string; bucket?: string; entity?: string }>;
+}) {
+  const sp = await searchParams;
   const settings = await userSettingsFromCookies();
-  const report = await backendFetchJson<AgingReport>("/reporting/aging");
+  const searchQuery = (sp?.q ?? "").trim();
+  const normalizedQuery = searchQuery.toLowerCase();
+  const bucket = (sp?.bucket ?? "all") as BucketFilter;
+  const entity = (sp?.entity ?? "both") as AgingEntity;
+  const asOfInput = normalizeDateInput(sp?.asOf ?? null);
+
+  const qs = new URLSearchParams();
+  if (asOfInput) {
+    qs.set("asOf", asOfInput);
+  }
+
+  const report = await backendFetchJson<AgingReport>(`/reporting/aging${qs.size > 0 ? `?${qs.toString()}` : ""}`);
   const money = (value: number) => {
     try {
       return new Intl.NumberFormat(settings.locale, {
@@ -117,6 +193,22 @@ export default async function AgingPage() {
     }
   };
 
+  const matchesSearch = (code: string, name: string) =>
+    normalizedQuery.length === 0 ||
+    code.toLowerCase().includes(normalizedQuery) ||
+    name.toLowerCase().includes(normalizedQuery);
+
+  const filteredAr = report.accountsReceivable.filter(
+    (row) => matchesSearch(row.customerCode, row.customerName) && matchesBucket(row.buckets, bucket),
+  );
+  const filteredAp = report.accountsPayable.filter(
+    (row) => matchesSearch(row.supplierCode, row.supplierName) && matchesBucket(row.buckets, bucket),
+  );
+
+  const arTotals = sumBuckets(filteredAr);
+  const apTotals = sumBuckets(filteredAp);
+  const hasFilters = normalizedQuery.length > 0 || bucket !== "all" || asOfInput.length > 0;
+  const summarySuffix = hasFilters ? " (filtered)" : "";
   const asOf = new Date(report.asOf).toLocaleString(settings.locale, {
     timeZone: settings.timeZone,
   });
@@ -130,32 +222,88 @@ export default async function AgingPage() {
         </p>
       </div>
 
+      <Card>
+        <div className="mb-3 text-sm font-semibold">Filter</div>
+        <form method="GET" className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+          <div className="xl:col-span-2">
+            <label className="mb-1 block text-sm font-medium">Search</label>
+            <Input
+              name="q"
+              defaultValue={searchQuery}
+              placeholder="Customer / supplier code or name"
+            />
+          </div>
+
+          <div>
+            <label className="mb-1 block text-sm font-medium">As of date</label>
+            <Input name="asOf" type="date" defaultValue={asOfInput} />
+          </div>
+
+          <div>
+            <label className="mb-1 block text-sm font-medium">Bucket</label>
+            <Select name="bucket" defaultValue={bucket}>
+              <option value="all">All balances</option>
+              <option value="overdue">Overdue only</option>
+              <option value="current">Current only</option>
+              <option value="1-30">1-30 days</option>
+              <option value="31-60">31-60 days</option>
+              <option value="61-90">61-90 days</option>
+              <option value="90+">Over 90 days</option>
+            </Select>
+          </div>
+
+          <div>
+            <label className="mb-1 block text-sm font-medium">Show</label>
+            <Select name="entity" defaultValue={entity}>
+              <option value="both">AR and AP</option>
+              <option value="ar">AR only</option>
+              <option value="ap">AP only</option>
+            </Select>
+          </div>
+
+          <div className="flex flex-wrap items-end gap-2 xl:col-span-5">
+            <Button type="submit">Apply</Button>
+            <SecondaryLink href="/reporting/aging">Reset</SecondaryLink>
+          </div>
+        </form>
+      </Card>
+
       <div className="grid gap-4 sm:grid-cols-2">
-        <Card>
-          <div className="text-xs uppercase tracking-wide text-zinc-500">AR Total</div>
-          <div className="mt-2 text-2xl font-semibold">{money(report.arTotals.total)}</div>
-        </Card>
-        <Card>
-          <div className="text-xs uppercase tracking-wide text-zinc-500">AP Total</div>
-          <div className="mt-2 text-2xl font-semibold">{money(report.apTotals.total)}</div>
-        </Card>
+        {entity !== "ap" ? (
+          <Card>
+            <div className="text-xs uppercase tracking-wide text-zinc-500">AR Total{summarySuffix}</div>
+            <div className="mt-2 text-2xl font-semibold">{money(arTotals.total)}</div>
+            <div className="mt-1 text-xs text-zinc-500">{filteredAr.length} customer row(s)</div>
+          </Card>
+        ) : null}
+        {entity !== "ar" ? (
+          <Card>
+            <div className="text-xs uppercase tracking-wide text-zinc-500">AP Total{summarySuffix}</div>
+            <div className="mt-2 text-2xl font-semibold">{money(apTotals.total)}</div>
+            <div className="mt-1 text-xs text-zinc-500">{filteredAp.length} supplier row(s)</div>
+          </Card>
+        ) : null}
       </div>
 
-      <AgingTable
-        title="Accounts Receivable"
-        codeLabel="Customer"
-        rows={report.accountsReceivable.map((row) => ({ code: row.customerCode, name: row.customerName, buckets: row.buckets }))}
-        totals={report.arTotals}
-        money={money}
-      />
+      {entity !== "ap" ? (
+        <AgingTable
+          title="Accounts Receivable"
+          codeLabel="Customer"
+          rows={filteredAr.map((row) => ({ code: row.customerCode, name: row.customerName, buckets: row.buckets }))}
+          totals={arTotals}
+          money={money}
+        />
+      ) : null}
 
-      <AgingTable
-        title="Accounts Payable"
-        codeLabel="Supplier"
-        rows={report.accountsPayable.map((row) => ({ code: row.supplierCode, name: row.supplierName, buckets: row.buckets }))}
-        totals={report.apTotals}
-        money={money}
-      />
+      {entity !== "ar" ? (
+        <AgingTable
+          title="Accounts Payable"
+          codeLabel="Supplier"
+          rows={filteredAp.map((row) => ({ code: row.supplierCode, name: row.supplierName, buckets: row.buckets }))}
+          totals={apTotals}
+          money={money}
+        />
+      ) : null}
     </div>
   );
 }
