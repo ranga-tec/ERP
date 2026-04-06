@@ -4,8 +4,8 @@
 
 - Repo: `D:\VScode Projects\ISS`
 - Branch: `main`
-- Current purpose: resume from the deployed ERP-density, searchable-dropdown, finance account-mapping, chart-of-accounts workspace, and reusable line-grid rollout checkpoints
-- Current tracked code state: there is a validated local release candidate covering direct list-page edit entry, service handover draft editing, and material requisition edit-entry cleanup
+- Current purpose: resume from the deployed ERP-density, searchable-dropdown, finance account-mapping, chart-of-accounts workspace, reusable line-grid rollout, and direct-edit workflow checkpoints
+- Current tracked code state: no pending tracked code WIP
 - Current local artifacts:
   - untracked `.playwright-cli/`
   - untracked `images/`
@@ -22,11 +22,12 @@ Most relevant recent commits on `main`:
 - `5f69cda` `Add chart of accounts workspace modes`
 - `cc0f80b` `Roll out tracked document line editors`
 - `3d97d3d` `Fix finance list actions and warehouse selectors`
+- `72b504f` `Fix direct edit entry and service draft workflows`
 
 ## Railway Production State
 
-- `iss-api`: latest deployment `b96ede1d-f774-4115-8acd-cd58c53355b6`
-- `iss-web`: latest deployment `a50572cc-d1fc-40bb-a027-560d102d23af`
+- `iss-api`: latest deployment `a772948a-e257-46db-b53a-979ecddb8c94`
+- `iss-web`: latest deployment `e0b99f00-27d1-44cf-802c-3981ee99306c`
 - Live URLs:
   - `https://iss-api-production.up.railway.app`
   - `https://iss-web-production.up.railway.app`
@@ -67,9 +68,9 @@ Wave checkpoints:
 - quotes / sales orders / RFQs / purchase requisitions: `dc50cab`
 - dispatches / direct dispatches / customer returns / supplier returns: `cc0f80b`
 
-### Direct-edit entry behavior now staged locally
+### Direct-edit entry behavior now live
 
-The next validated release candidate in the worktree adds this behavior:
+The latest release now includes this behavior:
 
 - list-page `Edit` opens shared-grid documents directly in edit mode through `?mode=edit`
 - the detail pages hide the separate add-line form while in direct-edit mode and show a short `Switch to Add Line` notice instead
@@ -94,6 +95,26 @@ Documents covered by this direct-edit entry change:
 Shared file:
 
 - `frontend/src/components/DocumentDirectEditNotice.tsx`
+
+### Service handover and material requisition editing now live
+
+The latest release also includes:
+
+- a real draft update workflow for service handovers
+- explicit list-page `View` / `Edit` actions for material requisitions
+- direct edit entry for draft material-requisition lines
+
+Relevant files:
+
+- `backend/src/ISS.Domain/Service/ServiceHandover.cs`
+- `backend/src/ISS.Application/Services/ServiceManagementService.cs`
+- `backend/src/ISS.Api/Controllers/Service/ServiceHandoversController.cs`
+- `frontend/src/app/(app)/service/handovers/page.tsx`
+- `frontend/src/app/(app)/service/handovers/[id]/page.tsx`
+- `frontend/src/app/(app)/service/handovers/ServiceHandoverEditForm.tsx`
+- `frontend/src/app/(app)/service/material-requisitions/page.tsx`
+- `frontend/src/app/(app)/service/material-requisitions/[id]/page.tsx`
+- `frontend/src/app/(app)/service/material-requisitions/MaterialRequisitionLineRow.tsx`
 
 ### Chart of accounts UI now live
 
@@ -138,12 +159,11 @@ Important scope limit:
 
 ## Recommended Next Engineering Steps
 
-1. Push and deploy the currently validated direct-edit release candidate plus the service handover/material requisition changes if they are not yet on `main`.
-2. Continue the reusable line-grid rollout to the remaining one-off line screens:
+1. Continue the reusable line-grid rollout to the remaining one-off line screens:
    - stock transfers
    - service expense claims
-3. Decide whether finance should stop at account determination or continue into real journal posting automation.
-4. After the remaining grid rollout is stable, remove or archive unused `*LineRow.tsx` components that are no longer wired into detail pages.
+2. Decide whether finance should stop at account determination or continue into real journal posting automation.
+3. After the remaining grid rollout is stable, remove or archive unused `*LineRow.tsx` components that are no longer wired into detail pages.
 
 ## Files Most Relevant For The Next Agent
 

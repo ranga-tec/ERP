@@ -197,6 +197,10 @@ This direct-edit behavior is now applied on:
 - `frontend/src/app/(app)/inventory/stock-adjustments/[id]/page.tsx`
 - `frontend/src/app/(app)/service/estimates/[id]/page.tsx`
 
+Release checkpoint:
+
+- `72b504f` `Fix direct edit entry and service draft workflows`
+
 ### Service handover and material requisition checkpoint
 
 New service-document editing behavior now implemented:
@@ -216,6 +220,10 @@ Relevant files:
 - `frontend/src/app/(app)/service/material-requisitions/page.tsx`
 - `frontend/src/app/(app)/service/material-requisitions/[id]/page.tsx`
 - `frontend/src/app/(app)/service/material-requisitions/MaterialRequisitionLineRow.tsx`
+
+Release checkpoint:
+
+- `72b504f` `Fix direct edit entry and service draft workflows`
 
 ### Finance accounts workspace checkpoint
 
