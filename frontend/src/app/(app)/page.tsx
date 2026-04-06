@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { cookies } from "next/headers";
 import { Card, SecondaryLink } from "@/components/ui";
+import { DashboardAnalyticsPanel } from "@/components/DashboardAnalyticsPanel";
 import { backendFetchJson } from "@/lib/backend.server";
 import { ISS_TOKEN_COOKIE } from "@/lib/env";
 import { sessionFromToken } from "@/lib/jwt";
@@ -301,6 +302,16 @@ export default async function DashboardPage() {
           </p>
         </Card>
       )}
+
+      {!dashboardError && (heroMetrics.length > 0 || alerts.length > 0 || sections.length > 0) ? (
+        <DashboardAnalyticsPanel
+          heroMetrics={heroMetrics}
+          alerts={alerts}
+          sections={sections}
+          locale={settings.locale}
+          currencyCode={settings.baseCurrencyCode}
+        />
+      ) : null}
 
       <div className="space-y-3">
         <div>
