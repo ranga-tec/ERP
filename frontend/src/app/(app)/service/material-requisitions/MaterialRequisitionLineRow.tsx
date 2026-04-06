@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { apiDeleteNoContent, apiPutNoContent } from "@/lib/api-client";
 import { Button, Input, SecondaryButton, Textarea } from "@/components/ui";
 import { LineStockInsight } from "@/components/LineStockInsight";
@@ -29,6 +29,7 @@ export function MaterialRequisitionLineRow({
   warehouses,
   itemLabel,
   canEdit,
+  startInEditMode = false,
 }: {
   requisitionId: string;
   line: MaterialRequisitionLineDto;
@@ -37,14 +38,35 @@ export function MaterialRequisitionLineRow({
   warehouses: WarehouseRef[];
   itemLabel: ReactNode;
   canEdit: boolean;
+  startInEditMode?: boolean;
 }) {
   const router = useRouter();
-  const [isEditing, setIsEditing] = useState(false);
+  const [isEditing, setIsEditing] = useState(startInEditMode && canEdit);
   const [quantity, setQuantity] = useState(line.quantity.toString());
   const [batchNumber, setBatchNumber] = useState(line.batchNumber ?? "");
   const [serials, setSerials] = useState(line.serials.join("\n"));
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!canEdit) {
+      setError(null);
+      setIsEditing(false);
+      return;
+    }
+
+    if (startInEditMode) {
+      setError(null);
+      setQuantity(line.quantity.toString());
+      setBatchNumber(line.batchNumber ?? "");
+      setSerials(line.serials.join("\n"));
+      setIsEditing(true);
+      return;
+    }
+
+    setError(null);
+    setIsEditing(false);
+  }, [canEdit, startInEditMode, line.id, line.quantity, line.batchNumber, line.serials]);
 
   function beginEdit() {
     setError(null);

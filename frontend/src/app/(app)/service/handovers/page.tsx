@@ -2,6 +2,7 @@ import Link from "next/link";
 import { backendFetchJson } from "@/lib/backend.server";
 import { TransactionLink } from "@/components/TransactionLink";
 import { Card, Table } from "@/components/ui";
+import { ListViewEditActions } from "@/components/ListViewEditActions";
 import { ServiceHandoverCreateForm } from "./ServiceHandoverCreateForm";
 
 type ServiceHandoverDto = {
@@ -61,6 +62,7 @@ export default async function ServiceHandoversPage() {
                 <th className="py-2 pr-3">Date</th>
                 <th className="py-2 pr-3">Warranty</th>
                 <th className="py-2 pr-3">Status</th>
+                <th className="py-2 pr-3">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -85,12 +87,18 @@ export default async function ServiceHandoversPage() {
                       {typeof r.postServiceWarrantyMonths === "number" ? `${r.postServiceWarrantyMonths} mo` : "-"}
                     </td>
                     <td className="py-2 pr-3">{statusLabel[r.status] ?? r.status}</td>
+                    <td className="py-2 pr-3">
+                      <ListViewEditActions
+                        viewHref={`/service/handovers/${r.id}`}
+                        canEdit={r.status === 0}
+                      />
+                    </td>
                   </tr>
                 );
               })}
               {rows.length === 0 ? (
                 <tr>
-                  <td className="py-6 text-sm text-zinc-500" colSpan={6}>
+                  <td className="py-6 text-sm text-zinc-500" colSpan={7}>
                     No service handovers yet.
                   </td>
                 </tr>

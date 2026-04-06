@@ -8,6 +8,7 @@ import { CustomerReturnLineAddForm } from "../CustomerReturnLineAddForm";
 import { CustomerReturnLinesEditor } from "../CustomerReturnLinesEditor";
 import { DocumentCollaborationPanel } from "@/components/DocumentCollaborationPanel";
 import { StockAvailabilityExplorer } from "@/components/StockAvailabilityExplorer";
+import { DocumentDirectEditNotice } from "@/components/DocumentDirectEditNotice";
 
 type CustomerReturnDto = {
   id: string;
@@ -109,15 +110,19 @@ export default async function CustomerReturnDetailPage({
 
       {isDraft ? (
         <>
-          <Card>
-          <div className="mb-3 text-sm font-semibold">Add line</div>
-          <CustomerReturnLineAddForm
-            customerReturnId={customerReturn.id}
-            items={items}
-            warehouses={warehouses}
-            warehouseId={customerReturn.warehouseId}
-          />
-        </Card>
+          {startInEditMode ? (
+            <DocumentDirectEditNotice addLineHref={`/sales/customer-returns/${customerReturn.id}`} />
+          ) : (
+            <Card>
+              <div className="mb-3 text-sm font-semibold">Add line</div>
+              <CustomerReturnLineAddForm
+                customerReturnId={customerReturn.id}
+                items={items}
+                warehouses={warehouses}
+                warehouseId={customerReturn.warehouseId}
+              />
+            </Card>
+          )}
 
           <Card>
             <div className="mb-3 text-sm font-semibold">Stock visibility</div>

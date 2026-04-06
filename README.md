@@ -56,6 +56,8 @@
   - it supports typed editable cells, searchable lookup dropdowns, keyboard row-submit flow, and optional footer totals
   - live rollout is currently on GRN receipt planning, purchase-order lines, invoice lines, quotes, sales orders, RFQs, purchase requisitions, dispatches, direct dispatches, customer returns, and supplier returns
   - GRN draft mode now uses a single primary working grid instead of a duplicate lower draft-line table
+  - list-page `Edit` on shared-grid documents now opens the detail page directly in edit mode instead of forcing a second row-level `Edit` click
+  - direct edit mode hides the separate add-line form so it does not look like a blank saved row when existing lines are already editable
 - Procurement list pages now expose explicit `View` / `Edit` actions for purchase requisitions, RFQs, purchase orders, goods receipts, direct purchases, supplier invoices, and supplier returns so operators do not need to rely only on the document number link
 - Sales list pages now expose explicit `View` / `Edit` actions for quotes, orders, dispatches, direct dispatches, invoices, and customer returns so operators do not need to rely only on the document number link
 - Service workflow now supports:
@@ -74,6 +76,8 @@
   - service expense claims for petty-cash and out-of-pocket spending, with finance approval and settlement tracking
   - billable expense-claim lines can be converted into the working estimate or an automatic change-order draft revision
   - handover-to-invoice conversion now supports expense estimate lines with fallback invoice item mapping and approved timesheet-based labor billing
+  - draft service handovers can now be reopened from the list in explicit `Edit` mode to correct returned items, warranty months, acknowledgement, and notes before completion
+  - material requisitions now expose explicit `View` / `Edit` actions, and `Edit` opens draft lines directly editable instead of only through per-line entry clicks
   - service job detail now includes actual job-cost rollup across material issues, direct purchases, approved labor, expense claims, estimates, and invoices
 - Finance workflow now supports:
   - petty cash funds with opening balance, top-up, adjustment, and expense-settlement ledger entries

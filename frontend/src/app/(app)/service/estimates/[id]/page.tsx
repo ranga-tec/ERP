@@ -4,6 +4,7 @@ import { ItemInlineLink } from "@/components/InlineLink";
 import { TransactionLink } from "@/components/TransactionLink";
 import { Card, SecondaryLink, Table } from "@/components/ui";
 import { DocumentCollaborationPanel } from "@/components/DocumentCollaborationPanel";
+import { DocumentDirectEditNotice } from "@/components/DocumentDirectEditNotice";
 import { ServiceEstimateActions } from "../ServiceEstimateActions";
 import { ServiceEstimateEditForm } from "../ServiceEstimateEditForm";
 import { ServiceEstimateLineAddForm } from "../ServiceEstimateLineAddForm";
@@ -190,10 +191,14 @@ export default async function ServiceEstimateDetailPage({
       </div>
 
       {isDraft ? (
-        <Card>
-          <div className="mb-3 text-sm font-semibold">Add line</div>
-          <ServiceEstimateLineAddForm estimateId={estimate.id} items={items} taxes={taxes} />
-        </Card>
+        startInEditMode ? (
+          <DocumentDirectEditNotice addLineHref={`/service/estimates/${estimate.id}`} />
+        ) : (
+          <Card>
+            <div className="mb-3 text-sm font-semibold">Add line</div>
+            <ServiceEstimateLineAddForm estimateId={estimate.id} items={items} taxes={taxes} />
+          </Card>
+        )
       ) : null}
 
       {estimate.terms ? (

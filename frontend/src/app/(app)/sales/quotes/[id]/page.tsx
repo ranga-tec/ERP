@@ -6,6 +6,7 @@ import { QuoteActions } from "../QuoteActions";
 import { QuoteLineAddForm } from "../QuoteLineAddForm";
 import { QuoteLinesEditor } from "../QuoteLinesEditor";
 import { DocumentCollaborationPanel } from "@/components/DocumentCollaborationPanel";
+import { DocumentDirectEditNotice } from "@/components/DocumentDirectEditNotice";
 
 type SalesQuoteDto = {
   id: string;
@@ -89,10 +90,14 @@ export default async function QuoteDetailPage({
       </Card>
 
       {isDraft ? (
-        <Card>
-          <div className="mb-3 text-sm font-semibold">Add line</div>
-          <QuoteLineAddForm quoteId={quote.id} items={items} />
-        </Card>
+        startInEditMode ? (
+          <DocumentDirectEditNotice addLineHref={`/sales/quotes/${quote.id}`} />
+        ) : (
+          <Card>
+            <div className="mb-3 text-sm font-semibold">Add line</div>
+            <QuoteLineAddForm quoteId={quote.id} items={items} />
+          </Card>
+        )
       ) : null}
 
       <Card>

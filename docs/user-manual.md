@@ -47,6 +47,7 @@ Note:
 
 - procurement list pages show explicit `View` and `Edit` actions so you can open a document from the actions column instead of only clicking the document number
 - `Edit` stays available while the procurement document is still `Draft`
+- for line-grid documents, `Edit` opens the detail page with existing lines already in edit mode; the separate add-line form is hidden in that state so it does not look like a blank saved row
 - RFQ:
   - create -> add lines -> send
   - while the RFQ is still `Draft`, existing lines can be edited directly in the line grid
@@ -95,6 +96,7 @@ Note:
 
 - sales list pages show explicit `View` and `Edit` actions so you can open a document from the actions column instead of only clicking the document number
 - `Edit` stays available while the sales document is still `Draft` (invoice edit also follows invoice-role permissions)
+- for line-grid documents, `Edit` opens the detail page with existing lines already in edit mode; the separate add-line form is hidden in that state so it does not look like a blank saved row
 - Quote:
   - create -> add lines -> send
   - while the quote is still `Draft`, existing lines can be edited directly in the line grid
@@ -155,6 +157,7 @@ Note:
   - create -> add lines -> send -> mark customer approved/rejected
   - estimates now support `Part`, `Labor`, and billable `Expense` lines
   - while status is `Draft`, the estimate header (`Valid until`, `Terms`) and lines can be edited directly
+  - using `Edit` from the list opens the existing lines directly in edit mode; use `Switch to Add Line` if you want to return to the add-line form
   - sending a draft estimate marks `Customer Approval = Pending`
   - if a sent draft is edited, the pending approval is cleared and the estimate must be resent so the customer approves the latest scope
   - if extra findings appear after approval or rejection, use `Create Change Order` instead of overwriting the original estimate
@@ -168,12 +171,16 @@ Note:
   - if an expense-claim line references a spare part item, conversion classifies it as a part line so entitlement rules can still cover it
   - use this for technician reimbursement, emergency cash buys, and petty-cash clearing that should not be hidden as stock or AP workarounds
 - Material requisitions:
+  - the list page now exposes explicit `View` and `Edit`; `Edit` is available while the requisition is still `Draft`
   - create -> add lines -> post
+  - using `Edit` from the list opens the existing draft lines directly in edit mode; use `Switch to Add Line` if you want to return to the add-line form
   - use when issuing stocked spare parts from a warehouse to the job
 - Quality checks:
   - record pass/fail and notes
 - Service handovers:
+  - the list page now exposes explicit `View` and `Edit`; `Edit` is available while the handover is still `Draft`
   - complete handover and optionally convert to invoice
+  - while the handover is still `Draft`, you can edit the returned-items text, post-service warranty months, customer acknowledgement, and notes from the detail page
   - invoice conversion can map expense estimate lines by using the line item when present or a selected fallback expense/service item
   - labor billing can come from estimate labor lines or from approved work-order timesheets when actual labor should drive the invoice
   - warranty/contract coverage still applies during invoice conversion, so covered labor or parts can invoice at zero

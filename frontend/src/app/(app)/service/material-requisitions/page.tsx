@@ -2,6 +2,7 @@ import Link from "next/link";
 import { backendFetchJson } from "@/lib/backend.server";
 import { TransactionLink } from "@/components/TransactionLink";
 import { Card, Table } from "@/components/ui";
+import { ListViewEditActions } from "@/components/ListViewEditActions";
 import { MaterialRequisitionCreateForm } from "./MaterialRequisitionCreateForm";
 
 type MaterialRequisitionSummaryDto = {
@@ -57,6 +58,7 @@ export default async function MaterialRequisitionsPage() {
                 <th className="py-2 pr-3">Requested</th>
                 <th className="py-2 pr-3">Status</th>
                 <th className="py-2 pr-3">Lines</th>
+                <th className="py-2 pr-3">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -76,11 +78,17 @@ export default async function MaterialRequisitionsPage() {
                   <td className="py-2 pr-3 text-zinc-500">{new Date(m.requestedAt).toLocaleString()}</td>
                   <td className="py-2 pr-3">{statusLabel[m.status] ?? m.status}</td>
                   <td className="py-2 pr-3">{m.lineCount}</td>
+                  <td className="py-2 pr-3">
+                    <ListViewEditActions
+                      viewHref={`/service/material-requisitions/${m.id}`}
+                      canEdit={m.status === 0}
+                    />
+                  </td>
                 </tr>
               ))}
               {mrs.length === 0 ? (
                 <tr>
-                  <td className="py-6 text-sm text-zinc-500" colSpan={6}>
+                  <td className="py-6 text-sm text-zinc-500" colSpan={7}>
                     No material requisitions yet.
                   </td>
                 </tr>

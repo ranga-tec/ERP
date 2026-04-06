@@ -7,6 +7,7 @@ import { StockAdjustmentLineAddForm } from "../StockAdjustmentLineAddForm";
 import { StockAdjustmentLineRow } from "../StockAdjustmentLineRow";
 import { DocumentCollaborationPanel } from "@/components/DocumentCollaborationPanel";
 import { StockAvailabilityExplorer } from "@/components/StockAvailabilityExplorer";
+import { DocumentDirectEditNotice } from "@/components/DocumentDirectEditNotice";
 
 type StockAdjustmentDto = {
   id: string;
@@ -91,10 +92,14 @@ export default async function StockAdjustmentDetailPage({
 
       {isDraft ? (
         <>
-          <Card>
-          <div className="mb-3 text-sm font-semibold">Add line</div>
-          <StockAdjustmentLineAddForm adjustmentId={adj.id} items={items} warehouses={warehouses} warehouseId={adj.warehouseId} />
-        </Card>
+          {startInEditMode ? (
+            <DocumentDirectEditNotice addLineHref={`/inventory/stock-adjustments/${adj.id}`} />
+          ) : (
+            <Card>
+              <div className="mb-3 text-sm font-semibold">Add line</div>
+              <StockAdjustmentLineAddForm adjustmentId={adj.id} items={items} warehouses={warehouses} warehouseId={adj.warehouseId} />
+            </Card>
+          )}
 
           <Card>
             <div className="mb-3 text-sm font-semibold">Stock visibility</div>

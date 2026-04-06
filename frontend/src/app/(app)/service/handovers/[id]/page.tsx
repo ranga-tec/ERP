@@ -8,6 +8,7 @@ import { DocumentCollaborationPanel } from "@/components/DocumentCollaborationPa
 import { TransactionLink } from "@/components/TransactionLink";
 import { ServiceHandoverActions } from "../ServiceHandoverActions";
 import { ServiceHandoverConvertInvoiceForm } from "../ServiceHandoverConvertInvoiceForm";
+import { ServiceHandoverEditForm } from "../ServiceHandoverEditForm";
 
 type ServiceHandoverDto = {
   id: string;
@@ -46,8 +47,16 @@ const statusLabel: Record<number, string> = {
   2: "Cancelled",
 };
 
-export default async function ServiceHandoverDetailPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function ServiceHandoverDetailPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ mode?: string }>;
+}) {
   const { id } = await params;
+  const { mode } = await searchParams;
+  const startInEditMode = mode === "edit";
   const cookieStore = await cookies();
   const token = cookieStore.get(ISS_TOKEN_COOKIE)?.value;
   const session = token ? sessionFromToken(token) : null;
@@ -112,6 +121,13 @@ export default async function ServiceHandoverDetailPage({ params }: { params: Pr
           </div>
         </div>
       </div>
+
+      {isDraft && startInEditMode ? (
+        <Card>
+          <div className="mb-3 text-sm font-semibold">Edit Handover</div>
+          <ServiceHandoverEditForm handover={handover} />
+        </Card>
+      ) : null}
 
       <Card>
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">

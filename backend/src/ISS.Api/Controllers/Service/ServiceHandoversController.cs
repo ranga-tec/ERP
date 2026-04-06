@@ -37,6 +37,11 @@ public sealed class ServiceHandoversController(
         int? PostServiceWarrantyMonths,
         string? CustomerAcknowledgement,
         string? Notes);
+    public sealed record UpdateServiceHandoverRequest(
+        string ItemsReturned,
+        int? PostServiceWarrantyMonths,
+        string? CustomerAcknowledgement,
+        string? Notes);
     public sealed record ConvertToSalesInvoiceRequest(
         Guid? ServiceEstimateId,
         Guid? LaborItemId,
@@ -86,6 +91,19 @@ public sealed class ServiceHandoversController(
     {
         var id = await serviceManagementService.CreateServiceHandoverAsync(
             request.ServiceJobId,
+            request.ItemsReturned,
+            request.PostServiceWarrantyMonths,
+            request.CustomerAcknowledgement,
+            request.Notes,
+            cancellationToken);
+        return await Get(id, cancellationToken);
+    }
+
+    [HttpPut("{id:guid}")]
+    public async Task<ActionResult<ServiceHandoverDto>> Update(Guid id, UpdateServiceHandoverRequest request, CancellationToken cancellationToken)
+    {
+        await serviceManagementService.UpdateServiceHandoverAsync(
+            id,
             request.ItemsReturned,
             request.PostServiceWarrantyMonths,
             request.CustomerAcknowledgement,

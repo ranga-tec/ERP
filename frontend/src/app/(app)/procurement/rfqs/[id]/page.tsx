@@ -6,6 +6,7 @@ import { RfqActions } from "../RfqActions";
 import { RfqLineAddForm } from "../RfqLineAddForm";
 import { RfqLinesEditor } from "../RfqLinesEditor";
 import { DocumentCollaborationPanel } from "@/components/DocumentCollaborationPanel";
+import { DocumentDirectEditNotice } from "@/components/DocumentDirectEditNotice";
 
 type RfqDto = {
   id: string;
@@ -83,10 +84,14 @@ export default async function RfqDetailPage({
       </Card>
 
       {isDraft ? (
-        <Card>
-          <div className="mb-3 text-sm font-semibold">Add line</div>
-          <RfqLineAddForm rfqId={rfq.id} items={items} />
-        </Card>
+        startInEditMode ? (
+          <DocumentDirectEditNotice addLineHref={`/procurement/rfqs/${rfq.id}`} />
+        ) : (
+          <Card>
+            <div className="mb-3 text-sm font-semibold">Add line</div>
+            <RfqLineAddForm rfqId={rfq.id} items={items} />
+          </Card>
+        )
       ) : null}
 
       <Card>

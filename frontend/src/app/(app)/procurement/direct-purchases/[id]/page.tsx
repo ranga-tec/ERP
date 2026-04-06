@@ -7,6 +7,7 @@ import { DirectPurchaseActions } from "../DirectPurchaseActions";
 import { DirectPurchaseLineAddForm } from "../DirectPurchaseLineAddForm";
 import { DirectPurchaseLineRow } from "../DirectPurchaseLineRow";
 import { DocumentCollaborationPanel } from "@/components/DocumentCollaborationPanel";
+import { DocumentDirectEditNotice } from "@/components/DocumentDirectEditNotice";
 
 type DirectPurchaseDto = {
   id: string;
@@ -121,10 +122,14 @@ export default async function DirectPurchaseDetailPage({
       </Card>
 
       {isDraft ? (
-        <Card>
-          <div className="mb-3 text-sm font-semibold">Add line</div>
-          <DirectPurchaseLineAddForm directPurchaseId={dp.id} items={items} taxes={taxes} />
-        </Card>
+        startInEditMode ? (
+          <DocumentDirectEditNotice addLineHref={`/procurement/direct-purchases/${dp.id}`} />
+        ) : (
+          <Card>
+            <div className="mb-3 text-sm font-semibold">Add line</div>
+            <DirectPurchaseLineAddForm directPurchaseId={dp.id} items={items} taxes={taxes} />
+          </Card>
+        )
       ) : null}
 
       <Card>

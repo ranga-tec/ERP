@@ -5,7 +5,7 @@
 - Repo: `D:\VScode Projects\ISS`
 - Branch: `main`
 - Current purpose: resume from the deployed ERP-density, searchable-dropdown, finance account-mapping, chart-of-accounts workspace, and reusable line-grid rollout checkpoints
-- Current tracked code state: no pending tracked code WIP
+- Current tracked code state: there is a validated local release candidate covering direct list-page edit entry, service handover draft editing, and material requisition edit-entry cleanup
 - Current local artifacts:
   - untracked `.playwright-cli/`
   - untracked `images/`
@@ -21,6 +21,7 @@ Most relevant recent commits on `main`:
 - `dc50cab` `Roll out shared line editors to wave 2 documents`
 - `5f69cda` `Add chart of accounts workspace modes`
 - `cc0f80b` `Roll out tracked document line editors`
+- `3d97d3d` `Fix finance list actions and warehouse selectors`
 
 ## Railway Production State
 
@@ -66,6 +67,34 @@ Wave checkpoints:
 - quotes / sales orders / RFQs / purchase requisitions: `dc50cab`
 - dispatches / direct dispatches / customer returns / supplier returns: `cc0f80b`
 
+### Direct-edit entry behavior now staged locally
+
+The next validated release candidate in the worktree adds this behavior:
+
+- list-page `Edit` opens shared-grid documents directly in edit mode through `?mode=edit`
+- the detail pages hide the separate add-line form while in direct-edit mode and show a short `Switch to Add Line` notice instead
+- this avoids the current UX confusion where the blank add-line form looks like a broken saved row with an empty item selector
+
+Documents covered by this direct-edit entry change:
+
+- quotes
+- sales orders
+- invoices
+- dispatches
+- direct dispatches
+- customer returns
+- purchase orders
+- direct purchases
+- purchase requisitions
+- RFQs
+- supplier returns
+- stock adjustments
+- service estimates
+
+Shared file:
+
+- `frontend/src/components/DocumentDirectEditNotice.tsx`
+
 ### Chart of accounts UI now live
 
 Finance accounts page now supports:
@@ -109,15 +138,12 @@ Important scope limit:
 
 ## Recommended Next Engineering Steps
 
-1. Continue the reusable line-grid rollout to the remaining one-off line screens:
-   - direct purchases
+1. Push and deploy the currently validated direct-edit release candidate plus the service handover/material requisition changes if they are not yet on `main`.
+2. Continue the reusable line-grid rollout to the remaining one-off line screens:
    - stock transfers
-   - stock adjustments
-   - service estimates
    - service expense claims
-   - material requisitions
-2. Decide whether finance should stop at account determination or continue into real journal posting automation.
-3. After the remaining grid rollout is stable, remove or archive unused `*LineRow.tsx` components that are no longer wired into detail pages.
+3. Decide whether finance should stop at account determination or continue into real journal posting automation.
+4. After the remaining grid rollout is stable, remove or archive unused `*LineRow.tsx` components that are no longer wired into detail pages.
 
 ## Files Most Relevant For The Next Agent
 
@@ -138,12 +164,11 @@ Important scope limit:
   - `frontend/src/app/(app)/finance/accounts/LedgerAccountsWorkspace.tsx`
   - `frontend/src/app/(app)/finance/accounts/LedgerAccountsGrid.tsx`
 - Remaining non-grid line-row screens:
-  - `frontend/src/app/(app)/procurement/direct-purchases/DirectPurchaseLineRow.tsx`
   - `frontend/src/app/(app)/inventory/stock-transfers/StockTransferLineRow.tsx`
-  - `frontend/src/app/(app)/inventory/stock-adjustments/StockAdjustmentLineRow.tsx`
-  - `frontend/src/app/(app)/service/estimates/ServiceEstimateLineRow.tsx`
   - `frontend/src/app/(app)/service/expense-claims/ServiceExpenseClaimLineRow.tsx`
   - `frontend/src/app/(app)/service/material-requisitions/MaterialRequisitionLineRow.tsx`
+  - `frontend/src/app/(app)/service/work-orders/WorkOrderTimeEntryRow.tsx`
+  - `frontend/src/app/(app)/service/quality-checks/[id]/page.tsx`
 
 ## Operational Notes
 

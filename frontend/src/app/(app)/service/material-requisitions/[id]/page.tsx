@@ -8,6 +8,7 @@ import { MaterialRequisitionLineAddForm } from "../MaterialRequisitionLineAddFor
 import { MaterialRequisitionLineRow } from "../MaterialRequisitionLineRow";
 import { DocumentCollaborationPanel } from "@/components/DocumentCollaborationPanel";
 import { StockAvailabilityExplorer } from "@/components/StockAvailabilityExplorer";
+import { DocumentDirectEditNotice } from "@/components/DocumentDirectEditNotice";
 
 type MaterialRequisitionDto = {
   id: string;
@@ -29,8 +30,16 @@ const statusLabel: Record<number, string> = {
   2: "Voided",
 };
 
-export default async function MaterialRequisitionDetailPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function MaterialRequisitionDetailPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ mode?: string }>;
+}) {
   const { id } = await params;
+  const { mode } = await searchParams;
+  const startInEditMode = mode === "edit";
 
   const [mr, jobs, warehouses, items] = await Promise.all([
     backendFetchJson<MaterialRequisitionDto>(`/service/material-requisitions/${id}`),
@@ -83,10 +92,14 @@ export default async function MaterialRequisitionDetailPage({ params }: { params
 
       {isDraft ? (
         <>
-          <Card>
-          <div className="mb-3 text-sm font-semibold">Add line</div>
-          <MaterialRequisitionLineAddForm requisitionId={mr.id} items={items} warehouses={warehouses} warehouseId={mr.warehouseId} />
-        </Card>
+          {startInEditMode ? (
+            <DocumentDirectEditNotice addLineHref={`/service/material-requisitions/${mr.id}`} />
+          ) : (
+            <Card>
+              <div className="mb-3 text-sm font-semibold">Add line</div>
+              <MaterialRequisitionLineAddForm requisitionId={mr.id} items={items} warehouses={warehouses} warehouseId={mr.warehouseId} />
+            </Card>
+          )}
 
           <Card>
             <div className="mb-3 text-sm font-semibold">Stock visibility</div>
@@ -126,6 +139,7 @@ export default async function MaterialRequisitionDetailPage({ params }: { params
                     warehouses={warehouses}
                     itemLabel={itemLabel}
                     canEdit={isDraft}
+                    startInEditMode={startInEditMode}
                   />
                 );
               })}

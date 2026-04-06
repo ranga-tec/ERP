@@ -9,6 +9,7 @@ import { InvoiceActions } from "../InvoiceActions";
 import { InvoiceLineAddForm } from "../InvoiceLineAddForm";
 import { InvoiceLinesEditor } from "../InvoiceLinesEditor";
 import { DocumentCollaborationPanel } from "@/components/DocumentCollaborationPanel";
+import { DocumentDirectEditNotice } from "@/components/DocumentDirectEditNotice";
 
 type InvoiceDto = {
   id: string;
@@ -129,10 +130,14 @@ export default async function InvoiceDetailPage({
       </Card>
 
       {isDraft && canManageInvoices ? (
-        <Card>
-          <div className="mb-3 text-sm font-semibold">Add line</div>
-          <InvoiceLineAddForm invoiceId={invoice.id} items={items} taxes={taxes} />
-        </Card>
+        startInEditMode ? (
+          <DocumentDirectEditNotice addLineHref={`/sales/invoices/${invoice.id}`} />
+        ) : (
+          <Card>
+            <div className="mb-3 text-sm font-semibold">Add line</div>
+            <InvoiceLineAddForm invoiceId={invoice.id} items={items} taxes={taxes} />
+          </Card>
+        )
       ) : null}
 
       <Card>

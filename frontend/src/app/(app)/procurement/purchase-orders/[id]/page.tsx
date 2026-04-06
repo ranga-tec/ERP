@@ -6,6 +6,7 @@ import { PurchaseOrderActions } from "../PurchaseOrderActions";
 import { PurchaseOrderLineAddForm } from "../PurchaseOrderLineAddForm";
 import { PurchaseOrderLinesEditor } from "../PurchaseOrderLinesEditor";
 import { DocumentCollaborationPanel } from "@/components/DocumentCollaborationPanel";
+import { DocumentDirectEditNotice } from "@/components/DocumentDirectEditNotice";
 
 type PurchaseOrderDto = {
   id: string;
@@ -104,10 +105,14 @@ export default async function PurchaseOrderDetailPage({
       </Card>
 
       {isDraft ? (
-        <Card>
-          <div className="mb-3 text-sm font-semibold">Add line</div>
-          <PurchaseOrderLineAddForm purchaseOrderId={po.id} items={items} />
-        </Card>
+        startInEditMode ? (
+          <DocumentDirectEditNotice addLineHref={`/procurement/purchase-orders/${po.id}`} />
+        ) : (
+          <Card>
+            <div className="mb-3 text-sm font-semibold">Add line</div>
+            <PurchaseOrderLineAddForm purchaseOrderId={po.id} items={items} />
+          </Card>
+        )
       ) : null}
 
       <Card>

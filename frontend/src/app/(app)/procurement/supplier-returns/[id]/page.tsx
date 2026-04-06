@@ -7,6 +7,7 @@ import { SupplierReturnLineAddForm } from "../SupplierReturnLineAddForm";
 import { SupplierReturnLinesEditor } from "../SupplierReturnLinesEditor";
 import { DocumentCollaborationPanel } from "@/components/DocumentCollaborationPanel";
 import { StockAvailabilityExplorer } from "@/components/StockAvailabilityExplorer";
+import { DocumentDirectEditNotice } from "@/components/DocumentDirectEditNotice";
 
 type SupplierReturnDto = {
   id: string;
@@ -91,10 +92,14 @@ export default async function SupplierReturnDetailPage({
 
       {isDraft ? (
         <>
-          <Card>
-          <div className="mb-3 text-sm font-semibold">Add line</div>
-          <SupplierReturnLineAddForm supplierReturnId={sr.id} items={items} warehouses={warehouses} warehouseId={sr.warehouseId} />
-        </Card>
+          {startInEditMode ? (
+            <DocumentDirectEditNotice addLineHref={`/procurement/supplier-returns/${sr.id}`} />
+          ) : (
+            <Card>
+              <div className="mb-3 text-sm font-semibold">Add line</div>
+              <SupplierReturnLineAddForm supplierReturnId={sr.id} items={items} warehouses={warehouses} warehouseId={sr.warehouseId} />
+            </Card>
+          )}
 
           <Card>
             <div className="mb-3 text-sm font-semibold">Stock visibility</div>

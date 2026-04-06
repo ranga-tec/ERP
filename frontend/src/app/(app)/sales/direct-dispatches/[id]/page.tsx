@@ -8,6 +8,7 @@ import { DirectDispatchLineAddForm } from "../DirectDispatchLineAddForm";
 import { DirectDispatchLinesEditor } from "../DirectDispatchLinesEditor";
 import { DocumentCollaborationPanel } from "@/components/DocumentCollaborationPanel";
 import { StockAvailabilityExplorer } from "@/components/StockAvailabilityExplorer";
+import { DocumentDirectEditNotice } from "@/components/DocumentDirectEditNotice";
 
 type DirectDispatchDto = {
   id: string;
@@ -97,15 +98,19 @@ export default async function DirectDispatchDetailPage({
 
       {isDraft ? (
         <>
-          <Card>
-          <div className="mb-3 text-sm font-semibold">Add line</div>
-          <DirectDispatchLineAddForm
-            directDispatchId={dispatch.id}
-            items={items}
-            warehouses={warehouses}
-            warehouseId={dispatch.warehouseId}
-          />
-        </Card>
+          {startInEditMode ? (
+            <DocumentDirectEditNotice addLineHref={`/sales/direct-dispatches/${dispatch.id}`} />
+          ) : (
+            <Card>
+              <div className="mb-3 text-sm font-semibold">Add line</div>
+              <DirectDispatchLineAddForm
+                directDispatchId={dispatch.id}
+                items={items}
+                warehouses={warehouses}
+                warehouseId={dispatch.warehouseId}
+              />
+            </Card>
+          )}
 
           <Card>
             <div className="mb-3 text-sm font-semibold">Stock visibility</div>

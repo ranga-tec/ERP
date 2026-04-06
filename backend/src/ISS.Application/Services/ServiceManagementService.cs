@@ -726,6 +726,21 @@ public sealed class ServiceManagementService(
         return handover.Id;
     }
 
+    public async Task UpdateServiceHandoverAsync(
+        Guid serviceHandoverId,
+        string itemsReturned,
+        int? postServiceWarrantyMonths,
+        string? customerAcknowledgement,
+        string? notes,
+        CancellationToken cancellationToken = default)
+    {
+        var handover = await dbContext.ServiceHandovers.FirstOrDefaultAsync(x => x.Id == serviceHandoverId, cancellationToken)
+            ?? throw new NotFoundException("Service handover not found.");
+
+        handover.UpdateDraft(itemsReturned, postServiceWarrantyMonths, customerAcknowledgement, notes);
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
     public async Task CompleteServiceHandoverAsync(Guid serviceHandoverId, CancellationToken cancellationToken = default)
     {
         var handover = await dbContext.ServiceHandovers.FirstOrDefaultAsync(x => x.Id == serviceHandoverId, cancellationToken)

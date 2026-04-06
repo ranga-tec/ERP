@@ -48,6 +48,28 @@ public sealed class ServiceHandover : AuditableEntity
     public Guid? SalesInvoiceId { get; private set; }
     public DateTimeOffset? ConvertedToInvoiceAt { get; private set; }
 
+    public void UpdateDraft(
+        string itemsReturned,
+        int? postServiceWarrantyMonths,
+        string? customerAcknowledgement,
+        string? notes)
+    {
+        if (Status != ServiceHandoverStatus.Draft)
+        {
+            throw new DomainValidationException("Only draft handovers can be edited.");
+        }
+
+        ItemsReturned = Guard.NotNullOrWhiteSpace(itemsReturned, nameof(ItemsReturned), maxLength: 2000);
+        if (postServiceWarrantyMonths is < 0)
+        {
+            throw new DomainValidationException("Post-service warranty months cannot be negative.");
+        }
+
+        PostServiceWarrantyMonths = postServiceWarrantyMonths;
+        CustomerAcknowledgement = customerAcknowledgement?.Trim();
+        Notes = notes?.Trim();
+    }
+
     public void Complete()
     {
         if (Status != ServiceHandoverStatus.Draft)

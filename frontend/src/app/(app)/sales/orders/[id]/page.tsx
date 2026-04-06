@@ -6,6 +6,7 @@ import { SalesOrderActions } from "../SalesOrderActions";
 import { SalesOrderLineAddForm } from "../SalesOrderLineAddForm";
 import { SalesOrderLinesEditor } from "../SalesOrderLinesEditor";
 import { DocumentCollaborationPanel } from "@/components/DocumentCollaborationPanel";
+import { DocumentDirectEditNotice } from "@/components/DocumentDirectEditNotice";
 
 type SalesOrderDto = {
   id: string;
@@ -86,10 +87,14 @@ export default async function SalesOrderDetailPage({
       </Card>
 
       {isDraft ? (
-        <Card>
-          <div className="mb-3 text-sm font-semibold">Add line</div>
-          <SalesOrderLineAddForm salesOrderId={order.id} items={items} />
-        </Card>
+        startInEditMode ? (
+          <DocumentDirectEditNotice addLineHref={`/sales/orders/${order.id}`} />
+        ) : (
+          <Card>
+            <div className="mb-3 text-sm font-semibold">Add line</div>
+            <SalesOrderLineAddForm salesOrderId={order.id} items={items} />
+          </Card>
+        )
       ) : null}
 
       <Card>

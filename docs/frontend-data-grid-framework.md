@@ -97,6 +97,8 @@ Notable behaviors in the current rollout:
 - quotes, sales orders, RFQs, and purchase requisitions now follow the same explicit-save row editing pattern
 - dispatches, direct dispatches, customer returns, and supplier returns now use the same pattern, including multiline serial capture and stock insight below the active row
 - line totals and visible totals are rendered through shared grid formatting and footer support
+- list-page `Edit` for the shared-grid documents now lands directly in edit mode on the detail page
+- direct-edit detail pages hide the separate add-line form and instead show a short notice with a `Switch to Add Line` link so users do not confuse a blank add form with a broken saved row
 
 ## Recommended rollout order
 
@@ -105,9 +107,12 @@ Best next modules for the same pattern:
 - direct purchases
 - stock transfers
 - stock adjustments
-- service estimates
 - service expense claims
-- material requisitions
+
+Related non-grid but now edit-consistent service screens:
+
+- service estimates now follow the same direct-edit entry behavior for draft line editing
+- material requisitions now support explicit list-page `View` / `Edit` actions and draft direct-edit entry
 
 ## Integration pattern
 

@@ -7,6 +7,7 @@ import { PurchaseRequisitionConvertToPoForm } from "../PurchaseRequisitionConver
 import { PurchaseRequisitionLineAddForm } from "../PurchaseRequisitionLineAddForm";
 import { PurchaseRequisitionLinesEditor } from "../PurchaseRequisitionLinesEditor";
 import { DocumentCollaborationPanel } from "@/components/DocumentCollaborationPanel";
+import { DocumentDirectEditNotice } from "@/components/DocumentDirectEditNotice";
 
 type PurchaseRequisitionDto = {
   id: string;
@@ -98,15 +99,19 @@ export default async function PurchaseRequisitionDetailPage({
       ) : null}
 
       {isDraft ? (
-        <Card>
-          <div className="mb-3 text-sm font-semibold">Add line</div>
-          <PurchaseRequisitionLineAddForm
-            purchaseRequisitionId={pr.id}
-            items={items}
-            uoms={uoms}
-            conversions={conversions}
-          />
-        </Card>
+        startInEditMode ? (
+          <DocumentDirectEditNotice addLineHref={`/procurement/purchase-requisitions/${pr.id}`} />
+        ) : (
+          <Card>
+            <div className="mb-3 text-sm font-semibold">Add line</div>
+            <PurchaseRequisitionLineAddForm
+              purchaseRequisitionId={pr.id}
+              items={items}
+              uoms={uoms}
+              conversions={conversions}
+            />
+          </Card>
+        )
       ) : null}
 
       <Card>

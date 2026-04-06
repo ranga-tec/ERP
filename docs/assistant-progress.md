@@ -10,6 +10,9 @@ Important status note:
 - the reusable frontend data-grid framework is now live through three rollout waves
 - shared searchable dropdown behavior and compact ERP-style density are live
 - the chart-of-accounts workspace-mode UI is live
+- direct list-page edit entry is now live on the shared line-grid document screens
+- draft service handovers now have a real edit workflow
+- material requisitions now have explicit `View` / `Edit` actions with draft direct-edit entry
 - current non-doc local artifacts are untracked `.playwright-cli/` and `images/`
 
 ## Frontend Data-Grid Framework Checkpoint
@@ -168,6 +171,52 @@ Live behavior now includes:
 - fallback display of stored lookup values when an option list is incomplete
 - searchable service-job equipment-unit selection with saved-value preservation on reopen
 
+### Direct edit entry checkpoint
+
+The list-page `Edit` action on shared-grid documents now opens the detail page already in line-edit mode instead of requiring a second row-level `Edit` click.
+
+Live behavior now includes:
+
+- `frontend/src/components/ListViewEditActions.tsx` appends `?mode=edit` for the default edit route
+- detail pages hide the separate add-line form while they are in direct-edit mode
+- `frontend/src/components/DocumentDirectEditNotice.tsx` explains the mode and links back to the normal add-line view
+
+This direct-edit behavior is now applied on:
+
+- `frontend/src/app/(app)/sales/quotes/[id]/page.tsx`
+- `frontend/src/app/(app)/sales/orders/[id]/page.tsx`
+- `frontend/src/app/(app)/sales/invoices/[id]/page.tsx`
+- `frontend/src/app/(app)/sales/dispatches/[id]/page.tsx`
+- `frontend/src/app/(app)/sales/direct-dispatches/[id]/page.tsx`
+- `frontend/src/app/(app)/sales/customer-returns/[id]/page.tsx`
+- `frontend/src/app/(app)/procurement/purchase-orders/[id]/page.tsx`
+- `frontend/src/app/(app)/procurement/direct-purchases/[id]/page.tsx`
+- `frontend/src/app/(app)/procurement/purchase-requisitions/[id]/page.tsx`
+- `frontend/src/app/(app)/procurement/rfqs/[id]/page.tsx`
+- `frontend/src/app/(app)/procurement/supplier-returns/[id]/page.tsx`
+- `frontend/src/app/(app)/inventory/stock-adjustments/[id]/page.tsx`
+- `frontend/src/app/(app)/service/estimates/[id]/page.tsx`
+
+### Service handover and material requisition checkpoint
+
+New service-document editing behavior now implemented:
+
+- draft service handovers can be edited from the detail page through a real update flow, not just complete/cancel actions
+- material requisition list pages now expose explicit `View` / `Edit` actions
+- draft material requisition lines can open directly in edit mode from the list entry path
+
+Relevant files:
+
+- `backend/src/ISS.Domain/Service/ServiceHandover.cs`
+- `backend/src/ISS.Application/Services/ServiceManagementService.cs`
+- `backend/src/ISS.Api/Controllers/Service/ServiceHandoversController.cs`
+- `frontend/src/app/(app)/service/handovers/page.tsx`
+- `frontend/src/app/(app)/service/handovers/[id]/page.tsx`
+- `frontend/src/app/(app)/service/handovers/ServiceHandoverEditForm.tsx`
+- `frontend/src/app/(app)/service/material-requisitions/page.tsx`
+- `frontend/src/app/(app)/service/material-requisitions/[id]/page.tsx`
+- `frontend/src/app/(app)/service/material-requisitions/MaterialRequisitionLineRow.tsx`
+
 ### Finance accounts workspace checkpoint
 
 Chart-of-accounts workspace modes are already live:
@@ -196,9 +245,9 @@ The next candidates that fit the same pattern best are:
 - direct purchases
 - stock transfers
 - stock adjustments
-- service estimates
 - service expense claims
-- material requisitions
+- service quality-check correction workflow if business wants QA records amendable
+- work-order and expense-claim list action consistency
 
 Do those before more complex stock/service documents unless business priority says otherwise.
 
