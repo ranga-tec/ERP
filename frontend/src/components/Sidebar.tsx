@@ -105,6 +105,8 @@ const sections: NavSection[] = [
       { href: "/reporting/aging", label: "AR/AP Aging" },
       { href: "/reporting/tax-summary", label: "Tax Summary" },
       { href: "/reporting/service-kpis", label: "Service KPIs" },
+      { href: "/reporting/sales-analysis", label: "Sales Analysis" },
+      { href: "/reporting/purchase-analysis", label: "Purchase Analysis" },
       { href: "/reporting/costing", label: "Costing" },
     ],
   },

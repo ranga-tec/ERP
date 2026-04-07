@@ -9,6 +9,7 @@ using ISS.Domain.Service;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using System.Globalization;
 
 namespace ISS.Api.Controllers;
 
@@ -130,6 +131,74 @@ public sealed class ReportingController(IIssDbContext dbContext, InventoryServic
         decimal TotalInventoryValue,
         IReadOnlyList<CostingRowDto> Rows);
 
+    public sealed record PeriodWindowDto(DateTimeOffset From, DateTimeOffset To);
+    public sealed record AmountComparisonDto(decimal Current, decimal Previous, decimal Delta, decimal? DeltaPercent);
+    public sealed record CountComparisonDto(int Current, int Previous, int Delta, decimal? DeltaPercent);
+    public sealed record TrendPointDto(DateTimeOffset PeriodStart, string Label, decimal Amount, int Count);
+
+    public sealed record SalesAnalysisCustomerDto(
+        Guid CustomerId,
+        string CustomerCode,
+        string CustomerName,
+        int InvoiceCount,
+        decimal NetSales,
+        decimal TaxTotal,
+        decimal GrossSales);
+
+    public sealed record SalesAnalysisItemDto(
+        Guid ItemId,
+        string ItemSku,
+        string ItemName,
+        decimal Quantity,
+        decimal NetSales,
+        decimal TaxTotal,
+        decimal GrossSales);
+
+    public sealed record SalesAnalysisReportDto(
+        DateTimeOffset From,
+        DateTimeOffset To,
+        PeriodWindowDto PreviousPeriod,
+        PeriodWindowDto SamePeriodLastYear,
+        string BaseCurrencyCode,
+        decimal NetSales,
+        decimal TaxTotal,
+        decimal GrossSales,
+        int InvoiceCount,
+        int CustomerCount,
+        int ItemCount,
+        AmountComparisonDto GrossSalesVsPrevious,
+        AmountComparisonDto GrossSalesVsYearAgo,
+        CountComparisonDto InvoiceCountVsPrevious,
+        IReadOnlyList<TrendPointDto> Trend,
+        IReadOnlyList<SalesAnalysisCustomerDto> TopCustomers,
+        IReadOnlyList<SalesAnalysisItemDto> TopItems);
+
+    public sealed record PurchaseAnalysisSupplierDto(
+        Guid SupplierId,
+        string SupplierCode,
+        string SupplierName,
+        int InvoiceCount,
+        decimal Subtotal,
+        decimal TaxTotal,
+        decimal GrossSpend);
+
+    public sealed record PurchaseAnalysisReportDto(
+        DateTimeOffset From,
+        DateTimeOffset To,
+        PeriodWindowDto PreviousPeriod,
+        PeriodWindowDto SamePeriodLastYear,
+        string BaseCurrencyCode,
+        decimal PurchaseSubtotal,
+        decimal TaxTotal,
+        decimal GrossSpend,
+        int InvoiceCount,
+        int SupplierCount,
+        AmountComparisonDto GrossSpendVsPrevious,
+        AmountComparisonDto GrossSpendVsYearAgo,
+        CountComparisonDto InvoiceCountVsPrevious,
+        IReadOnlyList<TrendPointDto> Trend,
+        IReadOnlyList<PurchaseAnalysisSupplierDto> TopSuppliers);
+
     private sealed record StockLedgerRawRow(
         DateTimeOffset OccurredAt,
         DateTimeOffset CreatedAt,
@@ -149,6 +218,33 @@ public sealed class ReportingController(IIssDbContext dbContext, InventoryServic
 
     private sealed record ArAgingRawRow(Guid CustomerId, string CustomerCode, string CustomerName, decimal Outstanding, DateTimeOffset PostedAt);
     private sealed record ApAgingRawRow(Guid SupplierId, string SupplierCode, string SupplierName, decimal Outstanding, DateTimeOffset PostedAt);
+    private sealed record SalesInvoiceHeaderSnapshot(
+        Guid InvoiceId,
+        Guid CustomerId,
+        string CustomerCode,
+        string CustomerName,
+        DateTimeOffset InvoiceDate,
+        decimal NetSales,
+        decimal TaxTotal,
+        decimal GrossSales);
+    private sealed record SalesInvoiceLineSnapshot(
+        Guid ItemId,
+        string ItemSku,
+        string ItemName,
+        decimal Quantity,
+        decimal NetSales,
+        decimal TaxTotal,
+        decimal GrossSales);
+    private sealed record SupplierInvoiceSnapshot(
+        Guid InvoiceId,
+        Guid SupplierId,
+        string SupplierCode,
+        string SupplierName,
+        DateTimeOffset InvoiceDate,
+        decimal Subtotal,
+        decimal TaxTotal,
+        decimal GrossSpend);
+    private readonly record struct TrendSource(DateTimeOffset OccurredAt, decimal Amount);
 
     private readonly record struct AgingBuckets(decimal Current, decimal Days1To30, decimal Days31To60, decimal Days61To90, decimal DaysOver90)
     {
@@ -901,6 +997,156 @@ public sealed class ReportingController(IIssDbContext dbContext, InventoryServic
             partsConsumedQty));
     }
 
+    [HttpGet("sales-analysis")]
+    [Authorize(Roles = Roles.AdminOrReporting)]
+    public async Task<ActionResult<SalesAnalysisReportDto>> SalesAnalysis(
+        [FromQuery] DateTimeOffset? from = null,
+        [FromQuery] DateTimeOffset? to = null,
+        [FromQuery] int take = 10,
+        CancellationToken cancellationToken = default)
+    {
+        take = Math.Clamp(take, 3, 25);
+
+        var reportTo = to ?? DateTimeOffset.UtcNow;
+        var reportFrom = from ?? new DateTimeOffset(reportTo.Year, reportTo.Month, 1, 0, 0, 0, TimeSpan.Zero);
+        if (reportFrom > reportTo)
+        {
+            return BadRequest("'from' must be earlier than or equal to 'to'.");
+        }
+
+        var previousPeriod = BuildPreviousPeriod(reportFrom, reportTo);
+        var samePeriodLastYear = new PeriodWindowDto(reportFrom.AddYears(-1), reportTo.AddYears(-1));
+        var trendStart = new DateTimeOffset(reportTo.Year, reportTo.Month, 1, 0, 0, 0, TimeSpan.Zero).AddMonths(-11);
+        var baseCurrencyCode = await GetBaseCurrencyCodeAsync(cancellationToken);
+
+        var currentHeaders = await GetSalesInvoiceHeadersAsync(reportFrom, reportTo, cancellationToken);
+        var previousHeaders = await GetSalesInvoiceHeadersAsync(previousPeriod.From, previousPeriod.To, cancellationToken);
+        var yearAgoHeaders = await GetSalesInvoiceHeadersAsync(samePeriodLastYear.From, samePeriodLastYear.To, cancellationToken);
+        var trendHeaders = await GetSalesInvoiceHeadersAsync(trendStart, reportTo, cancellationToken);
+        var currentLines = await GetSalesInvoiceLinesAsync(reportFrom, reportTo, cancellationToken);
+
+        var currentNetSales = currentHeaders.Sum(x => x.NetSales);
+        var currentTaxTotal = currentHeaders.Sum(x => x.TaxTotal);
+        var currentGrossSales = currentHeaders.Sum(x => x.GrossSales);
+        var previousGrossSales = previousHeaders.Sum(x => x.GrossSales);
+        var yearAgoGrossSales = yearAgoHeaders.Sum(x => x.GrossSales);
+
+        var topCustomers = currentHeaders
+            .GroupBy(x => new { x.CustomerId, x.CustomerCode, x.CustomerName })
+            .Select(g => new SalesAnalysisCustomerDto(
+                g.Key.CustomerId,
+                g.Key.CustomerCode,
+                g.Key.CustomerName,
+                g.Count(),
+                g.Sum(x => x.NetSales),
+                g.Sum(x => x.TaxTotal),
+                g.Sum(x => x.GrossSales)))
+            .OrderByDescending(x => x.GrossSales)
+            .ThenBy(x => x.CustomerCode)
+            .Take(take)
+            .ToList();
+
+        var topItems = currentLines
+            .GroupBy(x => new { x.ItemId, x.ItemSku, x.ItemName })
+            .Select(g => new SalesAnalysisItemDto(
+                g.Key.ItemId,
+                g.Key.ItemSku,
+                g.Key.ItemName,
+                g.Sum(x => x.Quantity),
+                g.Sum(x => x.NetSales),
+                g.Sum(x => x.TaxTotal),
+                g.Sum(x => x.GrossSales)))
+            .OrderByDescending(x => x.GrossSales)
+            .ThenBy(x => x.ItemSku)
+            .Take(take)
+            .ToList();
+
+        return Ok(new SalesAnalysisReportDto(
+            reportFrom,
+            reportTo,
+            previousPeriod,
+            samePeriodLastYear,
+            baseCurrencyCode,
+            currentNetSales,
+            currentTaxTotal,
+            currentGrossSales,
+            currentHeaders.Count,
+            currentHeaders.Select(x => x.CustomerId).Distinct().Count(),
+            currentLines.Select(x => x.ItemId).Distinct().Count(),
+            BuildAmountComparison(currentGrossSales, previousGrossSales),
+            BuildAmountComparison(currentGrossSales, yearAgoGrossSales),
+            BuildCountComparison(currentHeaders.Count, previousHeaders.Count),
+            BuildMonthlyTrend(trendHeaders.Select(x => new TrendSource(x.InvoiceDate, x.GrossSales)), reportTo),
+            topCustomers,
+            topItems));
+    }
+
+    [HttpGet("purchase-analysis")]
+    [Authorize(Roles = Roles.AdminOrReporting)]
+    public async Task<ActionResult<PurchaseAnalysisReportDto>> PurchaseAnalysis(
+        [FromQuery] DateTimeOffset? from = null,
+        [FromQuery] DateTimeOffset? to = null,
+        [FromQuery] int take = 10,
+        CancellationToken cancellationToken = default)
+    {
+        take = Math.Clamp(take, 3, 25);
+
+        var reportTo = to ?? DateTimeOffset.UtcNow;
+        var reportFrom = from ?? new DateTimeOffset(reportTo.Year, reportTo.Month, 1, 0, 0, 0, TimeSpan.Zero);
+        if (reportFrom > reportTo)
+        {
+            return BadRequest("'from' must be earlier than or equal to 'to'.");
+        }
+
+        var previousPeriod = BuildPreviousPeriod(reportFrom, reportTo);
+        var samePeriodLastYear = new PeriodWindowDto(reportFrom.AddYears(-1), reportTo.AddYears(-1));
+        var trendStart = new DateTimeOffset(reportTo.Year, reportTo.Month, 1, 0, 0, 0, TimeSpan.Zero).AddMonths(-11);
+        var baseCurrencyCode = await GetBaseCurrencyCodeAsync(cancellationToken);
+
+        var currentInvoices = await GetSupplierInvoiceSnapshotsAsync(reportFrom, reportTo, cancellationToken);
+        var previousInvoices = await GetSupplierInvoiceSnapshotsAsync(previousPeriod.From, previousPeriod.To, cancellationToken);
+        var yearAgoInvoices = await GetSupplierInvoiceSnapshotsAsync(samePeriodLastYear.From, samePeriodLastYear.To, cancellationToken);
+        var trendInvoices = await GetSupplierInvoiceSnapshotsAsync(trendStart, reportTo, cancellationToken);
+
+        var currentSubtotal = currentInvoices.Sum(x => x.Subtotal);
+        var currentTaxTotal = currentInvoices.Sum(x => x.TaxTotal);
+        var currentGrossSpend = currentInvoices.Sum(x => x.GrossSpend);
+        var previousGrossSpend = previousInvoices.Sum(x => x.GrossSpend);
+        var yearAgoGrossSpend = yearAgoInvoices.Sum(x => x.GrossSpend);
+
+        var topSuppliers = currentInvoices
+            .GroupBy(x => new { x.SupplierId, x.SupplierCode, x.SupplierName })
+            .Select(g => new PurchaseAnalysisSupplierDto(
+                g.Key.SupplierId,
+                g.Key.SupplierCode,
+                g.Key.SupplierName,
+                g.Count(),
+                g.Sum(x => x.Subtotal),
+                g.Sum(x => x.TaxTotal),
+                g.Sum(x => x.GrossSpend)))
+            .OrderByDescending(x => x.GrossSpend)
+            .ThenBy(x => x.SupplierCode)
+            .Take(take)
+            .ToList();
+
+        return Ok(new PurchaseAnalysisReportDto(
+            reportFrom,
+            reportTo,
+            previousPeriod,
+            samePeriodLastYear,
+            baseCurrencyCode,
+            currentSubtotal,
+            currentTaxTotal,
+            currentGrossSpend,
+            currentInvoices.Count,
+            currentInvoices.Select(x => x.SupplierId).Distinct().Count(),
+            BuildAmountComparison(currentGrossSpend, previousGrossSpend),
+            BuildAmountComparison(currentGrossSpend, yearAgoGrossSpend),
+            BuildCountComparison(currentInvoices.Count, previousInvoices.Count),
+            BuildMonthlyTrend(trendInvoices.Select(x => new TrendSource(x.InvoiceDate, x.GrossSpend)), reportTo),
+            topSuppliers));
+    }
+
     [HttpGet("costing")]
     [Authorize(Roles = Roles.AdminOrReporting)]
     public async Task<ActionResult<CostingReportDto>> Costing(
@@ -1033,6 +1279,131 @@ public sealed class ReportingController(IIssDbContext dbContext, InventoryServic
             rows.Sum(x => x.OnHandQuantity),
             rows.Sum(x => x.InventoryValue),
             rows));
+    }
+
+    private async Task<string> GetBaseCurrencyCodeAsync(CancellationToken cancellationToken)
+        => await dbContext.Currencies.AsNoTracking()
+            .Where(x => x.IsActive && x.IsBase)
+            .Select(x => x.Code)
+            .FirstOrDefaultAsync(cancellationToken) ?? "USD";
+
+    private async Task<List<SalesInvoiceHeaderSnapshot>> GetSalesInvoiceHeadersAsync(
+        DateTimeOffset reportFrom,
+        DateTimeOffset reportTo,
+        CancellationToken cancellationToken)
+        => await (
+            from invoice in dbContext.SalesInvoices.AsNoTracking()
+            join customer in dbContext.Customers.AsNoTracking() on invoice.CustomerId equals customer.Id
+            where invoice.InvoiceDate >= reportFrom && invoice.InvoiceDate <= reportTo
+            where invoice.Status == SalesInvoiceStatus.Posted || invoice.Status == SalesInvoiceStatus.Paid
+            select new SalesInvoiceHeaderSnapshot(
+                invoice.Id,
+                invoice.CustomerId,
+                customer.Code,
+                customer.Name,
+                invoice.InvoiceDate,
+                invoice.Lines.Sum(line =>
+                    (line.Quantity * line.UnitPrice) * (1m - (line.DiscountPercent / 100m))),
+                invoice.Lines.Sum(line =>
+                    ((line.Quantity * line.UnitPrice) * (1m - (line.DiscountPercent / 100m))) * (line.TaxPercent / 100m)),
+                invoice.Lines.Sum(line =>
+                    ((line.Quantity * line.UnitPrice) * (1m - (line.DiscountPercent / 100m))) * (1m + (line.TaxPercent / 100m)))))
+            .ToListAsync(cancellationToken);
+
+    private async Task<List<SalesInvoiceLineSnapshot>> GetSalesInvoiceLinesAsync(
+        DateTimeOffset reportFrom,
+        DateTimeOffset reportTo,
+        CancellationToken cancellationToken)
+        => await (
+            from invoice in dbContext.SalesInvoices.AsNoTracking()
+            from line in invoice.Lines
+            join item in dbContext.Items.AsNoTracking() on line.ItemId equals item.Id
+            where invoice.InvoiceDate >= reportFrom && invoice.InvoiceDate <= reportTo
+            where invoice.Status == SalesInvoiceStatus.Posted || invoice.Status == SalesInvoiceStatus.Paid
+            select new SalesInvoiceLineSnapshot(
+                line.ItemId,
+                item.Sku,
+                item.Name,
+                line.Quantity,
+                (line.Quantity * line.UnitPrice) * (1m - (line.DiscountPercent / 100m)),
+                ((line.Quantity * line.UnitPrice) * (1m - (line.DiscountPercent / 100m))) * (line.TaxPercent / 100m),
+                ((line.Quantity * line.UnitPrice) * (1m - (line.DiscountPercent / 100m))) * (1m + (line.TaxPercent / 100m))))
+            .ToListAsync(cancellationToken);
+
+    private async Task<List<SupplierInvoiceSnapshot>> GetSupplierInvoiceSnapshotsAsync(
+        DateTimeOffset reportFrom,
+        DateTimeOffset reportTo,
+        CancellationToken cancellationToken)
+        => await (
+            from invoice in dbContext.SupplierInvoices.AsNoTracking()
+            join supplier in dbContext.Suppliers.AsNoTracking() on invoice.SupplierId equals supplier.Id
+            where invoice.InvoiceDate >= reportFrom && invoice.InvoiceDate <= reportTo
+            where invoice.Status == SupplierInvoiceStatus.Posted
+            select new SupplierInvoiceSnapshot(
+                invoice.Id,
+                invoice.SupplierId,
+                supplier.Code,
+                supplier.Name,
+                invoice.InvoiceDate,
+                invoice.Subtotal,
+                invoice.TaxAmount,
+                invoice.GrandTotal))
+            .ToListAsync(cancellationToken);
+
+    private static PeriodWindowDto BuildPreviousPeriod(DateTimeOffset from, DateTimeOffset to)
+    {
+        var span = to - from;
+        var previousTo = from.AddTicks(-1);
+        var previousFrom = previousTo - span;
+        return new PeriodWindowDto(previousFrom, previousTo);
+    }
+
+    private static AmountComparisonDto BuildAmountComparison(decimal current, decimal previous)
+    {
+        var delta = current - previous;
+        decimal? deltaPercent = null;
+        if (previous != 0m)
+        {
+            deltaPercent = (delta / previous) * 100m;
+        }
+
+        return new AmountComparisonDto(current, previous, delta, deltaPercent);
+    }
+
+    private static CountComparisonDto BuildCountComparison(int current, int previous)
+    {
+        var delta = current - previous;
+        decimal? deltaPercent = null;
+        if (previous != 0)
+        {
+            deltaPercent = (decimal)delta / previous * 100m;
+        }
+
+        return new CountComparisonDto(current, previous, delta, deltaPercent);
+    }
+
+    private static IReadOnlyList<TrendPointDto> BuildMonthlyTrend(IEnumerable<TrendSource> rows, DateTimeOffset reportTo)
+    {
+        var trendStart = new DateTimeOffset(reportTo.Year, reportTo.Month, 1, 0, 0, 0, TimeSpan.Zero).AddMonths(-11);
+        var grouped = rows
+            .GroupBy(x => new { x.OccurredAt.Year, x.OccurredAt.Month })
+            .ToDictionary(
+                g => (g.Key.Year, g.Key.Month),
+                g => new { Amount = g.Sum(x => x.Amount), Count = g.Count() });
+
+        var trend = new List<TrendPointDto>(12);
+        for (var i = 0; i < 12; i++)
+        {
+            var periodStart = trendStart.AddMonths(i);
+            grouped.TryGetValue((periodStart.Year, periodStart.Month), out var bucket);
+            trend.Add(new TrendPointDto(
+                periodStart,
+                periodStart.ToString("MMM yyyy", CultureInfo.InvariantCulture),
+                bucket?.Amount ?? 0m,
+                bucket?.Count ?? 0));
+        }
+
+        return trend;
     }
 
     private bool HasAnyRole(params string[] roles)

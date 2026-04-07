@@ -23,6 +23,16 @@ const reports = [
     description: "Service job throughput, completion timing, and parts-consumption indicators.",
   },
   {
+    href: "/reporting/sales-analysis",
+    title: "Sales Analysis",
+    description: "Period comparison, 12-month trend, top customers, and top-selling items from posted invoices.",
+  },
+  {
+    href: "/reporting/purchase-analysis",
+    title: "Purchase Analysis",
+    description: "Period comparison, 12-month trend, and supplier spend concentration from posted supplier invoices.",
+  },
+  {
     href: "/reporting/costing",
     title: "Costing",
     description: "Default vs weighted costs, last receipt rates, and current on-hand valuation.",
@@ -35,7 +45,7 @@ export default function ReportingOverviewPage() {
       <div>
         <h1 className="text-2xl font-semibold">Reporting</h1>
         <p className="mt-1 text-sm text-zinc-500">
-          First-wave operational reports for inventory, finance, tax, and service performance.
+          Operational and management reports for inventory, finance, tax, service performance, sales, and purchasing.
         </p>
       </div>
 
