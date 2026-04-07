@@ -33,6 +33,11 @@ const reports = [
     description: "Period comparison, 12-month trend, and supplier spend concentration from posted supplier invoices.",
   },
   {
+    href: "/reporting/supplier-performance",
+    title: "Supplier Performance",
+    description: "Purchase-order execution, receipt fill rate, and first-receipt speed by supplier.",
+  },
+  {
     href: "/reporting/costing",
     title: "Costing",
     description: "Default vs weighted costs, last receipt rates, and current on-hand valuation.",

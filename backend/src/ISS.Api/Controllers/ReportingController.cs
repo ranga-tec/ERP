@@ -199,6 +199,36 @@ public sealed class ReportingController(IIssDbContext dbContext, InventoryServic
         IReadOnlyList<TrendPointDto> Trend,
         IReadOnlyList<PurchaseAnalysisSupplierDto> TopSuppliers);
 
+    public sealed record SupplierPerformanceSupplierDto(
+        Guid SupplierId,
+        string SupplierCode,
+        string SupplierName,
+        int PurchaseOrderCount,
+        int ClosedPurchaseOrderCount,
+        decimal OrderedAmount,
+        decimal ReceivedAmount,
+        decimal ReceiptFillPercent,
+        decimal? AverageDaysToFirstReceipt,
+        int SupplierInvoiceCount,
+        decimal InvoicedSpend);
+
+    public sealed record SupplierPerformanceReportDto(
+        DateTimeOffset From,
+        DateTimeOffset To,
+        PeriodWindowDto PreviousPeriod,
+        string BaseCurrencyCode,
+        decimal OrderedAmount,
+        decimal ReceivedAmount,
+        decimal ReceiptFillPercent,
+        decimal? AverageDaysToFirstReceipt,
+        int PurchaseOrderCount,
+        int ActiveSupplierCount,
+        int OpenPurchaseOrderCount,
+        AmountComparisonDto OrderedAmountVsPrevious,
+        CountComparisonDto PurchaseOrderCountVsPrevious,
+        IReadOnlyList<TrendPointDto> Trend,
+        IReadOnlyList<SupplierPerformanceSupplierDto> Suppliers);
+
     private sealed record StockLedgerRawRow(
         DateTimeOffset OccurredAt,
         DateTimeOffset CreatedAt,
@@ -244,6 +274,18 @@ public sealed class ReportingController(IIssDbContext dbContext, InventoryServic
         decimal Subtotal,
         decimal TaxTotal,
         decimal GrossSpend);
+    private sealed record PurchaseOrderPerformanceSnapshot(
+        Guid PurchaseOrderId,
+        Guid SupplierId,
+        string SupplierCode,
+        string SupplierName,
+        DateTimeOffset OrderDate,
+        PurchaseOrderStatus Status,
+        decimal OrderedAmount,
+        decimal OrderedQuantity,
+        decimal ReceivedQuantity,
+        decimal ReceivedAmount,
+        DateTimeOffset? FirstReceiptAt);
     private readonly record struct TrendSource(DateTimeOffset OccurredAt, decimal Amount);
 
     private readonly record struct AgingBuckets(decimal Current, decimal Days1To30, decimal Days31To60, decimal Days61To90, decimal DaysOver90)
@@ -1147,6 +1189,101 @@ public sealed class ReportingController(IIssDbContext dbContext, InventoryServic
             topSuppliers));
     }
 
+    [HttpGet("supplier-performance")]
+    [Authorize(Roles = Roles.AdminOrReporting)]
+    public async Task<ActionResult<SupplierPerformanceReportDto>> SupplierPerformance(
+        [FromQuery] DateTimeOffset? from = null,
+        [FromQuery] DateTimeOffset? to = null,
+        [FromQuery] int take = 10,
+        CancellationToken cancellationToken = default)
+    {
+        take = Math.Clamp(take, 3, 25);
+
+        var reportTo = to ?? DateTimeOffset.UtcNow;
+        var reportFrom = from ?? new DateTimeOffset(reportTo.Year, reportTo.Month, 1, 0, 0, 0, TimeSpan.Zero);
+        if (reportFrom > reportTo)
+        {
+            return BadRequest("'from' must be earlier than or equal to 'to'.");
+        }
+
+        var previousPeriod = BuildPreviousPeriod(reportFrom, reportTo);
+        var trendStart = new DateTimeOffset(reportTo.Year, reportTo.Month, 1, 0, 0, 0, TimeSpan.Zero).AddMonths(-11);
+        var baseCurrencyCode = await GetBaseCurrencyCodeAsync(cancellationToken);
+
+        var currentOrders = await GetPurchaseOrderPerformanceSnapshotsAsync(reportFrom, reportTo, cancellationToken);
+        var previousOrders = await GetPurchaseOrderPerformanceSnapshotsAsync(previousPeriod.From, previousPeriod.To, cancellationToken);
+        var trendOrders = await GetPurchaseOrderPerformanceSnapshotsAsync(trendStart, reportTo, cancellationToken);
+        var supplierInvoices = await GetSupplierInvoiceSnapshotsAsync(reportFrom, reportTo, cancellationToken);
+
+        var orderedAmount = currentOrders.Sum(x => x.OrderedAmount);
+        var receivedAmount = currentOrders.Sum(x => x.ReceivedAmount);
+        var orderedQuantity = currentOrders.Sum(x => x.OrderedQuantity);
+        var receivedQuantity = currentOrders.Sum(x => x.ReceivedQuantity);
+        var receiptFillPercent = orderedQuantity <= 0m ? 0m : Math.Round((receivedQuantity / orderedQuantity) * 100m, 2);
+        var averageDaysToFirstReceipt = AverageOrNull(currentOrders
+            .Where(x => x.FirstReceiptAt is not null)
+            .Select(x => (decimal)(x.FirstReceiptAt!.Value - x.OrderDate).TotalDays)
+            .Where(x => x >= 0m));
+
+        var invoiceBySupplier = supplierInvoices
+            .GroupBy(x => x.SupplierId)
+            .ToDictionary(
+                g => g.Key,
+                g => new
+                {
+                    Count = g.Count(),
+                    Spend = g.Sum(x => x.GrossSpend)
+                });
+
+        var supplierRows = currentOrders
+            .GroupBy(x => new { x.SupplierId, x.SupplierCode, x.SupplierName })
+            .Select(g =>
+            {
+                var groupOrderedQty = g.Sum(x => x.OrderedQuantity);
+                var groupReceivedQty = g.Sum(x => x.ReceivedQuantity);
+                var rowFillPercent = groupOrderedQty <= 0m ? 0m : Math.Round((groupReceivedQty / groupOrderedQty) * 100m, 2);
+                var avgDays = AverageOrNull(g
+                    .Where(x => x.FirstReceiptAt is not null)
+                    .Select(x => (decimal)(x.FirstReceiptAt!.Value - x.OrderDate).TotalDays)
+                    .Where(x => x >= 0m));
+                invoiceBySupplier.TryGetValue(g.Key.SupplierId, out var invoiceStats);
+
+                return new SupplierPerformanceSupplierDto(
+                    g.Key.SupplierId,
+                    g.Key.SupplierCode,
+                    g.Key.SupplierName,
+                    g.Count(),
+                    g.Count(x => x.Status == PurchaseOrderStatus.Closed),
+                    g.Sum(x => x.OrderedAmount),
+                    g.Sum(x => x.ReceivedAmount),
+                    rowFillPercent,
+                    avgDays,
+                    invoiceStats?.Count ?? 0,
+                    invoiceStats?.Spend ?? 0m);
+            })
+            .OrderByDescending(x => x.OrderedAmount)
+            .ThenBy(x => x.SupplierCode)
+            .Take(take)
+            .ToList();
+
+        return Ok(new SupplierPerformanceReportDto(
+            reportFrom,
+            reportTo,
+            previousPeriod,
+            baseCurrencyCode,
+            orderedAmount,
+            receivedAmount,
+            receiptFillPercent,
+            averageDaysToFirstReceipt,
+            currentOrders.Count,
+            currentOrders.Select(x => x.SupplierId).Distinct().Count(),
+            currentOrders.Count(x => x.Status is PurchaseOrderStatus.Approved or PurchaseOrderStatus.PartiallyReceived),
+            BuildAmountComparison(orderedAmount, previousOrders.Sum(x => x.OrderedAmount)),
+            BuildCountComparison(currentOrders.Count, previousOrders.Count),
+            BuildMonthlyTrend(trendOrders.Select(x => new TrendSource(x.OrderDate, x.OrderedAmount)), reportTo),
+            supplierRows));
+    }
+
     [HttpGet("costing")]
     [Authorize(Roles = Roles.AdminOrReporting)]
     public async Task<ActionResult<CostingReportDto>> Costing(
@@ -1350,6 +1487,65 @@ public sealed class ReportingController(IIssDbContext dbContext, InventoryServic
                 invoice.GrandTotal))
             .ToListAsync(cancellationToken);
 
+    private async Task<List<PurchaseOrderPerformanceSnapshot>> GetPurchaseOrderPerformanceSnapshotsAsync(
+        DateTimeOffset reportFrom,
+        DateTimeOffset reportTo,
+        CancellationToken cancellationToken)
+    {
+        var purchaseOrders = await (
+            from po in dbContext.PurchaseOrders.AsNoTracking()
+            join supplier in dbContext.Suppliers.AsNoTracking() on po.SupplierId equals supplier.Id
+            where po.OrderDate >= reportFrom && po.OrderDate <= reportTo
+            where po.Status != PurchaseOrderStatus.Draft && po.Status != PurchaseOrderStatus.Cancelled
+            select new
+            {
+                po.Id,
+                po.SupplierId,
+                supplier.Code,
+                supplier.Name,
+                po.OrderDate,
+                po.Status,
+                OrderedAmount = po.Lines.Sum(line => line.OrderedQuantity * line.UnitPrice),
+                OrderedQuantity = po.Lines.Sum(line => line.OrderedQuantity),
+                ReceivedQuantity = po.Lines.Sum(line => line.ReceivedQuantity),
+                ReceivedAmount = po.Lines.Sum(line => line.ReceivedQuantity * line.UnitPrice)
+            })
+            .ToListAsync(cancellationToken);
+
+        if (purchaseOrders.Count == 0)
+        {
+            return [];
+        }
+
+        var poIds = purchaseOrders.Select(x => x.Id).ToList();
+        var receiptDates = await dbContext.GoodsReceipts.AsNoTracking()
+            .Where(x => poIds.Contains(x.PurchaseOrderId) && x.Status == GoodsReceiptStatus.Posted)
+            .GroupBy(x => x.PurchaseOrderId)
+            .Select(g => new
+            {
+                PurchaseOrderId = g.Key,
+                FirstReceiptAt = g.Min(x => x.ReceivedAt)
+            })
+            .ToListAsync(cancellationToken);
+
+        var receiptMap = receiptDates.ToDictionary(x => x.PurchaseOrderId, x => (DateTimeOffset?)x.FirstReceiptAt);
+
+        return purchaseOrders
+            .Select(x => new PurchaseOrderPerformanceSnapshot(
+                x.Id,
+                x.SupplierId,
+                x.Code,
+                x.Name,
+                x.OrderDate,
+                x.Status,
+                x.OrderedAmount,
+                x.OrderedQuantity,
+                x.ReceivedQuantity,
+                x.ReceivedAmount,
+                receiptMap.TryGetValue(x.Id, out var firstReceiptAt) ? firstReceiptAt : null))
+            .ToList();
+    }
+
     private static PeriodWindowDto BuildPreviousPeriod(DateTimeOffset from, DateTimeOffset to)
     {
         var span = to - from;
@@ -1380,6 +1576,12 @@ public sealed class ReportingController(IIssDbContext dbContext, InventoryServic
         }
 
         return new CountComparisonDto(current, previous, delta, deltaPercent);
+    }
+
+    private static decimal? AverageOrNull(IEnumerable<decimal> values)
+    {
+        var list = values.ToList();
+        return list.Count == 0 ? null : Math.Round(list.Average(), 2);
     }
 
     private static IReadOnlyList<TrendPointDto> BuildMonthlyTrend(IEnumerable<TrendSource> rows, DateTimeOffset reportTo)
