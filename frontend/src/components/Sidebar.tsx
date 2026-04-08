@@ -275,7 +275,7 @@ export function Sidebar({ roles, collapsed = false, onNavigate, onToggleCollapse
   return (
     <aside
       className={[
-        "flex h-full max-h-screen shrink-0 flex-col overflow-hidden border-r border-[var(--card-border)] bg-[var(--surface)] p-3 shadow-[var(--shadow-soft)] transition-all duration-200",
+        "relative flex h-full max-h-screen shrink-0 flex-col overflow-hidden border-r border-[var(--card-border)] bg-[var(--surface)] p-3 shadow-[var(--shadow-soft)] transition-all duration-200",
         collapsed ? "w-[4.5rem]" : "w-[17rem]",
       ].join(" ")}
     >
@@ -462,6 +462,19 @@ export function Sidebar({ roles, collapsed = false, onNavigate, onToggleCollapse
           </div>
         ) : null}
       </nav>
+
+      {canToggle ? (
+        <button
+          type="button"
+          onClick={onToggleCollapse}
+          aria-pressed={pinned}
+          aria-label={pinned ? "Collapse sidebar" : "Expand sidebar"}
+          title={pinned ? "Collapse sidebar" : "Expand sidebar"}
+          className="absolute inset-y-0 right-0 z-10 hidden w-3 translate-x-1/2 cursor-col-resize rounded-full bg-transparent transition-colors duration-150 hover:bg-[var(--accent-muted)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring-accent)] lg:block"
+        >
+          <span className="sr-only">{pinned ? "Collapse sidebar" : "Expand sidebar"}</span>
+        </button>
+      ) : null}
     </aside>
   );
 }

@@ -1,7 +1,7 @@
 "use client";
 
-import Link from "next/link";
 import { useState, type ReactNode } from "react";
+import { usePathname, useRouter } from "next/navigation";
 import { LogoutButton } from "@/components/LogoutButton";
 import { Sidebar } from "@/components/Sidebar";
 import { AssistantPanel } from "@/components/assistant/AssistantPanel";
@@ -20,6 +20,8 @@ function readCollapsedPreference(): boolean {
 }
 
 export function AppShell({ children, email, roles }: AppShellProps) {
+  const router = useRouter();
+  const pathname = usePathname();
   const [sidebarCollapsed, setSidebarCollapsed] = useState<boolean>(() => readCollapsedPreference());
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
 
@@ -31,6 +33,20 @@ export function AppShell({ children, email, roles }: AppShellProps) {
       }
       return next;
     });
+  }
+
+  function goBack() {
+    if (typeof window !== "undefined" && window.history.length > 1) {
+      router.back();
+      return;
+    }
+
+    if (pathname !== "/") {
+      router.push("/");
+      return;
+    }
+
+    router.refresh();
   }
 
   return (
@@ -65,6 +81,14 @@ export function AppShell({ children, email, roles }: AppShellProps) {
             <div className="flex min-w-0 items-center gap-2">
               <button
                 type="button"
+                className="inline-flex min-h-8 items-center justify-center rounded-md border border-[var(--input-border)] bg-[var(--surface-soft)] px-3 py-1.5 text-[13px] font-medium text-[var(--foreground)] shadow-[var(--shadow-control)] transition-colors duration-150 hover:bg-[var(--surface)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring-accent)]"
+                onClick={goBack}
+              >
+                <span aria-hidden="true" className="mr-1.5 text-sm leading-none">←</span>
+                Back
+              </button>
+              <button
+                type="button"
                 className="inline-flex min-h-8 items-center justify-center rounded-md border border-[var(--input-border)] bg-[var(--surface-soft)] px-3 py-1.5 text-[13px] font-medium text-[var(--foreground)] shadow-[var(--shadow-control)] transition-colors duration-150 hover:bg-[var(--surface)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring-accent)] lg:hidden"
                 onClick={() => setMobileSidebarOpen(true)}
               >
@@ -79,12 +103,6 @@ export function AppShell({ children, email, roles }: AppShellProps) {
             </div>
 
             <div className="ml-3 flex items-center gap-2">
-              <Link
-                href="/settings"
-                className="inline-flex min-h-8 items-center justify-center rounded-md border border-[var(--input-border)] bg-[var(--surface-soft)] px-3 py-1.5 text-[13px] font-medium text-[var(--foreground)] shadow-[var(--shadow-control)] transition-colors duration-150 hover:bg-[var(--surface)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring-accent)]"
-              >
-                Settings
-              </Link>
               <LogoutButton />
             </div>
           </header>
