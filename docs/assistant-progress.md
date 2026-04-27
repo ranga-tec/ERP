@@ -100,10 +100,11 @@ Validation previously completed for wave 1:
 - `npx tsc --noEmit`
 - `npm run build` with `ISS_API_BASE_URL` pointed at the deployed API
 
-Deployment previously completed for wave 1:
+Deployment posture for these checkpoints:
 
-- `iss-web` Railway deployment `b6ba1095-06d0-437c-a897-961b04591048`
-- live URL: `https://iss-web-production.up.railway.app`
+- production deployment is now provider-neutral and runs from the tracked single-VPS assets in `deploy/`
+- use `docs/deployment.md` as the only source of truth for live deployment steps
+- do not add provider-specific deployment ids or temporary live URLs back into this document
 
 ### Rollout wave 2: committed, pushed, deployed
 

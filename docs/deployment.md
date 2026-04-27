@@ -5,6 +5,12 @@ This repo contains a complete ISS ERP system:
 - Backend: ASP.NET Core (.NET 8) + PostgreSQL
 - Frontend: Next.js (App Router) + TypeScript + Tailwind
 
+The current production approach is a single Ubuntu VPS running Docker Compose. The tracked deployment assets for that flow live under:
+
+- `deploy/docker-compose.vps.yml`
+- `deploy/.env.example`
+- `deploy/backup.sh`
+
 ## Local infrastructure (PostgreSQL)
 
 From the repo root:
@@ -14,7 +20,7 @@ docker compose up -d
 ```
 
 - PostgreSQL: `localhost:5432` (db `iss`, user `pgadmin`, password `vesper`)
-- Note: the current repo `docker-compose.yml` starts PostgreSQL only (no pgAdmin service)
+- Note: the repo-root `docker-compose.yml` starts PostgreSQL only
 
 ## Backend (API)
 
@@ -34,11 +40,11 @@ Notes:
 - Roles are seeded on startup.
 - Fresh databases also seed default currencies, payment types, tax codes, and reference forms required by core finance/reporting screens.
 - The first registered user becomes `Admin`.
-- Health endpoint: `GET /health` (now includes a DB connectivity check, not just process liveness)
+- Health endpoint: `GET /health` (includes DB connectivity, not just process liveness)
 
 ### EF migrations (production-ready schema deployment)
 
-Baseline migration is now included under `backend/src/ISS.Infrastructure/Persistence/Migrations`.
+Baseline migration is included under `backend/src/ISS.Infrastructure/Persistence/Migrations`.
 
 Generate future migrations:
 
@@ -67,7 +73,9 @@ dotnet run --project backend/src/ISS.Api/ISS.Api.csproj
 
 If you already created a database using `EnsureCreated`, recreate it (recommended for non-production) before switching to migrations, or align it manually before inserting migration history.
 
-### Required environment variables
+### Backend environment variables
+
+Required:
 
 - `ConnectionStrings__Default`
 - `Jwt__Key` (required in non-Development, minimum 32 chars, and must not use the built-in dev default)
@@ -79,19 +87,38 @@ Optional:
 - `Database__EnableRetryOnFailure` (`true` | `false`; default `true`)
 - `Database__MaxRetryCount` (default `5`)
 - `Database__MaxRetryDelaySeconds` (default `10`)
+- `Security__EnforceHttps` (`true` | `false`; defaults to `true` outside Development)
 - `Auth__AllowSelfRegistration` (`true` | `false`; default is `true` in Development and `false` in non-Development)
 - `Auth__AllowFirstUserBootstrapRegistration` (`true` | `false`; default `true`)
-- `Auth__BootstrapAdminEmail` / `Auth__BootstrapAdminPassword` / `Auth__BootstrapAdminDisplayName` (optional recovery/bootstrap admin seeded on startup)
+- `Auth__BootstrapAdminEmail` / `Auth__BootstrapAdminPassword` / `Auth__BootstrapAdminDisplayName`
 - `ReverseProxy__Enabled` (`true` | `false`; default `false`)
 - `ReverseProxy__ForwardLimit` (default `1`)
 - `ReverseProxy__KnownProxies__0`, `ReverseProxy__KnownProxies__1`, ...
-- `ReverseProxy__KnownNetworks__0`, `ReverseProxy__KnownNetworks__1`, ... (CIDR format, e.g. `10.0.0.0/8`)
+- `ReverseProxy__KnownNetworks__0`, `ReverseProxy__KnownNetworks__1`, ... (CIDR format, for example `10.0.0.0/8`)
 - `Notifications__Enabled`, `Notifications__EmailEnabled`, `Notifications__SmsEnabled`
-- `Notifications__Dispatcher__Enabled` (enables background outbox dispatcher)
+- `Notifications__Dispatcher__Enabled`
 - `Notifications__Email__Smtp__Host` / `Port` / `User` / `Password` / `FromEmail` / `FromName`
 - `Notifications__Sms__Twilio__AccountSid` / `AuthToken` / `From`
 
-### Integration test database fallback (without Testcontainers)
+## Frontend (Web)
+
+```bash
+cd frontend
+copy .env.example .env.local
+npm install
+npm run dev
+```
+
+Open `http://localhost:3000`.
+
+Frontend environment variables:
+
+- `ISS_API_BASE_URL` (defaults to `http://localhost:5257`)
+- `ISS_SECURE_COOKIES` (`true` | `false`; defaults to `true` in production, set to `false` only when deliberately serving plain HTTP)
+- `ISS_BACKEND_PROXY_TIMEOUT_MS` (optional; backend proxy upstream timeout in ms, default `30000`)
+- `NEXT_PUBLIC_ISS_ALLOW_SELF_REGISTRATION` (optional; register link is enabled by default in dev and disabled by default in production)
+
+## Integration test database fallback (without Testcontainers)
 
 If Docker/Testcontainers cannot access the Docker daemon from your shell/session, the integration tests can run against an existing PostgreSQL instance:
 
@@ -106,75 +133,237 @@ dotnet test .\backend\tests\ISS.IntegrationTests\ISS.IntegrationTests.csproj -c 
 Notes:
 
 - `ISS_INTEGRATIONTESTS_RESET_EXISTING_DB=1` will delete and recreate the target database before each run.
-- Use a dedicated test database name (not your main `iss` database).
+- Use a dedicated test database name, not the main `iss` database.
 - Build once before `--no-build` runs:
   - `dotnet build .\backend\tests\ISS.IntegrationTests\ISS.IntegrationTests.csproj -c Release --nologo`
 
-## Frontend (Web)
+## Single-VPS production deployment (current approach)
+
+This is the tracked deployment baseline for this repo.
+
+### Current live server snapshot
+
+- provider: Contabo VPS
+- public IPv4: `178.238.230.31`
+- current access pattern: raw-IP HTTP until a real domain/TLS terminator is attached
+- deployment ownership target: use a non-root operator account for routine access and deploys
+
+### Topology
+
+The current production path runs the entire system on one Ubuntu VPS:
+
+- `db`: PostgreSQL 16
+- `api`: ASP.NET Core API
+- `web`: Next.js app
+- persistent Docker volumes:
+  - `iss_postgres_data`
+  - `iss_api_app_data`
+
+The frontend is the only public container. It listens on port `80` and proxies:
+
+- `/api/backend/*` to the API container
+- `/api/auth/*` to the backend auth endpoints through the Next.js server routes
+
+The API is internal-only on the Docker network and is not published on a host port.
+
+### Repo assets used by the VPS flow
+
+- `backend/Dockerfile`
+- `backend/.dockerignore`
+- `frontend/Dockerfile`
+- `deploy/docker-compose.vps.yml`
+- `deploy/.env.example`
+- `deploy/backup.sh`
+
+### VPS prerequisites
+
+Recommended baseline:
+
+- Ubuntu 24.04 LTS
+- Docker Engine with Compose plugin
+- SSH key-based access for a non-root operator account
+- `ufw` enabled with at least:
+  - `OpenSSH`
+  - `80/tcp`
+  - `443/tcp` (reserve now even if TLS is added later)
+
+Recommended filesystem layout on the server:
+
+- app root: `/opt/iss`
+- backups: `/opt/iss-backups`
+- runtime env file: `/opt/iss/deploy/.env`
+
+### Host hardening checklist
+
+Before deploying the app:
+
+1. Create a non-root operator account, for example `deploy`.
+2. Add your SSH public key to that account.
+3. Verify `ssh deploy@<server>` works.
+4. Disable SSH password authentication and root SSH login.
+5. Enable the firewall.
+6. Install Docker and add the operator account to the `docker` group.
+
+Do not operate the deployment through password-based root SSH.
+
+### Prepare the server
+
+Typical package bootstrap on a fresh Ubuntu VPS:
 
 ```bash
-cd frontend
-copy .env.example .env.local
-npm install
-npm run dev
+sudo apt-get update
+sudo apt-get install -y ca-certificates curl git ufw
+curl -fsSL https://get.docker.com | sh
+sudo usermod -aG docker $USER
+sudo mkdir -p /opt/iss /opt/iss-backups
+sudo chown -R $USER:$USER /opt/iss /opt/iss-backups
 ```
 
-Environment variables:
+### Prepare runtime secrets
 
-- `ISS_API_BASE_URL` (defaults to `http://localhost:5257`)
-- `ISS_BACKEND_PROXY_TIMEOUT_MS` (optional; backend proxy upstream timeout in ms, default `30000`)
-- `NEXT_PUBLIC_ISS_ALLOW_SELF_REGISTRATION` (optional; login UI register link is enabled by default in dev and disabled by default in production)
+Copy the template:
 
-## Production notes (high level)
-
-- Put the API behind HTTPS (reverse proxy like Nginx/IIS) and set a strong `Jwt__Key`.
-- If running behind a reverse proxy/load balancer, set:
-  - `ReverseProxy__Enabled=true`
-  - trusted proxy IPs/networks via `ReverseProxy__KnownProxies__*` and/or `ReverseProxy__KnownNetworks__*`
-  - `ReverseProxy__ForwardLimit` matching your hop count
-- For production, keep self-registration disabled unless intentionally required:
-  - Backend default in non-Development already disables self-registration after initial bootstrap
-  - Set `Auth__AllowFirstUserBootstrapRegistration=false` after provisioning the first admin user
-  - Only set `Auth__AllowSelfRegistration=true` if you intentionally support open signup
-  - Set `NEXT_PUBLIC_ISS_ALLOW_SELF_REGISTRATION=true` only when you want the login UI to expose the register option
-- Run the notification dispatcher only when SMTP/Twilio are configured and `Notifications__Dispatcher__Enabled=true`.
-- Persist backend file storage (`App_Data/`) across deployments. This now includes:
-  - `App_Data/item-attachments`
-  - `App_Data/document-attachments`
-- Include both the PostgreSQL database and `App_Data/` in backups (same retention policy window).
-
-### Reverse Proxy Examples
-
-Nginx -> Kestrel on same host:
-
-```nginx
-location / {
-  proxy_pass         http://127.0.0.1:5257;
-  proxy_set_header   Host $host;
-  proxy_set_header   X-Forwarded-For $proxy_add_x_forwarded_for;
-  proxy_set_header   X-Forwarded-Proto $scheme;
-}
+```bash
+cp deploy/.env.example deploy/.env
+chmod 600 deploy/.env
 ```
 
-API environment for this topology:
+Then set real values in `deploy/.env`.
+
+Important variables in the tracked VPS template:
+
+- `POSTGRES_DB`
+- `POSTGRES_USER`
+- `POSTGRES_PASSWORD`
+- `JWT_ISSUER`
+- `JWT_AUDIENCE`
+- `JWT_KEY`
+- `BOOTSTRAP_ADMIN_EMAIL`
+- `BOOTSTRAP_ADMIN_PASSWORD`
+- `BOOTSTRAP_ADMIN_DISPLAY_NAME`
+- `SECURITY_ENFORCE_HTTPS`
+- `ISS_SECURE_COOKIES`
+- `ISS_BACKEND_PROXY_TIMEOUT_MS`
+- `NEXT_PUBLIC_ISS_ALLOW_SELF_REGISTRATION`
+
+Rules:
+
+- keep `deploy/.env` out of git
+- use a long random `JWT_KEY`
+- use a long random `POSTGRES_PASSWORD`
+- treat `BOOTSTRAP_ADMIN_*` as bootstrap/recovery settings and rotate or remove them after the real admin account is established
+
+### Plain HTTP mode vs HTTPS mode
+
+The tracked VPS compose file is intentionally usable on a raw IP address before a domain is attached.
+
+#### Plain HTTP mode
+
+Use these settings when serving the app directly on `http://<server-ip>`:
+
+- `SECURITY_ENFORCE_HTTPS=false`
+- `ISS_SECURE_COOKIES=false`
+
+Current live raw-IP endpoint:
+
+- `http://178.238.230.31`
+
+Why both matter:
+
+- if `Security__EnforceHttps` stays enabled without TLS, the API can redirect or reject traffic in ways that break the container-to-container and browser flow
+- if `ISS_SECURE_COOKIES=true` on plain HTTP, the browser will reject the auth cookie and login will appear to succeed while the session does not persist
+
+#### HTTPS mode
+
+After the site is reachable through real HTTPS:
+
+- set `SECURITY_ENFORCE_HTTPS=true`
+- set `ISS_SECURE_COOKIES=true`
+
+At that point, terminate TLS in front of the frontend container with a host-level or containerized reverse proxy such as Caddy or Nginx, and forward the scheme correctly.
+
+### Copy the app to the server
+
+The server only needs these tracked directories:
+
+- `backend/`
+- `frontend/`
+- `deploy/`
+
+You can upload them with your preferred tool:
+
+- `scp`
+- `sftp`
+- `rsync`
+- a tarball extracted into `/opt/iss`
+
+The current workflow does not require a git checkout on the server.
+
+### Deploy or update the stack
+
+From `/opt/iss` on the VPS:
+
+```bash
+docker compose --env-file /opt/iss/deploy/.env -f /opt/iss/deploy/docker-compose.vps.yml up -d --build
+```
+
+Check status:
+
+```bash
+docker compose --env-file /opt/iss/deploy/.env -f /opt/iss/deploy/docker-compose.vps.yml ps
+```
+
+Expected state:
+
+- `db` healthy
+- `api` up
+- `web` up and bound on `0.0.0.0:80`
+
+### Verify the deployment
+
+Health and smoke checks:
 
 ```powershell
-$env:ReverseProxy__Enabled="true"
-$env:ReverseProxy__ForwardLimit="1"
-$env:ReverseProxy__KnownProxies__0="127.0.0.1"
+Invoke-WebRequest -UseBasicParsing -Uri "http://<server-ip>" | Select-Object -ExpandProperty StatusCode
+Invoke-WebRequest -UseBasicParsing -Uri "http://<server-ip>/login" | Select-Object -ExpandProperty StatusCode
 ```
 
-Load balancer/private network in front of API:
+Current live checks:
 
 ```powershell
-$env:ReverseProxy__Enabled="true"
-$env:ReverseProxy__ForwardLimit="2"
-$env:ReverseProxy__KnownNetworks__0="10.0.0.0/8"
-$env:ReverseProxy__KnownNetworks__1="172.16.0.0/12"
-$env:ReverseProxy__KnownNetworks__2="192.168.0.0/16"
+Invoke-WebRequest -UseBasicParsing -Uri "http://178.238.230.31" | Select-Object -ExpandProperty StatusCode
+Invoke-WebRequest -UseBasicParsing -Uri "http://178.238.230.31/login" | Select-Object -ExpandProperty StatusCode
 ```
 
-Only trust proxy addresses that are actually under your control.
+API smoke script:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\ops\smoke-api.ps1 `
+  -ApiBaseUrl "http://<server-ip>" `
+  -Email "<admin-email>" `
+  -Password "<admin-password>"
+```
+
+Browser validation should include:
+
+1. login
+2. dashboard load
+3. create/read one document
+4. generate one PDF
+
+### Reverse proxy notes
+
+Once TLS is added, the API should trust only your actual proxy hop(s).
+
+Example API settings behind a single same-host reverse proxy:
+
+```bash
+ReverseProxy__Enabled=true
+ReverseProxy__ForwardLimit=1
+ReverseProxy__KnownProxies__0=127.0.0.1
+```
+
+Only trust proxy addresses or networks that are actually under your control.
 
 ### Attachment upload safety limits
 
@@ -184,44 +373,42 @@ The API enforces upload safety checks for item attachments and document collabor
 - Per-record attachment count limit: `25 files`
 - Per-record total attachment storage limit: `100 MB`
 - Allowed extensions: `.pdf`, `.txt`, `.csv`, `.png`, `.jpg`, `.jpeg`, `.gif`, `.webp`, `.doc`, `.docx`, `.xls`, `.xlsx`
-- Allowed content types are restricted (common PDF/image/Office/text types)
-- File content is signature-checked (magic-byte sniffing) for common formats to reject renamed/disguised files
+- Allowed content types are restricted to common PDF, image, Office, and text types
+- File content is signature-checked (magic-byte sniffing) for common formats to reject renamed or disguised files
 
-Operational note:
+If users need additional file types, extend the server allowlist and add tests before enabling them in production.
 
-- If users need additional file types, extend the server allowlist and add tests before enabling them in production.
+## Backup / restore
 
-### Deployment smoke script
+### Automated backup script
 
-This repo now includes `scripts/ops/smoke-api.ps1` for post-deploy API smoke checks.
+The tracked VPS backup script is:
 
-Health-only smoke (useful in CI):
+- `deploy/backup.sh`
 
-```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\ops\smoke-api.ps1 `
-  -ApiBaseUrl "https://erp.example.com" `
-  -SkipAuth
+It currently:
+
+- runs `pg_dump` against the live `db` container
+- archives the `iss_api_app_data` Docker volume
+- writes files into `/opt/iss-backups`
+- deletes backups older than 7 days
+
+Recommended cron entry:
+
+```bash
+0 2 * * * /opt/iss/deploy/backup.sh >> /opt/iss-backups/backup.log 2>&1
 ```
 
-Authenticated smoke (admin user):
+### Manual backup examples
 
-```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\ops\smoke-api.ps1 `
-  -ApiBaseUrl "https://erp.example.com" `
-  -Email "admin@example.com" `
-  -Password "<admin-password>"
-```
-
-### Backup / Restore examples (PowerShell)
-
-Database backup:
+Database:
 
 ```powershell
 pg_dump --format=custom --file .\backup\iss-$(Get-Date -Format yyyyMMdd-HHmmss).dump `
   --host localhost --port 5432 --username pgadmin --dbname iss
 ```
 
-Database restore (to a recreated/empty target DB):
+Database restore (to a recreated or empty target DB):
 
 ```powershell
 pg_restore --clean --if-exists --no-owner --no-privileges `
@@ -229,62 +416,52 @@ pg_restore --clean --if-exists --no-owner --no-privileges `
   .\backup\iss-YYYYMMDD-HHMMSS.dump
 ```
 
-File storage backup:
+File storage:
 
 ```powershell
 Compress-Archive -Path .\backend\src\ISS.Api\App_Data\* `
   -DestinationPath .\backup\iss-app-data-$(Get-Date -Format yyyyMMdd-HHmmss).zip
 ```
 
-## Rollout / Rollback Checklist
+### What must be backed up
 
-### Rollout (recommended)
+Always back up both:
 
-1. Backup database and `App_Data/`.
-2. Deploy new application build.
-3. Apply EF migrations (`dotnet ef database update`) or start API with `Database__InitializationMode=Migrate`.
-4. Verify `GET /health` returns HTTP `200` (`Healthy`).
-5. Run smoke checks:
-   - `scripts/ops/smoke-api.ps1` (health-only or authenticated)
-   - Login (UI)
-   - Open dashboard (UI)
-   - Create/read one document (e.g. service estimate)
-   - Generate one PDF
+- PostgreSQL data
+- `App_Data/` content, including:
+  - `App_Data/item-attachments`
+  - `App_Data/document-attachments`
 
-### Rollback (application only)
+## Rollout / rollback checklist
 
-1. Stop new app version.
-2. Re-deploy previous app build.
-3. If schema changes were applied and rollback is not backward compatible, restore DB backup (and matching `App_Data/`) instead of only rolling back binaries.
+### Rollout
 
-## Railway Deployment Notes
+1. Back up database and `App_Data`.
+2. Sync the new `backend/`, `frontend/`, and `deploy/` files to `/opt/iss`.
+3. Review `/opt/iss/deploy/.env` for any new or changed variables.
+4. Run:
 
-For this repo, Railway deploys are most reliable when each service is deployed from its own directory and uploaded with `--path-as-root`.
-
-Do not upload the whole repo and expect Railway to infer the correct build root for both services.
-
-Use:
-
-```powershell
-cd backend
-railway up . --path-as-root --service iss-api --environment production --detach
-
-cd ..\frontend
-railway up . --path-as-root --service iss-web --environment production --detach
+```bash
+docker compose --env-file /opt/iss/deploy/.env -f /opt/iss/deploy/docker-compose.vps.yml up -d --build
 ```
 
-Notes:
+5. Verify the stack with `docker compose ... ps`.
+6. Verify `GET /health` through the frontend proxy path or direct API network access.
+7. Run smoke checks:
+   - `scripts/ops/smoke-api.ps1`
+   - login
+   - dashboard
+   - create/read one document
+   - generate one PDF
 
-- `backend/src` now includes:
-  - `Dockerfile`
-  - `.dockerignore`
-- `frontend` already includes a `Dockerfile`
-- successful Railway status should show:
-  - latest deployment `status = SUCCESS`
-  - build builder `DOCKERFILE`
+### Rollback
 
-Troubleshooting:
+1. Stop the new stack:
 
-- If Railway build logs say it cannot determine how to build the app, inspect whether Railpack analyzed the repo root instead of the intended service root.
-- `railway status --json` is the fastest way to confirm the latest deployment id and builder used by each service.
-- If emergency recovery access is provisioned with `Auth__BootstrapAdmin*`, rotate/remove those variables after admin access is restored. Do not store the recovery password in repo documentation.
+```bash
+docker compose --env-file /opt/iss/deploy/.env -f /opt/iss/deploy/docker-compose.vps.yml down
+```
+
+2. Restore the previous app files under `/opt/iss`.
+3. Start the previous stack again with `docker compose ... up -d --build`.
+4. If schema changes are not backward compatible, restore the matching DB and `App_Data` backups instead of only rolling back code.

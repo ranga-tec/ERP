@@ -6,7 +6,11 @@
     "dev": "next dev --webpack",
     "build": "next build --webpack",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "video:demo": "node scripts/video-demo-runner.mjs",
+    "video:demo:item-create": "node scripts/video-demo-item-create.mjs",
+    "video:demo:help": "node scripts/video-demo-runner.mjs --help",
+    "video:demo:list": "node scripts/video-demo-runner.mjs --list"
   },
   "dependencies": {
     "next": "16.1.6",
@@ -20,6 +24,7 @@
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.1.6",
+    "playwright": "1.59.1",
     "tailwindcss": "^4",
     "typescript": "^5"
   }

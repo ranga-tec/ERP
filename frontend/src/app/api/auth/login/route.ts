@@ -1,6 +1,6 @@
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
-import { ISS_TOKEN_COOKIE, issApiBaseUrl } from "@/lib/env";
+import { ISS_TOKEN_COOKIE, issApiBaseUrl, issSecureCookies } from "@/lib/env";
 
 type LoginRequest = { email: string; password: string };
 type AuthResponse = { token: string; userId: string; email?: string; roles?: string[] };
@@ -35,7 +35,7 @@ export async function POST(req: Request) {
   cookieStore.set(ISS_TOKEN_COOKIE, data.token, {
     httpOnly: true,
     sameSite: "lax",
-    secure: process.env.NODE_ENV === "production",
+    secure: issSecureCookies(),
     path: "/",
     maxAge: 60 * 60 * 8,
   });

@@ -195,45 +195,51 @@ Fix:
 Get-Content -LiteralPath '..\frontend\src\app\(app)\inventory\reorder-alerts\page.tsx'
 ```
 
-### 6. Railway deploy fails because the wrong monorepo root is uploaded
+### 6. VPS deploy comes up, but browser login does not persist
 
 Symptom:
 
-- `railway up` appears to work, but the build fails immediately
-- Railpack logs say it `could not determine how to build the app`
-- build-log tree shows the repo root instead of the intended service root
+- `/api/auth/login` returns `200`
+- the browser is redirected back to login or appears logged out immediately
+- app cookies are missing or ignored in the browser
 
-Working deployment commands from repo root:
+Likely cause:
 
-```powershell
-railway up .\backend\src --path-as-root -s iss-api -e production -c
-railway up .\frontend --path-as-root -s iss-web -e production -c
-```
+- the deployment is being served over plain `http://`, but the frontend is still issuing a `Secure` auth cookie
+- or the API is still forcing HTTPS even though TLS has not actually been attached yet
 
-Notes:
+Fix:
 
-- `backend/src` now has an explicit `Dockerfile` and `.dockerignore`
-- `frontend` already has a `Dockerfile`
-- successful Railway status should show:
-  - `serviceManifest.build.builder = "DOCKERFILE"`
-  - latest deployment `status = "SUCCESS"`
+- for raw-IP / plain HTTP deployments, set:
+  - `ISS_SECURE_COOKIES=false`
+  - `SECURITY_ENFORCE_HTTPS=false`
+- after real HTTPS is added, switch both back to `true`
 
 Fast diagnosis flow:
 
-1. Run:
+1. Check the live env file used by the VPS deployment:
 
-```powershell
-railway status --json
+```bash
+grep -E 'ISS_SECURE_COOKIES|SECURITY_ENFORCE_HTTPS' /opt/iss/deploy/.env
 ```
 
-2. Read the latest deployment id for the failing service.
-3. If CLI log streaming is unhelpful, query Railway GraphQL `buildLogs` / `deploymentLogs` for that deployment id.
-4. If build logs show the repo root, redeploy with explicit `--path-as-root` from the repo root.
+2. Rebuild the stack if you changed either value:
 
-Operational auth note:
+```bash
+docker compose --env-file /opt/iss/deploy/.env -f /opt/iss/deploy/docker-compose.vps.yml up -d --build
+```
 
-- The live Railway API may use temporary `Auth__BootstrapAdmin*` vars for emergency access recovery.
-- Treat those as temporary operator-only settings and remove them after the real admin account/password is rotated.
+3. Inspect the login response headers:
+
+```powershell
+$body = @{ email = "admin@example.com"; password = "<password>" } | ConvertTo-Json
+(Invoke-WebRequest -UseBasicParsing -Uri "http://<server>/api/auth/login" -Method POST -ContentType "application/json" -Body $body).Headers["Set-Cookie"]
+```
+
+Expected behavior:
+
+- plain HTTP deployment: auth cookie should not include `Secure`
+- HTTPS deployment: auth cookie should include `Secure`
 
 ## Documentation Maintenance Rules (for Future Agents)
 

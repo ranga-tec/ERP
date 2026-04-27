@@ -1,0 +1,65 @@
+name: iss
+
+services:
+  db:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-iss}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB:-iss}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  api:
+    build:
+      context: ../backend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ASPNETCORE_URLS: http://0.0.0.0:8080
+      ConnectionStrings__Default: Host=db;Port=5432;Database=${POSTGRES_DB:-iss};Username=${POSTGRES_USER};Password=${POSTGRES_PASSWORD}
+      Database__InitializationMode: Migrate
+      Database__EnableRetryOnFailure: "true"
+      Jwt__Issuer: ${JWT_ISSUER:-ISS}
+      Jwt__Audience: ${JWT_AUDIENCE:-ISS}
+      Jwt__Key: ${JWT_KEY}
+      Security__EnforceHttps: ${SECURITY_ENFORCE_HTTPS:-false}
+      Auth__BootstrapAdminEmail: ${BOOTSTRAP_ADMIN_EMAIL}
+      Auth__BootstrapAdminPassword: ${BOOTSTRAP_ADMIN_PASSWORD}
+      Auth__BootstrapAdminDisplayName: ${BOOTSTRAP_ADMIN_DISPLAY_NAME:-ISS Admin}
+      Auth__AllowFirstUserBootstrapRegistration: "true"
+    volumes:
+      - api_app_data:/app/App_Data
+    expose:
+      - "8080"
+
+  web:
+    build:
+      context: ../frontend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      - api
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      ISS_API_BASE_URL: http://api:8080
+      ISS_SECURE_COOKIES: ${ISS_SECURE_COOKIES:-false}
+      ISS_BACKEND_PROXY_TIMEOUT_MS: ${ISS_BACKEND_PROXY_TIMEOUT_MS:-30000}
+      NEXT_PUBLIC_ISS_ALLOW_SELF_REGISTRATION: ${NEXT_PUBLIC_ISS_ALLOW_SELF_REGISTRATION:-false}
+    ports:
+      - "80:3000"
+
+volumes:
+  postgres_data:
+  api_app_data:

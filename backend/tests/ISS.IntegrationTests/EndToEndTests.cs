@@ -45,7 +45,10 @@ public sealed class EndToEndTests(IssApiFixture fixture) : IClassFixture<IssApiF
         decimal DefaultUnitCost,
         bool IsActive);
     private sealed record CurrencyDto(Guid Id, string Code, string Name, string Symbol, int MinorUnits, bool IsBase, bool IsActive);
+    private sealed record CurrencyRateDto(Guid Id, Guid FromCurrencyId, string FromCurrencyCode, string FromCurrencyName, Guid ToCurrencyId, string ToCurrencyCode, string ToCurrencyName, decimal Rate, CurrencyRateType RateType, DateTimeOffset EffectiveFrom, string? Source, bool IsActive);
     private sealed record PaymentTypeDto(Guid Id, string Code, string Name, string? Description, bool IsActive);
+    private sealed record TaxCodeDto(Guid Id, string Code, string Name, decimal RatePercent, bool IsInclusive, TaxScope Scope, string? Description, bool IsActive);
+    private sealed record TaxConversionDto(Guid Id, Guid SourceTaxCodeId, string SourceTaxCode, string SourceTaxName, Guid TargetTaxCodeId, string TargetTaxCode, string TargetTaxName, decimal Multiplier, string? Notes, bool IsActive);
     private sealed record ReferenceFormDto(Guid Id, string Code, string Name, string Module, string? RouteTemplate, bool IsActive);
     private sealed record AuthCapabilitiesDto(bool RegistrationAllowed, bool BootstrapRegistrationOnly, bool SelfRegistrationEnabled, bool HasUsers);
 
@@ -116,13 +119,31 @@ public sealed class EndToEndTests(IssApiFixture fixture) : IClassFixture<IssApiF
     {
         var currencies = await Get<List<CurrencyDto>>("/api/currencies");
         Assert.Contains(currencies, currency => currency.Code == "USD" && currency.IsBase && currency.IsActive);
+        Assert.Contains(currencies, currency => currency.Code == "LKR" && currency.IsActive);
+
+        var currencyRates = await Get<List<CurrencyRateDto>>("/api/currency-rates");
+        Assert.Contains(currencyRates, rate => rate.FromCurrencyCode == "LKR"
+                                               && rate.ToCurrencyCode == "USD"
+                                               && rate.RateType == CurrencyRateType.Spot
+                                               && rate.IsActive);
 
         var paymentTypes = await Get<List<PaymentTypeDto>>("/api/payment-types");
         Assert.Contains(paymentTypes, paymentType => paymentType.Code == "CASH" && paymentType.IsActive);
+        Assert.Contains(paymentTypes, paymentType => paymentType.Code == "MOBILE_PAYMENT" && paymentType.IsActive);
+
+        var taxCodes = await Get<List<TaxCodeDto>>("/api/taxes");
+        Assert.Contains(taxCodes, taxCode => taxCode.Code == "EXEMPT" && taxCode.IsActive);
+        Assert.Contains(taxCodes, taxCode => taxCode.Code == "VAT15_INC" && taxCode.IsInclusive && taxCode.IsActive);
+
+        var taxConversions = await Get<List<TaxConversionDto>>("/api/tax-conversions");
+        Assert.Contains(taxConversions, conversion => conversion.SourceTaxCode == "VAT5"
+                                                      && conversion.TargetTaxCode == "VAT15"
+                                                      && conversion.IsActive);
 
         var referenceForms = await Get<List<ReferenceFormDto>>("/api/reference-forms");
         Assert.Contains(referenceForms, form => form.Code == "PAY" && form.RouteTemplate == "/finance/payments/{id}" && form.IsActive);
         Assert.Contains(referenceForms, form => form.Code == "PCF" && form.RouteTemplate == "/finance/petty-cash/{id}" && form.IsActive);
+        Assert.Contains(referenceForms, form => form.Code == "SC" && form.RouteTemplate == "/service/contracts/{id}" && form.IsActive);
         Assert.Contains(referenceForms, form => form.Code == "SEC" && form.RouteTemplate == "/service/expense-claims/{id}" && form.IsActive);
     }
 

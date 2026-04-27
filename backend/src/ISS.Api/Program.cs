@@ -207,6 +207,9 @@ if (reverseProxy.Enabled)
     app.UseForwardedHeaders(forwardedHeadersOptions);
 }
 
+var enforceHttps = builder.Configuration.GetValue<bool?>("Security:EnforceHttps")
+    ?? !app.Environment.IsDevelopment();
+
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
@@ -214,7 +217,7 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
-if (!app.Environment.IsDevelopment())
+if (enforceHttps)
 {
     app.UseHsts();
     app.UseHttpsRedirection();

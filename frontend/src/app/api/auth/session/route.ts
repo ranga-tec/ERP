@@ -1,6 +1,6 @@
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
-import { ISS_TOKEN_COOKIE } from "@/lib/env";
+import { ISS_TOKEN_COOKIE, issSecureCookies } from "@/lib/env";
 import { isJwtExpired, sessionFromToken } from "@/lib/jwt";
 
 export const runtime = "nodejs";
@@ -14,7 +14,13 @@ export async function GET() {
 
   if (isJwtExpired(token)) {
     const resp = NextResponse.json({ session: null });
-    resp.cookies.delete(ISS_TOKEN_COOKIE);
+    resp.cookies.set(ISS_TOKEN_COOKIE, "", {
+      httpOnly: true,
+      sameSite: "lax",
+      secure: issSecureCookies(),
+      path: "/",
+      maxAge: 0,
+    });
     return resp;
   }
 

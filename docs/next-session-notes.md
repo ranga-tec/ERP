@@ -24,13 +24,29 @@ Most relevant recent commits on `main`:
 - `3d97d3d` `Fix finance list actions and warehouse selectors`
 - `72b504f` `Fix direct edit entry and service draft workflows`
 
-## Railway Production State
+## Current Production Deployment State
 
-- `iss-api`: latest deployment `a772948a-e257-46db-b53a-979ecddb8c94`
-- `iss-web`: latest deployment `e0b99f00-27d1-44cf-802c-3981ee99306c`
-- Live URLs:
-  - `https://iss-api-production.up.railway.app`
-  - `https://iss-web-production.up.railway.app`
+- production now uses a single Ubuntu VPS running Docker Compose
+- current provider: Contabo
+- current public server IP: `178.238.230.31`
+- current live raw-IP URL: `http://178.238.230.31`
+- tracked deploy assets:
+  - `deploy/docker-compose.vps.yml`
+  - `deploy/.env.example`
+  - `deploy/backup.sh`
+- server application root: `/opt/iss`
+- live runtime env file: `/opt/iss/deploy/.env` and it is not committed to git
+- persistent runtime data:
+  - PostgreSQL Docker volume `iss_postgres_data`
+  - backend file-storage Docker volume `iss_api_app_data`
+- scheduled backup:
+  - `0 2 * * * /opt/iss/deploy/backup.sh >> /opt/iss-backups/backup.log 2>&1`
+- operator access rule:
+  - use SSH key access through the non-root deploy user
+  - do not re-enable password or root SSH login
+- HTTP/TLS note:
+  - raw-IP HTTP deployments require `ISS_SECURE_COOKIES=false` and `SECURITY_ENFORCE_HTTPS=false`
+  - after attaching real HTTPS, set both values to `true`
 
 ## Current Frontend State
 
@@ -199,9 +215,8 @@ $env:GCM_INTERACTIVE='Never'
 git push "https://ranga-tec@github.com/ranga-tec/ERP.git" main:main
 ```
 
-- if another Railway deploy is needed, use a detached worktree from the exact commit being released and deploy only the intended root:
+- if another VPS deploy is needed, sync the changed `backend/`, `frontend/`, and `deploy/` directories to `/opt/iss`, then rebuild from the server:
 
-```powershell
-git worktree add --detach D:\VScode Projects\ISS-deploy-<commit> <commit>
-railway up D:\VScode Projects\ISS-deploy-<commit>\frontend --path-as-root --service iss-web --environment production --detach
+```bash
+docker compose --env-file /opt/iss/deploy/.env -f /opt/iss/deploy/docker-compose.vps.yml up -d --build
 ```

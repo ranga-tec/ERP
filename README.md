@@ -3,6 +3,7 @@
 ## Stack
 - Backend: ASP.NET Core (.NET 8) + PostgreSQL
 - Frontend: Next.js (App Router) + TypeScript + Tailwind
+- Production deployment baseline: single Ubuntu VPS using Docker Compose from `deploy/`
 
 ## Docs
 - Gap checklist (proposal mapping): `docs/gap-checklist.md`
@@ -10,6 +11,7 @@
 - Role-based test checklists: `docs/role-based-test-checklists.md`
 - User manual (quick): `docs/user-manual.md`
 - Deployment / installation: `docs/deployment.md`
+- VPS deployment assets: `deploy/docker-compose.vps.yml`, `deploy/.env.example`, `deploy/backup.sh`
 - Manual UAT / test script: `docs/manual-uat-guide.md`
 - System + technical maintainer guide: `docs/system-technical-maintainer-guide.md`
 - Assistant progress + frontend handover: `docs/assistant-progress.md`

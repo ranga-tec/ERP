@@ -26,13 +26,22 @@ frontend/out/
 frontend/.env
 frontend/.env.local
 frontend/.env.*.local
+deploy/.env
 
 # Logs
 *.log
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+output/*.secret.txt
 
 # Build outputs
 dist/
 build/
+
+# Local artifacts
+.playwright-cli/
+backup/
+image/
+images/
+output/

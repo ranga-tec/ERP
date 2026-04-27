@@ -34,6 +34,12 @@ Required `.env.local` value:
 
 - `ISS_API_BASE_URL` (defaults to `http://localhost:5257` if omitted)
 
+Optional deployment-sensitive values:
+
+- `ISS_SECURE_COOKIES` (`true` | `false`; defaults to `true` in production)
+- `ISS_BACKEND_PROXY_TIMEOUT_MS` (defaults to `30000`)
+- `NEXT_PUBLIC_ISS_ALLOW_SELF_REGISTRATION` (`true` | `false`)
+
 ## Key Frontend Architecture Files
 
 - `src/app/(auth)/login/page.tsx` -> login/register UI
