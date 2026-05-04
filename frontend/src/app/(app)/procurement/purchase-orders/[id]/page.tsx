@@ -12,12 +12,16 @@ type PurchaseOrderDto = {
   id: string;
   number: string;
   supplierId: string;
+  supplierCode?: string | null;
+  supplierName?: string | null;
   orderDate: string;
   status: number;
   total: number;
   lines: {
     id: string;
     itemId: string;
+    itemSku?: string | null;
+    itemName?: string | null;
     orderedQuantity: number;
     receivedQuantity: number;
     unitPrice: number;
@@ -55,15 +59,23 @@ export default async function PurchaseOrderDetailPage({
 
   const supplierById = new Map(suppliers.map((s) => [s.id, s]));
   const itemLabelById = new Map(
-    items.map((item) => [
-      item.id,
-      <ItemInlineLink key={item.id} itemId={item.id}>
-        {`${item.sku} - ${item.name}`}
-      </ItemInlineLink>,
-    ]),
+    po.lines.map((line) => {
+      const item = items.find((candidate) => candidate.id === line.itemId);
+      const sku = line.itemSku ?? item?.sku;
+      const name = line.itemName ?? item?.name;
+      return [
+        line.itemId,
+        <ItemInlineLink key={line.itemId} itemId={line.itemId}>
+          {sku && name ? `${sku} - ${name}` : line.itemId}
+        </ItemInlineLink>,
+      ] as const;
+    }),
   );
   const itemSearchLabelById = new Map(
-    items.map((item) => [item.id, `${item.sku} ${item.name}`.toLowerCase()]),
+    po.lines.map((line) => {
+      const item = items.find((candidate) => candidate.id === line.itemId);
+      return [line.itemId, `${line.itemSku ?? item?.sku ?? ""} ${line.itemName ?? item?.name ?? ""}`.toLowerCase()] as const;
+    }),
   );
   const isDraft = po.status === 0;
 
@@ -81,7 +93,9 @@ export default async function PurchaseOrderDetailPage({
           <div>
             Supplier:{" "}
             <span className="font-medium text-zinc-900 dark:text-zinc-100">
-              {supplierById.get(po.supplierId)?.code ?? po.supplierId}
+              {po.supplierCode && po.supplierName
+                ? `${po.supplierCode} - ${po.supplierName}`
+                : po.supplierCode ?? supplierById.get(po.supplierId)?.code ?? po.supplierId}
             </span>
           </div>
           <div>Status: {statusLabel[po.status] ?? po.status}</div>

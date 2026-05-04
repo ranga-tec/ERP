@@ -9,6 +9,8 @@ type PurchaseOrderSummaryDto = {
   id: string;
   number: string;
   supplierId: string;
+  supplierCode?: string | null;
+  supplierName?: string | null;
   orderDate: string;
   status: number;
   total: number;
@@ -29,6 +31,11 @@ export default async function PurchaseOrdersPage() {
   ]);
 
   const supplierById = new Map(suppliers.map((s) => [s.id, s]));
+  const supplierLabel = (po: PurchaseOrderSummaryDto) => {
+    if (po.supplierCode && po.supplierName) return `${po.supplierCode} - ${po.supplierName}`;
+    if (po.supplierCode) return po.supplierCode;
+    return supplierById.get(po.supplierId)?.code ?? po.supplierId;
+  };
 
   return (
     <div className="space-y-6">
@@ -64,7 +71,7 @@ export default async function PurchaseOrdersPage() {
                       {p.number}
                     </Link>
                   </td>
-                  <td className="py-2 pr-3">{supplierById.get(p.supplierId)?.code ?? p.supplierId}</td>
+                  <td className="py-2 pr-3">{supplierLabel(p)}</td>
                   <td className="py-2 pr-3 text-zinc-500">{new Date(p.orderDate).toLocaleString()}</td>
                   <td className="py-2 pr-3">{statusLabel[p.status] ?? p.status}</td>
                   <td className="py-2 pr-3">{p.total}</td>

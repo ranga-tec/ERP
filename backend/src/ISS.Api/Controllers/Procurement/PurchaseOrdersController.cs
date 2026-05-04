@@ -14,9 +14,36 @@ namespace ISS.Api.Controllers.Procurement;
 [Authorize(Roles = $"{Roles.Admin},{Roles.Procurement}")]
 public sealed class PurchaseOrdersController(IIssDbContext dbContext, ProcurementService procurementService, IDocumentPdfService pdfService) : ControllerBase
 {
-    public sealed record PurchaseOrderSummaryDto(Guid Id, string Number, Guid SupplierId, DateTimeOffset OrderDate, PurchaseOrderStatus Status, decimal Total);
-    public sealed record PurchaseOrderDto(Guid Id, string Number, Guid SupplierId, DateTimeOffset OrderDate, PurchaseOrderStatus Status, decimal Total, IReadOnlyList<PurchaseOrderLineDto> Lines);
-    public sealed record PurchaseOrderLineDto(Guid Id, Guid ItemId, decimal OrderedQuantity, decimal ReceivedQuantity, decimal UnitPrice, decimal LineTotal);
+    public sealed record PurchaseOrderSummaryDto(
+        Guid Id,
+        string Number,
+        Guid SupplierId,
+        string? SupplierCode,
+        string? SupplierName,
+        DateTimeOffset OrderDate,
+        PurchaseOrderStatus Status,
+        decimal Total);
+
+    public sealed record PurchaseOrderDto(
+        Guid Id,
+        string Number,
+        Guid SupplierId,
+        string? SupplierCode,
+        string? SupplierName,
+        DateTimeOffset OrderDate,
+        PurchaseOrderStatus Status,
+        decimal Total,
+        IReadOnlyList<PurchaseOrderLineDto> Lines);
+
+    public sealed record PurchaseOrderLineDto(
+        Guid Id,
+        Guid ItemId,
+        string? ItemSku,
+        string? ItemName,
+        decimal OrderedQuantity,
+        decimal ReceivedQuantity,
+        decimal UnitPrice,
+        decimal LineTotal);
 
     public sealed record CreatePurchaseOrderRequest(Guid SupplierId);
     public sealed record AddPurchaseOrderLineRequest(Guid ItemId, decimal Quantity, decimal UnitPrice);
@@ -36,6 +63,14 @@ public sealed class PurchaseOrdersController(IIssDbContext dbContext, Procuremen
                 x.Id,
                 x.Number,
                 x.SupplierId,
+                dbContext.Suppliers
+                    .Where(s => s.Id == x.SupplierId)
+                    .Select(s => s.Code)
+                    .FirstOrDefault(),
+                dbContext.Suppliers
+                    .Where(s => s.Id == x.SupplierId)
+                    .Select(s => s.Name)
+                    .FirstOrDefault(),
                 x.OrderDate,
                 x.Status,
                 x.Lines.Sum(l => l.OrderedQuantity * l.UnitPrice)))
@@ -63,14 +98,35 @@ public sealed class PurchaseOrdersController(IIssDbContext dbContext, Procuremen
             return NotFound();
         }
 
+        var itemIds = po.Lines.Select(x => x.ItemId).Distinct().ToArray();
+        var itemById = await dbContext.Items.AsNoTracking()
+            .Where(x => itemIds.Contains(x.Id))
+            .Select(x => new { x.Id, x.Sku, x.Name })
+            .ToDictionaryAsync(x => x.Id, cancellationToken);
+
+        var supplier = await dbContext.Suppliers.AsNoTracking()
+            .Where(x => x.Id == po.SupplierId)
+            .Select(x => new { x.Code, x.Name })
+            .FirstOrDefaultAsync(cancellationToken);
+
         return Ok(new PurchaseOrderDto(
             po.Id,
             po.Number,
             po.SupplierId,
+            supplier?.Code,
+            supplier?.Name,
             po.OrderDate,
             po.Status,
             po.Total,
-            po.Lines.Select(l => new PurchaseOrderLineDto(l.Id, l.ItemId, l.OrderedQuantity, l.ReceivedQuantity, l.UnitPrice, l.LineTotal)).ToList()));
+            po.Lines.Select(l => new PurchaseOrderLineDto(
+                l.Id,
+                l.ItemId,
+                itemById.GetValueOrDefault(l.ItemId)?.Sku,
+                itemById.GetValueOrDefault(l.ItemId)?.Name,
+                l.OrderedQuantity,
+                l.ReceivedQuantity,
+                l.UnitPrice,
+                l.LineTotal)).ToList()));
     }
 
     [HttpGet("{id:guid}/pdf")]
