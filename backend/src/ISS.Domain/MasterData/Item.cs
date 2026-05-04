@@ -22,6 +22,7 @@ public sealed class Item : AuditableEntity
     private Item() { }
 
     public Item(
+        Guid companyId,
         string sku,
         string name,
         ItemType type,
@@ -35,6 +36,7 @@ public sealed class Item : AuditableEntity
         Guid? revenueAccountId = null,
         Guid? expenseAccountId = null)
     {
+        CompanyId = companyId == Guid.Empty ? throw new DomainValidationException("Company is required.") : companyId;
         Sku = Guard.NotNullOrWhiteSpace(sku, nameof(Sku), maxLength: 64);
         Name = Guard.NotNullOrWhiteSpace(name, nameof(Name), maxLength: 256);
         Type = type;
@@ -50,6 +52,8 @@ public sealed class Item : AuditableEntity
         IsActive = true;
     }
 
+    public Guid CompanyId { get; private set; }
+    public Company? Company { get; private set; }
     public string Sku { get; private set; } = null!;
     public string Name { get; private set; } = null!;
     public ItemType Type { get; private set; }
@@ -70,6 +74,7 @@ public sealed class Item : AuditableEntity
     public bool IsActive { get; private set; }
 
     public void Update(
+        Guid companyId,
         string sku,
         string name,
         ItemType type,
@@ -82,6 +87,7 @@ public sealed class Item : AuditableEntity
         Guid? revenueAccountId = null,
         Guid? expenseAccountId = null)
         => Update(
+            companyId,
             sku,
             name,
             type,
@@ -97,6 +103,7 @@ public sealed class Item : AuditableEntity
             expenseAccountId);
 
     public void Update(
+        Guid companyId,
         string sku,
         string name,
         ItemType type,
@@ -111,6 +118,7 @@ public sealed class Item : AuditableEntity
         Guid? revenueAccountId = null,
         Guid? expenseAccountId = null)
     {
+        CompanyId = companyId == Guid.Empty ? throw new DomainValidationException("Company is required.") : companyId;
         Sku = Guard.NotNullOrWhiteSpace(sku, nameof(Sku), maxLength: 64);
         Name = Guard.NotNullOrWhiteSpace(name, nameof(Name), maxLength: 256);
         Type = type;

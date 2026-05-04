@@ -1,6 +1,7 @@
 using ISS.Api.Security;
 using ISS.Api.Services;
 using ISS.Application.Options;
+using ISS.Domain.MasterData;
 using ISS.Infrastructure.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Identity;
@@ -74,6 +75,7 @@ public sealed class AuthController(
         {
             UserName = request.Email.Trim(),
             Email = request.Email.Trim(),
+            CompanyId = CompanyDefaults.DefaultCompanyId,
             DisplayName = request.DisplayName?.Trim()
         };
 
@@ -91,7 +93,7 @@ public sealed class AuthController(
         var roles = await userManager.GetRolesAsync(user);
         var token = jwtTokenService.GenerateToken(user, roles);
 
-        return Ok(new { token, userId = user.Id, email = user.Email, roles });
+        return Ok(new { token, userId = user.Id, email = user.Email, companyId = user.CompanyId, roles });
     }
 
     [HttpPost("login")]
@@ -155,7 +157,7 @@ public sealed class AuthController(
 
         var roles = await userManager.GetRolesAsync(user);
         var token = jwtTokenService.GenerateToken(user, roles);
-        return Ok(new { token, userId = user.Id, email = user.Email, roles });
+        return Ok(new { token, userId = user.Id, email = user.Email, companyId = user.CompanyId, roles });
     }
 
     private bool IsRegistrationAllowed(bool isFirstUser)

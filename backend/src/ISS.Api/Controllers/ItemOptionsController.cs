@@ -1,4 +1,5 @@
 using ISS.Api.Security;
+using ISS.Application.Abstractions;
 using ISS.Application.Persistence;
 using ISS.Domain.MasterData;
 using Microsoft.AspNetCore.Authorization;
@@ -10,7 +11,7 @@ namespace ISS.Api.Controllers;
 [ApiController]
 [Route("api/items/options")]
 [Authorize(Roles = $"{Roles.Admin},{Roles.Inventory},{Roles.Procurement},{Roles.Sales},{Roles.Service},{Roles.Finance},{Roles.Reporting}")]
-public sealed class ItemOptionsController(IIssDbContext dbContext) : ControllerBase
+public sealed class ItemOptionsController(IIssDbContext dbContext, ICurrentUser currentUser) : ControllerBase
 {
     public sealed record ItemOptionDto(
         Guid Id,
@@ -25,6 +26,7 @@ public sealed class ItemOptionsController(IIssDbContext dbContext) : ControllerB
     public async Task<ActionResult<IReadOnlyList<ItemOptionDto>>> List(CancellationToken cancellationToken)
     {
         var items = await dbContext.Items.AsNoTracking()
+            .Where(x => x.CompanyId == (currentUser.CompanyId ?? CompanyDefaults.DefaultCompanyId))
             .OrderBy(x => x.Sku)
             .Select(x => new ItemOptionDto(
                 x.Id,

@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 import { ISS_TOKEN_COOKIE, issApiBaseUrl } from "@/lib/env";
 
 type RegisterRequest = { email: string; password: string; displayName?: string };
-type AuthResponse = { token: string; userId: string; email?: string; roles?: string[] };
+type AuthResponse = { token: string; userId: string; companyId?: string; email?: string; roles?: string[] };
 
 export const runtime = "nodejs";
 
@@ -44,6 +44,7 @@ export async function POST(req: Request) {
 
   return NextResponse.json({
     userId: data.userId,
+    companyId: data.companyId,
     email: data.email,
     roles: data.roles ?? [],
   });

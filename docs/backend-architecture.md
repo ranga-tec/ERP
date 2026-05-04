@@ -74,7 +74,9 @@ Auth endpoints:
 Behavior:
 
 - First registered user becomes `Admin`
-- JWT token returned by auth endpoints contains user/role claims
+- JWT token returned by auth endpoints contains user, role, and `company_id` claims
+- Each `ApplicationUser` has a `CompanyId`; bootstrap/self-registered users default to the seeded `ISS` company unless an admin assigns another company.
+- Admin user management exposes company assignment during user creation and stores the user's company for future logins.
 
 Role constants are defined in:
 
@@ -85,6 +87,34 @@ Authorization model:
 - Controllers or actions generally use `[Authorize(Roles = "...")]`
 - Reporting endpoints require `Admin` or `Reporting`
 - Document collaboration spans multiple roles (`Procurement`, `Inventory`, `Sales`, `Service`, `Finance`)
+
+### Multi-Company Scope
+
+The system has a company-aware foundation for master data:
+
+- `Companies` is a first-class master-data table.
+- `AspNetUsers.CompanyId` determines the company context for a logged-in user.
+- JWTs include `company_id`, and `CurrentUser.CompanyId` reads that claim on backend requests.
+- `Items`, `ItemCategories`, and `Suppliers` have `CompanyId`.
+- SKU, supplier code, category code, and item barcode uniqueness is scoped by company where applicable.
+- Items, item options, item categories, and suppliers are filtered by the logged-in user's company. Admins can pass `companyId` for setup and cross-company maintenance.
+
+Seeded companies:
+
+- `ISS` is the default company for existing/bootstrap users.
+- `C-COM` is seeded for demo data.
+
+C-COM demo seed:
+
+- creates inactive category `CCOM-DISABLED`
+- imports 170 item rows under `C-COM`
+- imports 29 supplier rows under `C-COM`
+- preserves the duplicate part number `7021023` by storing the second row as `7021023-2`
+
+Current limitation:
+
+- The master-data layer is company-aware, and login/user context is company-aware.
+- Full transaction-level company isolation across procurement, inventory, sales, service, finance, reporting, documents, and audit trails is not complete yet. Those modules should receive explicit `CompanyId` ownership and query filtering before this is treated as complete tenant isolation.
 
 When changing roles:
 

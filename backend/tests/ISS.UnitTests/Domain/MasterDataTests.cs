@@ -17,8 +17,10 @@ public sealed class MasterDataTests
     {
         var revenueAccountId = Guid.NewGuid();
         var expenseAccountId = Guid.NewGuid();
+        var companyId = Guid.NewGuid();
 
         var item = new Item(
+            companyId,
             "SKU-1",
             "Bolt",
             ItemType.SparePart,
@@ -30,6 +32,7 @@ public sealed class MasterDataTests
             revenueAccountId: revenueAccountId,
             expenseAccountId: expenseAccountId);
         item.Update(
+            companyId,
             "SKU-2",
             "Bolt M8",
             ItemType.SparePart,
@@ -56,9 +59,10 @@ public sealed class MasterDataTests
     {
         var revenueAccountId = Guid.NewGuid();
         var expenseAccountId = Guid.NewGuid();
+        var companyId = Guid.NewGuid();
 
-        var category = new ItemCategory("CAT-1", "Parts", revenueAccountId, expenseAccountId);
-        category.Update("CAT-2", "Service Parts", isActive: false, revenueAccountId, expenseAccountId);
+        var category = new ItemCategory(companyId, "CAT-1", "Parts", revenueAccountId, expenseAccountId);
+        category.Update(companyId, "CAT-2", "Service Parts", isActive: false, revenueAccountId, expenseAccountId);
 
         Assert.Equal("CAT-2", category.Code);
         Assert.Equal("Service Parts", category.Name);

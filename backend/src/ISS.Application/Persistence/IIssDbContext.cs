@@ -15,6 +15,7 @@ namespace ISS.Application.Persistence;
 
 public interface IIssDbContext
 {
+    DbSet<Company> Companies { get; }
     DbSet<Brand> Brands { get; }
     DbSet<UnitOfMeasure> UnitOfMeasures { get; }
     DbSet<UnitConversion> UnitConversions { get; }

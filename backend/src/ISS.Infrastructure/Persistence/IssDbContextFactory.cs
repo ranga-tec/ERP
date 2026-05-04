@@ -53,6 +53,7 @@ public sealed class IssDbContextFactory : IDesignTimeDbContextFactory<IssDbConte
     private sealed class DesignTimeCurrentUser : ICurrentUser
     {
         public Guid? UserId => null;
+        public Guid? CompanyId => null;
     }
 
     private sealed class DesignTimeClock : IClock

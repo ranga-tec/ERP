@@ -27,6 +27,7 @@ public sealed class IssDbContext(
 {
     public DbContext DbContext => this;
 
+    public DbSet<Company> Companies => Set<Company>();
     public DbSet<Brand> Brands => Set<Brand>();
     public DbSet<UnitOfMeasure> UnitOfMeasures => Set<UnitOfMeasure>();
     public DbSet<UnitConversion> UnitConversions => Set<UnitConversion>();
@@ -95,6 +96,19 @@ public sealed class IssDbContext(
     protected override void OnModelCreating(ModelBuilder builder)
     {
         base.OnModelCreating(builder);
+
+        builder.Entity<ApplicationUser>(entity =>
+        {
+            entity.HasIndex(x => x.CompanyId);
+            entity.HasOne(x => x.Company).WithMany().HasForeignKey(x => x.CompanyId).OnDelete(DeleteBehavior.Restrict);
+        });
+
+        builder.Entity<Company>(entity =>
+        {
+            entity.HasIndex(x => x.Code).IsUnique();
+            entity.Property(x => x.Code).HasMaxLength(32);
+            entity.Property(x => x.Name).HasMaxLength(256);
+        });
 
         builder.Entity<Brand>(entity =>
         {
@@ -184,11 +198,13 @@ public sealed class IssDbContext(
 
         builder.Entity<ItemCategory>(entity =>
         {
-            entity.HasIndex(x => x.Code).IsUnique();
+            entity.HasIndex(x => new { x.CompanyId, x.Code }).IsUnique();
+            entity.HasIndex(x => x.CompanyId);
             entity.HasIndex(x => x.RevenueAccountId);
             entity.HasIndex(x => x.ExpenseAccountId);
             entity.Property(x => x.Code).HasMaxLength(32);
             entity.Property(x => x.Name).HasMaxLength(128);
+            entity.HasOne(x => x.Company).WithMany().HasForeignKey(x => x.CompanyId).OnDelete(DeleteBehavior.Restrict);
             entity.HasOne(x => x.RevenueAccount).WithMany().HasForeignKey(x => x.RevenueAccountId).OnDelete(DeleteBehavior.Restrict);
             entity.HasOne(x => x.ExpenseAccount).WithMany().HasForeignKey(x => x.ExpenseAccountId).OnDelete(DeleteBehavior.Restrict);
         });
@@ -210,9 +226,11 @@ public sealed class IssDbContext(
 
         builder.Entity<Supplier>(entity =>
         {
-            entity.HasIndex(x => x.Code).IsUnique();
+            entity.HasIndex(x => new { x.CompanyId, x.Code }).IsUnique();
+            entity.HasIndex(x => x.CompanyId);
             entity.Property(x => x.Code).HasMaxLength(32);
             entity.Property(x => x.Name).HasMaxLength(256);
+            entity.HasOne(x => x.Company).WithMany().HasForeignKey(x => x.CompanyId).OnDelete(DeleteBehavior.Restrict);
         });
 
         builder.Entity<Warehouse>(entity =>
@@ -224,8 +242,9 @@ public sealed class IssDbContext(
 
         builder.Entity<Item>(entity =>
         {
-            entity.HasIndex(x => x.Sku).IsUnique();
-            entity.HasIndex(x => x.Barcode).IsUnique();
+            entity.HasIndex(x => new { x.CompanyId, x.Sku }).IsUnique();
+            entity.HasIndex(x => new { x.CompanyId, x.Barcode }).IsUnique();
+            entity.HasIndex(x => x.CompanyId);
             entity.HasIndex(x => x.CategoryId);
             entity.HasIndex(x => x.SubcategoryId);
             entity.HasIndex(x => x.RevenueAccountId);
@@ -234,6 +253,7 @@ public sealed class IssDbContext(
             entity.Property(x => x.Name).HasMaxLength(256);
             entity.Property(x => x.UnitOfMeasure).HasMaxLength(32);
             entity.Property(x => x.Barcode).HasMaxLength(128);
+            entity.HasOne(x => x.Company).WithMany().HasForeignKey(x => x.CompanyId).OnDelete(DeleteBehavior.Restrict);
             entity.HasOne(x => x.Brand).WithMany().HasForeignKey(x => x.BrandId);
             entity.HasOne(x => x.Category).WithMany().HasForeignKey(x => x.CategoryId);
             entity.HasOne(x => x.Subcategory).WithMany().HasForeignKey(x => x.SubcategoryId);

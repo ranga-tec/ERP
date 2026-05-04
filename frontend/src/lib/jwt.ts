@@ -1,5 +1,6 @@
 export type IssSession = {
   userId: string;
+  companyId?: string;
   email?: string;
   roles: string[];
 };
@@ -58,8 +59,9 @@ export function sessionFromToken(token: string): IssSession | null {
 
   const userId = sub ?? nameId;
   if (!userId) return null;
+  const companyId = typeof record.company_id === "string" ? record.company_id : undefined;
 
-  return { userId, email, roles };
+  return { userId, companyId, email, roles };
 }
 
 export function jwtExpUnix(token: string): number | null {

@@ -6,8 +6,9 @@ public sealed class Supplier : AuditableEntity
 {
     private Supplier() { }
 
-    public Supplier(string code, string name, string? phone, string? email, string? address)
+    public Supplier(Guid companyId, string code, string name, string? phone, string? email, string? address)
     {
+        CompanyId = companyId == Guid.Empty ? throw new DomainValidationException("Company is required.") : companyId;
         Code = Guard.NotNullOrWhiteSpace(code, nameof(Code), maxLength: 32);
         Name = Guard.NotNullOrWhiteSpace(name, nameof(Name), maxLength: 256);
         Phone = phone?.Trim();
@@ -16,6 +17,8 @@ public sealed class Supplier : AuditableEntity
         IsActive = true;
     }
 
+    public Guid CompanyId { get; private set; }
+    public Company? Company { get; private set; }
     public string Code { get; private set; } = null!;
     public string Name { get; private set; } = null!;
     public string? Phone { get; private set; }
@@ -23,8 +26,9 @@ public sealed class Supplier : AuditableEntity
     public string? Address { get; private set; }
     public bool IsActive { get; private set; }
 
-    public void Update(string code, string name, string? phone, string? email, string? address, bool isActive)
+    public void Update(Guid companyId, string code, string name, string? phone, string? email, string? address, bool isActive)
     {
+        CompanyId = companyId == Guid.Empty ? throw new DomainValidationException("Company is required.") : companyId;
         Code = Guard.NotNullOrWhiteSpace(code, nameof(Code), maxLength: 32);
         Name = Guard.NotNullOrWhiteSpace(name, nameof(Name), maxLength: 256);
         Phone = phone?.Trim();
@@ -33,4 +37,3 @@ public sealed class Supplier : AuditableEntity
         IsActive = isActive;
     }
 }
-

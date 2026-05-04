@@ -40,9 +40,9 @@ public sealed class ImportController(IIssDbContext dbContext) : ControllerBase
 
         AddHeaders(workbook.AddWorksheet("Brands"), ["Code", "Name", "IsActive"]);
         AddHeaders(workbook.AddWorksheet("Warehouses"), ["Code", "Name", "Address", "IsActive"]);
-        AddHeaders(workbook.AddWorksheet("Suppliers"), ["Code", "Name", "Phone", "Email", "Address", "IsActive"]);
+        AddHeaders(workbook.AddWorksheet("Suppliers"), ["CompanyCode", "Code", "Name", "Phone", "Email", "Address", "IsActive"]);
         AddHeaders(workbook.AddWorksheet("Customers"), ["Code", "Name", "Phone", "Email", "Address", "IsActive"]);
-        AddHeaders(workbook.AddWorksheet("Items"), ["Sku", "Name", "Type", "TrackingType", "UnitOfMeasure", "BrandCode", "Barcode", "DefaultUnitCost", "RevenueAccountCode", "ExpenseAccountCode", "IsActive"]);
+        AddHeaders(workbook.AddWorksheet("Items"), ["CompanyCode", "Sku", "Name", "Type", "TrackingType", "UnitOfMeasure", "BrandCode", "Barcode", "DefaultUnitCost", "RevenueAccountCode", "ExpenseAccountCode", "IsActive"]);
         AddHeaders(workbook.AddWorksheet("ReorderSettings"), ["WarehouseCode", "ItemSku", "ReorderPoint", "ReorderQuantity"]);
         AddHeaders(workbook.AddWorksheet("EquipmentUnits"), ["ItemSku", "SerialNumber", "CustomerCode", "PurchasedAt", "WarrantyUntil"]);
 
@@ -73,13 +73,15 @@ public sealed class ImportController(IIssDbContext dbContext) : ControllerBase
         var warehouseByCode = (await dbContext.Warehouses.ToListAsync(cancellationToken))
             .ToDictionary(x => x.Code, x => x, StringComparer.OrdinalIgnoreCase);
         var supplierByCode = (await dbContext.Suppliers.ToListAsync(cancellationToken))
+            .ToDictionary(x => CompanyScopedKey(x.CompanyId, x.Code), x => x, StringComparer.OrdinalIgnoreCase);
+        var companyByCode = (await dbContext.Companies.ToListAsync(cancellationToken))
             .ToDictionary(x => x.Code, x => x, StringComparer.OrdinalIgnoreCase);
         var customerByCode = (await dbContext.Customers.ToListAsync(cancellationToken))
             .ToDictionary(x => x.Code, x => x, StringComparer.OrdinalIgnoreCase);
         var ledgerAccountByCode = (await dbContext.LedgerAccounts.ToListAsync(cancellationToken))
             .ToDictionary(x => x.Code, x => x, StringComparer.OrdinalIgnoreCase);
         var itemBySku = (await dbContext.Items.ToListAsync(cancellationToken))
-            .ToDictionary(x => x.Sku, x => x, StringComparer.OrdinalIgnoreCase);
+            .ToDictionary(x => CompanyScopedKey(x.CompanyId, x.Sku), x => x, StringComparer.OrdinalIgnoreCase);
         var reorderByKey = await dbContext.ReorderSettings.ToDictionaryAsync(x => $"{x.WarehouseId:N}:{x.ItemId:N}", x => x, cancellationToken);
         var equipmentBySerial = (await dbContext.EquipmentUnits.ToListAsync(cancellationToken))
             .ToDictionary(x => x.SerialNumber, x => x, StringComparer.OrdinalIgnoreCase);
@@ -88,9 +90,9 @@ public sealed class ImportController(IIssDbContext dbContext) : ControllerBase
 
         ImportBrands(workbook, dbContext, brandByCode, counters, errors);
         ImportWarehouses(workbook, dbContext, warehouseByCode, counters, errors);
-        ImportSuppliers(workbook, dbContext, supplierByCode, counters, errors);
+        ImportSuppliers(workbook, dbContext, supplierByCode, companyByCode, counters, errors);
         ImportCustomers(workbook, dbContext, customerByCode, counters, errors);
-        ImportItems(workbook, dbContext, itemBySku, brandByCode, ledgerAccountByCode, counters, errors);
+        ImportItems(workbook, dbContext, itemBySku, companyByCode, brandByCode, ledgerAccountByCode, counters, errors);
         ImportReorderSettings(workbook, dbContext, reorderByKey, warehouseByCode, itemBySku, counters, errors);
         ImportEquipmentUnits(workbook, dbContext, equipmentBySerial, itemBySku, customerByCode, counters, errors);
 
@@ -221,7 +223,13 @@ public sealed class ImportController(IIssDbContext dbContext) : ControllerBase
         }
     }
 
-    private static void ImportSuppliers(XLWorkbook wb, IIssDbContext dbContext, Dictionary<string, Supplier> supplierByCode, Counters counters, List<string> errors)
+    private static void ImportSuppliers(
+        XLWorkbook wb,
+        IIssDbContext dbContext,
+        Dictionary<string, Supplier> supplierByCode,
+        Dictionary<string, Company> companyByCode,
+        Counters counters,
+        List<string> errors)
     {
         var ws = GetWorksheetOrNull(wb, "Suppliers");
         if (ws is null) return;
@@ -230,12 +238,16 @@ public sealed class ImportController(IIssDbContext dbContext) : ControllerBase
 
         foreach (var row in DataRows(ws))
         {
-            var code = GetString(row, 1);
-            var name = GetString(row, 2);
-            var phone = GetNullableString(row, 3);
-            var email = GetNullableString(row, 4);
-            var address = GetNullableString(row, 5);
-            var isActive = GetBool(row, 6, defaultValue: true);
+            var first = GetString(row, 1);
+            var hasCompanyColumn = IsKnownCompanyCode(first, companyByCode);
+            var company = hasCompanyColumn ? companyByCode[first] : companyByCode[CompanyDefaults.DefaultCompanyCode];
+            var offset = hasCompanyColumn ? 1 : 0;
+            var code = GetString(row, 1 + offset);
+            var name = GetString(row, 2 + offset);
+            var phone = GetNullableString(row, 3 + offset);
+            var email = GetNullableString(row, 4 + offset);
+            var address = GetNullableString(row, 5 + offset);
+            var isActive = GetBool(row, 6 + offset, defaultValue: true);
 
             if (IsBlankRow(code, name, phone, email, address))
             {
@@ -254,17 +266,18 @@ public sealed class ImportController(IIssDbContext dbContext) : ControllerBase
                 continue;
             }
 
-            if (supplierByCode.TryGetValue(code, out var existing))
+            var scopedKey = CompanyScopedKey(company.Id, code);
+            if (supplierByCode.TryGetValue(scopedKey, out var existing))
             {
-                existing.Update(code, name, phone, email, address, isActive);
+                existing.Update(company.Id, code, name, phone, email, address, isActive);
                 counters.SuppliersUpdated++;
                 continue;
             }
 
-            var created = new Supplier(code, name, phone, email, address);
-            created.Update(code, name, phone, email, address, isActive);
+            var created = new Supplier(company.Id, code, name, phone, email, address);
+            created.Update(company.Id, code, name, phone, email, address, isActive);
             dbContext.Suppliers.Add(created);
-            supplierByCode[code] = created;
+            supplierByCode[scopedKey] = created;
             counters.SuppliersCreated++;
         }
     }
@@ -321,6 +334,7 @@ public sealed class ImportController(IIssDbContext dbContext) : ControllerBase
         XLWorkbook wb,
         IIssDbContext dbContext,
         Dictionary<string, Item> itemBySku,
+        Dictionary<string, Company> companyByCode,
         Dictionary<string, Brand> brandByCode,
         Dictionary<string, LedgerAccount> ledgerAccountByCode,
         Counters counters,
@@ -333,17 +347,21 @@ public sealed class ImportController(IIssDbContext dbContext) : ControllerBase
 
         foreach (var row in DataRows(ws))
         {
-            var sku = GetString(row, 1);
-            var name = GetString(row, 2);
-            var typeRaw = GetString(row, 3);
-            var trackingRaw = GetString(row, 4);
-            var uom = GetString(row, 5);
-            var brandCode = GetNullableString(row, 6);
-            var barcode = GetNullableString(row, 7);
-            var unitCost = GetDecimal(row, 8, defaultValue: 0m);
-            var revenueAccountCode = GetNullableString(row, 9);
-            var expenseAccountCode = GetNullableString(row, 10);
-            var isActive = GetBool(row, 11, defaultValue: true);
+            var first = GetString(row, 1);
+            var hasCompanyColumn = IsKnownCompanyCode(first, companyByCode);
+            var company = hasCompanyColumn ? companyByCode[first] : companyByCode[CompanyDefaults.DefaultCompanyCode];
+            var offset = hasCompanyColumn ? 1 : 0;
+            var sku = GetString(row, 1 + offset);
+            var name = GetString(row, 2 + offset);
+            var typeRaw = GetString(row, 3 + offset);
+            var trackingRaw = GetString(row, 4 + offset);
+            var uom = GetString(row, 5 + offset);
+            var brandCode = GetNullableString(row, 6 + offset);
+            var barcode = GetNullableString(row, 7 + offset);
+            var unitCost = GetDecimal(row, 8 + offset, defaultValue: 0m);
+            var revenueAccountCode = GetNullableString(row, 9 + offset);
+            var expenseAccountCode = GetNullableString(row, 10 + offset);
+            var isActive = GetBool(row, 11 + offset, defaultValue: true);
 
             if (IsBlankRow(sku, name, typeRaw, trackingRaw, uom, brandCode, barcode))
             {
@@ -421,17 +439,18 @@ public sealed class ImportController(IIssDbContext dbContext) : ControllerBase
                 expenseAccountId = expenseAccount.Id;
             }
 
-            if (itemBySku.TryGetValue(sku, out var existing))
+            var scopedKey = CompanyScopedKey(company.Id, sku);
+            if (itemBySku.TryGetValue(scopedKey, out var existing))
             {
-                existing.Update(sku, name, itemType, trackingType, uom, brandId, barcode, unitCost, isActive, revenueAccountId, expenseAccountId);
+                existing.Update(company.Id, sku, name, itemType, trackingType, uom, brandId, barcode, unitCost, isActive, revenueAccountId, expenseAccountId);
                 counters.ItemsUpdated++;
                 continue;
             }
 
-            var created = new Item(sku, name, itemType, trackingType, uom, brandId, barcode, unitCost, revenueAccountId: revenueAccountId, expenseAccountId: expenseAccountId);
-            created.Update(sku, name, itemType, trackingType, uom, brandId, barcode, unitCost, isActive, revenueAccountId, expenseAccountId);
+            var created = new Item(company.Id, sku, name, itemType, trackingType, uom, brandId, barcode, unitCost, revenueAccountId: revenueAccountId, expenseAccountId: expenseAccountId);
+            created.Update(company.Id, sku, name, itemType, trackingType, uom, brandId, barcode, unitCost, isActive, revenueAccountId, expenseAccountId);
             dbContext.Items.Add(created);
-            itemBySku[sku] = created;
+            itemBySku[scopedKey] = created;
             counters.ItemsCreated++;
         }
     }
@@ -470,7 +489,7 @@ public sealed class ImportController(IIssDbContext dbContext) : ControllerBase
                 continue;
             }
 
-            if (!itemBySku.TryGetValue(itemSku, out var item))
+            if (!itemBySku.TryGetValue(CompanyScopedKey(CompanyDefaults.DefaultCompanyId, itemSku), out var item))
             {
                 errors.Add($"ReorderSettings row {row.RowNumber()}: ItemSku '{itemSku}' not found.");
                 continue;
@@ -540,7 +559,7 @@ public sealed class ImportController(IIssDbContext dbContext) : ControllerBase
                 continue;
             }
 
-            if (!itemBySku.TryGetValue(itemSku, out var item))
+            if (!itemBySku.TryGetValue(CompanyScopedKey(CompanyDefaults.DefaultCompanyId, itemSku), out var item))
             {
                 errors.Add($"EquipmentUnits row {row.RowNumber()}: ItemSku '{itemSku}' not found.");
                 continue;
@@ -593,6 +612,11 @@ public sealed class ImportController(IIssDbContext dbContext) : ControllerBase
     }
 
     private static bool IsBlankRow(params string?[] values) => values.All(string.IsNullOrWhiteSpace);
+    private static bool IsKnownCompanyCode(string value, IReadOnlyDictionary<string, Company> companyByCode)
+        => !string.IsNullOrWhiteSpace(value) && companyByCode.ContainsKey(value);
+
+    private static string CompanyScopedKey(Guid companyId, string code)
+        => $"{companyId:N}:{code}";
 
     private static string GetString(IXLRow row, int col)
         => row.Cell(col).GetString().Trim();

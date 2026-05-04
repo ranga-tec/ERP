@@ -20,6 +20,7 @@ public sealed class JwtTokenService(IConfiguration configuration)
             new(JwtRegisteredClaimNames.Sub, user.Id.ToString()),
             new(ClaimTypes.NameIdentifier, user.Id.ToString()),
             new(ClaimTypes.Name, user.UserName ?? user.Email ?? user.Id.ToString()),
+            new("company_id", user.CompanyId.ToString()),
         };
 
         if (!string.IsNullOrWhiteSpace(user.Email))

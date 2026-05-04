@@ -39,8 +39,35 @@ Notes:
   - `None` (default in non-Development)
 - Roles are seeded on startup.
 - Fresh databases also seed default currencies, payment types, tax codes, and reference forms required by core finance/reporting screens.
+- Fresh databases seed default companies (`ISS`, `C-COM`) and C-COM demo master data used by the hosted demo.
 - The first registered user becomes `Admin`.
 - Health endpoint: `GET /health` (includes DB connectivity, not just process liveness)
+
+### Multi-company deployment notes
+
+Production environments should keep:
+
+```text
+Database__InitializationMode=Migrate
+```
+
+That lets startup apply the company/user migrations and seed required demo data. The current Railway production service is configured this way.
+
+After deployment, verify:
+
+```sql
+select count(*) from "Companies" where "Code" in ('ISS','C-COM');
+select count(*) from "AspNetUsers" where "CompanyId" is null;
+select count(*) from "Items" i join "Companies" c on c."Id" = i."CompanyId" where c."Code" = 'C-COM';
+select count(*) from "Suppliers" s join "Companies" c on c."Id" = s."CompanyId" where c."Code" = 'C-COM';
+```
+
+Expected C-COM demo counts:
+
+- companies: `2` (`ISS`, `C-COM`)
+- C-COM disabled category: `1`
+- C-COM items: `170`
+- C-COM suppliers: `29`
 
 ### EF migrations (production-ready schema deployment)
 

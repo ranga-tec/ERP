@@ -5,6 +5,9 @@ import { UserRowActions } from "./UserRowActions";
 
 type UserDto = {
   id: string;
+  companyId: string;
+  companyCode?: string | null;
+  companyName?: string | null;
   email: string;
   displayName?: string | null;
   isLocked: boolean;
@@ -12,8 +15,13 @@ type UserDto = {
   roles: string[];
 };
 
+type CompanyDto = { id: string; code: string; name: string; isActive: boolean };
+
 export default async function AdminUsersPage() {
-  const users = await backendFetchJson<UserDto[]>("/admin/users?take=200");
+  const [users, companies] = await Promise.all([
+    backendFetchJson<UserDto[]>("/admin/users?take=200"),
+    backendFetchJson<CompanyDto[]>("/companies"),
+  ]);
 
   return (
     <div className="space-y-6">
@@ -24,7 +32,7 @@ export default async function AdminUsersPage() {
 
       <Card>
         <div className="mb-3 text-sm font-semibold">Create</div>
-        <UserCreateForm />
+        <UserCreateForm companies={companies.filter((company) => company.isActive)} />
       </Card>
 
       <Card>
@@ -34,6 +42,7 @@ export default async function AdminUsersPage() {
             <thead>
               <tr className="border-b border-zinc-200 text-left text-xs uppercase tracking-wide text-zinc-500 dark:border-zinc-800">
                 <th className="py-2 pr-3">Email</th>
+                <th className="py-2 pr-3">Company</th>
                 <th className="py-2 pr-3">Name</th>
                 <th className="py-2 pr-3">Roles</th>
                 <th className="py-2 pr-3">Status</th>
@@ -44,6 +53,7 @@ export default async function AdminUsersPage() {
               {users.map((u) => (
                 <tr key={u.id} className="border-b border-zinc-100 align-top dark:border-zinc-900">
                   <td className="py-2 pr-3 font-mono text-xs">{u.email}</td>
+                  <td className="py-2 pr-3 text-sm">{u.companyCode ?? u.companyId.slice(0, 8)}</td>
                   <td className="py-2 pr-3">{u.displayName ?? "—"}</td>
                   <td className="py-2 pr-3">
                     <div className="flex flex-wrap gap-1">
@@ -78,7 +88,7 @@ export default async function AdminUsersPage() {
               ))}
               {users.length === 0 ? (
                 <tr>
-                  <td className="py-6 text-sm text-zinc-500" colSpan={5}>
+                  <td className="py-6 text-sm text-zinc-500" colSpan={6}>
                     No users found.
                   </td>
                 </tr>
@@ -90,4 +100,3 @@ export default async function AdminUsersPage() {
     </div>
   );
 }
-

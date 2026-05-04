@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { apiPost } from "@/lib/api-client";
-import { Button, Input } from "@/components/ui";
+import { Button, Input, Select } from "@/components/ui";
 
 const ALL_ROLES = [
   "Admin",
@@ -15,8 +15,11 @@ const ALL_ROLES = [
   "Reporting",
 ] as const;
 
-export function UserCreateForm() {
+type CompanyDto = { id: string; code: string; name: string; isActive: boolean };
+
+export function UserCreateForm({ companies }: { companies: CompanyDto[] }) {
   const router = useRouter();
+  const [companyId, setCompanyId] = useState(companies[0]?.id ?? "");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("Passw0rd1");
   const [displayName, setDisplayName] = useState("");
@@ -33,11 +36,13 @@ export function UserCreateForm() {
     try {
       await apiPost("admin/users", {
         email,
+        companyId: companyId || null,
         password,
         displayName: displayName || null,
         roles: selectedRoles,
       });
       setEmail("");
+      setCompanyId(companies[0]?.id ?? "");
       setDisplayName("");
       setSelected(new Set());
       router.refresh();
@@ -59,7 +64,17 @@ export function UserCreateForm() {
 
   return (
     <form onSubmit={submit} className="space-y-3">
-      <div className="grid gap-3 md:grid-cols-3">
+      <div className="grid gap-3 md:grid-cols-4">
+        <div>
+          <label className="mb-1 block text-sm font-medium">Company</label>
+          <Select value={companyId} onChange={(e) => setCompanyId(e.target.value)} required>
+            {companies.map((company) => (
+              <option key={company.id} value={company.id}>
+                {company.code} - {company.name}
+              </option>
+            ))}
+          </Select>
+        </div>
         <div>
           <label className="mb-1 block text-sm font-medium">Email</label>
           <Input value={email} onChange={(e) => setEmail(e.target.value)} required />
@@ -111,4 +126,3 @@ export function UserCreateForm() {
     </form>
   );
 }
-

@@ -16,10 +16,16 @@ namespace ISS.Api.Controllers;
 [ApiController]
 [Route("api/items")]
 [Authorize(Roles = $"{Roles.Admin},{Roles.Inventory},{Roles.Procurement},{Roles.Sales},{Roles.Service},{Roles.Finance},{Roles.Reporting}")]
-public sealed class ItemsController(IIssDbContext dbContext, IDocumentPdfService pdfService, IWebHostEnvironment hostEnvironment) : ControllerBase
+public sealed class ItemsController(
+    IIssDbContext dbContext,
+    IDocumentPdfService pdfService,
+    IWebHostEnvironment hostEnvironment,
+    ICurrentUser currentUser) : ControllerBase
 {
     public sealed record ItemDto(
         Guid Id,
+        Guid CompanyId,
+        string? CompanyCode,
         string Sku,
         string Name,
         ItemType Type,
@@ -43,6 +49,7 @@ public sealed class ItemsController(IIssDbContext dbContext, IDocumentPdfService
         bool IsActive);
 
     public sealed record CreateItemRequest(
+        Guid? CompanyId,
         string Sku,
         string Name,
         ItemType Type,
@@ -57,6 +64,7 @@ public sealed class ItemsController(IIssDbContext dbContext, IDocumentPdfService
         Guid? ExpenseAccountId);
 
     public sealed record UpdateItemRequest(
+        Guid? CompanyId,
         string Sku,
         string Name,
         ItemType Type,
@@ -99,12 +107,17 @@ public sealed class ItemsController(IIssDbContext dbContext, IDocumentPdfService
         decimal NewDefaultUnitCost);
 
     [HttpGet]
-    public async Task<ActionResult<IReadOnlyList<ItemDto>>> List(CancellationToken cancellationToken)
+    public async Task<ActionResult<IReadOnlyList<ItemDto>>> List([FromQuery] Guid? companyId, CancellationToken cancellationToken)
     {
-        var items = await dbContext.Items.AsNoTracking()
+        var resolvedCompanyId = ResolveCompanyId(companyId);
+        var query = dbContext.Items.AsNoTracking().Where(x => x.CompanyId == resolvedCompanyId);
+
+        var items = await query
             .OrderBy(x => x.Sku)
             .Select(x => new ItemDto(
                 x.Id,
+                x.CompanyId,
+                x.Company != null ? x.Company.Code : null,
                 x.Sku,
                 x.Name,
                 x.Type,
@@ -134,9 +147,11 @@ public sealed class ItemsController(IIssDbContext dbContext, IDocumentPdfService
     public async Task<ActionResult<ItemDto>> Get(Guid id, CancellationToken cancellationToken)
     {
         var item = await dbContext.Items.AsNoTracking()
-            .Where(x => x.Id == id)
+            .Where(x => x.Id == id && x.CompanyId == ResolveCompanyId(null))
             .Select(x => new ItemDto(
                 x.Id,
+                x.CompanyId,
+                x.Company != null ? x.Company.Code : null,
                 x.Sku,
                 x.Name,
                 x.Type,
@@ -176,9 +191,11 @@ public sealed class ItemsController(IIssDbContext dbContext, IDocumentPdfService
         barcode = barcode.Trim();
 
         var item = await dbContext.Items.AsNoTracking()
-            .Where(x => x.Barcode == barcode)
+            .Where(x => x.Barcode == barcode && x.CompanyId == ResolveCompanyId(null))
             .Select(x => new ItemDto(
                 x.Id,
+                x.CompanyId,
+                x.Company != null ? x.Company.Code : null,
                 x.Sku,
                 x.Name,
                 x.Type,
@@ -209,7 +226,14 @@ public sealed class ItemsController(IIssDbContext dbContext, IDocumentPdfService
     [Authorize(Roles = $"{Roles.Admin},{Roles.Inventory}")]
     public async Task<ActionResult<ItemDto>> Create(CreateItemRequest request, CancellationToken cancellationToken)
     {
-        var classificationError = await ValidateClassificationAsync(request.CategoryId, request.SubcategoryId, cancellationToken);
+        var companyId = ResolveCompanyId(request.CompanyId);
+        var companyExists = await dbContext.Companies.AsNoTracking().AnyAsync(x => x.Id == companyId, cancellationToken);
+        if (!companyExists)
+        {
+            return BadRequest("Selected company does not exist.");
+        }
+
+        var classificationError = await ValidateClassificationAsync(companyId, request.CategoryId, request.SubcategoryId, cancellationToken);
         if (classificationError is not null)
         {
             return BadRequest(classificationError);
@@ -226,6 +250,7 @@ public sealed class ItemsController(IIssDbContext dbContext, IDocumentPdfService
         }
 
         var item = new Item(
+            companyId,
             request.Sku,
             request.Name,
             request.Type,
@@ -246,6 +271,8 @@ public sealed class ItemsController(IIssDbContext dbContext, IDocumentPdfService
             .Where(x => x.Id == item.Id)
             .Select(x => new ItemDto(
                 x.Id,
+                x.CompanyId,
+                x.Company != null ? x.Company.Code : null,
                 x.Sku,
                 x.Name,
                 x.Type,
@@ -276,16 +303,23 @@ public sealed class ItemsController(IIssDbContext dbContext, IDocumentPdfService
     [Authorize(Roles = $"{Roles.Admin},{Roles.Inventory},{Roles.Finance}")]
     public async Task<ActionResult<ItemDto>> Update(Guid id, UpdateItemRequest request, CancellationToken cancellationToken)
     {
-        var classificationError = await ValidateClassificationAsync(request.CategoryId, request.SubcategoryId, cancellationToken);
-        if (classificationError is not null)
-        {
-            return BadRequest(classificationError);
-        }
-
-        var item = await dbContext.Items.FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
+        var item = await dbContext.Items.FirstOrDefaultAsync(x => x.Id == id && x.CompanyId == ResolveCompanyId(null), cancellationToken);
         if (item is null)
         {
             return NotFound();
+        }
+
+        var companyId = ResolveCompanyId(request.CompanyId ?? item.CompanyId);
+        var companyExists = await dbContext.Companies.AsNoTracking().AnyAsync(x => x.Id == companyId, cancellationToken);
+        if (!companyExists)
+        {
+            return BadRequest("Selected company does not exist.");
+        }
+
+        var classificationError = await ValidateClassificationAsync(companyId, request.CategoryId, request.SubcategoryId, cancellationToken);
+        if (classificationError is not null)
+        {
+            return BadRequest(classificationError);
         }
 
         var accountAssignmentError = await ValidateAccountAssignmentsAsync(
@@ -299,6 +333,7 @@ public sealed class ItemsController(IIssDbContext dbContext, IDocumentPdfService
         }
 
         item.Update(
+            companyId,
             request.Sku,
             request.Name,
             request.Type,
@@ -316,9 +351,11 @@ public sealed class ItemsController(IIssDbContext dbContext, IDocumentPdfService
         await dbContext.SaveChangesAsync(cancellationToken);
 
         var updated = await dbContext.Items.AsNoTracking()
-            .Where(x => x.Id == id)
+            .Where(x => x.Id == id && x.CompanyId == ResolveCompanyId(null))
             .Select(x => new ItemDto(
                 x.Id,
+                x.CompanyId,
+                x.Company != null ? x.Company.Code : null,
                 x.Sku,
                 x.Name,
                 x.Type,
@@ -349,7 +386,7 @@ public sealed class ItemsController(IIssDbContext dbContext, IDocumentPdfService
     [Authorize(Roles = $"{Roles.Admin},{Roles.Inventory}")]
     public async Task<IActionResult> Delete(Guid id, CancellationToken cancellationToken)
     {
-        var item = await dbContext.Items.FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
+        var item = await dbContext.Items.FirstOrDefaultAsync(x => x.Id == id && x.CompanyId == ResolveCompanyId(null), cancellationToken);
         if (item is null)
         {
             return NotFound();
@@ -394,7 +431,7 @@ public sealed class ItemsController(IIssDbContext dbContext, IDocumentPdfService
     [HttpGet("{id:guid}/attachments")]
     public async Task<ActionResult<IReadOnlyList<ItemAttachmentDto>>> ListAttachments(Guid id, CancellationToken cancellationToken)
     {
-        var itemExists = await dbContext.Items.AsNoTracking().AnyAsync(x => x.Id == id, cancellationToken);
+        var itemExists = await dbContext.Items.AsNoTracking().AnyAsync(x => x.Id == id && x.CompanyId == ResolveCompanyId(null), cancellationToken);
         if (!itemExists)
         {
             return NotFound();
@@ -423,7 +460,7 @@ public sealed class ItemsController(IIssDbContext dbContext, IDocumentPdfService
     [Authorize(Roles = $"{Roles.Admin},{Roles.Inventory}")]
     public async Task<ActionResult<ItemAttachmentDto>> AddAttachment(Guid id, CreateItemAttachmentRequest request, CancellationToken cancellationToken)
     {
-        var itemExists = await dbContext.Items.AsNoTracking().AnyAsync(x => x.Id == id, cancellationToken);
+        var itemExists = await dbContext.Items.AsNoTracking().AnyAsync(x => x.Id == id && x.CompanyId == ResolveCompanyId(null), cancellationToken);
         if (!itemExists)
         {
             return NotFound();
@@ -461,7 +498,7 @@ public sealed class ItemsController(IIssDbContext dbContext, IDocumentPdfService
             return BadRequest(validationError);
         }
 
-        var itemExists = await dbContext.Items.AsNoTracking().AnyAsync(x => x.Id == id, cancellationToken);
+        var itemExists = await dbContext.Items.AsNoTracking().AnyAsync(x => x.Id == id && x.CompanyId == ResolveCompanyId(null), cancellationToken);
         if (!itemExists)
         {
             return NotFound();
@@ -597,7 +634,7 @@ public sealed class ItemsController(IIssDbContext dbContext, IDocumentPdfService
     [HttpGet("{id:guid}/price-history")]
     public async Task<ActionResult<IReadOnlyList<ItemPriceHistoryEntryDto>>> PriceHistory(Guid id, CancellationToken cancellationToken)
     {
-        var itemExists = await dbContext.Items.AsNoTracking().AnyAsync(x => x.Id == id, cancellationToken);
+        var itemExists = await dbContext.Items.AsNoTracking().AnyAsync(x => x.Id == id && x.CompanyId == ResolveCompanyId(null), cancellationToken);
         if (!itemExists)
         {
             return NotFound();
@@ -625,7 +662,7 @@ public sealed class ItemsController(IIssDbContext dbContext, IDocumentPdfService
         return Ok(history);
     }
 
-    private async Task<string?> ValidateClassificationAsync(Guid? categoryId, Guid? subcategoryId, CancellationToken cancellationToken)
+    private async Task<string?> ValidateClassificationAsync(Guid companyId, Guid? categoryId, Guid? subcategoryId, CancellationToken cancellationToken)
     {
         if (categoryId is null && subcategoryId is null)
         {
@@ -636,7 +673,15 @@ public sealed class ItemsController(IIssDbContext dbContext, IDocumentPdfService
         {
             var subcategory = await dbContext.ItemSubcategories.AsNoTracking()
                 .Where(x => x.Id == subcategoryId.Value)
-                .Select(x => new { x.Id, x.CategoryId })
+                .Select(x => new
+                {
+                    x.Id,
+                    x.CategoryId,
+                    CategoryCompanyId = dbContext.ItemCategories
+                        .Where(c => c.Id == x.CategoryId)
+                        .Select(c => c.CompanyId)
+                        .First()
+                })
                 .FirstOrDefaultAsync(cancellationToken);
 
             if (subcategory is null)
@@ -653,12 +698,17 @@ public sealed class ItemsController(IIssDbContext dbContext, IDocumentPdfService
             {
                 return "Selected subcategory does not belong to the selected category.";
             }
+
+            if (subcategory.CategoryCompanyId != companyId)
+            {
+                return "Selected subcategory does not belong to the selected company.";
+            }
         }
 
         if (categoryId is not null)
         {
             var categoryExists = await dbContext.ItemCategories.AsNoTracking()
-                .AnyAsync(x => x.Id == categoryId.Value, cancellationToken);
+                .AnyAsync(x => x.Id == categoryId.Value && x.CompanyId == companyId, cancellationToken);
             if (!categoryExists)
             {
                 return "Selected category does not exist.";
@@ -807,4 +857,14 @@ public sealed class ItemsController(IIssDbContext dbContext, IDocumentPdfService
             attachment.Notes,
             attachment.CreatedAt,
             attachment.CreatedBy);
+
+    private Guid ResolveCompanyId(Guid? requestedCompanyId)
+    {
+        if (User.IsInRole(Roles.Admin) && requestedCompanyId is not null)
+        {
+            return requestedCompanyId.Value;
+        }
+
+        return currentUser.CompanyId ?? CompanyDefaults.DefaultCompanyId;
+    }
 }

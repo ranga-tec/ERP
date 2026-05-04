@@ -1,4 +1,5 @@
 using ISS.Application.Options;
+using ISS.Domain.MasterData;
 using ISS.Infrastructure.Identity;
 using Microsoft.AspNetCore.Identity;
 
@@ -28,6 +29,7 @@ public static class BootstrapAdminSeeder
                 UserName = email,
                 Email = email,
                 DisplayName = string.IsNullOrWhiteSpace(displayName) ? null : displayName,
+                CompanyId = CompanyDefaults.DefaultCompanyId,
                 EmailConfirmed = true
             };
 
@@ -45,6 +47,11 @@ public static class BootstrapAdminSeeder
         else if (!string.IsNullOrWhiteSpace(displayName) && !string.Equals(user.DisplayName, displayName, StringComparison.Ordinal))
         {
             user.DisplayName = displayName;
+            await userManager.UpdateAsync(user);
+        }
+        else if (user.CompanyId == Guid.Empty)
+        {
+            user.CompanyId = CompanyDefaults.DefaultCompanyId;
             await userManager.UpdateAsync(user);
         }
 

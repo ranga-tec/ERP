@@ -20,6 +20,7 @@ Use this hub first, then jump into the specialized docs linked below.
 - Service now supports `Service` and `Repair` job kinds, work-order labor entries/timesheets, estimate revisions, service-linked direct purchases, service expense claims, billable claim-to-estimate conversion, labor-to-invoice conversion, and per-job costing rollups.
 - Finance now includes petty cash funds with opening balance, top-up, adjustment, and service expense-claim settlement flows.
 - The authenticated shell sidebar now defaults to expanded navigation and exposes menu search at the top of the expanded panel.
+- Multi-company foundation is implemented for login context and core C-COM master data: users have `CompanyId`, JWTs include `company_id`, and items/categories/suppliers are company-scoped. Full transaction-level company isolation is still future work.
 
 ## Stack and Runtime Topology
 

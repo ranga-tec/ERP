@@ -1,4 +1,6 @@
 using ISS.Api.Security;
+using ISS.Application.Persistence;
+using ISS.Domain.MasterData;
 using ISS.Infrastructure.Identity;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
@@ -12,17 +14,22 @@ namespace ISS.Api.Controllers.Admin;
 [Authorize(Roles = $"{Roles.Admin}")]
 public sealed class UsersController(
     UserManager<ApplicationUser> userManager,
-    RoleManager<IdentityRole<Guid>> roleManager) : ControllerBase
+    RoleManager<IdentityRole<Guid>> roleManager,
+    IIssDbContext dbContext) : ControllerBase
 {
     public sealed record UserDto(
         Guid Id,
+        Guid CompanyId,
+        string? CompanyCode,
+        string? CompanyName,
         string Email,
         string? DisplayName,
         bool IsLocked,
         DateTimeOffset? LockoutEnd,
         IReadOnlyList<string> Roles);
 
-    public sealed record CreateUserRequest(string Email, string Password, string? DisplayName, string[] Roles);
+    public sealed record CreateUserRequest(Guid? CompanyId, string Email, string Password, string? DisplayName, string[] Roles);
+    public sealed record SetCompanyRequest(Guid CompanyId);
     public sealed record SetRolesRequest(string[] Roles);
     public sealed record ResetPasswordRequest(string NewPassword);
 
@@ -83,9 +90,15 @@ public sealed class UsersController(
         {
             UserName = email,
             Email = email,
+            CompanyId = request.CompanyId ?? CompanyDefaults.DefaultCompanyId,
             DisplayName = string.IsNullOrWhiteSpace(request.DisplayName) ? null : request.DisplayName.Trim(),
             LockoutEnabled = true
         };
+
+        if (!await dbContext.Companies.AsNoTracking().AnyAsync(x => x.Id == user.CompanyId, HttpContext.RequestAborted))
+        {
+            return BadRequest(new { error = "Selected company does not exist." });
+        }
 
         var created = await userManager.CreateAsync(user, request.Password);
         if (!created.Succeeded)
@@ -100,6 +113,32 @@ public sealed class UsersController(
             {
                 return BadRequest(new { errors = roleResult.Errors.Select(e => e.Description).ToArray() });
             }
+        }
+
+        return Ok(await ToDtoAsync(user));
+    }
+
+    [HttpPut("{id:guid}/company")]
+    public async Task<ActionResult<UserDto>> SetCompany(Guid id, SetCompanyRequest request)
+    {
+        var user = await userManager.FindByIdAsync(id.ToString());
+        if (user is null)
+        {
+            return NotFound();
+        }
+
+        var companyExists = await dbContext.Companies.AsNoTracking()
+            .AnyAsync(x => x.Id == request.CompanyId, HttpContext.RequestAborted);
+        if (!companyExists)
+        {
+            return BadRequest(new { error = "Selected company does not exist." });
+        }
+
+        user.CompanyId = request.CompanyId;
+        var result = await userManager.UpdateAsync(user);
+        if (!result.Succeeded)
+        {
+            return BadRequest(new { errors = result.Errors.Select(e => e.Description).ToArray() });
         }
 
         return Ok(await ToDtoAsync(user));
@@ -209,9 +248,16 @@ public sealed class UsersController(
         var roles = await userManager.GetRolesAsync(user);
         var lockoutEnd = user.LockoutEnd;
         var isLocked = lockoutEnd.HasValue && lockoutEnd.Value > DateTimeOffset.UtcNow;
+        var company = await dbContext.Companies.AsNoTracking()
+            .Where(x => x.Id == user.CompanyId)
+            .Select(x => new { x.Code, x.Name })
+            .FirstOrDefaultAsync(HttpContext.RequestAborted);
 
         return new UserDto(
             user.Id,
+            user.CompanyId,
+            company?.Code,
+            company?.Name,
             user.Email ?? user.UserName ?? string.Empty,
             user.DisplayName,
             isLocked,
@@ -243,4 +289,3 @@ public sealed class UsersController(
         }
     }
 }
-

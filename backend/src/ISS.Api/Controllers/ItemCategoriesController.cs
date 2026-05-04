@@ -1,4 +1,5 @@
 using ISS.Api.Security;
+using ISS.Application.Abstractions;
 using ISS.Application.Persistence;
 using ISS.Domain.Finance;
 using ISS.Domain.MasterData;
@@ -11,10 +12,12 @@ namespace ISS.Api.Controllers;
 [ApiController]
 [Route("api/item-categories")]
 [Authorize(Roles = Roles.AllBusiness)]
-public sealed class ItemCategoriesController(IIssDbContext dbContext) : ControllerBase
+public sealed class ItemCategoriesController(IIssDbContext dbContext, ICurrentUser currentUser) : ControllerBase
 {
     public sealed record ItemCategoryDto(
         Guid Id,
+        Guid CompanyId,
+        string? CompanyCode,
         string Code,
         string Name,
         Guid? RevenueAccountId,
@@ -26,12 +29,14 @@ public sealed class ItemCategoriesController(IIssDbContext dbContext) : Controll
         bool IsActive);
 
     public sealed record CreateItemCategoryRequest(
+        Guid? CompanyId,
         string Code,
         string Name,
         Guid? RevenueAccountId,
         Guid? ExpenseAccountId);
 
     public sealed record UpdateItemCategoryRequest(
+        Guid? CompanyId,
         string Code,
         string Name,
         Guid? RevenueAccountId,
@@ -39,12 +44,17 @@ public sealed class ItemCategoriesController(IIssDbContext dbContext) : Controll
         bool IsActive);
 
     [HttpGet]
-    public async Task<ActionResult<IReadOnlyList<ItemCategoryDto>>> List(CancellationToken cancellationToken)
+    public async Task<ActionResult<IReadOnlyList<ItemCategoryDto>>> List([FromQuery] Guid? companyId, CancellationToken cancellationToken)
     {
-        var items = await dbContext.ItemCategories.AsNoTracking()
+        var resolvedCompanyId = ResolveCompanyId(companyId);
+        var query = dbContext.ItemCategories.AsNoTracking().Where(x => x.CompanyId == resolvedCompanyId);
+
+        var items = await query
             .OrderBy(x => x.Code)
             .Select(x => new ItemCategoryDto(
                 x.Id,
+                x.CompanyId,
+                x.Company != null ? x.Company.Code : null,
                 x.Code,
                 x.Name,
                 x.RevenueAccountId,
@@ -62,9 +72,11 @@ public sealed class ItemCategoriesController(IIssDbContext dbContext) : Controll
     public async Task<ActionResult<ItemCategoryDto>> Get(Guid id, CancellationToken cancellationToken)
     {
         var item = await dbContext.ItemCategories.AsNoTracking()
-            .Where(x => x.Id == id)
+            .Where(x => x.Id == id && x.CompanyId == ResolveCompanyId(null))
             .Select(x => new ItemCategoryDto(
                 x.Id,
+                x.CompanyId,
+                x.Company != null ? x.Company.Code : null,
                 x.Code,
                 x.Name,
                 x.RevenueAccountId,
@@ -83,6 +95,13 @@ public sealed class ItemCategoriesController(IIssDbContext dbContext) : Controll
     [Authorize(Roles = $"{Roles.Admin},{Roles.Inventory},{Roles.Finance}")]
     public async Task<ActionResult<ItemCategoryDto>> Create(CreateItemCategoryRequest request, CancellationToken cancellationToken)
     {
+        var companyId = ResolveCompanyId(request.CompanyId);
+        var companyExists = await dbContext.Companies.AsNoTracking().AnyAsync(x => x.Id == companyId, cancellationToken);
+        if (!companyExists)
+        {
+            return BadRequest("Selected company does not exist.");
+        }
+
         var accountAssignmentError = await ValidateAccountAssignmentsAsync(
             existingCategory: null,
             request.RevenueAccountId,
@@ -93,7 +112,7 @@ public sealed class ItemCategoriesController(IIssDbContext dbContext) : Controll
             return BadRequest(accountAssignmentError);
         }
 
-        var item = new ItemCategory(request.Code, request.Name, request.RevenueAccountId, request.ExpenseAccountId);
+        var item = new ItemCategory(companyId, request.Code, request.Name, request.RevenueAccountId, request.ExpenseAccountId);
         await dbContext.ItemCategories.AddAsync(item, cancellationToken);
         await dbContext.SaveChangesAsync(cancellationToken);
 
@@ -101,6 +120,8 @@ public sealed class ItemCategoriesController(IIssDbContext dbContext) : Controll
             .Where(x => x.Id == item.Id)
             .Select(x => new ItemCategoryDto(
                 x.Id,
+                x.CompanyId,
+                x.Company != null ? x.Company.Code : null,
                 x.Code,
                 x.Name,
                 x.RevenueAccountId,
@@ -119,10 +140,17 @@ public sealed class ItemCategoriesController(IIssDbContext dbContext) : Controll
     [Authorize(Roles = $"{Roles.Admin},{Roles.Inventory},{Roles.Finance}")]
     public async Task<ActionResult<ItemCategoryDto>> Update(Guid id, UpdateItemCategoryRequest request, CancellationToken cancellationToken)
     {
-        var item = await dbContext.ItemCategories.FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
+        var item = await dbContext.ItemCategories.FirstOrDefaultAsync(x => x.Id == id && x.CompanyId == ResolveCompanyId(null), cancellationToken);
         if (item is null)
         {
             return NotFound();
+        }
+
+        var companyId = ResolveCompanyId(request.CompanyId ?? item.CompanyId);
+        var companyExists = await dbContext.Companies.AsNoTracking().AnyAsync(x => x.Id == companyId, cancellationToken);
+        if (!companyExists)
+        {
+            return BadRequest("Selected company does not exist.");
         }
 
         var accountAssignmentError = await ValidateAccountAssignmentsAsync(
@@ -135,13 +163,15 @@ public sealed class ItemCategoriesController(IIssDbContext dbContext) : Controll
             return BadRequest(accountAssignmentError);
         }
 
-        item.Update(request.Code, request.Name, request.IsActive, request.RevenueAccountId, request.ExpenseAccountId);
+        item.Update(companyId, request.Code, request.Name, request.IsActive, request.RevenueAccountId, request.ExpenseAccountId);
         await dbContext.SaveChangesAsync(cancellationToken);
 
         var updated = await dbContext.ItemCategories.AsNoTracking()
             .Where(x => x.Id == id)
             .Select(x => new ItemCategoryDto(
                 x.Id,
+                x.CompanyId,
+                x.Company != null ? x.Company.Code : null,
                 x.Code,
                 x.Name,
                 x.RevenueAccountId,
@@ -160,7 +190,7 @@ public sealed class ItemCategoriesController(IIssDbContext dbContext) : Controll
     [Authorize(Roles = $"{Roles.Admin},{Roles.Inventory}")]
     public async Task<IActionResult> Delete(Guid id, CancellationToken cancellationToken)
     {
-        var item = await dbContext.ItemCategories.FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
+        var item = await dbContext.ItemCategories.FirstOrDefaultAsync(x => x.Id == id && x.CompanyId == ResolveCompanyId(null), cancellationToken);
         if (item is null)
         {
             return NotFound();
@@ -260,5 +290,15 @@ public sealed class ItemCategoriesController(IIssDbContext dbContext) : Controll
         }
 
         return null;
+    }
+
+    private Guid ResolveCompanyId(Guid? requestedCompanyId)
+    {
+        if (User.IsInRole(Roles.Admin) && requestedCompanyId is not null)
+        {
+            return requestedCompanyId.Value;
+        }
+
+        return currentUser.CompanyId ?? CompanyDefaults.DefaultCompanyId;
     }
 }

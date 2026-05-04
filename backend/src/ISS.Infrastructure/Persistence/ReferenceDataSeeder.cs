@@ -87,6 +87,11 @@ public static class ReferenceDataSeeder
     {
         var hasChanges = false;
 
+        if (await SeedCompaniesAsync(dbContext, cancellationToken))
+        {
+            await dbContext.SaveChangesAsync(cancellationToken);
+        }
+
         var currencies = await dbContext.Currencies.ToListAsync(cancellationToken);
         hasChanges |= await SeedCurrenciesAsync(dbContext, currencies, cancellationToken);
         hasChanges |= EnsureActiveBaseCurrency(currencies);
@@ -101,11 +106,47 @@ public static class ReferenceDataSeeder
         var taxCodeByCode = taxCodes.ToDictionary(x => x.Code, StringComparer.OrdinalIgnoreCase);
         hasChanges |= await SeedTaxConversionsAsync(dbContext, taxCodeByCode, cancellationToken);
         hasChanges |= await SeedReferenceFormsAsync(dbContext, cancellationToken);
+        hasChanges |= await CComDemoSeeder.SeedAsync(dbContext, cancellationToken);
 
         if (hasChanges)
         {
             await dbContext.SaveChangesAsync(cancellationToken);
         }
+    }
+
+    private static async Task<bool> SeedCompaniesAsync(IssDbContext dbContext, CancellationToken cancellationToken)
+    {
+        var existingCodes = (await dbContext.Companies
+            .Select(x => x.Code)
+            .ToListAsync(cancellationToken))
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        var companies = new List<Company>();
+        if (!existingCodes.Contains(CompanyDefaults.DefaultCompanyCode))
+        {
+            var company = new Company(CompanyDefaults.DefaultCompanyCode, CompanyDefaults.DefaultCompanyName)
+            {
+                Id = CompanyDefaults.DefaultCompanyId
+            };
+            companies.Add(company);
+        }
+
+        if (!existingCodes.Contains(CompanyDefaults.CComCompanyCode))
+        {
+            var company = new Company(CompanyDefaults.CComCompanyCode, CompanyDefaults.CComCompanyName)
+            {
+                Id = CompanyDefaults.CComCompanyId
+            };
+            companies.Add(company);
+        }
+
+        if (companies.Count == 0)
+        {
+            return false;
+        }
+
+        await dbContext.Companies.AddRangeAsync(companies, cancellationToken);
+        return true;
     }
 
     private static async Task<bool> SeedCurrenciesAsync(

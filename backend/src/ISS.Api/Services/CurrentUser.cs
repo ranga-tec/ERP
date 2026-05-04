@@ -13,5 +13,13 @@ public sealed class CurrentUser(IHttpContextAccessor httpContextAccessor) : ICur
             return Guid.TryParse(value, out var id) ? id : null;
         }
     }
-}
 
+    public Guid? CompanyId
+    {
+        get
+        {
+            var value = httpContextAccessor.HttpContext?.User?.FindFirstValue("company_id");
+            return Guid.TryParse(value, out var id) ? id : null;
+        }
+    }
+}
