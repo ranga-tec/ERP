@@ -58,7 +58,7 @@ export default async function MaterialRequisitionDetailPage({
       <div>
         <div className="text-sm text-zinc-500">
           <Link href="/service/material-requisitions" className="hover:underline">
-            Material Reqs
+            MRN
           </Link>{" "}
           / <span className="font-mono text-xs">{mr.number}</span>
         </div>

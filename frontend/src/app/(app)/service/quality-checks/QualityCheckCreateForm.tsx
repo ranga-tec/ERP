@@ -43,7 +43,7 @@ export function QualityCheckCreateForm({ serviceJobs }: { serviceJobs: ServiceJo
     <form onSubmit={onSubmit} className="space-y-3">
       <div className="grid gap-3 sm:grid-cols-2">
         <div>
-          <label className="mb-1 block text-sm font-medium">Service job</label>
+          <label className="mb-1 block text-sm font-medium">Job Order</label>
           <Select value={serviceJobId} onChange={(e) => setServiceJobId(e.target.value)} required>
             <option value="" disabled>
               Select...
@@ -76,9 +76,8 @@ export function QualityCheckCreateForm({ serviceJobs }: { serviceJobs: ServiceJo
       ) : null}
 
       <Button type="submit" disabled={busy}>
-        {busy ? "Creating..." : "Add Quality Check"}
+        {busy ? "Creating..." : "Add Inspection / QC"}
       </Button>
     </form>
   );
 }
-

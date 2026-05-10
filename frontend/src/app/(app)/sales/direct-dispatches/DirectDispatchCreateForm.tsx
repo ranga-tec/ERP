@@ -37,7 +37,7 @@ export function DirectDispatchCreateForm({
     setBusy(true);
     try {
       if (!customerId && !serviceJobId) {
-        throw new Error("Select a customer or a service job.");
+        throw new Error("Select a customer or a job order.");
       }
 
       const dd = await apiPost<DirectDispatchDto>("sales/direct-dispatches", {
@@ -75,7 +75,7 @@ export function DirectDispatchCreateForm({
           </Select>
         </div>
         <div>
-          <label className="mb-1 block text-sm font-medium">Service Job (optional)</label>
+          <label className="mb-1 block text-sm font-medium">Job Order (optional)</label>
           <Select
             value={serviceJobId}
             onChange={(e) => {
@@ -122,7 +122,7 @@ export function DirectDispatchCreateForm({
       ) : null}
 
       <Button type="submit" disabled={busy}>
-        {busy ? "Creating..." : "Create Direct Dispatch"}
+        {busy ? "Creating..." : "Create AOD"}
       </Button>
     </form>
   );

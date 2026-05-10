@@ -52,9 +52,9 @@ export default async function ServiceEstimatesPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold">Service Estimates</h1>
+        <h1 className="text-2xl font-semibold">Quotations</h1>
         <p className="mt-1 text-sm text-zinc-500">
-          Quote parts and labor for service jobs, then create a revision if extra findings appear after approval.
+          Prepare customer quotations for job orders, then create a revision if extra findings appear after approval.
         </p>
       </div>
 

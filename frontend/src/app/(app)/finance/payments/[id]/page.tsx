@@ -100,7 +100,7 @@ export default async function PaymentDetailPage({ params }: { params: Promise<{ 
       <div>
         <div className="text-sm text-zinc-500">
           <Link href="/finance/payments" className="hover:underline">
-            Payments
+            Payment Receipts
           </Link>{" "}
           / <span className="font-mono text-xs">{payment.referenceNumber}</span>
         </div>

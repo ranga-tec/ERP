@@ -25,8 +25,8 @@ export default async function QualityChecksPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold">Quality Checks</h1>
-        <p className="mt-1 text-sm text-zinc-500">Record inspection / QA results for a service job.</p>
+        <h1 className="text-2xl font-semibold">Inspection / QC</h1>
+        <p className="mt-1 text-sm text-zinc-500">Record inspection and quality-check results for a job order.</p>
       </div>
 
       <Card>

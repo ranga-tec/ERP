@@ -92,7 +92,7 @@ export default async function DirectPurchaseDetailPage({
           <div>Warehouse: {warehouseById.get(dp.warehouseId)?.code ?? dp.warehouseId}</div>
           {dp.serviceJobId ? (
             <div>
-              Service Job:{" "}
+              Job Order:{" "}
               <TransactionLink referenceType="SJ" referenceId={dp.serviceJobId} monospace>
                 {jobById.get(dp.serviceJobId)?.number ?? dp.serviceJobId}
               </TransactionLink>

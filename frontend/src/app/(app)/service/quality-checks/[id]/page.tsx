@@ -29,11 +29,11 @@ export default async function QualityCheckDetailPage({ params }: { params: Promi
       <div>
         <div className="text-sm text-zinc-500">
           <Link href="/service/quality-checks" className="hover:underline">
-            Quality Checks
+            Inspection / QC
           </Link>{" "}
           / <span className="font-mono text-xs">{qc.id.slice(0, 8)}</span>
         </div>
-        <h1 className="mt-1 text-2xl font-semibold">Quality Check</h1>
+        <h1 className="mt-1 text-2xl font-semibold">Inspection / QC</h1>
         <div className="mt-2 flex flex-wrap gap-3 text-sm text-zinc-600 dark:text-zinc-400">
           <div>
             Job:{" "}

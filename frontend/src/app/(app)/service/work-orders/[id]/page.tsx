@@ -62,11 +62,11 @@ export default async function WorkOrderDetailPage({ params }: { params: Promise<
       <div>
         <div className="text-sm text-zinc-500">
           <Link href="/service/work-orders" className="hover:underline">
-            Work Orders
+            Job Detail / Job Sheet
           </Link>{" "}
           / <span className="font-mono text-xs">{wo.id.slice(0, 8)}</span>
         </div>
-        <h1 className="mt-1 text-2xl font-semibold">Work Order {wo.id.slice(0, 8)}</h1>
+        <h1 className="mt-1 text-2xl font-semibold">Job Detail {wo.id.slice(0, 8)}</h1>
         <div className="mt-2 flex flex-wrap gap-3 text-sm text-zinc-600 dark:text-zinc-400">
           <div>
             Job:{" "}

@@ -58,15 +58,15 @@ export default async function DirectDispatchDetailPage({
       <div>
         <div className="text-sm text-zinc-500">
           <Link href="/sales/direct-dispatches" className="hover:underline">
-            Direct Dispatches
+            AOD
           </Link>{" "}
           / <span className="font-mono text-xs">{dispatch.number}</span>
         </div>
-        <h1 className="mt-1 text-2xl font-semibold">Direct Dispatch {dispatch.number}</h1>
+        <h1 className="mt-1 text-2xl font-semibold">AOD {dispatch.number}</h1>
         <div className="mt-2 flex flex-wrap gap-3 text-sm text-zinc-600 dark:text-zinc-400">
           <div>Customer: {dispatch.customerId ? customerById.get(dispatch.customerId)?.code ?? dispatch.customerId : "-"}</div>
           <div>
-            Service Job:{" "}
+            Job Order:{" "}
             {dispatch.serviceJobId ? (
               <TransactionLink referenceType="SJ" referenceId={dispatch.serviceJobId}>
                 {jobById.get(dispatch.serviceJobId)?.number ?? dispatch.serviceJobId}

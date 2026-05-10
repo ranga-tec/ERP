@@ -135,7 +135,7 @@ export function ServiceJobCreateForm({
       ) : null}
 
       <Button type="submit" disabled={busy}>
-        {busy ? "Creating..." : "Create Service Job"}
+        {busy ? "Creating..." : "Create Job Order"}
       </Button>
     </form>
   );

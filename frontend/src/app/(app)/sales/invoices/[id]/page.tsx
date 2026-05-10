@@ -89,7 +89,7 @@ export default async function InvoiceDetailPage({
       <div>
         <div className="text-sm text-zinc-500">
           <Link href="/sales/invoices" className="hover:underline">
-            Invoices
+            Final Invoices
           </Link>{" "}
           / <span className="font-mono text-xs">{invoice.number}</span>
         </div>

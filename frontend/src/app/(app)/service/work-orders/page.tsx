@@ -35,8 +35,8 @@ export default async function WorkOrdersPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold">Work Orders</h1>
-        <p className="mt-1 text-sm text-zinc-500">Tasks under a service job.</p>
+        <h1 className="text-2xl font-semibold">Job Detail / Job Sheet</h1>
+        <p className="mt-1 text-sm text-zinc-500">Technician work details and job sheet time entries under a job order.</p>
       </div>
 
       <Card>
@@ -50,7 +50,7 @@ export default async function WorkOrdersPage() {
           <Table>
             <thead>
               <tr className="border-b border-zinc-200 text-left text-xs uppercase tracking-wide text-zinc-500 dark:border-zinc-800">
-                <th className="py-2 pr-3">Work Order</th>
+                <th className="py-2 pr-3">Job Detail</th>
                 <th className="py-2 pr-3">Job</th>
                 <th className="py-2 pr-3">Status</th>
                 <th className="py-2 pr-3">Description</th>

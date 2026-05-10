@@ -98,7 +98,7 @@ export function ServiceHandoverEditForm({ handover }: { handover: ServiceHandove
       ) : null}
 
       <Button type="submit" disabled={busy}>
-        {busy ? "Saving..." : "Save Handover"}
+        {busy ? "Saving..." : "Save Service Taken"}
       </Button>
     </form>
   );

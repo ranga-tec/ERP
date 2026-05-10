@@ -41,7 +41,7 @@ export default async function PettyCashIousPage() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-semibold">Petty Cash IOUs</h1>
-        <p className="mt-1 text-sm text-zinc-500">Approved cash advances linked to service job numbers.</p>
+        <p className="mt-1 text-sm text-zinc-500">Approved cash advances linked to job order numbers.</p>
       </div>
 
       <Card>

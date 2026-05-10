@@ -38,7 +38,7 @@ export default async function DirectDispatchesPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold">Direct Dispatches</h1>
+        <h1 className="text-2xl font-semibold">Advance of Dispatch (AOD)</h1>
         <p className="mt-1 text-sm text-zinc-500">Immediate stock issue without a sales order (sales/service scenarios).</p>
       </div>
 
@@ -55,7 +55,7 @@ export default async function DirectDispatchesPage() {
               <tr className="border-b border-zinc-200 text-left text-xs uppercase tracking-wide text-zinc-500 dark:border-zinc-800">
                 <th className="py-2 pr-3">Number</th>
                 <th className="py-2 pr-3">Customer</th>
-                <th className="py-2 pr-3">Service Job</th>
+                <th className="py-2 pr-3">Job Order</th>
                 <th className="py-2 pr-3">Warehouse</th>
                 <th className="py-2 pr-3">Date</th>
                 <th className="py-2 pr-3">Status</th>

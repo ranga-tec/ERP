@@ -45,9 +45,9 @@ export default async function ServiceExpenseClaimsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold">Service Expense Claims</h1>
+        <h1 className="text-2xl font-semibold">Petty Cash</h1>
         <p className="mt-1 text-sm text-zinc-500">
-          Record out-of-pocket technician spending and petty-cash repair purchases against service jobs, then route them to finance for approval and settlement.
+          Record out-of-pocket technician spending and petty-cash repair purchases against job orders, then route them to finance for approval and settlement.
         </p>
       </div>
 

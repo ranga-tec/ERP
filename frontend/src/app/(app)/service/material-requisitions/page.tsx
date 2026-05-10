@@ -37,8 +37,8 @@ export default async function MaterialRequisitionsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold">Material Requisitions</h1>
-        <p className="mt-1 text-sm text-zinc-500">Issue materials to a service job from a warehouse.</p>
+        <h1 className="text-2xl font-semibold">Material Request Note (MRN)</h1>
+        <p className="mt-1 text-sm text-zinc-500">Request and issue materials to a job order from a warehouse.</p>
       </div>
 
       <Card>

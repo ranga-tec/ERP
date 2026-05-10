@@ -69,7 +69,7 @@ export default async function ServiceJobsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold">Service Jobs</h1>
+        <h1 className="text-2xl font-semibold">Job Orders</h1>
         <p className="mt-1 text-sm text-zinc-500">Open -&gt; in progress -&gt; completed -&gt; closed.</p>
       </div>
 
@@ -145,7 +145,7 @@ export default async function ServiceJobsPage() {
               {jobs.length === 0 ? (
                 <tr>
                   <td className="py-6 text-sm text-zinc-500" colSpan={10}>
-                    No service jobs yet.
+                    No job orders yet.
                   </td>
                 </tr>
               ) : null}

@@ -84,11 +84,11 @@ export default async function ServiceHandoverDetailPage({
       <div>
         <div className="text-sm text-zinc-500">
           <Link href="/service/handovers" className="hover:underline">
-            Service Handovers
+            Service Taken / Delivery Confirmation
           </Link>{" "}
           / <span className="font-mono text-xs">{handover.number}</span>
         </div>
-        <h1 className="mt-1 text-2xl font-semibold">Handover {handover.number}</h1>
+        <h1 className="mt-1 text-2xl font-semibold">Service Taken {handover.number}</h1>
         <div className="mt-2 flex flex-wrap gap-3 text-sm text-zinc-600 dark:text-zinc-400">
           <div>
             Job:{" "}
@@ -124,7 +124,7 @@ export default async function ServiceHandoverDetailPage({
 
       {isDraft && startInEditMode ? (
         <Card>
-          <div className="mb-3 text-sm font-semibold">Edit Handover</div>
+          <div className="mb-3 text-sm font-semibold">Edit Service Taken</div>
           <ServiceHandoverEditForm handover={handover} />
         </Card>
       ) : null}
@@ -177,7 +177,7 @@ export default async function ServiceHandoverDetailPage({
       <DocumentCollaborationPanel
         referenceType="SH"
         referenceId={handover.id}
-        title="Handover Comments & Attachments"
+        title="Service Taken Comments & Attachments"
       />
     </div>
   );

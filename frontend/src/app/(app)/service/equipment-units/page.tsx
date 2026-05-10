@@ -41,7 +41,7 @@ export default async function EquipmentUnitsPage() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-semibold">Equipment Units</h1>
-        <p className="mt-1 text-sm text-zinc-500">Track sold equipment by serial number for service jobs.</p>
+        <p className="mt-1 text-sm text-zinc-500">Track sold equipment by serial number for job orders.</p>
       </div>
 
       <Card>

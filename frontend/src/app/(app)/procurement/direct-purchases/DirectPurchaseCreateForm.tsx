@@ -84,7 +84,7 @@ export function DirectPurchaseCreateForm({
           </Select>
         </div>
         <div>
-          <label className="mb-1 block text-sm font-medium">Service job (optional)</label>
+          <label className="mb-1 block text-sm font-medium">Job Order (optional)</label>
           <Select value={serviceJobId} onChange={(e) => setServiceJobId(e.target.value)}>
             <option value="">Not linked</option>
             {sortedServiceJobs.map((job) => (

@@ -42,7 +42,7 @@ export default async function InvoicesPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold">Sales Invoices</h1>
+        <h1 className="text-2xl font-semibold">Final Invoices</h1>
         <p className="mt-1 text-sm text-zinc-500">Draft -&gt; add lines -&gt; post -&gt; pay (via payments).</p>
       </div>
 

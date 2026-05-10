@@ -206,11 +206,11 @@ export default async function ServiceJobDetailPage({ params }: { params: Promise
       <div>
         <div className="text-sm text-zinc-500">
           <Link href="/service/jobs" className="hover:underline">
-            Jobs
+            Job Orders
           </Link>{" "}
           / <span className="font-mono text-xs">{job.number}</span>
         </div>
-        <h1 className="mt-1 text-2xl font-semibold">Job {job.number}</h1>
+        <h1 className="mt-1 text-2xl font-semibold">Job Order {job.number}</h1>
         <div className="mt-2 flex flex-wrap gap-3 text-sm text-zinc-600 dark:text-zinc-400">
           <div>
             Equipment:{" "}
@@ -335,7 +335,7 @@ export default async function ServiceJobDetailPage({ params }: { params: Promise
       </div>
 
       <Card>
-        <div className="mb-3 text-sm font-semibold">Job Costing</div>
+        <div className="mb-3 text-sm font-semibold">Profitability Report</div>
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3 text-sm">
           <div className="rounded-xl border border-[var(--card-border)] p-3">
             <div className="font-medium">Cost Breakdown</div>
@@ -366,7 +366,7 @@ export default async function ServiceJobDetailPage({ params }: { params: Promise
       </Card>
 
       <Card>
-        <div className="mb-3 text-sm font-semibold">Estimates & Invoices</div>
+        <div className="mb-3 text-sm font-semibold">Quotations & Final Invoices</div>
         <div className="grid gap-4 lg:grid-cols-2">
           <div className="overflow-auto">
             <Table>
@@ -523,7 +523,7 @@ export default async function ServiceJobDetailPage({ params }: { params: Promise
               <thead>
                 <tr className="border-b border-zinc-200 text-left text-xs uppercase tracking-wide text-zinc-500 dark:border-zinc-800">
                   <th className="py-2 pr-3">Date</th>
-                  <th className="py-2 pr-3">Work Order</th>
+                  <th className="py-2 pr-3">Job Detail / Job Sheet</th>
                   <th className="py-2 pr-3">Technician</th>
                   <th className="py-2 pr-3">Work</th>
                   <th className="py-2 pr-3">Status</th>
@@ -576,7 +576,7 @@ export default async function ServiceJobDetailPage({ params }: { params: Promise
           </div>
 
           <div className="overflow-auto">
-            <div className="mb-2 text-sm font-medium">Expense Claims</div>
+            <div className="mb-2 text-sm font-medium">Petty Cash</div>
             <Table>
               <thead>
                 <tr className="border-b border-zinc-200 text-left text-xs uppercase tracking-wide text-zinc-500 dark:border-zinc-800">
@@ -633,13 +633,13 @@ export default async function ServiceJobDetailPage({ params }: { params: Promise
 
       <Card>
         <div className="text-sm text-zinc-500">
-          Track the job flow via <Link className="underline" href="/service/estimates">Estimates</Link>,{" "}
-          <Link className="underline" href="/service/expense-claims">Expense Claims</Link>,{" "}
-          <Link className="underline" href="/service/work-orders">Work Orders</Link>,{" "}
-          <Link className="underline" href="/service/material-requisitions">Material Reqs</Link>,{" "}
+          Track the job flow via <Link className="underline" href="/service/estimates">Quotations</Link>,{" "}
+          <Link className="underline" href="/service/expense-claims">Petty Cash</Link>,{" "}
+          <Link className="underline" href="/service/work-orders">Job Detail / Job Sheet</Link>,{" "}
+          <Link className="underline" href="/service/material-requisitions">MRN</Link>,{" "}
           <Link className="underline" href="/procurement/direct-purchases">Direct Purchases</Link>,{" "}
-          <Link className="underline" href="/service/quality-checks">Quality Checks</Link>, and{" "}
-          <Link className="underline" href="/service/handovers">Handovers</Link>.
+          <Link className="underline" href="/service/quality-checks">Inspection / QC</Link>, and{" "}
+          <Link className="underline" href="/service/handovers">Service Taken / Delivery Confirmation</Link>.
         </div>
       </Card>
 

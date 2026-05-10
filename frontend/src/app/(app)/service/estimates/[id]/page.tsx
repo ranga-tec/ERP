@@ -97,7 +97,7 @@ export default async function ServiceEstimateDetailPage({
       <div>
         <div className="text-sm text-zinc-500">
           <Link href="/service/estimates" className="hover:underline">
-            Service Estimates
+            Quotations
           </Link>{" "}
           / <span className="font-mono text-xs">{estimate.number}</span>
         </div>

@@ -20,7 +20,7 @@ const reports = [
   {
     href: "/reporting/service-kpis",
     title: "Service KPIs",
-    description: "Service job throughput, completion timing, and parts-consumption indicators.",
+    description: "Job order throughput, completion timing, and parts-consumption indicators.",
   },
   {
     href: "/reporting/sales-analysis",
@@ -39,7 +39,7 @@ const reports = [
   },
   {
     href: "/reporting/costing",
-    title: "Costing",
+    title: "Profitability Report",
     description: "Default vs weighted costs, last receipt rates, and current on-hand valuation.",
   },
 ];

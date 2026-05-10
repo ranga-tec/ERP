@@ -62,7 +62,7 @@ const FALLBACK_ACTIONS: DashboardQuickActionDto[] = [
     href: "/sales/orders",
   },
   {
-    label: "Service jobs",
+    label: "Job orders",
     description: "Run the workshop queue and job execution.",
     href: "/service/jobs",
   },

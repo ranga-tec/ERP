@@ -33,7 +33,7 @@ export function DirectDispatchActions({
     <div className="space-y-2">
       <div className="flex flex-wrap gap-2">
         <SecondaryButton type="button" disabled={!canPost || busy} onClick={post}>
-          {busy ? "Posting..." : "Post Direct Dispatch"}
+          {busy ? "Posting..." : "Post AOD"}
         </SecondaryButton>
       </div>
       {error ? (

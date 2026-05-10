@@ -39,7 +39,7 @@ export default async function ServiceHandoversPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold">Service Handovers</h1>
+        <h1 className="text-2xl font-semibold">Service Taken / Delivery Confirmation</h1>
         <p className="mt-1 text-sm text-zinc-500">
           Record device/accessory return to the customer and close out delivery readiness.
         </p>
@@ -56,7 +56,7 @@ export default async function ServiceHandoversPage() {
           <Table>
             <thead>
               <tr className="border-b border-zinc-200 text-left text-xs uppercase tracking-wide text-zinc-500 dark:border-zinc-800">
-                <th className="py-2 pr-3">Handover</th>
+                <th className="py-2 pr-3">Confirmation</th>
                 <th className="py-2 pr-3">Job</th>
                 <th className="py-2 pr-3">Customer</th>
                 <th className="py-2 pr-3">Date</th>

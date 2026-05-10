@@ -40,7 +40,7 @@ export default async function ServiceKpisPage() {
     ["Open jobs > 30 days", number(report.openJobsOlderThan30Days)],
     ["Estimates issued", number(report.estimatesIssued)],
     ["Estimates approved", number(report.estimatesApproved)],
-    ["Handovers completed", number(report.handoversCompleted)],
+    ["Service Taken completed", number(report.handoversCompleted)],
     ["Material reqs posted", number(report.materialRequisitionsPosted)],
     ["Parts consumed qty", number(report.partsConsumedQuantity)],
   ] as const;

@@ -46,7 +46,7 @@ export default async function DirectPurchasesPage() {
       <div>
         <h1 className="text-2xl font-semibold">Direct Purchases</h1>
         <p className="mt-1 text-sm text-zinc-500">
-          Receive purchases without a PO. Link emergency outside buys to the relevant service job when needed.
+          Receive purchases without a PO. Link emergency outside buys to the relevant job order when needed.
         </p>
       </div>
 
@@ -64,7 +64,7 @@ export default async function DirectPurchasesPage() {
                 <th className="py-2 pr-3">Number</th>
                 <th className="py-2 pr-3">Supplier</th>
                 <th className="py-2 pr-3">Warehouse</th>
-                <th className="py-2 pr-3">Service Job</th>
+                <th className="py-2 pr-3">Job Order</th>
                 <th className="py-2 pr-3">Date</th>
                 <th className="py-2 pr-3">Status</th>
                 <th className="py-2 pr-3">Total</th>
