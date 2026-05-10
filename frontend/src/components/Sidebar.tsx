@@ -89,6 +89,7 @@ const sections: NavSection[] = [
       { href: "/finance/ap", label: "Accounts Payable" },
       { href: "/finance/payments", label: "Payments" },
       { href: "/finance/petty-cash", label: "Petty Cash" },
+      { href: "/finance/petty-cash-ious", label: "Petty Cash IOUs" },
       { href: "/finance/credit-notes", label: "Credit Notes" },
       { href: "/finance/debit-notes", label: "Debit Notes" },
     ],

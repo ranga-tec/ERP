@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { apiPut } from "@/lib/api-client";
 import { EquipmentUnitLookupField } from "@/components/EquipmentUnitLookupField";
-import { Button, Select, Textarea } from "@/components/ui";
+import { Button, Input, Select, Textarea } from "@/components/ui";
 
 type EquipmentUnitRef = { id: string; serialNumber: string; customerId: string };
 type CustomerRef = { id: string; code: string; name: string };
@@ -13,11 +13,16 @@ type ServiceJobDto = {
   equipmentUnitId: string;
   customerId: string;
   kind: number;
+  expectedCompletionAt?: string | null;
+  siteLocation?: string | null;
   problemDescription: string;
 };
 
 const KIND_SERVICE = "0";
 const KIND_REPAIR = "1";
+const KIND_PDI = "2";
+const KIND_WARRANTY = "3";
+const KIND_INSPECTION = "4";
 
 export function ServiceJobEditForm({
   job,
@@ -37,6 +42,8 @@ export function ServiceJobEditForm({
   const [equipmentUnitId, setEquipmentUnitId] = useState(job.equipmentUnitId);
   const [customerId, setCustomerId] = useState(job.customerId);
   const [kind, setKind] = useState(String(job.kind));
+  const [expectedCompletionAt, setExpectedCompletionAt] = useState(job.expectedCompletionAt?.slice(0, 10) ?? "");
+  const [siteLocation, setSiteLocation] = useState(job.siteLocation ?? "");
   const [problemDescription, setProblemDescription] = useState(job.problemDescription);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -45,6 +52,8 @@ export function ServiceJobEditForm({
     setEquipmentUnitId(job.equipmentUnitId);
     setCustomerId(job.customerId);
     setKind(String(job.kind));
+    setExpectedCompletionAt(job.expectedCompletionAt?.slice(0, 10) ?? "");
+    setSiteLocation(job.siteLocation ?? "");
     setProblemDescription(job.problemDescription);
   }, [job]);
 
@@ -70,6 +79,8 @@ export function ServiceJobEditForm({
         equipmentUnitId,
         customerId,
         kind: Number(kind),
+        expectedCompletionAt: expectedCompletionAt || null,
+        siteLocation: siteLocation.trim() || null,
         problemDescription: problemDescription.trim(),
       });
       router.refresh();
@@ -108,8 +119,20 @@ export function ServiceJobEditForm({
           <Select value={kind} onChange={(event) => setKind(event.target.value)} required>
             <option value={KIND_SERVICE}>Service</option>
             <option value={KIND_REPAIR}>Repair</option>
+            <option value={KIND_PDI}>PDI</option>
+            <option value={KIND_WARRANTY}>Warranty</option>
+            <option value={KIND_INSPECTION}>Inspection</option>
           </Select>
         </div>
+        <div>
+          <label className="mb-1 block text-sm font-medium">Expected completion</label>
+          <Input type="date" value={expectedCompletionAt} onChange={(event) => setExpectedCompletionAt(event.target.value)} />
+        </div>
+      </div>
+
+      <div>
+        <label className="mb-1 block text-sm font-medium">Site location</label>
+        <Input value={siteLocation} onChange={(event) => setSiteLocation(event.target.value)} />
       </div>
 
       <div>

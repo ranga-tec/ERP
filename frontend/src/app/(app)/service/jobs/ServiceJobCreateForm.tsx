@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { apiPost } from "@/lib/api-client";
 import { EquipmentUnitLookupField } from "@/components/EquipmentUnitLookupField";
-import { Button, Select, Textarea } from "@/components/ui";
+import { Button, Input, Select, Textarea } from "@/components/ui";
 
 type EquipmentUnitRef = { id: string; serialNumber: string; customerId: string };
 type CustomerRef = { id: string; code: string; name: string };
@@ -12,6 +12,9 @@ type ServiceJobDto = { id: string; number: string };
 
 const KIND_SERVICE = "0";
 const KIND_REPAIR = "1";
+const KIND_PDI = "2";
+const KIND_WARRANTY = "3";
+const KIND_INSPECTION = "4";
 
 export function ServiceJobCreateForm({
   equipmentUnits,
@@ -29,6 +32,8 @@ export function ServiceJobCreateForm({
   const [equipmentUnitId, setEquipmentUnitId] = useState("");
   const [customerId, setCustomerId] = useState("");
   const [kind, setKind] = useState(KIND_SERVICE);
+  const [expectedCompletionAt, setExpectedCompletionAt] = useState("");
+  const [siteLocation, setSiteLocation] = useState("");
   const [problemDescription, setProblemDescription] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -59,6 +64,8 @@ export function ServiceJobCreateForm({
         equipmentUnitId,
         customerId,
         kind: Number(kind),
+        expectedCompletionAt: expectedCompletionAt || null,
+        siteLocation: siteLocation.trim() || null,
         problemDescription: problemDescription.trim(),
       });
       router.push(`/service/jobs/${job.id}`);
@@ -100,8 +107,20 @@ export function ServiceJobCreateForm({
           <Select value={kind} onChange={(e) => setKind(e.target.value)} required>
             <option value={KIND_SERVICE}>Service</option>
             <option value={KIND_REPAIR}>Repair</option>
+            <option value={KIND_PDI}>PDI</option>
+            <option value={KIND_WARRANTY}>Warranty</option>
+            <option value={KIND_INSPECTION}>Inspection</option>
           </Select>
         </div>
+        <div>
+          <label className="mb-1 block text-sm font-medium">Expected completion</label>
+          <Input type="date" value={expectedCompletionAt} onChange={(e) => setExpectedCompletionAt(e.target.value)} />
+        </div>
+      </div>
+
+      <div>
+        <label className="mb-1 block text-sm font-medium">Site location</label>
+        <Input value={siteLocation} onChange={(e) => setSiteLocation(e.target.value)} placeholder="Workshop or customer site" />
       </div>
 
       <div>

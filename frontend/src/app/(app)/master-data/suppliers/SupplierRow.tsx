@@ -13,6 +13,7 @@ type SupplierDto = {
   email?: string | null;
   address?: string | null;
   isActive: boolean;
+  isAuthorized: boolean;
 };
 
 const actionButtonClass = "px-2 py-1 text-xs";
@@ -26,6 +27,7 @@ export function SupplierRow({ supplier }: { supplier: SupplierDto }) {
   const [email, setEmail] = useState(supplier.email ?? "");
   const [address, setAddress] = useState(supplier.address ?? "");
   const [isActive, setIsActive] = useState(supplier.isActive ? "true" : "false");
+  const [isAuthorized, setIsAuthorized] = useState(supplier.isAuthorized ? "true" : "false");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -37,6 +39,7 @@ export function SupplierRow({ supplier }: { supplier: SupplierDto }) {
     setEmail(supplier.email ?? "");
     setAddress(supplier.address ?? "");
     setIsActive(supplier.isActive ? "true" : "false");
+    setIsAuthorized(supplier.isAuthorized ? "true" : "false");
     setIsEditing(true);
   }
 
@@ -51,6 +54,7 @@ export function SupplierRow({ supplier }: { supplier: SupplierDto }) {
         email: email.trim() || null,
         address: address.trim() || null,
         isActive: isActive === "true",
+        isAuthorized: isAuthorized === "true",
       });
       setIsEditing(false);
       router.refresh();
@@ -99,6 +103,18 @@ export function SupplierRow({ supplier }: { supplier: SupplierDto }) {
             <option value="false">No</option>
           </Select>
         ) : supplier.isActive ? (
+          "Yes"
+        ) : (
+          "No"
+        )}
+      </td>
+      <td className="py-2 pr-3">
+        {isEditing ? (
+          <Select value={isAuthorized} onChange={(e) => setIsAuthorized(e.target.value)} className="min-w-20">
+            <option value="true">Yes</option>
+            <option value="false">No</option>
+          </Select>
+        ) : supplier.isAuthorized ? (
           "Yes"
         ) : (
           "No"

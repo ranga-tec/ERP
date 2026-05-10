@@ -81,6 +81,7 @@ public sealed class IssDbContext(
     public DbSet<LedgerAccount> LedgerAccounts => Set<LedgerAccount>();
     public DbSet<Payment> Payments => Set<Payment>();
     public DbSet<PettyCashFund> PettyCashFunds => Set<PettyCashFund>();
+    public DbSet<PettyCashIou> PettyCashIous => Set<PettyCashIou>();
     public DbSet<CreditNote> CreditNotes => Set<CreditNote>();
     public DbSet<DebitNote> DebitNotes => Set<DebitNote>();
     public DbSet<DocumentComment> DocumentComments => Set<DocumentComment>();
@@ -108,6 +109,7 @@ public sealed class IssDbContext(
             entity.HasIndex(x => x.Code).IsUnique();
             entity.Property(x => x.Code).HasMaxLength(32);
             entity.Property(x => x.Name).HasMaxLength(256);
+            entity.Property(x => x.EnforceAuthorizedSuppliersOnly).HasDefaultValue(false);
         });
 
         builder.Entity<Brand>(entity =>
@@ -230,6 +232,7 @@ public sealed class IssDbContext(
             entity.HasIndex(x => x.CompanyId);
             entity.Property(x => x.Code).HasMaxLength(32);
             entity.Property(x => x.Name).HasMaxLength(256);
+            entity.Property(x => x.IsAuthorized).HasDefaultValue(true);
             entity.HasOne(x => x.Company).WithMany().HasForeignKey(x => x.CompanyId).OnDelete(DeleteBehavior.Restrict);
         });
 
@@ -578,6 +581,7 @@ public sealed class IssDbContext(
         {
             entity.HasIndex(x => x.SerialNumber).IsUnique();
             entity.Property(x => x.SerialNumber).HasMaxLength(128);
+            entity.Property(x => x.ServiceIntervalDays);
         });
 
         builder.Entity<ServiceContract>(entity =>
@@ -598,6 +602,7 @@ public sealed class IssDbContext(
             entity.HasIndex(x => x.ServiceContractId);
             entity.Property(x => x.Number).HasMaxLength(32);
             entity.Property(x => x.ProblemDescription).HasMaxLength(2000);
+            entity.Property(x => x.SiteLocation).HasMaxLength(512);
             entity.Property(x => x.EntitlementSummary).HasMaxLength(512);
             entity.HasOne<ServiceContract>().WithMany().HasForeignKey(x => x.ServiceContractId).OnDelete(DeleteBehavior.SetNull);
         });
@@ -684,6 +689,7 @@ public sealed class IssDbContext(
         {
             entity.HasIndex(x => x.Number).IsUnique();
             entity.Property(x => x.Number).HasMaxLength(32);
+            entity.Property(x => x.Purpose).HasMaxLength(512);
             entity.HasMany(x => x.Lines).WithOne().HasForeignKey(x => x.MaterialRequisitionId).OnDelete(DeleteBehavior.Cascade);
         });
         builder.Entity<MaterialRequisitionLine>(entity =>
@@ -744,6 +750,23 @@ public sealed class IssDbContext(
             entity.Property(x => x.ReferenceType).HasMaxLength(64);
             entity.Property(x => x.ReferenceNumber).HasMaxLength(128);
             entity.Property(x => x.Notes).HasMaxLength(512);
+        });
+
+        builder.Entity<PettyCashIou>(entity =>
+        {
+            entity.HasIndex(x => x.Number).IsUnique();
+            entity.HasIndex(x => x.ServiceJobId);
+            entity.HasIndex(x => x.RequestedByUserId);
+            entity.HasIndex(x => x.PettyCashFundId);
+            entity.Property(x => x.Number).HasMaxLength(32);
+            entity.Property(x => x.RequestedByName).HasMaxLength(256);
+            entity.Property(x => x.Amount).HasPrecision(18, 4);
+            entity.Property(x => x.Purpose).HasMaxLength(1000);
+            entity.Property(x => x.RejectionReason).HasMaxLength(512);
+            entity.Property(x => x.ReleaseReference).HasMaxLength(128);
+            entity.Property(x => x.SettledAmount).HasPrecision(18, 4);
+            entity.Property(x => x.SettlementReference).HasMaxLength(128);
+            entity.HasOne<PettyCashFund>().WithMany().HasForeignKey(x => x.PettyCashFundId).OnDelete(DeleteBehavior.Restrict);
         });
 
         builder.Entity<CreditNote>(entity =>

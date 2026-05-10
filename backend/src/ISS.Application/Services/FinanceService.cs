@@ -3,6 +3,7 @@ using ISS.Application.Common;
 using ISS.Application.Persistence;
 using ISS.Domain.Common;
 using ISS.Domain.Finance;
+using ISS.Domain.Service;
 using Microsoft.EntityFrameworkCore;
 
 namespace ISS.Application.Services;
@@ -95,6 +96,118 @@ public sealed class FinanceService(
 
         var transaction = fund.AddAdjustment(amount, direction, occurredAt ?? clock.UtcNow, referenceNumber, notes);
         dbContext.DbContext.Add(transaction);
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task<Guid> CreatePettyCashIouAsync(
+        Guid serviceJobId,
+        Guid requestedByUserId,
+        string requestedByName,
+        decimal amount,
+        string purpose,
+        DateTimeOffset? expectedSettlementAt,
+        CancellationToken cancellationToken = default)
+    {
+        var jobStatus = await dbContext.ServiceJobs.AsNoTracking()
+            .Where(x => x.Id == serviceJobId)
+            .Select(x => (ServiceJobStatus?)x.Status)
+            .FirstOrDefaultAsync(cancellationToken)
+            ?? throw new NotFoundException("Service job not found.");
+
+        if (jobStatus == ServiceJobStatus.Closed)
+        {
+            throw new DomainValidationException("Closed service jobs cannot receive new IOUs.");
+        }
+
+        var number = await documentNumberService.NextAsync("IOU", "IOU", cancellationToken);
+        var iou = new PettyCashIou(
+            number,
+            serviceJobId,
+            requestedByUserId,
+            requestedByName,
+            amount,
+            purpose,
+            clock.UtcNow,
+            expectedSettlementAt);
+        await dbContext.PettyCashIous.AddAsync(iou, cancellationToken);
+        await dbContext.SaveChangesAsync(cancellationToken);
+        return iou.Id;
+    }
+
+    public async Task SubmitPettyCashIouAsync(Guid iouId, CancellationToken cancellationToken = default)
+    {
+        var iou = await dbContext.PettyCashIous.FirstOrDefaultAsync(x => x.Id == iouId, cancellationToken)
+                  ?? throw new NotFoundException("Petty cash IOU not found.");
+        iou.Submit(clock.UtcNow);
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task ApprovePettyCashIouAsync(Guid iouId, Guid approvedByUserId, CancellationToken cancellationToken = default)
+    {
+        var iou = await dbContext.PettyCashIous.FirstOrDefaultAsync(x => x.Id == iouId, cancellationToken)
+                  ?? throw new NotFoundException("Petty cash IOU not found.");
+        iou.Approve(approvedByUserId, clock.UtcNow);
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task RejectPettyCashIouAsync(Guid iouId, string? reason, CancellationToken cancellationToken = default)
+    {
+        var iou = await dbContext.PettyCashIous.FirstOrDefaultAsync(x => x.Id == iouId, cancellationToken)
+                  ?? throw new NotFoundException("Petty cash IOU not found.");
+        iou.Reject(clock.UtcNow, reason);
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task ReleasePettyCashIouAsync(
+        Guid iouId,
+        Guid pettyCashFundId,
+        string? releaseReference,
+        CancellationToken cancellationToken = default)
+    {
+        var iou = await dbContext.PettyCashIous.FirstOrDefaultAsync(x => x.Id == iouId, cancellationToken)
+                  ?? throw new NotFoundException("Petty cash IOU not found.");
+
+        var fund = await dbContext.PettyCashFunds
+            .Include(x => x.Transactions)
+            .FirstOrDefaultAsync(x => x.Id == pettyCashFundId, cancellationToken)
+            ?? throw new NotFoundException("Petty cash fund not found.");
+
+        iou.Release(pettyCashFundId, clock.UtcNow, releaseReference);
+        var transaction = fund.RecordIouRelease(iou.Amount, clock.UtcNow, iou.Id, iou.Number, releaseReference);
+        dbContext.DbContext.Add(transaction);
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task SettlePettyCashIouAsync(
+        Guid iouId,
+        decimal settledAmount,
+        string? settlementReference,
+        CancellationToken cancellationToken = default)
+    {
+        var iou = await dbContext.PettyCashIous.FirstOrDefaultAsync(x => x.Id == iouId, cancellationToken)
+                  ?? throw new NotFoundException("Petty cash IOU not found.");
+
+        var pettyCashFundId = iou.PettyCashFundId
+                              ?? throw new DomainValidationException("IOU must be released from a petty cash fund before settlement.");
+
+        var fund = await dbContext.PettyCashFunds
+            .Include(x => x.Transactions)
+            .FirstOrDefaultAsync(x => x.Id == pettyCashFundId, cancellationToken)
+            ?? throw new NotFoundException("Petty cash fund not found.");
+
+        if (settledAmount > iou.Amount)
+        {
+            throw new DomainValidationException("IOU settlement cannot exceed released amount.");
+        }
+
+        iou.Settle(settledAmount, clock.UtcNow, settlementReference);
+        var returnAmount = iou.Amount - settledAmount;
+        if (returnAmount > 0m)
+        {
+            var transaction = fund.RecordIouSettlement(returnAmount, clock.UtcNow, iou.Id, iou.Number, settlementReference);
+            dbContext.DbContext.Add(transaction);
+        }
+
         await dbContext.SaveChangesAsync(cancellationToken);
     }
 

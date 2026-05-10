@@ -171,6 +171,11 @@ public sealed class SalesService(
             var job = await dbContext.ServiceJobs.AsNoTracking().FirstOrDefaultAsync(x => x.Id == serviceJobId.Value, cancellationToken)
                       ?? throw new NotFoundException("Service job not found.");
 
+            if (job.Status == ISS.Domain.Service.ServiceJobStatus.Closed)
+            {
+                throw new DomainValidationException("Closed service jobs cannot receive new direct dispatches.");
+            }
+
             if (customerId is not null && job.CustomerId != customerId.Value)
             {
                 throw new DomainValidationException("Service job customer does not match selected customer.");

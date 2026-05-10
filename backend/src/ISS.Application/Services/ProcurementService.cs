@@ -26,6 +26,7 @@ public sealed class ProcurementService(
 
     public async Task<Guid> CreateRfqAsync(Guid supplierId, CancellationToken cancellationToken = default)
     {
+        await EnsureSupplierAllowedAsync(supplierId, cancellationToken);
         var number = await documentNumberService.NextAsync("RFQ", "RFQ", cancellationToken);
         var rfq = new RequestForQuote(number, supplierId, clock.UtcNow);
         await dbContext.RequestForQuotes.AddAsync(rfq, cancellationToken);
@@ -189,11 +190,7 @@ public sealed class ProcurementService(
             throw new DomainValidationException("Purchase requisition must have at least one line.");
         }
 
-        var supplierExists = await dbContext.Suppliers.AsNoTracking().AnyAsync(x => x.Id == supplierId, cancellationToken);
-        if (!supplierExists)
-        {
-            throw new NotFoundException("Supplier not found.");
-        }
+        await EnsureSupplierAllowedAsync(supplierId, cancellationToken);
 
         var lineItemIds = pr.Lines.Select(x => x.ItemId).Distinct().ToList();
         var itemCosts = await dbContext.Items.AsNoTracking()
@@ -224,6 +221,7 @@ public sealed class ProcurementService(
 
     public async Task<Guid> CreatePurchaseOrderAsync(Guid supplierId, CancellationToken cancellationToken = default)
     {
+        await EnsureSupplierAllowedAsync(supplierId, cancellationToken);
         var number = await documentNumberService.NextAsync("PO", "PO", cancellationToken);
         var po = new PurchaseOrder(number, supplierId, clock.UtcNow);
         await dbContext.PurchaseOrders.AddAsync(po, cancellationToken);
@@ -335,13 +333,22 @@ public sealed class ProcurementService(
         Guid? serviceJobId = null,
         CancellationToken cancellationToken = default)
     {
+        await EnsureSupplierAllowedAsync(supplierId, cancellationToken);
+
         if (serviceJobId is not null)
         {
-            var jobExists = await dbContext.ServiceJobs.AsNoTracking()
-                .AnyAsync(x => x.Id == serviceJobId.Value, cancellationToken);
-            if (!jobExists)
+            var jobStatus = await dbContext.ServiceJobs.AsNoTracking()
+                .Where(x => x.Id == serviceJobId.Value)
+                .Select(x => (ISS.Domain.Service.ServiceJobStatus?)x.Status)
+                .FirstOrDefaultAsync(cancellationToken);
+            if (jobStatus is null)
             {
                 throw new NotFoundException("Service job not found.");
+            }
+
+            if (jobStatus == ISS.Domain.Service.ServiceJobStatus.Closed)
+            {
+                throw new DomainValidationException("Closed service jobs cannot receive new direct purchases.");
             }
         }
 
@@ -365,6 +372,8 @@ public sealed class ProcurementService(
         var dp = await dbContext.DirectPurchases.Include(x => x.Lines).ThenInclude(x => x.Serials)
                      .FirstOrDefaultAsync(x => x.Id == directPurchaseId, cancellationToken)
                  ?? throw new NotFoundException("Direct purchase not found.");
+
+        await EnsureServiceJobLinkedDocumentEditableAsync(dp.ServiceJobId, cancellationToken);
 
         var expenseAccountId = await documentAccountMappingService.ResolveExpenseAccountIdAsync(itemId, cancellationToken);
         var line = dp.AddLine(itemId, quantity, unitPrice, taxPercent, batchNumber, expenseAccountId);
@@ -394,6 +403,8 @@ public sealed class ProcurementService(
                      .FirstOrDefaultAsync(x => x.Id == directPurchaseId, cancellationToken)
                  ?? throw new NotFoundException("Direct purchase not found.");
 
+        await EnsureServiceJobLinkedDocumentEditableAsync(dp.ServiceJobId, cancellationToken);
+
         if (!dp.Lines.Any(x => x.Id == lineId))
         {
             throw new NotFoundException("Direct purchase line not found.");
@@ -411,6 +422,8 @@ public sealed class ProcurementService(
                      .FirstOrDefaultAsync(x => x.Id == directPurchaseId, cancellationToken)
                  ?? throw new NotFoundException("Direct purchase not found.");
 
+        await EnsureServiceJobLinkedDocumentEditableAsync(dp.ServiceJobId, cancellationToken);
+
         var line = dp.Lines.FirstOrDefault(x => x.Id == lineId)
             ?? throw new NotFoundException("Direct purchase line not found.");
 
@@ -424,6 +437,8 @@ public sealed class ProcurementService(
         var dp = await dbContext.DirectPurchases.Include(x => x.Lines).ThenInclude(x => x.Serials)
                      .FirstOrDefaultAsync(x => x.Id == directPurchaseId, cancellationToken)
                  ?? throw new NotFoundException("Direct purchase not found.");
+
+        await EnsureServiceJobLinkedDocumentEditableAsync(dp.ServiceJobId, cancellationToken);
 
         var itemIds = dp.Lines.Select(l => l.ItemId).Distinct().ToList();
         var items = await dbContext.Items.Where(i => itemIds.Contains(i.Id)).ToListAsync(cancellationToken);
@@ -1013,6 +1028,7 @@ public sealed class ProcurementService(
 
     public async Task<Guid> CreateSupplierReturnAsync(Guid supplierId, Guid warehouseId, string? reason, CancellationToken cancellationToken = default)
     {
+        await EnsureSupplierAllowedAsync(supplierId, cancellationToken);
         var number = await documentNumberService.NextAsync("SR", "SR", cancellationToken);
         var sr = new SupplierReturn(number, supplierId, warehouseId, clock.UtcNow, reason);
         await dbContext.SupplierReturns.AddAsync(sr, cancellationToken);
@@ -1164,11 +1180,7 @@ public sealed class ProcurementService(
             throw new DomainValidationException("Supplier invoice cannot combine direct purchase and PO/GRN references.");
         }
 
-        var supplierExists = await dbContext.Suppliers.AsNoTracking().AnyAsync(x => x.Id == supplierId, cancellationToken);
-        if (!supplierExists)
-        {
-            throw new NotFoundException("Supplier not found.");
-        }
+        await EnsureSupplierAllowedAsync(supplierId, cancellationToken);
 
         PurchaseOrder? po = null;
 
@@ -1226,6 +1238,47 @@ public sealed class ProcurementService(
             {
                 throw new DomainValidationException("Linked direct purchase must be posted before posting supplier invoice.");
             }
+
+            await EnsureServiceJobLinkedDocumentEditableAsync(dp.ServiceJobId, cancellationToken);
+        }
+    }
+
+    private async Task EnsureSupplierAllowedAsync(Guid supplierId, CancellationToken cancellationToken)
+    {
+        var supplier = await dbContext.Suppliers.AsNoTracking()
+            .Where(x => x.Id == supplierId)
+            .Select(x => new
+            {
+                x.IsActive,
+                x.IsAuthorized,
+                CompanyEnforcesAuthorizedSuppliers = x.Company != null && x.Company.EnforceAuthorizedSuppliersOnly
+            })
+            .FirstOrDefaultAsync(cancellationToken)
+            ?? throw new NotFoundException("Supplier not found.");
+
+        if (!supplier.IsActive)
+        {
+            throw new DomainValidationException("Selected supplier is inactive.");
+        }
+
+        if (supplier.CompanyEnforcesAuthorizedSuppliers && !supplier.IsAuthorized)
+        {
+            throw new DomainValidationException("Selected supplier is not authorized for this company.");
+        }
+    }
+
+    private async Task EnsureServiceJobLinkedDocumentEditableAsync(Guid? serviceJobId, CancellationToken cancellationToken)
+    {
+        if (serviceJobId is null)
+        {
+            return;
+        }
+
+        var isClosed = await dbContext.ServiceJobs.AsNoTracking()
+            .AnyAsync(x => x.Id == serviceJobId.Value && x.Status == ISS.Domain.Service.ServiceJobStatus.Closed, cancellationToken);
+        if (isClosed)
+        {
+            throw new DomainValidationException("Closed service jobs cannot receive new or changed purchase costs.");
         }
     }
 }

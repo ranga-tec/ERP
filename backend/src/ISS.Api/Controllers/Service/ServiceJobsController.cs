@@ -28,6 +28,8 @@ public sealed class ServiceJobsController(
         ServiceJobKind Kind,
         ServiceJobStatus Status,
         DateTimeOffset? CompletedAt,
+        DateTimeOffset? ExpectedCompletionAt,
+        string? SiteLocation,
         Guid? ServiceContractId,
         string? ServiceContractNumber,
         ServiceEntitlementSource EntitlementSource,
@@ -35,8 +37,8 @@ public sealed class ServiceJobsController(
         CustomerBillingTreatment CustomerBillingTreatment,
         DateTimeOffset? EntitlementEvaluatedAt,
         string? EntitlementSummary);
-    public sealed record CreateServiceJobRequest(Guid EquipmentUnitId, Guid CustomerId, string ProblemDescription, ServiceJobKind? Kind);
-    public sealed record UpdateServiceJobRequest(Guid EquipmentUnitId, Guid CustomerId, string ProblemDescription, ServiceJobKind Kind);
+    public sealed record CreateServiceJobRequest(Guid EquipmentUnitId, Guid CustomerId, string ProblemDescription, ServiceJobKind? Kind, DateTimeOffset? ExpectedCompletionAt, string? SiteLocation);
+    public sealed record UpdateServiceJobRequest(Guid EquipmentUnitId, Guid CustomerId, string ProblemDescription, ServiceJobKind Kind, DateTimeOffset? ExpectedCompletionAt, string? SiteLocation);
 
     [HttpGet]
     public async Task<ActionResult<IReadOnlyList<ServiceJobDto>>> List([FromQuery] int skip = 0, [FromQuery] int take = 100, CancellationToken cancellationToken = default)
@@ -58,6 +60,8 @@ public sealed class ServiceJobsController(
                 x.Kind,
                 x.Status,
                 x.CompletedAt,
+                x.ExpectedCompletionAt,
+                x.SiteLocation,
                 x.ServiceContractId,
                 dbContext.ServiceContracts
                     .Where(contract => contract.Id == x.ServiceContractId)
@@ -82,6 +86,8 @@ public sealed class ServiceJobsController(
             request.CustomerId,
             request.ProblemDescription,
             request.Kind ?? ServiceJobKind.Service,
+            request.ExpectedCompletionAt,
+            request.SiteLocation,
             cancellationToken);
         return await Get(id, cancellationToken);
     }
@@ -96,6 +102,8 @@ public sealed class ServiceJobsController(
             request.CustomerId,
             request.ProblemDescription,
             request.Kind,
+            request.ExpectedCompletionAt,
+            request.SiteLocation,
             cancellationToken);
         return await Get(id, cancellationToken);
     }
@@ -115,6 +123,8 @@ public sealed class ServiceJobsController(
                 x.Kind,
                 x.Status,
                 x.CompletedAt,
+                x.ExpectedCompletionAt,
+                x.SiteLocation,
                 x.ServiceContractId,
                 dbContext.ServiceContracts
                     .Where(contract => contract.Id == x.ServiceContractId)

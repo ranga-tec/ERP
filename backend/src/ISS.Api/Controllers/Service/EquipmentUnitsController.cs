@@ -21,6 +21,9 @@ public sealed class EquipmentUnitsController(IIssDbContext dbContext, ServiceMan
         DateTimeOffset? PurchasedAt,
         DateTimeOffset? WarrantyUntil,
         ServiceCoverageScope WarrantyCoverage,
+        int? ServiceIntervalDays,
+        DateTimeOffset? NextServiceDueAt,
+        DateTimeOffset? NextRepairDueAt,
         bool HasActiveWarranty);
 
     public sealed record CreateEquipmentUnitRequest(
@@ -29,13 +32,19 @@ public sealed class EquipmentUnitsController(IIssDbContext dbContext, ServiceMan
         Guid CustomerId,
         DateTimeOffset? PurchasedAt,
         DateTimeOffset? WarrantyUntil,
-        ServiceCoverageScope? WarrantyCoverage);
+        ServiceCoverageScope? WarrantyCoverage,
+        int? ServiceIntervalDays,
+        DateTimeOffset? NextServiceDueAt,
+        DateTimeOffset? NextRepairDueAt);
 
     public sealed record UpdateEquipmentUnitRequest(
         Guid CustomerId,
         DateTimeOffset? PurchasedAt,
         DateTimeOffset? WarrantyUntil,
-        ServiceCoverageScope? WarrantyCoverage);
+        ServiceCoverageScope? WarrantyCoverage,
+        int? ServiceIntervalDays,
+        DateTimeOffset? NextServiceDueAt,
+        DateTimeOffset? NextRepairDueAt);
 
     [HttpGet]
     public async Task<ActionResult<IReadOnlyList<EquipmentUnitDto>>> List([FromQuery] int skip = 0, [FromQuery] int take = 100, CancellationToken cancellationToken = default)
@@ -55,6 +64,9 @@ public sealed class EquipmentUnitsController(IIssDbContext dbContext, ServiceMan
                 x.PurchasedAt,
                 x.WarrantyUntil,
                 x.WarrantyCoverage,
+                x.ServiceIntervalDays,
+                x.NextServiceDueAt,
+                x.NextRepairDueAt,
                 x.WarrantyUntil != null && x.WarrantyCoverage != ServiceCoverageScope.None && x.WarrantyUntil >= DateTimeOffset.UtcNow))
             .ToListAsync(cancellationToken);
 
@@ -71,6 +83,9 @@ public sealed class EquipmentUnitsController(IIssDbContext dbContext, ServiceMan
             request.PurchasedAt,
             request.WarrantyUntil,
             request.WarrantyUntil is null ? ServiceCoverageScope.None : request.WarrantyCoverage ?? ServiceCoverageScope.LaborAndParts,
+            request.ServiceIntervalDays,
+            request.NextServiceDueAt,
+            request.NextRepairDueAt,
             cancellationToken);
         return await Get(id, cancellationToken);
     }
@@ -88,6 +103,9 @@ public sealed class EquipmentUnitsController(IIssDbContext dbContext, ServiceMan
                 x.PurchasedAt,
                 x.WarrantyUntil,
                 x.WarrantyCoverage,
+                x.ServiceIntervalDays,
+                x.NextServiceDueAt,
+                x.NextRepairDueAt,
                 x.WarrantyUntil != null && x.WarrantyCoverage != ServiceCoverageScope.None && x.WarrantyUntil >= DateTimeOffset.UtcNow))
             .FirstOrDefaultAsync(cancellationToken);
 
@@ -103,6 +121,9 @@ public sealed class EquipmentUnitsController(IIssDbContext dbContext, ServiceMan
             request.PurchasedAt,
             request.WarrantyUntil,
             request.WarrantyUntil is null ? ServiceCoverageScope.None : request.WarrantyCoverage ?? ServiceCoverageScope.LaborAndParts,
+            request.ServiceIntervalDays,
+            request.NextServiceDueAt,
+            request.NextRepairDueAt,
             cancellationToken);
         return await Get(id, cancellationToken);
     }

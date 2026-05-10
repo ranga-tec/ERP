@@ -12,16 +12,16 @@ namespace ISS.Api.Controllers;
 [Authorize(Roles = Roles.AllBusiness)]
 public sealed class CompaniesController(IIssDbContext dbContext) : ControllerBase
 {
-    public sealed record CompanyDto(Guid Id, string Code, string Name, bool IsActive);
+    public sealed record CompanyDto(Guid Id, string Code, string Name, bool IsActive, bool EnforceAuthorizedSuppliersOnly);
     public sealed record CreateCompanyRequest(string Code, string Name);
-    public sealed record UpdateCompanyRequest(string Code, string Name, bool IsActive);
+    public sealed record UpdateCompanyRequest(string Code, string Name, bool IsActive, bool EnforceAuthorizedSuppliersOnly);
 
     [HttpGet]
     public async Task<ActionResult<IReadOnlyList<CompanyDto>>> List(CancellationToken cancellationToken)
     {
         var companies = await dbContext.Companies.AsNoTracking()
             .OrderBy(x => x.Code)
-            .Select(x => new CompanyDto(x.Id, x.Code, x.Name, x.IsActive))
+            .Select(x => new CompanyDto(x.Id, x.Code, x.Name, x.IsActive, x.EnforceAuthorizedSuppliersOnly))
             .ToListAsync(cancellationToken);
 
         return Ok(companies);
@@ -32,7 +32,7 @@ public sealed class CompaniesController(IIssDbContext dbContext) : ControllerBas
     {
         var company = await dbContext.Companies.AsNoTracking()
             .Where(x => x.Id == id)
-            .Select(x => new CompanyDto(x.Id, x.Code, x.Name, x.IsActive))
+            .Select(x => new CompanyDto(x.Id, x.Code, x.Name, x.IsActive, x.EnforceAuthorizedSuppliersOnly))
             .FirstOrDefaultAsync(cancellationToken);
 
         return company is null ? NotFound() : Ok(company);
@@ -49,7 +49,7 @@ public sealed class CompaniesController(IIssDbContext dbContext) : ControllerBas
         return CreatedAtAction(
             nameof(Get),
             new { id = company.Id },
-            new CompanyDto(company.Id, company.Code, company.Name, company.IsActive));
+            new CompanyDto(company.Id, company.Code, company.Name, company.IsActive, company.EnforceAuthorizedSuppliersOnly));
     }
 
     [HttpPut("{id:guid}")]
@@ -62,9 +62,9 @@ public sealed class CompaniesController(IIssDbContext dbContext) : ControllerBas
             return NotFound();
         }
 
-        company.Update(request.Code, request.Name, request.IsActive);
+        company.Update(request.Code, request.Name, request.IsActive, request.EnforceAuthorizedSuppliersOnly);
         await dbContext.SaveChangesAsync(cancellationToken);
 
-        return Ok(new CompanyDto(company.Id, company.Code, company.Name, company.IsActive));
+        return Ok(new CompanyDto(company.Id, company.Code, company.Name, company.IsActive, company.EnforceAuthorizedSuppliersOnly));
     }
 }

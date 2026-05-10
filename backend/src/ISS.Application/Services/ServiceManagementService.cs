@@ -4,6 +4,7 @@ using ISS.Application.Persistence;
 using ISS.Domain.Common;
 using ISS.Domain.Finance;
 using ISS.Domain.MasterData;
+using ISS.Domain.Procurement;
 using ISS.Domain.Sales;
 using ISS.Domain.Service;
 using Microsoft.EntityFrameworkCore;
@@ -32,9 +33,12 @@ public sealed class ServiceManagementService(
         DateTimeOffset? purchasedAt,
         DateTimeOffset? warrantyUntil,
         ServiceCoverageScope warrantyCoverage,
+        int? serviceIntervalDays = null,
+        DateTimeOffset? nextServiceDueAt = null,
+        DateTimeOffset? nextRepairDueAt = null,
         CancellationToken cancellationToken = default)
     {
-        var unit = new EquipmentUnit(itemId, serialNumber, customerId, purchasedAt, warrantyUntil, warrantyCoverage);
+        var unit = new EquipmentUnit(itemId, serialNumber, customerId, purchasedAt, warrantyUntil, warrantyCoverage, serviceIntervalDays, nextServiceDueAt, nextRepairDueAt);
         await dbContext.EquipmentUnits.AddAsync(unit, cancellationToken);
         await dbContext.SaveChangesAsync(cancellationToken);
         return unit.Id;
@@ -46,13 +50,16 @@ public sealed class ServiceManagementService(
         DateTimeOffset? purchasedAt,
         DateTimeOffset? warrantyUntil,
         ServiceCoverageScope warrantyCoverage,
+        int? serviceIntervalDays = null,
+        DateTimeOffset? nextServiceDueAt = null,
+        DateTimeOffset? nextRepairDueAt = null,
         CancellationToken cancellationToken = default)
     {
         var unit = await dbContext.EquipmentUnits
             .FirstOrDefaultAsync(x => x.Id == equipmentUnitId, cancellationToken)
             ?? throw new NotFoundException("Equipment unit not found.");
 
-        unit.Update(customerId, purchasedAt, warrantyUntil, warrantyCoverage);
+        unit.Update(customerId, purchasedAt, warrantyUntil, warrantyCoverage, serviceIntervalDays, nextServiceDueAt, nextRepairDueAt);
         await dbContext.SaveChangesAsync(cancellationToken);
     }
 
@@ -116,6 +123,8 @@ public sealed class ServiceManagementService(
         Guid customerId,
         string problemDescription,
         ServiceJobKind kind = ServiceJobKind.Service,
+        DateTimeOffset? expectedCompletionAt = null,
+        string? siteLocation = null,
         CancellationToken cancellationToken = default)
     {
         var entitlement = await EvaluateServiceEntitlementAsync(equipmentUnitId, customerId, clock.UtcNow, cancellationToken);
@@ -132,7 +141,9 @@ public sealed class ServiceManagementService(
             entitlement.EntitlementCoverage,
             entitlement.CustomerBillingTreatment,
             clock.UtcNow,
-            entitlement.EntitlementSummary);
+            entitlement.EntitlementSummary,
+            expectedCompletionAt,
+            siteLocation);
         await dbContext.ServiceJobs.AddAsync(job, cancellationToken);
         await dbContext.SaveChangesAsync(cancellationToken);
         return job.Id;
@@ -161,13 +172,15 @@ public sealed class ServiceManagementService(
         Guid customerId,
         string problemDescription,
         ServiceJobKind kind,
+        DateTimeOffset? expectedCompletionAt = null,
+        string? siteLocation = null,
         CancellationToken cancellationToken = default)
     {
         var job = await dbContext.ServiceJobs
             .FirstOrDefaultAsync(x => x.Id == serviceJobId, cancellationToken)
             ?? throw new NotFoundException("Service job not found.");
 
-        job.Update(equipmentUnitId, customerId, problemDescription, kind);
+        job.Update(equipmentUnitId, customerId, problemDescription, kind, expectedCompletionAt, siteLocation);
 
         var entitlement = await EvaluateServiceEntitlementAsync(equipmentUnitId, customerId, clock.UtcNow, cancellationToken);
         job.ApplyEntitlement(
@@ -204,6 +217,7 @@ public sealed class ServiceManagementService(
         var job = await dbContext.ServiceJobs.FirstOrDefaultAsync(x => x.Id == serviceJobId, cancellationToken)
                   ?? throw new NotFoundException("Service job not found.");
 
+        await EnsureServiceJobReadyToCloseAsync(serviceJobId, cancellationToken);
         job.Close();
         await dbContext.SaveChangesAsync(cancellationToken);
     }
@@ -251,11 +265,7 @@ public sealed class ServiceManagementService(
         string? notes,
         CancellationToken cancellationToken = default)
     {
-        var jobExists = await dbContext.ServiceJobs.AsNoTracking().AnyAsync(x => x.Id == serviceJobId, cancellationToken);
-        if (!jobExists)
-        {
-            throw new NotFoundException("Service job not found.");
-        }
+        await EnsureServiceJobAcceptsNewCostsAsync(serviceJobId, cancellationToken);
 
         var number = await documentNumberService.NextAsync(ReferenceTypes.ServiceExpenseClaim, "SEC", cancellationToken);
         var claim = new ServiceExpenseClaim(
@@ -465,6 +475,8 @@ public sealed class ServiceManagementService(
             .FirstOrDefaultAsync(x => x.Id == serviceExpenseClaimId, cancellationToken)
             ?? throw new NotFoundException("Service expense claim not found.");
 
+        await EnsureServiceJobAcceptsNewCostsAsync(claim.ServiceJobId, cancellationToken);
+
         if (itemId is { } itemRef)
         {
             var itemExists = await dbContext.Items.AsNoTracking().AnyAsync(x => x.Id == itemRef, cancellationToken);
@@ -494,6 +506,8 @@ public sealed class ServiceManagementService(
             .FirstOrDefaultAsync(x => x.Id == serviceExpenseClaimId, cancellationToken)
             ?? throw new NotFoundException("Service expense claim not found.");
 
+        await EnsureServiceJobAcceptsNewCostsAsync(claim.ServiceJobId, cancellationToken);
+
         if (itemId is { } itemRef)
         {
             var itemExists = await dbContext.Items.AsNoTracking().AnyAsync(x => x.Id == itemRef, cancellationToken);
@@ -518,6 +532,8 @@ public sealed class ServiceManagementService(
         var claim = await dbContext.ServiceExpenseClaims.Include(x => x.Lines)
             .FirstOrDefaultAsync(x => x.Id == serviceExpenseClaimId, cancellationToken)
             ?? throw new NotFoundException("Service expense claim not found.");
+
+        await EnsureServiceJobAcceptsNewCostsAsync(claim.ServiceJobId, cancellationToken);
 
         var line = claim.Lines.FirstOrDefault(x => x.Id == lineId)
             ?? throw new NotFoundException("Service expense claim line not found.");
@@ -556,6 +572,7 @@ public sealed class ServiceManagementService(
         CancellationToken cancellationToken = default)
     {
         var claim = await dbContext.ServiceExpenseClaims
+            .Include(x => x.Lines)
             .FirstOrDefaultAsync(x => x.Id == serviceExpenseClaimId, cancellationToken)
             ?? throw new NotFoundException("Service expense claim not found.");
 
@@ -571,6 +588,7 @@ public sealed class ServiceManagementService(
         CancellationToken cancellationToken = default)
     {
         var claim = await dbContext.ServiceExpenseClaims
+            .Include(x => x.Lines)
             .FirstOrDefaultAsync(x => x.Id == serviceExpenseClaimId, cancellationToken)
             ?? throw new NotFoundException("Service expense claim not found.");
 
@@ -1043,11 +1061,7 @@ public sealed class ServiceManagementService(
 
     public async Task<Guid> CreateWorkOrderAsync(Guid serviceJobId, string description, Guid? assignedToUserId, CancellationToken cancellationToken = default)
     {
-        var jobExists = await dbContext.ServiceJobs.AsNoTracking().AnyAsync(x => x.Id == serviceJobId, cancellationToken);
-        if (!jobExists)
-        {
-            throw new NotFoundException("Service job not found.");
-        }
+        await EnsureServiceJobAcceptsNewCostsAsync(serviceJobId, cancellationToken);
 
         var workOrder = new WorkOrder(serviceJobId, description, assignedToUserId);
         await dbContext.WorkOrders.AddAsync(workOrder, cancellationToken);
@@ -1074,6 +1088,8 @@ public sealed class ServiceManagementService(
             .Include(x => x.TimeEntries)
             .FirstOrDefaultAsync(x => x.Id == workOrderId, cancellationToken)
             ?? throw new NotFoundException("Work order not found.");
+
+        await EnsureServiceJobAcceptsNewCostsAsync(workOrder.ServiceJobId, cancellationToken);
 
         var entry = workOrder.AddTimeEntry(
             technicianUserId,
@@ -1112,6 +1128,8 @@ public sealed class ServiceManagementService(
             .Include(x => x.TimeEntries)
             .FirstOrDefaultAsync(x => x.Id == workOrderId, cancellationToken)
             ?? throw new NotFoundException("Work order not found.");
+
+        await EnsureServiceJobAcceptsNewCostsAsync(workOrder.ServiceJobId, cancellationToken);
 
         if (!workOrder.TimeEntries.Any(x => x.Id == timeEntryId))
         {
@@ -1184,10 +1202,11 @@ public sealed class ServiceManagementService(
         await dbContext.SaveChangesAsync(cancellationToken);
     }
 
-    public async Task<Guid> CreateMaterialRequisitionAsync(Guid serviceJobId, Guid warehouseId, CancellationToken cancellationToken = default)
+    public async Task<Guid> CreateMaterialRequisitionAsync(Guid serviceJobId, Guid warehouseId, string? purpose = null, CancellationToken cancellationToken = default)
     {
+        await EnsureServiceJobAcceptsNewCostsAsync(serviceJobId, cancellationToken);
         var number = await documentNumberService.NextAsync("MR", "MR", cancellationToken);
-        var mr = new MaterialRequisition(number, serviceJobId, warehouseId, clock.UtcNow);
+        var mr = new MaterialRequisition(number, serviceJobId, warehouseId, clock.UtcNow, purpose);
         await dbContext.MaterialRequisitions.AddAsync(mr, cancellationToken);
         await dbContext.SaveChangesAsync(cancellationToken);
         return mr.Id;
@@ -1204,6 +1223,8 @@ public sealed class ServiceManagementService(
         var mr = await dbContext.MaterialRequisitions.Include(x => x.Lines).ThenInclude(l => l.Serials)
                      .FirstOrDefaultAsync(x => x.Id == materialRequisitionId, cancellationToken)
                  ?? throw new NotFoundException("Material requisition not found.");
+
+        await EnsureServiceJobAcceptsNewCostsAsync(mr.ServiceJobId, cancellationToken);
 
         var line = mr.AddLine(itemId, quantity, batchNumber);
         if (serialNumbers is { Count: > 0 })
@@ -1230,6 +1251,8 @@ public sealed class ServiceManagementService(
                      .FirstOrDefaultAsync(x => x.Id == materialRequisitionId, cancellationToken)
                  ?? throw new NotFoundException("Material requisition not found.");
 
+        await EnsureServiceJobAcceptsNewCostsAsync(mr.ServiceJobId, cancellationToken);
+
         if (!mr.Lines.Any(x => x.Id == lineId))
         {
             throw new NotFoundException("Material requisition line not found.");
@@ -1245,6 +1268,8 @@ public sealed class ServiceManagementService(
                      .FirstOrDefaultAsync(x => x.Id == materialRequisitionId, cancellationToken)
                  ?? throw new NotFoundException("Material requisition not found.");
 
+        await EnsureServiceJobAcceptsNewCostsAsync(mr.ServiceJobId, cancellationToken);
+
         var line = mr.Lines.FirstOrDefault(x => x.Id == lineId)
             ?? throw new NotFoundException("Material requisition line not found.");
 
@@ -1258,6 +1283,8 @@ public sealed class ServiceManagementService(
         var mr = await dbContext.MaterialRequisitions.Include(x => x.Lines).ThenInclude(l => l.Serials)
                      .FirstOrDefaultAsync(x => x.Id == materialRequisitionId, cancellationToken)
                  ?? throw new NotFoundException("Material requisition not found.");
+
+        await EnsureServiceJobAcceptsNewCostsAsync(mr.ServiceJobId, cancellationToken);
 
         var itemIds = mr.Lines.Select(l => l.ItemId).Distinct().ToList();
         var items = await dbContext.Items.Where(i => itemIds.Contains(i.Id)).ToListAsync(cancellationToken);
@@ -1348,6 +1375,54 @@ public sealed class ServiceManagementService(
             ?? throw new NotFoundException("Service job not found.");
 
         return ServiceEntitlementRules.ApplyEstimateUnitPrice(job.EntitlementCoverage, kind, unitPrice);
+    }
+
+    private async Task EnsureServiceJobAcceptsNewCostsAsync(Guid serviceJobId, CancellationToken cancellationToken)
+    {
+        var status = await dbContext.ServiceJobs.AsNoTracking()
+            .Where(x => x.Id == serviceJobId)
+            .Select(x => (ServiceJobStatus?)x.Status)
+            .FirstOrDefaultAsync(cancellationToken)
+            ?? throw new NotFoundException("Service job not found.");
+
+        if (status == ServiceJobStatus.Closed)
+        {
+            throw new DomainValidationException("Closed service jobs cannot receive new expenses, bills, material issues, or labor entries.");
+        }
+    }
+
+    private async Task EnsureServiceJobReadyToCloseAsync(Guid serviceJobId, CancellationToken cancellationToken)
+    {
+        var openExpenseClaims = await dbContext.ServiceExpenseClaims.AsNoTracking()
+            .AnyAsync(x => x.ServiceJobId == serviceJobId
+                           && x.Status != ServiceExpenseClaimStatus.Settled
+                           && x.Status != ServiceExpenseClaimStatus.Rejected,
+                cancellationToken);
+        if (openExpenseClaims)
+        {
+            throw new DomainValidationException("Service job cannot close until all expense claims are settled or rejected.");
+        }
+
+        var openIous = await dbContext.PettyCashIous.AsNoTracking()
+            .AnyAsync(x => x.ServiceJobId == serviceJobId
+                           && x.Status != PettyCashIouStatus.Settled
+                           && x.Status != PettyCashIouStatus.Rejected
+                           && x.Status != PettyCashIouStatus.Cancelled,
+                cancellationToken);
+        if (openIous)
+        {
+            throw new DomainValidationException("Service job cannot close until all petty-cash IOUs are settled, rejected, or cancelled.");
+        }
+
+        var openDirectPurchaseBills = await dbContext.DirectPurchases.AsNoTracking()
+            .Where(x => x.ServiceJobId == serviceJobId && x.Status == DirectPurchaseStatus.Posted)
+            .AnyAsync(x => !dbContext.SupplierInvoices.Any(invoice =>
+                    invoice.DirectPurchaseId == x.Id && invoice.Status == SupplierInvoiceStatus.Posted),
+                cancellationToken);
+        if (openDirectPurchaseBills)
+        {
+            throw new DomainValidationException("Service job cannot close until all posted job-linked direct purchases have posted supplier invoices.");
+        }
     }
 
     public async Task<Guid> AddQualityCheckAsync(Guid serviceJobId, bool passed, string? notes, CancellationToken cancellationToken = default)

@@ -344,6 +344,7 @@ public sealed class ImportController(IIssDbContext dbContext) : ControllerBase
         if (ws is null) return;
 
         var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var legacyItemsWithoutAccountColumns = GetString(ws.Row(1), 9).Equals("IsActive", StringComparison.OrdinalIgnoreCase);
 
         foreach (var row in DataRows(ws))
         {
@@ -359,9 +360,9 @@ public sealed class ImportController(IIssDbContext dbContext) : ControllerBase
             var brandCode = GetNullableString(row, 6 + offset);
             var barcode = GetNullableString(row, 7 + offset);
             var unitCost = GetDecimal(row, 8 + offset, defaultValue: 0m);
-            var revenueAccountCode = GetNullableString(row, 9 + offset);
-            var expenseAccountCode = GetNullableString(row, 10 + offset);
-            var isActive = GetBool(row, 11 + offset, defaultValue: true);
+            var revenueAccountCode = legacyItemsWithoutAccountColumns ? null : GetNullableString(row, 9 + offset);
+            var expenseAccountCode = legacyItemsWithoutAccountColumns ? null : GetNullableString(row, 10 + offset);
+            var isActive = GetBool(row, legacyItemsWithoutAccountColumns ? 9 + offset : 11 + offset, defaultValue: true);
 
             if (IsBlankRow(sku, name, typeRaw, trackingRaw, uom, brandCode, barcode))
             {

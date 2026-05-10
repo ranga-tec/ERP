@@ -14,6 +14,8 @@ type ServiceJobDto = {
   kind: number;
   status: number;
   completedAt?: string | null;
+  expectedCompletionAt?: string | null;
+  siteLocation?: string | null;
   serviceContractId?: string | null;
   serviceContractNumber?: string | null;
   entitlementSource: number;
@@ -37,6 +39,9 @@ const statusLabel: Record<number, string> = {
 const kindLabel: Record<number, string> = {
   0: "Service",
   1: "Repair",
+  2: "PDI",
+  3: "Warranty",
+  4: "Inspection",
 };
 
 const entitlementSourceLabel: Record<number, string> = {

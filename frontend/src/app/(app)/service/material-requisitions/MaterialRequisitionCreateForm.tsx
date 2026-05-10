@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { apiPost } from "@/lib/api-client";
-import { Button, Select } from "@/components/ui";
+import { Button, Input, Select } from "@/components/ui";
 
 type ServiceJobRef = { id: string; number: string };
 type WarehouseRef = { id: string; code: string; name: string };
@@ -28,6 +28,7 @@ export function MaterialRequisitionCreateForm({
 
   const [serviceJobId, setServiceJobId] = useState("");
   const [warehouseId, setWarehouseId] = useState("");
+  const [purpose, setPurpose] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -36,7 +37,11 @@ export function MaterialRequisitionCreateForm({
     setError(null);
     setBusy(true);
     try {
-      const mr = await apiPost<MaterialRequisitionDto>("service/material-requisitions", { serviceJobId, warehouseId });
+      const mr = await apiPost<MaterialRequisitionDto>("service/material-requisitions", {
+        serviceJobId,
+        warehouseId,
+        purpose: purpose.trim() || null,
+      });
       router.push(`/service/material-requisitions/${mr.id}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
@@ -76,6 +81,11 @@ export function MaterialRequisitionCreateForm({
         </div>
       </div>
 
+      <div>
+        <label className="mb-1 block text-sm font-medium">Need / purpose</label>
+        <Input value={purpose} onChange={(e) => setPurpose(e.target.value)} placeholder="Job, service, repair, warranty, PDI, or item need" />
+      </div>
+
       {error ? (
         <div className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-900 dark:border-red-900/40 dark:bg-red-950/40 dark:text-red-100">
           {error}
@@ -88,4 +98,3 @@ export function MaterialRequisitionCreateForm({
     </form>
   );
 }
-

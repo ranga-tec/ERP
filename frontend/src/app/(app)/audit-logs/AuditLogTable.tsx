@@ -68,11 +68,14 @@ const enumMaps: Record<string, Record<string, Record<string, string>>> = {
     Status: { "0": "Draft", "1": "Completed", "2": "Cancelled" },
   },
   ServiceJobs: {
-    Kind: { "0": "Service", "1": "Repair" },
+    Kind: { "0": "Service", "1": "Repair", "2": "PDI", "3": "Warranty", "4": "Inspection" },
     Status: { "0": "Open", "1": "In Progress", "2": "Completed", "3": "Closed", "4": "Cancelled" },
     EntitlementSource: { "0": "None", "1": "Manufacturer Warranty", "2": "Service Contract" },
     EntitlementCoverage: { "0": "None", "1": "Inspection Only", "2": "Labor Only", "3": "Parts Only", "4": "Labor and Parts" },
     CustomerBillingTreatment: { "0": "Billable", "1": "Partially Covered", "2": "Covered No Charge" },
+  },
+  PettyCashIous: {
+    Status: { "0": "Draft", "1": "Submitted", "2": "Approved", "3": "Released", "4": "Settled", "5": "Rejected", "6": "Cancelled" },
   },
   StockAdjustments: {
     Status: { "0": "Draft", "1": "Posted", "2": "Voided" },

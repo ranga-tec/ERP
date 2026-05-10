@@ -14,11 +14,11 @@ namespace ISS.Api.Controllers.Service;
 [Authorize(Roles = $"{Roles.Admin},{Roles.Service},{Roles.Inventory}")]
 public sealed class MaterialRequisitionsController(IIssDbContext dbContext, ServiceManagementService serviceManagementService, IDocumentPdfService pdfService) : ControllerBase
 {
-    public sealed record MaterialRequisitionSummaryDto(Guid Id, string Number, Guid ServiceJobId, Guid WarehouseId, DateTimeOffset RequestedAt, MaterialRequisitionStatus Status, int LineCount);
-    public sealed record MaterialRequisitionDto(Guid Id, string Number, Guid ServiceJobId, Guid WarehouseId, DateTimeOffset RequestedAt, MaterialRequisitionStatus Status, IReadOnlyList<MaterialRequisitionLineDto> Lines);
+    public sealed record MaterialRequisitionSummaryDto(Guid Id, string Number, Guid ServiceJobId, Guid WarehouseId, DateTimeOffset RequestedAt, string? Purpose, MaterialRequisitionStatus Status, int LineCount);
+    public sealed record MaterialRequisitionDto(Guid Id, string Number, Guid ServiceJobId, Guid WarehouseId, DateTimeOffset RequestedAt, string? Purpose, MaterialRequisitionStatus Status, IReadOnlyList<MaterialRequisitionLineDto> Lines);
     public sealed record MaterialRequisitionLineDto(Guid Id, Guid ItemId, decimal Quantity, string? BatchNumber, IReadOnlyList<string> Serials);
 
-    public sealed record CreateMaterialRequisitionRequest(Guid ServiceJobId, Guid WarehouseId);
+    public sealed record CreateMaterialRequisitionRequest(Guid ServiceJobId, Guid WarehouseId, string? Purpose);
     public sealed record AddMaterialRequisitionLineRequest(Guid ItemId, decimal Quantity, string? BatchNumber, IReadOnlyList<string>? Serials);
     public sealed record UpdateMaterialRequisitionLineRequest(decimal Quantity, string? BatchNumber, IReadOnlyList<string>? Serials);
 
@@ -32,7 +32,7 @@ public sealed class MaterialRequisitionsController(IIssDbContext dbContext, Serv
             .OrderByDescending(x => x.RequestedAt)
             .Skip(skip)
             .Take(take)
-            .Select(x => new MaterialRequisitionSummaryDto(x.Id, x.Number, x.ServiceJobId, x.WarehouseId, x.RequestedAt, x.Status, x.Lines.Count))
+            .Select(x => new MaterialRequisitionSummaryDto(x.Id, x.Number, x.ServiceJobId, x.WarehouseId, x.RequestedAt, x.Purpose, x.Status, x.Lines.Count))
             .ToListAsync(cancellationToken);
 
         return Ok(requisitions);
@@ -41,7 +41,7 @@ public sealed class MaterialRequisitionsController(IIssDbContext dbContext, Serv
     [HttpPost]
     public async Task<ActionResult<MaterialRequisitionDto>> Create(CreateMaterialRequisitionRequest request, CancellationToken cancellationToken)
     {
-        var id = await serviceManagementService.CreateMaterialRequisitionAsync(request.ServiceJobId, request.WarehouseId, cancellationToken);
+        var id = await serviceManagementService.CreateMaterialRequisitionAsync(request.ServiceJobId, request.WarehouseId, request.Purpose, cancellationToken);
         return await Get(id, cancellationToken);
     }
 
@@ -64,6 +64,7 @@ public sealed class MaterialRequisitionsController(IIssDbContext dbContext, Serv
             mr.ServiceJobId,
             mr.WarehouseId,
             mr.RequestedAt,
+            mr.Purpose,
             mr.Status,
             mr.Lines.Select(l => new MaterialRequisitionLineDto(l.Id, l.ItemId, l.Quantity, l.BatchNumber, l.Serials.Select(s => s.SerialNumber).ToList())).ToList()));
     }

@@ -29,6 +29,7 @@ const INVENTORY_CORE: AllowedRoles = ["Admin", "Inventory", "Reporting"];
 const routeAccessRules: RouteAccessRule[] = [
   { prefix: "/admin", roles: ADMIN_ONLY },
   { prefix: "/audit-logs", roles: ADMIN_ONLY },
+  { prefix: "/finance/petty-cash-ious", roles: ["Admin", "Finance", "Service"] },
   { prefix: "/finance", roles: FINANCE_ONLY },
   { prefix: "/inventory", roles: INVENTORY_CORE },
   { prefix: "/procurement", roles: PROCUREMENT_CORE },

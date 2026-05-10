@@ -79,6 +79,7 @@ public static class ReferenceDataSeeder
         new("TRF", "Stock Transfer", "Inventory", "/inventory/stock-transfers/{id}"),
         new("PAY", "Payment", "Finance", "/finance/payments/{id}"),
         new("PCF", "Petty Cash Fund", "Finance", "/finance/petty-cash/{id}"),
+        new("IOU", "Petty Cash IOU", "Finance", "/finance/petty-cash-ious"),
         new("CN", "Credit Note", "Finance", "/finance/credit-notes/{id}"),
         new("DBN", "Debit Note", "Finance", "/finance/debit-notes/{id}")
     ];

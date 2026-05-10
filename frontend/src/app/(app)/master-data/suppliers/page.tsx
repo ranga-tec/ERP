@@ -11,6 +11,7 @@ type SupplierDto = {
   email?: string | null;
   address?: string | null;
   isActive: boolean;
+  isAuthorized: boolean;
 };
 
 export default async function SuppliersPage() {
@@ -40,6 +41,7 @@ export default async function SuppliersPage() {
                 <th className="py-2 pr-3">Email</th>
                 <th className="py-2 pr-3">Address</th>
                 <th className="py-2 pr-3">Active</th>
+                <th className="py-2 pr-3">Authorized</th>
                 <th className="py-2 pr-3">Actions</th>
               </tr>
             </thead>
@@ -49,7 +51,7 @@ export default async function SuppliersPage() {
               ))}
               {suppliers.length === 0 ? (
                 <tr>
-                  <td className="py-6 text-sm text-zinc-500" colSpan={7}>
+                  <td className="py-6 text-sm text-zinc-500" colSpan={8}>
                     No suppliers yet.
                   </td>
                 </tr>

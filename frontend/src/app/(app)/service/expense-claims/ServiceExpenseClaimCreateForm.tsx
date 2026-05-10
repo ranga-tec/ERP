@@ -11,6 +11,9 @@ type ServiceExpenseClaimDto = { id: string; number: string };
 const kindLabel: Record<number, string> = {
   0: "Service",
   1: "Repair",
+  2: "PDI",
+  3: "Warranty",
+  4: "Inspection",
 };
 
 export function ServiceExpenseClaimCreateForm({

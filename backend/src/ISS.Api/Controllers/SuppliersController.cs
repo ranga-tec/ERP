@@ -13,9 +13,9 @@ namespace ISS.Api.Controllers;
 [Authorize(Roles = $"{Roles.Admin},{Roles.Procurement},{Roles.Finance}")]
 public sealed class SuppliersController(IIssDbContext dbContext, ICurrentUser currentUser) : ControllerBase
 {
-    public sealed record SupplierDto(Guid Id, Guid CompanyId, string? CompanyCode, string Code, string Name, string? Phone, string? Email, string? Address, bool IsActive);
-    public sealed record CreateSupplierRequest(Guid? CompanyId, string Code, string Name, string? Phone, string? Email, string? Address);
-    public sealed record UpdateSupplierRequest(Guid? CompanyId, string Code, string Name, string? Phone, string? Email, string? Address, bool IsActive);
+    public sealed record SupplierDto(Guid Id, Guid CompanyId, string? CompanyCode, string Code, string Name, string? Phone, string? Email, string? Address, bool IsActive, bool IsAuthorized);
+    public sealed record CreateSupplierRequest(Guid? CompanyId, string Code, string Name, string? Phone, string? Email, string? Address, bool? IsAuthorized);
+    public sealed record UpdateSupplierRequest(Guid? CompanyId, string Code, string Name, string? Phone, string? Email, string? Address, bool IsActive, bool IsAuthorized);
 
     [HttpGet]
     public async Task<ActionResult<IReadOnlyList<SupplierDto>>> List([FromQuery] Guid? companyId, CancellationToken cancellationToken)
@@ -25,7 +25,7 @@ public sealed class SuppliersController(IIssDbContext dbContext, ICurrentUser cu
 
         var suppliers = await query
             .OrderBy(x => x.Code)
-            .Select(x => new SupplierDto(x.Id, x.CompanyId, x.Company != null ? x.Company.Code : null, x.Code, x.Name, x.Phone, x.Email, x.Address, x.IsActive))
+            .Select(x => new SupplierDto(x.Id, x.CompanyId, x.Company != null ? x.Company.Code : null, x.Code, x.Name, x.Phone, x.Email, x.Address, x.IsActive, x.IsAuthorized))
             .ToListAsync(cancellationToken);
         return Ok(suppliers);
     }
@@ -35,7 +35,7 @@ public sealed class SuppliersController(IIssDbContext dbContext, ICurrentUser cu
     {
         var supplier = await dbContext.Suppliers.AsNoTracking()
             .Where(x => x.Id == id && x.CompanyId == ResolveCompanyId(null))
-            .Select(x => new SupplierDto(x.Id, x.CompanyId, x.Company != null ? x.Company.Code : null, x.Code, x.Name, x.Phone, x.Email, x.Address, x.IsActive))
+            .Select(x => new SupplierDto(x.Id, x.CompanyId, x.Company != null ? x.Company.Code : null, x.Code, x.Name, x.Phone, x.Email, x.Address, x.IsActive, x.IsAuthorized))
             .FirstOrDefaultAsync(cancellationToken);
         return supplier is null ? NotFound() : Ok(supplier);
     }
@@ -51,9 +51,10 @@ public sealed class SuppliersController(IIssDbContext dbContext, ICurrentUser cu
         }
 
         var supplier = new Supplier(companyId, request.Code, request.Name, request.Phone, request.Email, request.Address);
+        supplier.Update(companyId, request.Code, request.Name, request.Phone, request.Email, request.Address, isActive: true, request.IsAuthorized ?? true);
         await dbContext.Suppliers.AddAsync(supplier, cancellationToken);
         await dbContext.SaveChangesAsync(cancellationToken);
-        return CreatedAtAction(nameof(Get), new { id = supplier.Id }, new SupplierDto(supplier.Id, supplier.CompanyId, null, supplier.Code, supplier.Name, supplier.Phone, supplier.Email, supplier.Address, supplier.IsActive));
+        return CreatedAtAction(nameof(Get), new { id = supplier.Id }, new SupplierDto(supplier.Id, supplier.CompanyId, null, supplier.Code, supplier.Name, supplier.Phone, supplier.Email, supplier.Address, supplier.IsActive, supplier.IsAuthorized));
     }
 
     [HttpPut("{id:guid}")]
@@ -72,9 +73,9 @@ public sealed class SuppliersController(IIssDbContext dbContext, ICurrentUser cu
             return BadRequest("Selected company does not exist.");
         }
 
-        supplier.Update(companyId, request.Code, request.Name, request.Phone, request.Email, request.Address, request.IsActive);
+        supplier.Update(companyId, request.Code, request.Name, request.Phone, request.Email, request.Address, request.IsActive, request.IsAuthorized);
         await dbContext.SaveChangesAsync(cancellationToken);
-        return Ok(new SupplierDto(supplier.Id, supplier.CompanyId, null, supplier.Code, supplier.Name, supplier.Phone, supplier.Email, supplier.Address, supplier.IsActive));
+        return Ok(new SupplierDto(supplier.Id, supplier.CompanyId, null, supplier.Code, supplier.Name, supplier.Phone, supplier.Email, supplier.Address, supplier.IsActive, supplier.IsAuthorized));
     }
 
     [HttpDelete("{id:guid}")]

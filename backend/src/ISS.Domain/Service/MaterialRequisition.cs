@@ -13,12 +13,13 @@ public sealed class MaterialRequisition : AuditableEntity
 {
     private MaterialRequisition() { }
 
-    public MaterialRequisition(string number, Guid serviceJobId, Guid warehouseId, DateTimeOffset requestedAt)
+    public MaterialRequisition(string number, Guid serviceJobId, Guid warehouseId, DateTimeOffset requestedAt, string? purpose = null)
     {
         Number = Guard.NotNullOrWhiteSpace(number, nameof(Number), maxLength: 32);
         ServiceJobId = serviceJobId;
         WarehouseId = warehouseId;
         RequestedAt = requestedAt;
+        Purpose = NormalizeOptional(purpose, nameof(purpose), 512);
         Status = MaterialRequisitionStatus.Draft;
     }
 
@@ -26,6 +27,7 @@ public sealed class MaterialRequisition : AuditableEntity
     public Guid ServiceJobId { get; private set; }
     public Guid WarehouseId { get; private set; }
     public DateTimeOffset RequestedAt { get; private set; }
+    public string? Purpose { get; private set; }
     public MaterialRequisitionStatus Status { get; private set; }
 
     public List<MaterialRequisitionLine> Lines { get; private set; } = new();
@@ -101,6 +103,11 @@ public sealed class MaterialRequisition : AuditableEntity
             throw new DomainValidationException("Only draft material requisitions can be edited.");
         }
     }
+
+    private static string? NormalizeOptional(string? value, string paramName, int maxLength)
+        => string.IsNullOrWhiteSpace(value)
+            ? null
+            : Guard.NotNullOrWhiteSpace(value, paramName, maxLength: maxLength);
 }
 
 public sealed class MaterialRequisitionLine : Entity

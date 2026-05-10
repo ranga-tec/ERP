@@ -13,6 +13,7 @@ type SupplierDto = {
   email?: string | null;
   address?: string | null;
   isActive: boolean;
+  isAuthorized: boolean;
 };
 
 export function SupplierCreateForm() {
@@ -22,6 +23,7 @@ export function SupplierCreateForm() {
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
   const [address, setAddress] = useState("");
+  const [isAuthorized, setIsAuthorized] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -36,12 +38,14 @@ export function SupplierCreateForm() {
         phone: phone || null,
         email: email || null,
         address: address || null,
+        isAuthorized,
       });
       setCode("");
       setName("");
       setPhone("");
       setEmail("");
       setAddress("");
+      setIsAuthorized(true);
       router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
@@ -79,6 +83,16 @@ export function SupplierCreateForm() {
         <Input value={address} onChange={(e) => setAddress(e.target.value)} />
       </div>
 
+      <label className="flex items-center gap-2 text-sm">
+        <input
+          type="checkbox"
+          checked={isAuthorized}
+          onChange={(e) => setIsAuthorized(e.target.checked)}
+          className="h-4 w-4 rounded border-zinc-300"
+        />
+        Authorized original supplier
+      </label>
+
       {error ? (
         <div className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-900 dark:border-red-900/40 dark:bg-red-950/40 dark:text-red-100">
           {error}
@@ -91,4 +105,3 @@ export function SupplierCreateForm() {
     </form>
   );
 }
-

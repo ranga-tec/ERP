@@ -7,7 +7,9 @@ public enum PettyCashTransactionType
     OpeningBalance = 1,
     TopUp = 2,
     ExpenseSettlement = 3,
-    Adjustment = 4
+    Adjustment = 4,
+    IouRelease = 5,
+    IouSettlement = 6
 }
 
 public enum PettyCashTransactionDirection
@@ -137,6 +139,47 @@ public sealed class PettyCashFund : AuditableEntity
             notes);
     }
 
+    public PettyCashTransaction RecordIouRelease(
+        decimal amount,
+        DateTimeOffset occurredAt,
+        Guid iouId,
+        string? referenceNumber,
+        string? notes)
+    {
+        EnsureActive();
+        EnsureSufficientBalance(amount);
+
+        return AddTransaction(
+            PettyCashTransactionType.IouRelease,
+            PettyCashTransactionDirection.Out,
+            amount,
+            occurredAt,
+            referenceType: "IOU",
+            referenceId: iouId,
+            referenceNumber,
+            notes);
+    }
+
+    public PettyCashTransaction RecordIouSettlement(
+        decimal amount,
+        DateTimeOffset occurredAt,
+        Guid iouId,
+        string? referenceNumber,
+        string? notes)
+    {
+        EnsureActive();
+
+        return AddTransaction(
+            PettyCashTransactionType.IouSettlement,
+            PettyCashTransactionDirection.In,
+            amount,
+            occurredAt,
+            referenceType: "IOU",
+            referenceId: iouId,
+            referenceNumber,
+            notes);
+    }
+
     private PettyCashTransaction AddTransaction(
         PettyCashTransactionType type,
         PettyCashTransactionDirection direction,
@@ -225,4 +268,137 @@ public sealed class PettyCashTransaction : Entity
     public string? ReferenceNumber { get; private set; }
     public string? Notes { get; private set; }
     public decimal SignedAmount => Direction == PettyCashTransactionDirection.In ? Amount : -Amount;
+}
+
+public enum PettyCashIouStatus
+{
+    Draft = 0,
+    Submitted = 1,
+    Approved = 2,
+    Released = 3,
+    Settled = 4,
+    Rejected = 5,
+    Cancelled = 6
+}
+
+public sealed class PettyCashIou : AuditableEntity
+{
+    private PettyCashIou() { }
+
+    public PettyCashIou(
+        string number,
+        Guid serviceJobId,
+        Guid requestedByUserId,
+        string requestedByName,
+        decimal amount,
+        string purpose,
+        DateTimeOffset requestedAt,
+        DateTimeOffset? expectedSettlementAt)
+    {
+        Number = Guard.NotNullOrWhiteSpace(number, nameof(number), maxLength: 32);
+        ServiceJobId = serviceJobId;
+        RequestedByUserId = requestedByUserId;
+        RequestedByName = Guard.NotNullOrWhiteSpace(requestedByName, nameof(requestedByName), maxLength: 256);
+        Amount = Guard.Positive(amount, nameof(amount));
+        Purpose = Guard.NotNullOrWhiteSpace(purpose, nameof(purpose), maxLength: 1000);
+        RequestedAt = requestedAt;
+        ExpectedSettlementAt = expectedSettlementAt;
+        Status = PettyCashIouStatus.Draft;
+    }
+
+    public string Number { get; private set; } = null!;
+    public Guid ServiceJobId { get; private set; }
+    public Guid RequestedByUserId { get; private set; }
+    public string RequestedByName { get; private set; } = null!;
+    public decimal Amount { get; private set; }
+    public string Purpose { get; private set; } = null!;
+    public DateTimeOffset RequestedAt { get; private set; }
+    public DateTimeOffset? ExpectedSettlementAt { get; private set; }
+    public PettyCashIouStatus Status { get; private set; }
+    public DateTimeOffset? SubmittedAt { get; private set; }
+    public DateTimeOffset? ApprovedAt { get; private set; }
+    public Guid? ApprovedByUserId { get; private set; }
+    public DateTimeOffset? RejectedAt { get; private set; }
+    public string? RejectionReason { get; private set; }
+    public Guid? PettyCashFundId { get; private set; }
+    public DateTimeOffset? ReleasedAt { get; private set; }
+    public string? ReleaseReference { get; private set; }
+    public DateTimeOffset? SettledAt { get; private set; }
+    public decimal? SettledAmount { get; private set; }
+    public string? SettlementReference { get; private set; }
+
+    public void Submit(DateTimeOffset submittedAt)
+    {
+        if (Status != PettyCashIouStatus.Draft)
+        {
+            throw new DomainValidationException("Only draft IOUs can be submitted.");
+        }
+
+        Status = PettyCashIouStatus.Submitted;
+        SubmittedAt = submittedAt;
+    }
+
+    public void Approve(Guid approvedByUserId, DateTimeOffset approvedAt)
+    {
+        if (Status != PettyCashIouStatus.Submitted)
+        {
+            throw new DomainValidationException("Only submitted IOUs can be approved.");
+        }
+
+        Status = PettyCashIouStatus.Approved;
+        ApprovedByUserId = approvedByUserId;
+        ApprovedAt = approvedAt;
+        RejectedAt = null;
+        RejectionReason = null;
+    }
+
+    public void Reject(DateTimeOffset rejectedAt, string? rejectionReason)
+    {
+        if (Status != PettyCashIouStatus.Submitted)
+        {
+            throw new DomainValidationException("Only submitted IOUs can be rejected.");
+        }
+
+        Status = PettyCashIouStatus.Rejected;
+        RejectedAt = rejectedAt;
+        RejectionReason = string.IsNullOrWhiteSpace(rejectionReason)
+            ? null
+            : Guard.NotNullOrWhiteSpace(rejectionReason, nameof(rejectionReason), maxLength: 512);
+    }
+
+    public void Release(Guid pettyCashFundId, DateTimeOffset releasedAt, string? releaseReference)
+    {
+        if (Status != PettyCashIouStatus.Approved)
+        {
+            throw new DomainValidationException("Only approved IOUs can be released.");
+        }
+
+        PettyCashFundId = pettyCashFundId;
+        ReleasedAt = releasedAt;
+        ReleaseReference = string.IsNullOrWhiteSpace(releaseReference) ? null : Guard.NotNullOrWhiteSpace(releaseReference, nameof(releaseReference), maxLength: 128);
+        Status = PettyCashIouStatus.Released;
+    }
+
+    public void Settle(decimal settledAmount, DateTimeOffset settledAt, string? settlementReference)
+    {
+        if (Status != PettyCashIouStatus.Released)
+        {
+            throw new DomainValidationException("Only released IOUs can be settled.");
+        }
+
+        SettledAmount = Guard.NotNegative(settledAmount, nameof(settledAmount));
+        SettledAt = settledAt;
+        SettlementReference = string.IsNullOrWhiteSpace(settlementReference) ? null : Guard.NotNullOrWhiteSpace(settlementReference, nameof(settlementReference), maxLength: 128);
+        Status = PettyCashIouStatus.Settled;
+    }
+
+    public void Cancel()
+    {
+        if (Status is PettyCashIouStatus.Released or PettyCashIouStatus.Settled)
+        {
+            throw new DomainValidationException("Released or settled IOUs cannot be cancelled.");
+        }
+
+        Status = PettyCashIouStatus.Cancelled;
+    }
 }

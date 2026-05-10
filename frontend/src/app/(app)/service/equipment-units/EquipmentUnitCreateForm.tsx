@@ -38,6 +38,9 @@ export function EquipmentUnitCreateForm({
   const [purchasedAt, setPurchasedAt] = useState("");
   const [warrantyUntil, setWarrantyUntil] = useState("");
   const [warrantyCoverage, setWarrantyCoverage] = useState("4");
+  const [serviceIntervalDays, setServiceIntervalDays] = useState("");
+  const [nextServiceDueAt, setNextServiceDueAt] = useState("");
+  const [nextRepairDueAt, setNextRepairDueAt] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -57,6 +60,9 @@ export function EquipmentUnitCreateForm({
         purchasedAt: purchasedAt ? new Date(purchasedAt).toISOString() : null,
         warrantyUntil: warrantyUntil ? new Date(warrantyUntil).toISOString() : null,
         warrantyCoverage: warrantyUntil ? Number(warrantyCoverage) : 0,
+        serviceIntervalDays: serviceIntervalDays ? Number(serviceIntervalDays) : null,
+        nextServiceDueAt: nextServiceDueAt ? new Date(nextServiceDueAt).toISOString() : null,
+        nextRepairDueAt: nextRepairDueAt ? new Date(nextRepairDueAt).toISOString() : null,
       });
       router.push(`/service/equipment-units/${unit.id}`);
     } catch (err) {
@@ -114,6 +120,21 @@ export function EquipmentUnitCreateForm({
               </option>
             ))}
           </Select>
+        </div>
+      </div>
+
+      <div className="grid gap-3 sm:grid-cols-3">
+        <div>
+          <label className="mb-1 block text-sm font-medium">Service interval days</label>
+          <Input min="1" type="number" value={serviceIntervalDays} onChange={(e) => setServiceIntervalDays(e.target.value)} />
+        </div>
+        <div>
+          <label className="mb-1 block text-sm font-medium">Next service date</label>
+          <Input type="date" value={nextServiceDueAt} onChange={(e) => setNextServiceDueAt(e.target.value)} />
+        </div>
+        <div>
+          <label className="mb-1 block text-sm font-medium">Next repair date</label>
+          <Input type="date" value={nextRepairDueAt} onChange={(e) => setNextRepairDueAt(e.target.value)} />
         </div>
       </div>
 

@@ -5,7 +5,10 @@ namespace ISS.Domain.Service;
 public enum ServiceJobKind
 {
     Service = 0,
-    Repair = 1
+    Repair = 1,
+    Pdi = 2,
+    Warranty = 3,
+    Inspection = 4
 }
 
 public enum ServiceJobStatus
@@ -33,7 +36,9 @@ public sealed class ServiceJob : AuditableEntity
         ServiceCoverageScope entitlementCoverage = ServiceCoverageScope.None,
         CustomerBillingTreatment customerBillingTreatment = CustomerBillingTreatment.Billable,
         DateTimeOffset? entitlementEvaluatedAt = null,
-        string? entitlementSummary = null)
+        string? entitlementSummary = null,
+        DateTimeOffset? expectedCompletionAt = null,
+        string? siteLocation = null)
     {
         Number = Guard.NotNullOrWhiteSpace(number, nameof(Number), maxLength: 32);
         EquipmentUnitId = equipmentUnitId;
@@ -42,6 +47,8 @@ public sealed class ServiceJob : AuditableEntity
         ProblemDescription = Guard.NotNullOrWhiteSpace(problemDescription, nameof(ProblemDescription), maxLength: 2000);
         Kind = kind;
         Status = ServiceJobStatus.Open;
+        ExpectedCompletionAt = expectedCompletionAt;
+        SiteLocation = NormalizeOptional(siteLocation, nameof(siteLocation), 512);
         ApplyEntitlement(
             serviceContractId,
             entitlementSource,
@@ -59,6 +66,8 @@ public sealed class ServiceJob : AuditableEntity
     public ServiceJobKind Kind { get; private set; }
     public ServiceJobStatus Status { get; private set; }
     public DateTimeOffset? CompletedAt { get; private set; }
+    public DateTimeOffset? ExpectedCompletionAt { get; private set; }
+    public string? SiteLocation { get; private set; }
     public Guid? ServiceContractId { get; private set; }
     public ServiceEntitlementSource EntitlementSource { get; private set; }
     public ServiceCoverageScope EntitlementCoverage { get; private set; }
@@ -164,7 +173,9 @@ public sealed class ServiceJob : AuditableEntity
         Guid equipmentUnitId,
         Guid customerId,
         string problemDescription,
-        ServiceJobKind kind)
+        ServiceJobKind kind,
+        DateTimeOffset? expectedCompletionAt = null,
+        string? siteLocation = null)
     {
         if (Status != ServiceJobStatus.Open)
         {
@@ -175,5 +186,12 @@ public sealed class ServiceJob : AuditableEntity
         CustomerId = customerId;
         ProblemDescription = Guard.NotNullOrWhiteSpace(problemDescription, nameof(problemDescription), maxLength: 2000);
         Kind = kind;
+        ExpectedCompletionAt = expectedCompletionAt;
+        SiteLocation = NormalizeOptional(siteLocation, nameof(siteLocation), 512);
     }
+
+    private static string? NormalizeOptional(string? value, string paramName, int maxLength)
+        => string.IsNullOrWhiteSpace(value)
+            ? null
+            : Guard.NotNullOrWhiteSpace(value, paramName, maxLength: maxLength);
 }
