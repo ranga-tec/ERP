@@ -4,7 +4,8 @@ import { Card, Table } from "@/components/ui";
 import { ServiceContractCreateForm } from "./ServiceContractCreateForm";
 
 type CustomerDto = { id: string; code: string; name: string };
-type EquipmentUnitDto = { id: string; serialNumber: string; customerId: string };
+type EquipmentUnitDto = { id: string; serialNumber: string; itemId: string; customerId: string };
+type ItemDto = { id: string; sku: string; name: string };
 type ServiceContractSummaryDto = {
   id: string;
   number: string;
@@ -33,14 +34,26 @@ const coverageLabel: Record<number, string> = {
 };
 
 export default async function ServiceContractsPage() {
-  const [contracts, customers, units] = await Promise.all([
+  const [contracts, customers, units, items] = await Promise.all([
     backendFetchJson<ServiceContractSummaryDto[]>("/service/contracts"),
     backendFetchJson<CustomerDto[]>("/customers"),
-    backendFetchJson<EquipmentUnitDto[]>("/service/equipment-units?take=500"),
+    backendFetchJson<EquipmentUnitDto[]>("/service/equipment-units?take=2000"),
+    backendFetchJson<ItemDto[]>("/items/options"),
   ]);
 
   const customerById = new Map(customers.map((customer) => [customer.id, customer]));
   const unitById = new Map(units.map((unit) => [unit.id, unit]));
+  const itemById = new Map(items.map((item) => [item.id, item]));
+  const equipmentUnitOptions = units.map((unit) => {
+    const item = itemById.get(unit.itemId);
+    const customer = customerById.get(unit.customerId);
+    return {
+      ...unit,
+      itemSku: item?.sku,
+      itemName: item?.name,
+      customerCode: customer?.code,
+    };
+  });
 
   return (
     <div className="space-y-6">
@@ -53,7 +66,7 @@ export default async function ServiceContractsPage() {
 
       <Card>
         <div className="mb-3 text-sm font-semibold">Create Contract</div>
-        <ServiceContractCreateForm customers={customers} equipmentUnits={units} />
+        <ServiceContractCreateForm customers={customers} equipmentUnits={equipmentUnitOptions} />
       </Card>
 
       <Card>

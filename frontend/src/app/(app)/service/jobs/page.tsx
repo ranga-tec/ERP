@@ -27,6 +27,7 @@ type ServiceJobDto = {
 
 type EquipmentUnitDto = { id: string; serialNumber: string; itemId: string; customerId: string };
 type CustomerDto = { id: string; code: string; name: string };
+type ItemDto = { id: string; sku: string; name: string };
 
 const statusLabel: Record<number, string> = {
   0: "Open",
@@ -57,14 +58,26 @@ const billingTreatmentLabel: Record<number, string> = {
 };
 
 export default async function ServiceJobsPage() {
-  const [jobs, units, customers] = await Promise.all([
+  const [jobs, units, customers, items] = await Promise.all([
     backendFetchJson<ServiceJobDto[]>("/service/jobs?take=100"),
     backendFetchJson<EquipmentUnitDto[]>("/service/equipment-units?take=2000"),
     backendFetchJson<CustomerDto[]>("/customers"),
+    backendFetchJson<ItemDto[]>("/items/options"),
   ]);
 
   const unitById = new Map(units.map((u) => [u.id, u]));
   const customerById = new Map(customers.map((c) => [c.id, c]));
+  const itemById = new Map(items.map((item) => [item.id, item]));
+  const equipmentUnitOptions = units.map((unit) => {
+    const item = itemById.get(unit.itemId);
+    const customer = customerById.get(unit.customerId);
+    return {
+      ...unit,
+      itemSku: item?.sku,
+      itemName: item?.name,
+      customerCode: customer?.code,
+    };
+  });
 
   return (
     <div className="space-y-6">
@@ -75,7 +88,7 @@ export default async function ServiceJobsPage() {
 
       <Card>
         <div className="mb-3 text-sm font-semibold">Create</div>
-        <ServiceJobCreateForm equipmentUnits={units} customers={customers} />
+        <ServiceJobCreateForm equipmentUnits={equipmentUnitOptions} customers={customers} />
       </Card>
 
       <Card>

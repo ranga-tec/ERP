@@ -28,8 +28,9 @@ type ServiceJobDto = {
   entitlementSummary?: string | null;
 };
 
-type EquipmentUnitDto = { id: string; serialNumber: string; customerId: string };
+type EquipmentUnitDto = { id: string; serialNumber: string; itemId: string; customerId: string };
 type CustomerDto = { id: string; code: string; name: string };
+type ItemDto = { id: string; sku: string; name: string };
 type ServiceJobCostingDto = {
   serviceJobId: string;
   jobNumber: string;
@@ -181,11 +182,12 @@ function money(value?: number | null) {
 export default async function ServiceJobDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
 
-  const [job, units, customers, costing] = await Promise.all([
+  const [job, units, customers, costing, items] = await Promise.all([
     backendFetchJson<ServiceJobDto>(`/service/jobs/${id}`),
     backendFetchJson<EquipmentUnitDto[]>("/service/equipment-units?take=2000"),
     backendFetchJson<CustomerDto[]>("/customers"),
     backendFetchJson<ServiceJobCostingDto>(`/service/jobs/${id}/costing`),
+    backendFetchJson<ItemDto[]>("/items/options"),
   ]);
 
   const selectedUnit =
@@ -196,6 +198,17 @@ export default async function ServiceJobDetailPage({ params }: { params: Promise
 
   const unitById = new Map(availableUnits.map((u) => [u.id, u]));
   const customerById = new Map(customers.map((c) => [c.id, c]));
+  const itemById = new Map(items.map((item) => [item.id, item]));
+  const equipmentUnitOptions = availableUnits.map((unit) => {
+    const item = itemById.get(unit.itemId);
+    const customer = customerById.get(unit.customerId);
+    return {
+      ...unit,
+      itemSku: item?.sku,
+      itemName: item?.name,
+      customerCode: customer?.code,
+    };
+  });
 
   const canStart = job.status === 0;
   const canComplete = job.status === 0 || job.status === 1;
@@ -245,7 +258,7 @@ export default async function ServiceJobDetailPage({ params }: { params: Promise
       {job.status === 0 ? (
         <Card>
           <div className="mb-3 text-sm font-semibold">Edit Job</div>
-          <ServiceJobEditForm job={job} equipmentUnits={availableUnits} customers={customers} />
+          <ServiceJobEditForm job={job} equipmentUnits={equipmentUnitOptions} customers={customers} />
         </Card>
       ) : (
         <Card>

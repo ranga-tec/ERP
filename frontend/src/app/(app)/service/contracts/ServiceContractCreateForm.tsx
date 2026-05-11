@@ -3,10 +3,18 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { apiPost } from "@/lib/api-client";
+import { EquipmentUnitLookupField } from "@/components/EquipmentUnitLookupField";
 import { Button, Input, Select, Textarea } from "@/components/ui";
 
 type CustomerRef = { id: string; code: string; name: string };
-type EquipmentUnitRef = { id: string; serialNumber: string; customerId: string };
+type EquipmentUnitRef = {
+  id: string;
+  serialNumber: string;
+  customerId: string;
+  itemSku?: string | null;
+  itemName?: string | null;
+  customerCode?: string | null;
+};
 type ServiceContractDto = { id: string };
 
 const contractTypeOptions = [
@@ -34,11 +42,6 @@ export function ServiceContractCreateForm({
     () => customers.slice().sort((a, b) => a.code.localeCompare(b.code)),
     [customers],
   );
-  const equipmentOptions = useMemo(
-    () => equipmentUnits.slice().sort((a, b) => a.serialNumber.localeCompare(b.serialNumber)),
-    [equipmentUnits],
-  );
-
   const [customerId, setCustomerId] = useState("");
   const [equipmentUnitId, setEquipmentUnitId] = useState("");
   const [contractType, setContractType] = useState("0");
@@ -88,16 +91,7 @@ export function ServiceContractCreateForm({
       <div className="grid gap-3 sm:grid-cols-2">
         <div>
           <label className="mb-1 block text-sm font-medium">Equipment unit</label>
-          <Select value={equipmentUnitId} onChange={(event) => setEquipmentUnitId(event.target.value)} required>
-            <option value="" disabled>
-              Select...
-            </option>
-            {equipmentOptions.map((unit) => (
-              <option key={unit.id} value={unit.id}>
-                {unit.serialNumber}
-              </option>
-            ))}
-          </Select>
+          <EquipmentUnitLookupField equipmentUnits={equipmentUnits} value={equipmentUnitId} onChange={setEquipmentUnitId} />
         </div>
         <div>
           <label className="mb-1 block text-sm font-medium">Customer</label>

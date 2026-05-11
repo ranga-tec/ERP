@@ -6,7 +6,14 @@ import { apiPost } from "@/lib/api-client";
 import { EquipmentUnitLookupField } from "@/components/EquipmentUnitLookupField";
 import { Button, Input, Select, Textarea } from "@/components/ui";
 
-type EquipmentUnitRef = { id: string; serialNumber: string; customerId: string };
+type EquipmentUnitRef = {
+  id: string;
+  serialNumber: string;
+  customerId: string;
+  itemSku?: string | null;
+  itemName?: string | null;
+  customerCode?: string | null;
+};
 type CustomerRef = { id: string; code: string; name: string };
 type ServiceJobDto = { id: string; number: string };
 

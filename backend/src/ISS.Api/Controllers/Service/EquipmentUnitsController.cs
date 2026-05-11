@@ -50,7 +50,7 @@ public sealed class EquipmentUnitsController(IIssDbContext dbContext, ServiceMan
     public async Task<ActionResult<IReadOnlyList<EquipmentUnitDto>>> List([FromQuery] int skip = 0, [FromQuery] int take = 100, CancellationToken cancellationToken = default)
     {
         skip = Math.Max(0, skip);
-        take = Math.Clamp(take, 1, 500);
+        take = Math.Clamp(take, 1, 5000);
 
         var units = await dbContext.EquipmentUnits.AsNoTracking()
             .OrderBy(x => x.SerialNumber)

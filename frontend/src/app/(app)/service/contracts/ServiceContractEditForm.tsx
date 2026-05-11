@@ -3,10 +3,18 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { apiPut } from "@/lib/api-client";
+import { EquipmentUnitLookupField } from "@/components/EquipmentUnitLookupField";
 import { Button, Input, Select, Textarea } from "@/components/ui";
 
 type CustomerRef = { id: string; code: string; name: string };
-type EquipmentUnitRef = { id: string; serialNumber: string; customerId: string };
+type EquipmentUnitRef = {
+  id: string;
+  serialNumber: string;
+  customerId: string;
+  itemSku?: string | null;
+  itemName?: string | null;
+  customerCode?: string | null;
+};
 type ServiceContractDto = {
   id: string;
   customerId: string;
@@ -93,13 +101,7 @@ export function ServiceContractEditForm({
       <div className="grid gap-3 sm:grid-cols-2">
         <div>
           <label className="mb-1 block text-sm font-medium">Equipment unit</label>
-          <Select value={equipmentUnitId} onChange={(event) => setEquipmentUnitId(event.target.value)} required>
-            {equipmentUnits.map((unit) => (
-              <option key={unit.id} value={unit.id}>
-                {unit.serialNumber}
-              </option>
-            ))}
-          </Select>
+          <EquipmentUnitLookupField equipmentUnits={equipmentUnits} value={equipmentUnitId} onChange={setEquipmentUnitId} />
         </div>
         <div>
           <label className="mb-1 block text-sm font-medium">Customer</label>

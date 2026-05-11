@@ -5,7 +5,8 @@ import { DocumentCollaborationPanel } from "@/components/DocumentCollaborationPa
 import { ServiceContractEditForm } from "../ServiceContractEditForm";
 
 type CustomerDto = { id: string; code: string; name: string };
-type EquipmentUnitDto = { id: string; serialNumber: string; customerId: string };
+type EquipmentUnitDto = { id: string; serialNumber: string; itemId: string; customerId: string };
+type ItemDto = { id: string; sku: string; name: string };
 type ServiceContractDto = {
   id: string;
   number: string;
@@ -37,14 +38,26 @@ const coverageLabel: Record<number, string> = {
 export default async function ServiceContractDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
 
-  const [contract, customers, units] = await Promise.all([
+  const [contract, customers, units, items] = await Promise.all([
     backendFetchJson<ServiceContractDto>(`/service/contracts/${id}`),
     backendFetchJson<CustomerDto[]>("/customers"),
-    backendFetchJson<EquipmentUnitDto[]>("/service/equipment-units?take=500"),
+    backendFetchJson<EquipmentUnitDto[]>("/service/equipment-units?take=2000"),
+    backendFetchJson<ItemDto[]>("/items/options"),
   ]);
 
   const customerById = new Map(customers.map((customer) => [customer.id, customer]));
   const unitById = new Map(units.map((unit) => [unit.id, unit]));
+  const itemById = new Map(items.map((item) => [item.id, item]));
+  const equipmentUnitOptions = units.map((unit) => {
+    const item = itemById.get(unit.itemId);
+    const customer = customerById.get(unit.customerId);
+    return {
+      ...unit,
+      itemSku: item?.sku,
+      itemName: item?.name,
+      customerCode: customer?.code,
+    };
+  });
 
   return (
     <div className="space-y-6">
@@ -86,7 +99,7 @@ export default async function ServiceContractDetailPage({ params }: { params: Pr
 
       <Card>
         <div className="mb-3 text-sm font-semibold">Contract Details</div>
-        <ServiceContractEditForm contract={contract} customers={customers} equipmentUnits={units} />
+        <ServiceContractEditForm contract={contract} customers={customers} equipmentUnits={equipmentUnitOptions} />
       </Card>
 
       {contract.notes ? (
