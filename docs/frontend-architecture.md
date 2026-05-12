@@ -269,6 +269,7 @@ Recent workflow-specific UI behavior:
 - sales list-page `Edit` remains available while the document is still `Draft` (and follows existing invoice permissions)
 - equipment-unit detail pages support warranty ownership updates and list linked service contracts
 - service-contract list/detail pages manage `AMC`, `SLA`, and warranty-extension coverage for installed units
+- service-contract and service-job forms use the shared equipment-unit lookup; it displays `Item SKU - Item Name / SN: SerialNumber` and searches item SKU, item name, serial number, and customer code
 - service-job create/detail screens surface entitlement source, coverage, billing treatment, and manual refresh when coverage changes
 - service list pages now expose explicit `View` / `Edit` actions for contracts, equipment units, jobs, estimates, and expense claims
 - service estimates support `Part`, `Labor`, and `Expense` line kinds, customer-approval state visibility, resend behavior on edited drafts, and explicit `Create Change Order` actions after approval/rejection
@@ -278,5 +279,6 @@ Recent workflow-specific UI behavior:
 - service job detail pages render a costing summary with estimate, invoice, material, direct-purchase, labor, and expense-claim breakdowns, including entitlement-adjusted labor billing visibility
 - finance chart-of-accounts pages now support account creation/edit/delete, parent account structure, and posting/group flags
 - finance petty cash pages provide fund creation, editing, top-up, adjustment, and settlement-ledger visibility
+- finance petty cash IOU pages track job-linked cash advances separately from final service expense-claim settlement
 - audit logs now render structured field diffs with filters for technical rows and system-maintained fields instead of only dumping raw JSON
 

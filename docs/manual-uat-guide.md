@@ -73,6 +73,11 @@ Create:
   - Type: `Spare Part`
   - UoM: `PCS`
   - Default Unit Cost: `5`
+- Equipment item
+  - SKU: `EQP1`
+  - Name: `GeneratorModelA`
+  - Type: `Equipment`
+  - UoM: `PCS`
 
 Expected:
 
@@ -235,16 +240,20 @@ Suggested extra setup:
 Steps:
 
 1. Go to `Service -> Equipment Units` and register one serialized unit for customer `CUS1`.
+   - Equipment item: `EQP1 - GeneratorModelA`
+   - Serial number: `EQP1-SN-001`
    - enter a future `Warranty until` date
    - set `Warranty coverage` to `Labor and Parts`
 2. Confirm the equipment-unit list shows explicit `View` / `Edit` actions and open the unit from one of them.
 3. Go to `Service -> Jobs` and create a job:
+   - Equipment unit: search by `EQP1`, `GeneratorModelA`, or `EQP1-SN-001`
    - Kind: `Repair`
    - Problem Description: `Unit does not power on`
 4. Confirm the job list shows explicit `View` / `Edit` actions and open the job detail page from the list.
 5. While the job is still open, edit the job header once and save it.
 6. Confirm the job detail page shows warranty-based entitlement and billing treatment.
 7. Go to `Service -> Service Contracts` and create a contract for the same unit:
+   - Equipment unit: search by `EQP1`, `GeneratorModelA`, or `EQP1-SN-001`
    - Type: `AMC`
    - Coverage: `Parts Only`
    - Start Date: yesterday
@@ -278,6 +287,7 @@ Steps:
 Expected:
 
 - equipment units accept warranty coverage and the unit detail page allows updates
+- service jobs and service contracts use the serialized equipment unit, but the picker displays and searches the linked Item table SKU/name as well as the unit serial number
 - the contract can be linked to the same unit and appears on both the contract list and equipment-unit detail page
 - service lists now expose explicit `View` / `Edit` entry points instead of relying only on clickable document numbers
 - open jobs can be edited, but that header locks after the job is started

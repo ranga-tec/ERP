@@ -127,19 +127,23 @@ Note:
 ## Service workflows
 
 - Equipment units:
-  - register serialized customer equipment
+  - register serialized customer equipment against an `Equipment` type item from `Master Data -> Items`
+  - the item record stores the equipment model/SKU/name; the equipment unit stores the serial number, customer ownership, warranty, and service scheduling fields
   - maintain purchased date, warranty end date, and warranty coverage scope
   - the list page exposes `View` and `Edit` actions explicitly; both open the unit detail page
   - use the equipment-unit detail page to edit ownership or warranty coverage as the installed base changes
 - Service contracts:
   - create `AMC`, `SLA`, or `Warranty Extension` documents against a specific customer-owned equipment unit
+  - select equipment using the searchable equipment-unit picker; it searches the linked item SKU/name, serial number, and customer code
   - set the contract coverage window and coverage scope (`Inspection`, `Labor`, `Parts`, or `Labor and Parts`)
   - use this when the unit is covered by a service agreement beyond or instead of manufacturer warranty
   - the list page exposes `View` and `Edit` actions explicitly; both open the contract detail page
   - contracts are edited from the contract detail page after creation
 - Service jobs:
   - create -> start -> complete -> close
-  - choose `Service` or `Repair` when opening the job
+  - choose `Service`, `Repair`, `PDI`, `Warranty`, or `Inspection` when opening the job
+  - select equipment using the searchable equipment-unit picker; it searches the linked item SKU/name, serial number, and customer code
+  - after equipment is selected, the customer defaults from the equipment unit but can still be changed before saving if required
   - the list page exposes `View` and `Edit`; `Edit` is available while the job is still `Open`
   - while status is still `Open`, you can edit the job header (unit, customer, type, problem) from the detail page
   - once the job is started, header editing is locked and execution should continue through work orders, estimates, material issues, and handover
@@ -208,6 +212,7 @@ Note:
 - Petty cash:
   - create fund -> optionally seed opening balance
   - post top-ups and manual adjustments
+  - create and track IOUs for job-linked cash advances when money is issued before the final expense claim is settled
   - settle approved service expense claims against a petty cash fund when workshop cash was used
   - petty-cash-funded service claims require a petty cash fund at settlement; out-of-pocket claims can still be settled with payment type/reference only
 - Credit notes:
@@ -217,6 +222,7 @@ Note:
 - Service expense claims:
   - finance users approve/reject submitted claims and settle approved claims with a payment method/reference and optional petty cash fund linkage
   - petty-cash and out-of-pocket claims are tracked here rather than hidden as ad-hoc stock or payment workarounds
+  - when a technician receives a cash advance, record it as a Petty Cash IOU and clear it through the later claim/settlement process
 
 ## Reporting
 

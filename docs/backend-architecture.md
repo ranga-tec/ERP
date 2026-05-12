@@ -238,6 +238,8 @@ Top-level controller areas under `backend/src/ISS.Api/Controllers`:
 Recent service/finance workflow surfaces:
 
 - Service contracts live under `/api/service/contracts` and bind `AMC`, `SLA`, and warranty-extension coverage to specific equipment units/customers.
+- Equipment units live under `/api/service/equipment-units`; each equipment unit points to an Item table row via `ItemId`, so service contracts and jobs always select the serialized unit while the UI can display the linked item SKU/name.
+- The equipment-unit list endpoint supports larger lookup requests so service forms can load installed-base options without the older 500-row cap.
 - Equipment units and service jobs now carry warranty/entitlement fields so job creation can snapshot customer billing treatment from active warranty or contract coverage.
 - Service jobs expose `GET /api/service/jobs/{id}/costing` for per-job margin and actual-cost rollups, including approved labor and billable-timesheet visibility.
 - Service jobs also expose `POST /api/service/jobs/{id}/refresh-entitlement` so existing jobs can be re-evaluated after contract/warranty maintenance.
@@ -249,6 +251,7 @@ Recent service/finance workflow surfaces:
 - Expense-claim conversion classifies spare-part-backed claim lines as `Part` estimate lines so parts entitlement can still apply even when the part came from petty cash or out-of-pocket purchase.
 - Service handover invoice conversion accepts a labor billing source so draft invoices can use estimate labor or approved work-order time entries.
 - Petty cash funds live under `/api/finance/petty-cash-funds` and track opening balance, top-ups, adjustments, and claim-settlement outflows.
+- Petty cash IOUs live under `/api/finance/petty-cash-ious` and record job-linked advances that can later be reconciled through petty-cash/service-claim workflows.
 
 Conventions commonly used:
 
