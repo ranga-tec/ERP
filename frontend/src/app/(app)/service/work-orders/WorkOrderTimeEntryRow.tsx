@@ -3,10 +3,11 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { apiDeleteNoContent, apiPostNoContent, apiPutNoContent } from "@/lib/api-client";
-import { Button, Input, SecondaryButton, Textarea } from "@/components/ui";
+import { Button, Input, SecondaryButton, Select, Textarea } from "@/components/ui";
 
 type WorkOrderTimeEntryDto = {
   id: string;
+  technicianUserId?: string | null;
   technicianName: string;
   workDate: string;
   workDescription: string;
@@ -25,6 +26,15 @@ type WorkOrderTimeEntryDto = {
   salesInvoiceId?: string | null;
 };
 
+type TechnicianRef = {
+  id: string;
+  code: string;
+  name: string;
+  defaultCostRate: number;
+  defaultBillingRate: number;
+  isActive: boolean;
+};
+
 const statusLabel: Record<number, string> = {
   0: "Draft",
   1: "Submitted",
@@ -36,16 +46,18 @@ const statusLabel: Record<number, string> = {
 export function WorkOrderTimeEntryRow({
   workOrderId,
   entry,
+  technicians,
 }: {
   workOrderId: string;
   entry: WorkOrderTimeEntryDto;
+  technicians: TechnicianRef[];
 }) {
   const router = useRouter();
   const isDraft = entry.status === 0;
   const isSubmitted = entry.status === 1;
 
   const [isEditing, setIsEditing] = useState(false);
-  const [technicianName, setTechnicianName] = useState(entry.technicianName);
+  const [technicianId, setTechnicianId] = useState(entry.technicianUserId ?? "");
   const [workDate, setWorkDate] = useState(entry.workDate ? new Date(entry.workDate).toISOString().slice(0, 16) : "");
   const [workDescription, setWorkDescription] = useState(entry.workDescription);
   const [hoursWorked, setHoursWorked] = useState(entry.hoursWorked.toString());
@@ -59,7 +71,7 @@ export function WorkOrderTimeEntryRow({
   const [error, setError] = useState<string | null>(null);
 
   function resetForm() {
-    setTechnicianName(entry.technicianName);
+    setTechnicianId(entry.technicianUserId ?? "");
     setWorkDate(entry.workDate ? new Date(entry.workDate).toISOString().slice(0, 16) : "");
     setWorkDescription(entry.workDescription);
     setHoursWorked(entry.hoursWorked.toString());
@@ -82,8 +94,9 @@ export function WorkOrderTimeEntryRow({
       const parsedBillingRate = Number(billingRate);
       const parsedTaxPercent = Number(taxPercent);
 
-      if (!technicianName.trim()) {
-        throw new Error("Technician name is required.");
+      const selectedTechnician = technicians.find((technician) => technician.id === technicianId);
+      if (!selectedTechnician) {
+        throw new Error("Technician is required.");
       }
 
       if (!workDescription.trim()) {
@@ -117,8 +130,8 @@ export function WorkOrderTimeEntryRow({
       }
 
       await apiPutNoContent(`service/work-orders/${workOrderId}/time-entries/${entry.id}`, {
-        technicianUserId: null,
-        technicianName: technicianName.trim(),
+        technicianUserId: selectedTechnician.id,
+        technicianName: selectedTechnician.name,
         workDate: workDate ? new Date(workDate).toISOString() : null,
         workDescription: workDescription.trim(),
         hoursWorked: parsedHoursWorked,
@@ -210,7 +223,28 @@ export function WorkOrderTimeEntryRow({
       </td>
       <td className="py-2 pr-3">
         {isEditing ? (
-          <Input value={technicianName} onChange={(event) => setTechnicianName(event.target.value)} className="min-w-40" />
+          <Select
+            value={technicianId}
+            onChange={(event) => {
+              const nextId = event.target.value;
+              const technician = technicians.find((candidate) => candidate.id === nextId);
+              setTechnicianId(nextId);
+              if (technician) {
+                setCostRate(String(technician.defaultCostRate));
+                setBillingRate(String(technician.defaultBillingRate));
+              }
+            }}
+            className="min-w-44"
+          >
+            <option value="" disabled>
+              Select...
+            </option>
+            {technicians.map((technician) => (
+              <option key={technician.id} value={technician.id}>
+                {technician.code} - {technician.name}
+              </option>
+            ))}
+          </Select>
         ) : (
           entry.technicianName
         )}

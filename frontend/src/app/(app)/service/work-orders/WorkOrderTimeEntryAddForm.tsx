@@ -3,19 +3,33 @@
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { apiPost } from "@/lib/api-client";
-import { Button, Input, Textarea } from "@/components/ui";
+import { Button, Input, Select, Textarea } from "@/components/ui";
 
 type WorkOrderTimeEntryDto = { id: string };
+type TechnicianRef = {
+  id: string;
+  code: string;
+  name: string;
+  defaultCostRate: number;
+  defaultBillingRate: number;
+  isActive: boolean;
+};
 
 export function WorkOrderTimeEntryAddForm({
   workOrderId,
+  technicians,
   disabled,
 }: {
   workOrderId: string;
+  technicians: TechnicianRef[];
   disabled?: boolean;
 }) {
   const router = useRouter();
-  const [technicianName, setTechnicianName] = useState("");
+  const activeTechnicians = useMemo(
+    () => technicians.filter((technician) => technician.isActive).sort((a, b) => a.code.localeCompare(b.code)),
+    [technicians],
+  );
+  const [technicianId, setTechnicianId] = useState("");
   const [workDate, setWorkDate] = useState("");
   const [workDescription, setWorkDescription] = useState("");
   const [hoursWorked, setHoursWorked] = useState("1");
@@ -49,8 +63,9 @@ export function WorkOrderTimeEntryAddForm({
       const parsedBillingRate = Number(billingRate);
       const parsedTaxPercent = Number(taxPercent);
 
-      if (!technicianName.trim()) {
-        throw new Error("Technician name is required.");
+      const selectedTechnician = activeTechnicians.find((technician) => technician.id === technicianId);
+      if (!selectedTechnician) {
+        throw new Error("Technician is required.");
       }
 
       if (!workDescription.trim()) {
@@ -84,8 +99,8 @@ export function WorkOrderTimeEntryAddForm({
       }
 
       await apiPost<WorkOrderTimeEntryDto>(`service/work-orders/${workOrderId}/time-entries`, {
-        technicianUserId: null,
-        technicianName: technicianName.trim(),
+        technicianUserId: selectedTechnician.id,
+        technicianName: selectedTechnician.name,
         workDate: workDate ? new Date(workDate).toISOString() : null,
         workDescription: workDescription.trim(),
         hoursWorked: parsedHoursWorked,
@@ -97,7 +112,7 @@ export function WorkOrderTimeEntryAddForm({
         notes: notes.trim() || null,
       });
 
-      setTechnicianName("");
+      setTechnicianId("");
       setWorkDate("");
       setWorkDescription("");
       setHoursWorked("1");
@@ -120,7 +135,29 @@ export function WorkOrderTimeEntryAddForm({
       <div className="grid gap-3 lg:grid-cols-2 xl:grid-cols-4">
         <div>
           <label className="mb-1 block text-sm font-medium">Technician</label>
-          <Input value={technicianName} onChange={(event) => setTechnicianName(event.target.value)} disabled={disabled || busy} />
+          <Select
+            value={technicianId}
+            onChange={(event) => {
+              const nextId = event.target.value;
+              const technician = activeTechnicians.find((candidate) => candidate.id === nextId);
+              setTechnicianId(nextId);
+              if (technician) {
+                setCostRate(String(technician.defaultCostRate));
+                setBillingRate(String(technician.defaultBillingRate));
+              }
+            }}
+            disabled={disabled || busy}
+            required
+          >
+            <option value="" disabled>
+              Select...
+            </option>
+            {activeTechnicians.map((technician) => (
+              <option key={technician.id} value={technician.id}>
+                {technician.code} - {technician.name}
+              </option>
+            ))}
+          </Select>
         </div>
         <div>
           <label className="mb-1 block text-sm font-medium">Work Date</label>

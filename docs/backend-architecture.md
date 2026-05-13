@@ -247,6 +247,7 @@ Recent service/finance workflow surfaces:
 - Service estimates now expose customer-approval tracking fields (`CustomerApprovalStatus`, `SentToCustomerAt`, `CustomerDecisionAt`) so draft edits, resend behavior, and approved/rejected change-order flow are explicit in the API.
 - Estimate line pricing and approved labor invoice conversion now run through entitlement rules so covered labor/part billing is forced to zero from the service layer rather than being left to the UI.
 - Work orders live under `/api/service/work-orders` and now support nested labor-entry/timesheet actions (`add`, `edit`, `delete`, `submit`, `approve`, `reject`).
+- Service technicians live under `/api/service/technicians` and provide the master data used by work-order labor entries.
 - Work-order and job-costing DTOs now include coverage-adjusted labor billing totals so service screens reflect what will actually invoice under warranty/contract coverage.
 - Service expense claims live under `/api/service/expense-claims` and support submit, approve/reject, settle, and billable-line conversion into estimates.
 - Expense-claim conversion classifies spare-part-backed claim lines as `Part` estimate lines so parts entitlement can still apply even when the part came from petty cash or out-of-pocket purchase.

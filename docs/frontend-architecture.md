@@ -272,6 +272,7 @@ Recent workflow-specific UI behavior:
 - service-contract list/detail pages manage `AMC`, `SLA`, and warranty-extension coverage for installed units
 - service-contract and service-job forms use the shared equipment-unit lookup; it displays `Item SKU - Item Name / SN: SerialNumber` and searches item SKU, item name, serial number, and customer code
 - service-job create/detail screens surface entitlement source, coverage, billing treatment, and manual refresh when coverage changes
+- service technician maintenance is exposed at `/service/technicians`; job detail labor entry forms use this master to populate technician, default cost rate, and billing rate
 - service list pages now expose explicit `View` / `Edit` actions for contracts, equipment units, jobs, estimates, and expense claims
 - service estimates support `Part`, `Labor`, and `Expense` line kinds, customer-approval state visibility, resend behavior on edited drafts, and explicit `Create Change Order` actions after approval/rejection
 - service expense claim detail pages let service/finance users submit, approve/reject, settle, and convert billable claim lines into the working estimate

@@ -172,10 +172,11 @@ public sealed class WorkOrdersController(
         AddWorkOrderTimeEntryRequest request,
         CancellationToken cancellationToken)
     {
+        var technician = await ResolveTechnicianAsync(request.TechnicianUserId, request.TechnicianName, cancellationToken);
         await serviceManagementService.AddWorkOrderTimeEntryAsync(
             id,
-            request.TechnicianUserId,
-            ResolveTechnicianName(request.TechnicianName),
+            technician.TechnicianId,
+            technician.TechnicianName,
             request.WorkDate,
             request.WorkDescription,
             request.HoursWorked,
@@ -197,11 +198,12 @@ public sealed class WorkOrdersController(
         UpdateWorkOrderTimeEntryRequest request,
         CancellationToken cancellationToken)
     {
+        var technician = await ResolveTechnicianAsync(request.TechnicianUserId, request.TechnicianName, cancellationToken);
         await serviceManagementService.UpdateWorkOrderTimeEntryAsync(
             id,
             timeEntryId,
-            request.TechnicianUserId,
-            ResolveTechnicianName(request.TechnicianName),
+            technician.TechnicianId,
+            technician.TechnicianName,
             request.WorkDate,
             request.WorkDescription,
             request.HoursWorked,
@@ -313,6 +315,28 @@ public sealed class WorkOrdersController(
             ServiceEstimateLineKind.Labor,
             billingRate);
         return billableHours * effectiveRate * (1 + (taxPercent / 100m));
+    }
+
+    private async Task<(Guid? TechnicianId, string TechnicianName)> ResolveTechnicianAsync(Guid? technicianId, string? requestedName, CancellationToken cancellationToken)
+    {
+        if (technicianId is not null)
+        {
+            var technician = await dbContext.ServiceTechnicians.AsNoTracking()
+                .FirstOrDefaultAsync(x => x.Id == technicianId.Value, cancellationToken);
+            if (technician is null)
+            {
+                throw new Domain.Common.DomainValidationException("Selected technician does not exist.");
+            }
+
+            if (!technician.IsActive)
+            {
+                throw new Domain.Common.DomainValidationException("Selected technician is inactive.");
+            }
+
+            return (technician.Id, technician.Name);
+        }
+
+        return (null, ResolveTechnicianName(requestedName));
     }
 
     private string ResolveTechnicianName(string? requestedName)

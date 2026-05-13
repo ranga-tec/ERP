@@ -18,6 +18,7 @@ type WorkOrderDto = {
   billableApprovedAmount: number;
   timeEntries: {
     id: string;
+    technicianUserId?: string | null;
     technicianName: string;
     workDate: string;
     workDescription: string;
@@ -38,6 +39,14 @@ type WorkOrderDto = {
 };
 
 type ServiceJobDto = { id: string; number: string };
+type TechnicianDto = {
+  id: string;
+  code: string;
+  name: string;
+  defaultCostRate: number;
+  defaultBillingRate: number;
+  isActive: boolean;
+};
 
 const statusLabel: Record<number, string> = {
   0: "Open",
@@ -49,9 +58,10 @@ const statusLabel: Record<number, string> = {
 export default async function WorkOrderDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
 
-  const [wo, jobs] = await Promise.all([
+  const [wo, jobs, technicians] = await Promise.all([
     backendFetchJson<WorkOrderDto>(`/service/work-orders/${id}`),
     backendFetchJson<ServiceJobDto[]>("/service/jobs?take=500"),
+    backendFetchJson<TechnicianDto[]>("/service/technicians"),
   ]);
 
   const jobById = new Map(jobs.map((j) => [j.id, j]));
@@ -121,7 +131,7 @@ export default async function WorkOrderDetailPage({ params }: { params: Promise<
 
       <Card>
         <div className="mb-3 text-sm font-semibold">Add Labor Entry</div>
-        <WorkOrderTimeEntryAddForm workOrderId={wo.id} disabled={!canAddLabor} />
+        <WorkOrderTimeEntryAddForm workOrderId={wo.id} technicians={technicians} disabled={!canAddLabor} />
         <div className="mt-3 text-xs text-zinc-500">
           Warranty or contract coverage can reduce approved labor billing to zero even when the technician entry is marked billable.
         </div>
@@ -148,7 +158,7 @@ export default async function WorkOrderDetailPage({ params }: { params: Promise<
             </thead>
             <tbody>
               {wo.timeEntries.map((entry) => (
-                <WorkOrderTimeEntryRow key={entry.id} workOrderId={wo.id} entry={entry} />
+                <WorkOrderTimeEntryRow key={entry.id} workOrderId={wo.id} entry={entry} technicians={technicians} />
               ))}
               {wo.timeEntries.length === 0 ? (
                 <tr>

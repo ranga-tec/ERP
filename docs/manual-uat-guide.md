@@ -276,27 +276,33 @@ Steps:
 13. Return to the job and click `Refresh Entitlement`.
 14. Confirm the job now shows contract-based entitlement instead of warranty.
 15. Start the job.
-16. Go to `Service -> Work Orders` and create a work order for the job.
-17. Add one billable labor entry on the work order, then submit and approve it.
-18. Confirm the approved billable amount reflects coverage-adjusted billing when entitlement covers labor.
-19. Go to `Service -> Estimates` and create an estimate for the job.
-20. Confirm the estimate list shows explicit `View` / `Edit` actions and open the estimate detail page from the list.
-21. While the estimate is still draft, edit `Valid until` or `Terms`, save, and then add at least:
+16. Go to `Service -> Technicians` and create one technician:
+   - Code: `TECH1`
+   - Name: `Workshop Technician`
+   - Default Cost Rate: `10`
+   - Default Billing Rate: `25`
+17. Go to `Service -> Work Orders` and create a work order for the job.
+18. Add one billable labor entry on the work order using technician `TECH1`.
+19. Confirm the selected technician fills cost and billing rates, then submit and approve the labor entry.
+20. Confirm the approved billable amount reflects coverage-adjusted billing when entitlement covers labor.
+21. Go to `Service -> Estimates` and create an estimate for the job.
+22. Confirm the estimate list shows explicit `View` / `Edit` actions and open the estimate detail page from the list.
+23. While the estimate is still draft, edit `Valid until` or `Terms`, save, and then add at least:
    - one `Part` line using `SKU1`
-22. Send the estimate to the customer and confirm `Customer Approval` becomes `Pending`.
-23. Edit the sent draft estimate again and confirm the pending approval resets to `Not Sent`.
-24. Resend the estimate and then mark it customer approved.
-25. Use `Create Change Order` from the approved estimate and confirm a new draft revision opens.
-26. Create a service expense claim for the same job:
+24. Send the estimate to the customer and confirm `Customer Approval` becomes `Pending`.
+25. Edit the sent draft estimate again and confirm the pending approval resets to `Not Sent`.
+26. Resend the estimate and then mark it customer approved.
+27. Use `Create Change Order` from the approved estimate and confirm a new draft revision opens.
+28. Create a service expense claim for the same job:
    - Funding Source: `Petty Cash`
    - one billable line for an emergency outside expense
-27. Submit the claim.
-28. Approve and settle the claim against petty cash fund `WORKSHOP`.
-29. Convert the billable claim line into the working estimate.
-30. If the claim line used a spare-part item, confirm the new estimate line is classified as `Part`.
-31. Create and complete a service handover.
-32. Convert the handover to sales invoice using the labor source that bills approved timesheets.
-33. Open the service job detail page and review the costing section.
+29. Submit the claim.
+30. Approve and settle the claim against petty cash fund `WORKSHOP`.
+31. Convert the billable claim line into the working estimate.
+32. If the claim line used a spare-part item, confirm the new estimate line is classified as `Part`.
+33. Create and complete a service handover.
+34. Convert the handover to sales invoice using the labor source that bills approved timesheets.
+35. Open the service job detail page and review the costing section.
 
 Expected:
 
@@ -308,6 +314,7 @@ Expected:
 - open jobs can be edited, but that header locks after the job is started
 - the job first shows warranty entitlement, then changes to contract entitlement after refresh
 - the job can be opened as `Repair` and moved to `In Progress`
+- technicians can be created in the service master page and selected on job detail labor entries
 - draft estimate headers and lines are editable until customer approval or rejection
 - sending a draft estimate sets customer approval to `Pending`, editing that pending draft resets it, and resending/restating approval works
 - approved estimates stay preserved and `Create Change Order` opens a new draft revision for the changed scope

@@ -48,6 +48,7 @@ const routeAccessRules: RouteAccessRule[] = [
   { prefix: "/service/jobs", roles: SERVICE_CORE },
   { prefix: "/service/material-requisitions", roles: ["Admin", "Service", "Inventory"] },
   { prefix: "/service/quality-checks", roles: SERVICE_CORE },
+  { prefix: "/service/technicians", roles: ["Admin", "Service"] },
   { prefix: "/service/work-orders", roles: SERVICE_CORE },
   { prefix: "/master-data", roles: ALL_BUSINESS_ROLES },
   { prefix: "/settings", roles: ALL_BUSINESS_ROLES },

@@ -153,6 +153,10 @@ Note:
   - entitlement is captured automatically when the job is created by checking active service contracts first, then manufacturer warranty on the equipment unit
   - use `Refresh Entitlement` on the job if warranty/contract data is added after the job was already opened
   - recommended operating flow is: receive equipment -> open the job immediately -> diagnose -> draft/send estimate before continuing additional billable work
+- Technicians:
+  - maintain technician code, name, default cost rate, default billing rate, phone, notes, and active status
+  - job detail labor entries select technicians from this master
+  - selecting a technician on a job sheet auto-fills default labor cost and billing rates, but the entry can still be adjusted before saving
 - Work orders:
   - create and track work records
   - add labor entries/timesheets with technician, date, hours, cost rate, billing rate, and notes
