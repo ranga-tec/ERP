@@ -32,7 +32,11 @@ export function EquipmentUnitCreateForm({
     [customers],
   );
 
+  const [entryMode, setEntryMode] = useState<"existing" | "external">("existing");
   const [itemId, setItemId] = useState("");
+  const [externalItemSku, setExternalItemSku] = useState("");
+  const [externalItemName, setExternalItemName] = useState("");
+  const [externalUnitOfMeasure, setExternalUnitOfMeasure] = useState("PCS");
   const [serialNumber, setSerialNumber] = useState("");
   const [customerId, setCustomerId] = useState("");
   const [purchasedAt, setPurchasedAt] = useState("");
@@ -49,12 +53,15 @@ export function EquipmentUnitCreateForm({
     setError(null);
     setBusy(true);
     try {
-      if (!itemId) {
+      if (entryMode === "existing" && !itemId) {
         throw new Error("Equipment item is required.");
       }
 
-      const unit = await apiPost<EquipmentUnitDto>("service/equipment-units", {
-        itemId,
+      if (entryMode === "external" && (!externalItemSku.trim() || !externalItemName.trim())) {
+        throw new Error("External equipment SKU and name are required.");
+      }
+
+      const basePayload = {
         serialNumber: serialNumber.trim(),
         customerId,
         purchasedAt: purchasedAt ? new Date(purchasedAt).toISOString() : null,
@@ -63,7 +70,21 @@ export function EquipmentUnitCreateForm({
         serviceIntervalDays: serviceIntervalDays ? Number(serviceIntervalDays) : null,
         nextServiceDueAt: nextServiceDueAt ? new Date(nextServiceDueAt).toISOString() : null,
         nextRepairDueAt: nextRepairDueAt ? new Date(nextRepairDueAt).toISOString() : null,
-      });
+      };
+
+      const unit =
+        entryMode === "external"
+          ? await apiPost<EquipmentUnitDto>("service/equipment-units/external", {
+              ...basePayload,
+              itemSku: externalItemSku.trim(),
+              itemName: externalItemName.trim(),
+              unitOfMeasure: externalUnitOfMeasure.trim() || "PCS",
+            })
+          : await apiPost<EquipmentUnitDto>("service/equipment-units", {
+              ...basePayload,
+              itemId,
+            });
+
       router.push(`/service/equipment-units/${unit.id}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
@@ -74,11 +95,45 @@ export function EquipmentUnitCreateForm({
 
   return (
     <form onSubmit={onSubmit} className="space-y-3">
-      <div className="grid gap-3 sm:grid-cols-2">
-        <div>
-          <label className="mb-1 block text-sm font-medium">Equipment item</label>
-          <ItemLookupField items={equipmentItems} value={itemId} onChange={setItemId} />
-        </div>
+      <div className="inline-flex rounded-md border border-[var(--card-border)] bg-[var(--surface-soft)] p-1 text-sm">
+        <button
+          type="button"
+          className={`rounded px-3 py-1.5 ${entryMode === "existing" ? "bg-[var(--surface)] font-medium shadow-sm" : "text-zinc-500"}`}
+          onClick={() => setEntryMode("existing")}
+        >
+          Existing item
+        </button>
+        <button
+          type="button"
+          className={`rounded px-3 py-1.5 ${entryMode === "external" ? "bg-[var(--surface)] font-medium shadow-sm" : "text-zinc-500"}`}
+          onClick={() => setEntryMode("external")}
+        >
+          Outside equipment
+        </button>
+      </div>
+
+      <div className={`grid gap-3 ${entryMode === "external" ? "lg:grid-cols-[2fr_1fr]" : "sm:grid-cols-2"}`}>
+        {entryMode === "existing" ? (
+          <div>
+            <label className="mb-1 block text-sm font-medium">Equipment item</label>
+            <ItemLookupField items={equipmentItems} value={itemId} onChange={setItemId} />
+          </div>
+        ) : (
+          <div className="grid gap-3 sm:grid-cols-3">
+            <div>
+              <label className="mb-1 block text-sm font-medium">External equipment SKU</label>
+              <Input value={externalItemSku} onChange={(e) => setExternalItemSku(e.target.value)} required={entryMode === "external"} />
+            </div>
+            <div>
+              <label className="mb-1 block text-sm font-medium">External equipment name</label>
+              <Input value={externalItemName} onChange={(e) => setExternalItemName(e.target.value)} required={entryMode === "external"} />
+            </div>
+            <div>
+              <label className="mb-1 block text-sm font-medium">UoM</label>
+              <Input value={externalUnitOfMeasure} onChange={(e) => setExternalUnitOfMeasure(e.target.value)} required={entryMode === "external"} />
+            </div>
+          </div>
+        )}
         <div>
           <label className="mb-1 block text-sm font-medium">Customer</label>
           <Select value={customerId} onChange={(e) => setCustomerId(e.target.value)} required>

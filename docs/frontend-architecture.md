@@ -268,6 +268,7 @@ Recent workflow-specific UI behavior:
 - sales list pages now expose explicit `View` / `Edit` actions for quotes, orders, dispatches, direct dispatches, invoices, and customer returns
 - sales list-page `Edit` remains available while the document is still `Draft` (and follows existing invoice permissions)
 - equipment-unit detail pages support warranty ownership updates and list linked service contracts
+- equipment-unit creation supports `Existing item` and `Outside equipment` modes; outside equipment creates the Item Master equipment row and serialized unit together from the service screen
 - service-contract list/detail pages manage `AMC`, `SLA`, and warranty-extension coverage for installed units
 - service-contract and service-job forms use the shared equipment-unit lookup; it displays `Item SKU - Item Name / SN: SerialNumber` and searches item SKU, item name, serial number, and customer code
 - service-job create/detail screens surface entitlement source, coverage, billing treatment, and manual refresh when coverage changes

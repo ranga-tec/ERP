@@ -245,48 +245,63 @@ Steps:
    - enter a future `Warranty until` date
    - set `Warranty coverage` to `Labor and Parts`
 2. Confirm the equipment-unit list shows explicit `View` / `Edit` actions and open the unit from one of them.
-3. Go to `Service -> Jobs` and create a job:
+3. Register one outside-purchased customer unit from `Service -> Equipment Units`:
+   - Mode: `Outside equipment`
+   - External equipment SKU: `EXT-EQP1`
+   - External equipment name: `CustomerOwnedGenerator`
+   - UoM: `PCS`
+   - Serial number: `EXT-SN-001`
+   - Customer: `CUS1`
+   - leave warranty blank
+4. Confirm the unit is created and can later be selected by searching `EXT-EQP1`, `CustomerOwnedGenerator`, or `EXT-SN-001`.
+5. Go to `Service -> Jobs` and create a job:
    - Equipment unit: search by `EQP1`, `GeneratorModelA`, or `EQP1-SN-001`
    - Kind: `Repair`
    - Problem Description: `Unit does not power on`
-4. Confirm the job list shows explicit `View` / `Edit` actions and open the job detail page from the list.
-5. While the job is still open, edit the job header once and save it.
-6. Confirm the job detail page shows warranty-based entitlement and billing treatment.
-7. Go to `Service -> Service Contracts` and create a contract for the same unit:
+6. Confirm the job list shows explicit `View` / `Edit` actions and open the job detail page from the list.
+7. While the job is still open, edit the job header once and save it.
+8. Confirm the job detail page shows warranty-based entitlement and billing treatment.
+9. Create another job for the outside unit:
+   - Equipment unit: search by `EXT-EQP1`, `CustomerOwnedGenerator`, or `EXT-SN-001`
+   - Kind: `Service`
+   - Problem Description: `Customer-owned unit service`
+10. Confirm the outside-equipment job has no warranty/contract entitlement and is billable.
+11. Go to `Service -> Service Contracts` and create a contract for the same unit:
    - Equipment unit: search by `EQP1`, `GeneratorModelA`, or `EQP1-SN-001`
    - Type: `AMC`
    - Coverage: `Parts Only`
    - Start Date: yesterday
    - End Date: 60 days from now
-8. Confirm the contract list shows explicit `View` / `Edit` actions and open the contract detail page from the list.
-9. Return to the job and click `Refresh Entitlement`.
-10. Confirm the job now shows contract-based entitlement instead of warranty.
-11. Start the job.
-12. Go to `Service -> Work Orders` and create a work order for the job.
-13. Add one billable labor entry on the work order, then submit and approve it.
-14. Confirm the approved billable amount reflects coverage-adjusted billing when entitlement covers labor.
-15. Go to `Service -> Estimates` and create an estimate for the job.
-16. Confirm the estimate list shows explicit `View` / `Edit` actions and open the estimate detail page from the list.
-17. While the estimate is still draft, edit `Valid until` or `Terms`, save, and then add at least:
+12. Confirm the contract list shows explicit `View` / `Edit` actions and open the contract detail page from the list.
+13. Return to the job and click `Refresh Entitlement`.
+14. Confirm the job now shows contract-based entitlement instead of warranty.
+15. Start the job.
+16. Go to `Service -> Work Orders` and create a work order for the job.
+17. Add one billable labor entry on the work order, then submit and approve it.
+18. Confirm the approved billable amount reflects coverage-adjusted billing when entitlement covers labor.
+19. Go to `Service -> Estimates` and create an estimate for the job.
+20. Confirm the estimate list shows explicit `View` / `Edit` actions and open the estimate detail page from the list.
+21. While the estimate is still draft, edit `Valid until` or `Terms`, save, and then add at least:
    - one `Part` line using `SKU1`
-18. Send the estimate to the customer and confirm `Customer Approval` becomes `Pending`.
-19. Edit the sent draft estimate again and confirm the pending approval resets to `Not Sent`.
-20. Resend the estimate and then mark it customer approved.
-21. Use `Create Change Order` from the approved estimate and confirm a new draft revision opens.
-22. Create a service expense claim for the same job:
+22. Send the estimate to the customer and confirm `Customer Approval` becomes `Pending`.
+23. Edit the sent draft estimate again and confirm the pending approval resets to `Not Sent`.
+24. Resend the estimate and then mark it customer approved.
+25. Use `Create Change Order` from the approved estimate and confirm a new draft revision opens.
+26. Create a service expense claim for the same job:
    - Funding Source: `Petty Cash`
    - one billable line for an emergency outside expense
-23. Submit the claim.
-24. Approve and settle the claim against petty cash fund `WORKSHOP`.
-25. Convert the billable claim line into the working estimate.
-26. If the claim line used a spare-part item, confirm the new estimate line is classified as `Part`.
-27. Create and complete a service handover.
-28. Convert the handover to sales invoice using the labor source that bills approved timesheets.
-29. Open the service job detail page and review the costing section.
+27. Submit the claim.
+28. Approve and settle the claim against petty cash fund `WORKSHOP`.
+29. Convert the billable claim line into the working estimate.
+30. If the claim line used a spare-part item, confirm the new estimate line is classified as `Part`.
+31. Create and complete a service handover.
+32. Convert the handover to sales invoice using the labor source that bills approved timesheets.
+33. Open the service job detail page and review the costing section.
 
 Expected:
 
 - equipment units accept warranty coverage and the unit detail page allows updates
+- outside equipment can be registered without leaving the service module; the system creates an Equipment item and serialized unit together
 - service jobs and service contracts use the serialized equipment unit, but the picker displays and searches the linked Item table SKU/name as well as the unit serial number
 - the contract can be linked to the same unit and appears on both the contract list and equipment-unit detail page
 - service lists now expose explicit `View` / `Edit` entry points instead of relying only on clickable document numbers

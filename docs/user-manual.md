@@ -129,6 +129,9 @@ Note:
 - Equipment units:
   - register serialized customer equipment against an `Equipment` type item from `Master Data -> Items`
   - the item record stores the equipment model/SKU/name; the equipment unit stores the serial number, customer ownership, warranty, and service scheduling fields
+  - use `Existing item` when the model already exists in Item Master
+  - use `Outside equipment` when a customer brings equipment bought elsewhere; this creates an Equipment item and the serialized customer unit in one step
+  - outside equipment normally has no ISS warranty unless a service contract or manually entered warranty coverage applies
   - maintain purchased date, warranty end date, and warranty coverage scope
   - the list page exposes `View` and `Edit` actions explicitly; both open the unit detail page
   - use the equipment-unit detail page to edit ownership or warranty coverage as the installed base changes
