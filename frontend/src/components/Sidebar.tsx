@@ -76,6 +76,7 @@ const sections: NavSection[] = [
   {
     title: "Inventory",
     items: [
+      { href: "/inventory/availability", label: "Inventory Availability" },
       { href: "/inventory/onhand", label: "On Hand" },
       { href: "/inventory/reorder-alerts", label: "Reorder Alerts" },
       { href: "/inventory/stock-adjustments", label: "Stock Adjustments" },

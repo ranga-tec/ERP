@@ -2,6 +2,7 @@ import { backendFetchJson } from "@/lib/backend.server";
 import { Card, Table } from "@/components/ui";
 import { WarehouseCreateForm } from "./WarehouseCreateForm";
 import { WarehouseRow } from "./WarehouseRow";
+import { WarehouseBinsManager } from "./WarehouseBinsManager";
 
 type WarehouseDto = {
   id: string;
@@ -10,15 +11,28 @@ type WarehouseDto = {
   address?: string | null;
   isActive: boolean;
 };
+type WarehouseBinDto = {
+  id: string;
+  warehouseId: string;
+  code: string;
+  name: string;
+  zone?: string | null;
+  rack?: string | null;
+  shelf?: string | null;
+  isActive: boolean;
+};
 
 export default async function WarehousesPage() {
-  const warehouses = await backendFetchJson<WarehouseDto[]>("/warehouses");
+  const [warehouses, bins] = await Promise.all([
+    backendFetchJson<WarehouseDto[]>("/warehouses"),
+    backendFetchJson<WarehouseBinDto[]>("/warehouses/bins"),
+  ]);
 
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-semibold">Warehouses</h1>
-        <p className="mt-1 text-sm text-zinc-500">Multi-warehouse master data.</p>
+        <p className="mt-1 text-sm text-zinc-500">Multi-warehouse master data with bin and rack locations.</p>
       </div>
 
       <Card>
@@ -53,6 +67,11 @@ export default async function WarehousesPage() {
             </tbody>
           </Table>
         </div>
+      </Card>
+
+      <Card>
+        <div className="mb-3 text-sm font-semibold">Bins / Racks</div>
+        <WarehouseBinsManager warehouses={warehouses} bins={bins} />
       </Card>
     </div>
   );

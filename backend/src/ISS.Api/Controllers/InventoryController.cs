@@ -13,18 +13,41 @@ namespace ISS.Api.Controllers;
 [Authorize(Roles = $"{Roles.Admin},{Roles.Inventory},{Roles.Reporting},{Roles.Service}")]
 public sealed class InventoryController(IIssDbContext dbContext, InventoryService inventoryService, ProcurementService procurementService) : ControllerBase
 {
-    public sealed record OnHandDto(Guid WarehouseId, Guid ItemId, string? BatchNumber, decimal OnHand);
+    public sealed record OnHandDto(Guid WarehouseId, Guid? WarehouseBinId, Guid ItemId, string? BatchNumber, decimal OnHand);
+    public sealed record InventoryAvailabilityDto(Guid WarehouseId, Guid? WarehouseBinId, Guid ItemId, string? BatchNumber, string? SerialNumber, decimal OnHand, decimal UnitCost, decimal InventoryValue);
     public sealed record SerialOnHandDto(string SerialNumber);
 
     [HttpGet("onhand")]
     public async Task<ActionResult<IReadOnlyList<OnHandDto>>> GetOnHand(
         [FromQuery] Guid? warehouseId,
         [FromQuery] Guid? itemId,
+        [FromQuery] Guid? warehouseBinId,
         [FromQuery] string? batchNumber,
         CancellationToken cancellationToken)
     {
-        var rows = await inventoryService.GetOnHandBreakdownAsync(warehouseId, itemId, batchNumber, cancellationToken);
-        return Ok(rows.Select(row => new OnHandDto(row.WarehouseId, row.ItemId, row.BatchNumber, row.OnHand)).ToList());
+        var rows = await inventoryService.GetOnHandBreakdownAsync(warehouseId, itemId, warehouseBinId, batchNumber, cancellationToken);
+        return Ok(rows.Select(row => new OnHandDto(row.WarehouseId, row.WarehouseBinId, row.ItemId, row.BatchNumber, row.OnHand)).ToList());
+    }
+
+    [HttpGet("availability")]
+    public async Task<ActionResult<IReadOnlyList<InventoryAvailabilityDto>>> GetAvailability(
+        [FromQuery] Guid? warehouseId,
+        [FromQuery] Guid? itemId,
+        [FromQuery] Guid? warehouseBinId,
+        [FromQuery] string? batchNumber,
+        [FromQuery] string? serialNumber,
+        CancellationToken cancellationToken)
+    {
+        var rows = await inventoryService.GetInventoryAvailabilityAsync(warehouseId, itemId, warehouseBinId, batchNumber, serialNumber, cancellationToken);
+        return Ok(rows.Select(row => new InventoryAvailabilityDto(
+            row.WarehouseId,
+            row.WarehouseBinId,
+            row.ItemId,
+            row.BatchNumber,
+            row.SerialNumber,
+            row.OnHand,
+            row.UnitCost,
+            row.InventoryValue)).ToList());
     }
 
     [HttpGet("serials-on-hand")]

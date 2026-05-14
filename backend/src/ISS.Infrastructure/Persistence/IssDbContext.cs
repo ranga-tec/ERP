@@ -44,6 +44,7 @@ public sealed class IssDbContext(
     public DbSet<Customer> Customers => Set<Customer>();
     public DbSet<Supplier> Suppliers => Set<Supplier>();
     public DbSet<Warehouse> Warehouses => Set<Warehouse>();
+    public DbSet<WarehouseBin> WarehouseBins => Set<WarehouseBin>();
     public DbSet<ReorderSetting> ReorderSettings => Set<ReorderSetting>();
 
     public DbSet<InventoryMovement> InventoryMovements => Set<InventoryMovement>();
@@ -244,6 +245,18 @@ public sealed class IssDbContext(
             entity.Property(x => x.Name).HasMaxLength(128);
         });
 
+        builder.Entity<WarehouseBin>(entity =>
+        {
+            entity.HasIndex(x => new { x.WarehouseId, x.Code }).IsUnique();
+            entity.HasIndex(x => x.WarehouseId);
+            entity.Property(x => x.Code).HasMaxLength(32);
+            entity.Property(x => x.Name).HasMaxLength(128);
+            entity.Property(x => x.Zone).HasMaxLength(64);
+            entity.Property(x => x.Rack).HasMaxLength(64);
+            entity.Property(x => x.Shelf).HasMaxLength(64);
+            entity.HasOne<Warehouse>().WithMany().HasForeignKey(x => x.WarehouseId).OnDelete(DeleteBehavior.Cascade);
+        });
+
         builder.Entity<Item>(entity =>
         {
             entity.HasIndex(x => new { x.CompanyId, x.Sku }).IsUnique();
@@ -320,8 +333,10 @@ public sealed class IssDbContext(
             entity.Property(x => x.BatchNumber).HasMaxLength(128);
 
             entity.HasIndex(x => new { x.WarehouseId, x.ItemId, x.OccurredAt });
+            entity.HasIndex(x => new { x.WarehouseId, x.WarehouseBinId, x.ItemId });
             entity.HasIndex(x => new { x.ItemId, x.SerialNumber });
             entity.HasIndex(x => new { x.ItemId, x.BatchNumber });
+            entity.HasOne<WarehouseBin>().WithMany().HasForeignKey(x => x.WarehouseBinId).OnDelete(DeleteBehavior.Restrict);
         });
 
         builder.Entity<StockAdjustment>(entity =>

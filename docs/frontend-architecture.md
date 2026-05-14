@@ -180,7 +180,9 @@ Maintainer rule:
 
 Current inventory interaction pattern:
 
-- `On Hand` uses warehouse and batch breakdown rows instead of a single merged balance
+- `Inventory Availability` provides the full searchable stock browser across item, warehouse, bin/rack, batch/lot, and serial
+- `On Hand` remains the focused selected-item query and uses warehouse and batch breakdown rows instead of a single merged balance
+- `Master Data -> Warehouses` includes bin/rack/shelf maintenance so warehouse locations are controlled as master data
 - draft stock transaction pages reuse the shared stock visibility explorer and inline live stock widget
 - stock adjustment lines are entered as `counted quantity`; the UI shows current system quantity and expected variance
 - stock transfer lines are entered as `move quantity`; the source warehouse stock widget stays visible while editing
@@ -239,7 +241,7 @@ Master-data list pages now follow the same maintainability pattern:
 - errors are shown inline per row
 - destructive actions use explicit confirmation prompts
 
-This standard is now implemented across brands, customers, suppliers, warehouses, UoMs, UoM conversions, taxes, tax conversions, currencies, currency rates, payment types, reference forms, item categories/subcategories, and reorder settings.
+This standard is now implemented across brands, customers, suppliers, warehouses, warehouse bins/racks, UoMs, UoM conversions, taxes, tax conversions, currencies, currency rates, payment types, reference forms, item categories/subcategories, and reorder settings.
 Items now use a separate list/search page plus dedicated create, view, and edit pages. The item list grid exposes `View`, `Edit`, `Delete`, and item label links.
 
 ### Costing Reporting UI
@@ -278,6 +280,7 @@ Recent workflow-specific UI behavior:
 - service estimates support `Part`, `Labor`, and `Expense` line kinds, customer-approval state visibility, resend behavior on edited drafts, and explicit `Create Change Order` actions after approval/rejection
 - service expense claim detail pages let service/finance users submit, approve/reject, settle, and convert billable claim lines into the working estimate
 - service work-order detail pages support labor-entry capture plus submit/approve/reject actions, and show effective billable labor after entitlement coverage
+- service material requisition lines validate warehouse availability before saving; serial-tracked items use an available-serial picker, and stock visibility opens from a compact modal trigger
 - service handover invoice conversion supports fallback item mapping for expense lines and lets users choose estimate labor vs approved timesheet labor
 - service job detail pages render a costing summary with estimate, invoice, material, direct-purchase, labor, and expense-claim breakdowns, including entitlement-adjusted labor billing visibility
 - finance chart-of-accounts pages now support account creation/edit/delete, parent account structure, and posting/group flags

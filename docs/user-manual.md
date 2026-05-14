@@ -15,7 +15,7 @@ Recommended setup sequence:
 Note:
 - fresh databases auto-seed default currencies, payment types, tax codes, and reference forms so finance/reporting screens can work immediately
 
-1. Warehouses
+1. Warehouses and bins/racks
 2. Brands (optional)
 3. UoMs
 4. UoM conversions
@@ -79,9 +79,20 @@ Note:
 
 ## Inventory workflows
 
+- Warehouse bins/racks:
+  - maintain under `Master Data -> Warehouses` in the `Bins / Racks` section
+  - create bin codes under each warehouse, with optional zone, rack, and shelf values
+  - use this structure to represent physical picking/storage locations inside the warehouse
+- Inventory availability:
+  - go to `Inventory -> Inventory Availability`
+  - load all current inventory or filter first by warehouse, bin/rack, item, batch/lot, or serial
+  - use the loaded table search to find items, warehouses, bins, racks, batches, or serial numbers
+  - rows show item, warehouse, bin/rack, batch/lot, serial, on-hand quantity, unit cost, and inventory value
+  - stock that existed before bin tracking, or stock posted without a bin, appears as `Unassigned`
 - On hand:
   - query stock by warehouse/item/batch
   - review balances as all together, warehouse wise, batch wise, or warehouse + batch
+  - use `Inventory Availability` when you need a full searchable inventory list rather than a single selected-item query
 - Reorder alerts:
   - uses reorder settings and current on-hand
   - supports creating PR draft from reorder results
@@ -191,6 +202,9 @@ Note:
   - create -> add lines -> post
   - using `Edit` from the list opens the existing draft lines directly in edit mode; use `Switch to Add Line` if you want to return to the add-line form
   - use when issuing stocked spare parts from a warehouse to the job
+  - the system validates available stock before a line is saved, so zero-stock or over-requested items are rejected before posting
+  - serialized items must be selected from currently available serial numbers in the source warehouse
+  - the separate stock lookup opens from a compact `Load stock` button instead of taking permanent space on the requisition screen
 - Quality checks:
   - record pass/fail and notes
 - Service handovers:

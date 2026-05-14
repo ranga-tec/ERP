@@ -32,6 +32,7 @@ public interface IIssDbContext
     DbSet<Customer> Customers { get; }
     DbSet<Supplier> Suppliers { get; }
     DbSet<Warehouse> Warehouses { get; }
+    DbSet<WarehouseBin> WarehouseBins { get; }
     DbSet<ReorderSetting> ReorderSettings { get; }
 
     DbSet<InventoryMovement> InventoryMovements { get; }

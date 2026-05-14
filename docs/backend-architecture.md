@@ -265,7 +265,7 @@ Conventions commonly used:
 
 Master data API surface (current):
 
-- Core: `/api/items`, `/api/brands`, `/api/warehouses`, `/api/suppliers`, `/api/customers`
+- Core: `/api/items`, `/api/brands`, `/api/warehouses`, `/api/warehouses/{id}/bins`, `/api/warehouses/bins`, `/api/suppliers`, `/api/customers`
 - Classification/units: `/api/item-categories`, `/api/item-subcategories`, `/api/uoms`, `/api/uom-conversions`
 - Finance-related masters: `/api/taxes`, `/api/tax-conversions`, `/api/currencies`, `/api/currency-rates`, `/api/payment-types`
 - Finance account master: `/api/finance/accounts`
@@ -278,6 +278,18 @@ Master-data API action standard:
 - Reorder settings follow upsert + delete semantics:
   - `POST /api/reorder-settings` (upsert by warehouse+item)
   - `DELETE /api/reorder-settings/{id}`
+- Warehouse bins/racks are child master data under warehouses:
+  - `GET /api/warehouses/bins` optionally filters by `warehouseId`
+  - `POST /api/warehouses/{id}/bins`
+  - `PUT /api/warehouses/{warehouseId}/bins/{binId}`
+  - `DELETE /api/warehouses/{warehouseId}/bins/{binId}`
+  - delete returns `409 Conflict` when stock movements reference the bin; mark inactive instead.
+
+Inventory availability API surface:
+
+- `GET /api/inventory/onhand` returns warehouse/bin/item/batch grouped on-hand rows. `WarehouseBinId` is nullable for older or unassigned stock.
+- `GET /api/inventory/availability` returns searchable current inventory rows by warehouse, bin, item, batch/lot, and serial, including on-hand quantity, unit cost, and inventory value.
+- `GET /api/inventory/serials-on-hand` returns available serial numbers for issue flows such as service material requisitions.
 
 Line item API standard:
 

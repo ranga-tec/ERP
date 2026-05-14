@@ -15,7 +15,8 @@ Use this hub first, then jump into the specialized docs linked below.
 - Master-data list maintenance now includes row-level edit/delete actions and backend delete APIs.
 - Master data now includes UoM conversions, payment types, taxes/tax conversions, currencies/rates, and reference forms.
 - Reporting now includes costing in addition to dashboard, stock-ledger, aging, tax summary, and service KPIs.
-- Inventory currently supports warehouse/batch on-hand breakdown, stock-adjustment physical counts, stock-transfer move quantities, and signed stock-ledger history with batch/serial detail.
+- Inventory currently supports warehouse/bin/batch on-hand and availability visibility, stock-adjustment physical counts, stock-transfer move quantities, and signed stock-ledger history with batch/serial detail.
+- Warehouse management now includes `WarehouseBin` master data for bin/rack/shelf locations. Existing stock without a bin is intentionally treated as `Unassigned` so older movements stay valid after migration.
 - Procurement GRNs now support PO-linked partial receipt planning, duplicate-item PO line handling, early serial/batch validation, and searchable `Receive From PO` / `Current Draft Lines` tables.
 - Service now supports `Service` and `Repair` job kinds, work-order labor entries/timesheets, estimate revisions, service-linked direct purchases, service expense claims, billable claim-to-estimate conversion, labor-to-invoice conversion, and per-job costing rollups.
 - Finance now includes petty cash funds with opening balance, top-up, adjustment, and service expense-claim settlement flows.
@@ -37,7 +38,7 @@ Typical local runtime:
 ## Implemented Functional Coverage Snapshot
 
 - Master data:
-  - items, brands, categories/subcategories, warehouses, suppliers, customers, reorder settings
+  - items, brands, categories/subcategories, warehouses, warehouse bins/racks, suppliers, customers, reorder settings
   - UoMs, UoM conversions
   - taxes, tax conversions
   - currencies, currency rates

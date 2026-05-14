@@ -28,7 +28,8 @@ public sealed class InventoryMovement : AuditableEntity
         Guid referenceId,
         Guid? referenceLineId,
         string? serialNumber,
-        string? batchNumber)
+        string? batchNumber,
+        Guid? warehouseBinId = null)
     {
         OccurredAt = occurredAt;
         Type = type;
@@ -41,11 +42,13 @@ public sealed class InventoryMovement : AuditableEntity
         ReferenceLineId = referenceLineId;
         SerialNumber = serialNumber?.Trim();
         BatchNumber = batchNumber?.Trim();
+        WarehouseBinId = warehouseBinId;
     }
 
     public DateTimeOffset OccurredAt { get; private set; }
     public InventoryMovementType Type { get; private set; }
     public Guid WarehouseId { get; private set; }
+    public Guid? WarehouseBinId { get; private set; }
     public Guid ItemId { get; private set; }
 
     /// <summary>
@@ -60,4 +63,3 @@ public sealed class InventoryMovement : AuditableEntity
     public string? SerialNumber { get; private set; }
     public string? BatchNumber { get; private set; }
 }
-
