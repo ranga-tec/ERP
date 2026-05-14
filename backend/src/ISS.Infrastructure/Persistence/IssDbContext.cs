@@ -73,6 +73,7 @@ public sealed class IssDbContext(
     public DbSet<ServiceExpenseClaim> ServiceExpenseClaims => Set<ServiceExpenseClaim>();
     public DbSet<ServiceHandover> ServiceHandovers => Set<ServiceHandover>();
     public DbSet<ServiceTechnician> ServiceTechnicians => Set<ServiceTechnician>();
+    public DbSet<ServiceJobDailySheet> ServiceJobDailySheets => Set<ServiceJobDailySheet>();
     public DbSet<ServiceJobAssignment> ServiceJobAssignments => Set<ServiceJobAssignment>();
     public DbSet<ServiceJobProgressUpdate> ServiceJobProgressUpdates => Set<ServiceJobProgressUpdate>();
     public DbSet<ServiceJobMaterialDisposition> ServiceJobMaterialDispositions => Set<ServiceJobMaterialDisposition>();
@@ -647,6 +648,7 @@ public sealed class IssDbContext(
         builder.Entity<ServiceJobAssignment>(entity =>
         {
             entity.HasIndex(x => new { x.ServiceJobId, x.AssignedDate });
+            entity.HasIndex(x => x.ServiceJobDailySheetId);
             entity.HasIndex(x => x.TechnicianId);
             entity.Property(x => x.EmployeeName).HasMaxLength(256);
             entity.Property(x => x.Role).HasMaxLength(128);
@@ -656,12 +658,14 @@ public sealed class IssDbContext(
             entity.Property(x => x.DailyWorkDescription).HasMaxLength(2000);
             entity.Property(x => x.RejectionReason).HasMaxLength(512);
             entity.HasOne<ServiceJob>().WithMany().HasForeignKey(x => x.ServiceJobId).OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne<ServiceJobDailySheet>().WithMany().HasForeignKey(x => x.ServiceJobDailySheetId).OnDelete(DeleteBehavior.SetNull);
             entity.HasOne<ServiceTechnician>().WithMany().HasForeignKey(x => x.TechnicianId).OnDelete(DeleteBehavior.Restrict);
         });
 
         builder.Entity<ServiceJobProgressUpdate>(entity =>
         {
             entity.HasIndex(x => new { x.ServiceJobId, x.ProgressDate });
+            entity.HasIndex(x => x.ServiceJobDailySheetId);
             entity.Property(x => x.WorkCompleted).HasMaxLength(2000);
             entity.Property(x => x.WorkPending).HasMaxLength(2000);
             entity.Property(x => x.ProblemsFound).HasMaxLength(2000);
@@ -672,11 +676,33 @@ public sealed class IssDbContext(
             entity.Property(x => x.TechnicianNotes).HasMaxLength(2000);
             entity.Property(x => x.SupervisorNotes).HasMaxLength(2000);
             entity.HasOne<ServiceJob>().WithMany().HasForeignKey(x => x.ServiceJobId).OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne<ServiceJobDailySheet>().WithMany().HasForeignKey(x => x.ServiceJobDailySheetId).OnDelete(DeleteBehavior.SetNull);
+        });
+
+        builder.Entity<ServiceJobDailySheet>(entity =>
+        {
+            entity.HasIndex(x => x.Number).IsUnique();
+            entity.HasIndex(x => new { x.ServiceJobId, x.SheetDate });
+            entity.Property(x => x.Number).HasMaxLength(32);
+            entity.Property(x => x.PreparedByName).HasMaxLength(256);
+            entity.Property(x => x.SiteLocation).HasMaxLength(512);
+            entity.Property(x => x.ShiftName).HasMaxLength(128);
+            entity.Property(x => x.WeatherOrSiteCondition).HasMaxLength(512);
+            entity.Property(x => x.WorkPlanned).HasMaxLength(2000);
+            entity.Property(x => x.WorkCompleted).HasMaxLength(2000);
+            entity.Property(x => x.WorkPending).HasMaxLength(2000);
+            entity.Property(x => x.ProblemsFound).HasMaxLength(2000);
+            entity.Property(x => x.CustomerInstructions).HasMaxLength(2000);
+            entity.Property(x => x.TechnicianNotes).HasMaxLength(2000);
+            entity.Property(x => x.SupervisorNotes).HasMaxLength(2000);
+            entity.Property(x => x.RejectionReason).HasMaxLength(512);
+            entity.HasOne<ServiceJob>().WithMany().HasForeignKey(x => x.ServiceJobId).OnDelete(DeleteBehavior.Cascade);
         });
 
         builder.Entity<ServiceJobMaterialDisposition>(entity =>
         {
             entity.HasIndex(x => x.ServiceJobId);
+            entity.HasIndex(x => x.ServiceJobDailySheetId);
             entity.HasIndex(x => x.MaterialRequisitionId);
             entity.HasIndex(x => x.MaterialRequisitionLineId);
             entity.HasIndex(x => x.SupplierReturnId);
@@ -687,6 +713,7 @@ public sealed class IssDbContext(
             entity.Property(x => x.Reason).HasMaxLength(1000);
             entity.Property(x => x.ResponsiblePerson).HasMaxLength(256);
             entity.HasOne<ServiceJob>().WithMany().HasForeignKey(x => x.ServiceJobId).OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne<ServiceJobDailySheet>().WithMany().HasForeignKey(x => x.ServiceJobDailySheetId).OnDelete(DeleteBehavior.SetNull);
             entity.HasOne<MaterialRequisition>().WithMany().HasForeignKey(x => x.MaterialRequisitionId).OnDelete(DeleteBehavior.Cascade);
             entity.HasOne<MaterialRequisitionLine>().WithMany().HasForeignKey(x => x.MaterialRequisitionLineId).OnDelete(DeleteBehavior.Cascade);
             entity.HasOne<SupplierReturn>().WithMany().HasForeignKey(x => x.SupplierReturnId).OnDelete(DeleteBehavior.SetNull);
@@ -718,6 +745,7 @@ public sealed class IssDbContext(
         {
             entity.HasIndex(x => x.Number).IsUnique();
             entity.HasIndex(x => x.ServiceJobId);
+            entity.HasIndex(x => x.ServiceJobDailySheetId);
             entity.HasIndex(x => x.ClaimedByUserId);
             entity.HasIndex(x => x.SettlementPaymentTypeId);
             entity.HasIndex(x => x.SettlementPettyCashFundId);
@@ -731,6 +759,7 @@ public sealed class IssDbContext(
             entity.HasOne<PaymentType>().WithMany().HasForeignKey(x => x.SettlementPaymentTypeId).OnDelete(DeleteBehavior.Restrict);
             entity.HasOne<PettyCashFund>().WithMany().HasForeignKey(x => x.SettlementPettyCashFundId).OnDelete(DeleteBehavior.Restrict);
             entity.HasMany(x => x.Lines).WithOne().HasForeignKey(x => x.ServiceExpenseClaimId).OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne<ServiceJobDailySheet>().WithMany().HasForeignKey(x => x.ServiceJobDailySheetId).OnDelete(DeleteBehavior.SetNull);
         });
         builder.Entity<ServiceExpenseClaimLine>(entity =>
         {
@@ -779,9 +808,11 @@ public sealed class IssDbContext(
         builder.Entity<MaterialRequisition>(entity =>
         {
             entity.HasIndex(x => x.Number).IsUnique();
+            entity.HasIndex(x => x.ServiceJobDailySheetId);
             entity.Property(x => x.Number).HasMaxLength(32);
             entity.Property(x => x.Purpose).HasMaxLength(512);
             entity.HasMany(x => x.Lines).WithOne().HasForeignKey(x => x.MaterialRequisitionId).OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne<ServiceJobDailySheet>().WithMany().HasForeignKey(x => x.ServiceJobDailySheetId).OnDelete(DeleteBehavior.SetNull);
         });
         builder.Entity<MaterialRequisitionLine>(entity =>
         {
@@ -847,6 +878,7 @@ public sealed class IssDbContext(
         {
             entity.HasIndex(x => x.Number).IsUnique();
             entity.HasIndex(x => x.ServiceJobId);
+            entity.HasIndex(x => x.ServiceJobDailySheetId);
             entity.HasIndex(x => x.RequestedByUserId);
             entity.HasIndex(x => x.PettyCashFundId);
             entity.Property(x => x.Number).HasMaxLength(32);
@@ -858,6 +890,7 @@ public sealed class IssDbContext(
             entity.Property(x => x.SettledAmount).HasPrecision(18, 4);
             entity.Property(x => x.SettlementReference).HasMaxLength(128);
             entity.HasOne<PettyCashFund>().WithMany().HasForeignKey(x => x.PettyCashFundId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne<ServiceJobDailySheet>().WithMany().HasForeignKey(x => x.ServiceJobDailySheetId).OnDelete(DeleteBehavior.SetNull);
         });
 
         builder.Entity<CreditNote>(entity =>

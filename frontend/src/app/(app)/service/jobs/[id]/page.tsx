@@ -6,6 +6,11 @@ import { ServiceJobActions } from "../ServiceJobActions";
 import { ServiceJobEditForm } from "../ServiceJobEditForm";
 import { ServiceJobAssignmentActions } from "../ServiceJobAssignmentActions";
 import { ServiceJobAssignmentAddForm } from "../ServiceJobAssignmentAddForm";
+import { ServiceJobDailyExpenseClaimCreateForm } from "../ServiceJobDailyExpenseClaimCreateForm";
+import { ServiceJobDailyIouCreateForm } from "../ServiceJobDailyIouCreateForm";
+import { ServiceJobDailyMaterialRequisitionCreateForm } from "../ServiceJobDailyMaterialRequisitionCreateForm";
+import { ServiceJobDailySheetActions } from "../ServiceJobDailySheetActions";
+import { ServiceJobDailySheetCreateForm } from "../ServiceJobDailySheetCreateForm";
 import { ServiceJobFinalInvoiceActions } from "../ServiceJobFinalInvoiceActions";
 import { ServiceJobMaterialDispositionAddForm } from "../ServiceJobMaterialDispositionAddForm";
 import { ServiceJobProgressUpdateAddForm } from "../ServiceJobProgressUpdateAddForm";
@@ -52,9 +57,35 @@ type TechnicianDto = {
   defaultBillingRate: number;
   isActive: boolean;
 };
+type WarehouseDto = { id: string; code: string; name: string };
+type ServiceJobDailySheetDto = {
+  id: string;
+  number: string;
+  serviceJobId: string;
+  sheetDate: string;
+  preparedByName: string;
+  siteLocation?: string | null;
+  shiftName?: string | null;
+  weatherOrSiteCondition?: string | null;
+  workPlanned: string;
+  workCompleted?: string | null;
+  workPending?: string | null;
+  problemsFound?: string | null;
+  customerInstructions?: string | null;
+  technicianNotes?: string | null;
+  supervisorNotes?: string | null;
+  status: number;
+  assignmentCount: number;
+  progressCount: number;
+  materialRequisitionCount: number;
+  materialDispositionCount: number;
+  expenseClaimCount: number;
+  iouCount: number;
+};
 type ServiceJobAssignmentDto = {
   id: string;
   serviceJobId: string;
+  serviceJobDailySheetId?: string | null;
   technicianId?: string | null;
   employeeName: string;
   role: string;
@@ -73,6 +104,7 @@ type ServiceJobAssignmentDto = {
 type ServiceJobProgressUpdateDto = {
   id: string;
   serviceJobId: string;
+  serviceJobDailySheetId?: string | null;
   progressDate: string;
   workCompleted: string;
   workPending?: string | null;
@@ -173,6 +205,7 @@ type ServiceJobCostingDto = {
 };
 type ServiceJobMaterialDispositionDto = {
   id: string;
+  serviceJobDailySheetId?: string | null;
   materialRequisitionLineId: string;
   itemId: string;
   kind: number;
@@ -283,6 +316,12 @@ const assignmentStatusLabel: Record<number, string> = {
   1: "Approved",
   2: "Rejected",
 };
+const dailySheetStatusLabel: Record<number, string> = {
+  0: "Draft",
+  1: "Submitted",
+  2: "Approved",
+  3: "Rejected",
+};
 
 function money(value?: number | null) {
   return typeof value === "number" ? value.toFixed(2) : "-";
@@ -295,13 +334,15 @@ function maybeText(value?: string | null) {
 export default async function ServiceJobDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
 
-  const [job, units, customers, costing, items, technicians, assignments, progressUpdates, closeoutChecks, materialDispositions] = await Promise.all([
+  const [job, units, customers, costing, items, technicians, warehouses, dailySheets, assignments, progressUpdates, closeoutChecks, materialDispositions] = await Promise.all([
     backendFetchJson<ServiceJobDto>(`/service/jobs/${id}`),
     backendFetchJson<EquipmentUnitDto[]>("/service/equipment-units?take=2000"),
     backendFetchJson<CustomerDto[]>("/customers"),
     backendFetchJson<ServiceJobCostingDto>(`/service/jobs/${id}/costing`),
     backendFetchJson<ItemDto[]>("/items/options"),
     backendFetchJson<TechnicianDto[]>("/service/technicians"),
+    backendFetchJson<WarehouseDto[]>("/warehouses"),
+    backendFetchJson<ServiceJobDailySheetDto[]>(`/service/jobs/${id}/daily-sheets`),
     backendFetchJson<ServiceJobAssignmentDto[]>(`/service/jobs/${id}/assignments`),
     backendFetchJson<ServiceJobProgressUpdateDto[]>(`/service/jobs/${id}/progress-updates`),
     backendFetchJson<ServiceJobCloseoutCheckDto[]>(`/service/jobs/${id}/closeout-checks`),
@@ -498,6 +539,77 @@ export default async function ServiceJobDetailPage({ params }: { params: Promise
       <Card>
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
           <div>
+            <div className="text-sm font-semibold">Daily Field Sheets</div>
+            <div className="mt-1 text-xs text-zinc-500">Capture each working day before replacing paper job sheets, cash notes, and material return notes.</div>
+          </div>
+        </div>
+        <ServiceJobDailySheetCreateForm serviceJobId={job.id} disabled={!canAddJobActivity} />
+        <div className="mt-4 overflow-auto">
+          <Table>
+            <thead>
+              <tr className="border-b border-zinc-200 text-left text-xs uppercase tracking-wide text-zinc-500 dark:border-zinc-800">
+                <th className="py-2 pr-3">Sheet</th>
+                <th className="py-2 pr-3">Date</th>
+                <th className="py-2 pr-3">Prepared By</th>
+                <th className="py-2 pr-3">Work</th>
+                <th className="py-2 pr-3">Entries</th>
+                <th className="py-2 pr-3">Status</th>
+                <th className="py-2 pr-3">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {dailySheets.map((sheet) => (
+                <tr key={sheet.id} className="border-b border-zinc-100 align-top dark:border-zinc-900">
+                  <td className="py-2 pr-3 font-mono text-xs">{sheet.number}</td>
+                  <td className="py-2 pr-3 text-zinc-500">{new Date(sheet.sheetDate).toLocaleString()}</td>
+                  <td className="py-2 pr-3">{sheet.preparedByName}</td>
+                  <td className="py-2 pr-3">
+                    <div>{sheet.workPlanned}</div>
+                    {sheet.workCompleted ? <div className="mt-1 text-xs text-zinc-500">Done: {sheet.workCompleted}</div> : null}
+                    {sheet.workPending ? <div className="mt-1 text-xs text-zinc-500">Pending: {sheet.workPending}</div> : null}
+                  </td>
+                  <td className="py-2 pr-3 text-xs text-zinc-500">
+                    <div>Staff {sheet.assignmentCount} / Progress {sheet.progressCount}</div>
+                    <div>MRN {sheet.materialRequisitionCount} / Returns {sheet.materialDispositionCount}</div>
+                    <div>Expenses {sheet.expenseClaimCount} / IOU {sheet.iouCount}</div>
+                  </td>
+                  <td className="py-2 pr-3">{dailySheetStatusLabel[sheet.status] ?? sheet.status}</td>
+                  <td className="py-2 pr-3">
+                    <ServiceJobDailySheetActions serviceJobId={job.id} dailySheetId={sheet.id} status={sheet.status} />
+                  </td>
+                </tr>
+              ))}
+              {dailySheets.length === 0 ? (
+                <tr>
+                  <td className="py-6 text-sm text-zinc-500" colSpan={7}>No daily field sheets recorded yet.</td>
+                </tr>
+              ) : null}
+            </tbody>
+          </Table>
+        </div>
+      </Card>
+
+      <Card>
+        <div className="mb-3 text-sm font-semibold">Daily Cash, Expense, And Material Actions</div>
+        <div className="space-y-5">
+          <div>
+            <div className="mb-2 text-sm font-medium">Issue IOU / petty cash advance</div>
+            <ServiceJobDailyIouCreateForm serviceJobId={job.id} dailySheets={dailySheets} disabled={!canAddJobActivity} />
+          </div>
+          <div>
+            <div className="mb-2 text-sm font-medium">Record out-of-pocket or petty-cash expense voucher</div>
+            <ServiceJobDailyExpenseClaimCreateForm serviceJobId={job.id} dailySheets={dailySheets} disabled={!canAddJobActivity} />
+          </div>
+          <div>
+            <div className="mb-2 text-sm font-medium">Request materials, spare parts, lubricants, or consumables</div>
+            <ServiceJobDailyMaterialRequisitionCreateForm serviceJobId={job.id} dailySheets={dailySheets} warehouses={warehouses} disabled={!canAddJobActivity} />
+          </div>
+        </div>
+      </Card>
+
+      <Card>
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+          <div>
             <div className="text-sm font-semibold">Technician / Worker Assignments</div>
             <div className="mt-1 text-xs text-zinc-500">Assign service staff to this job and approve daily assignment records before closeout.</div>
           </div>
@@ -506,7 +618,7 @@ export default async function ServiceJobDetailPage({ params }: { params: Promise
           </Link>
         </div>
         <div className="mb-4">
-          <ServiceJobAssignmentAddForm serviceJobId={job.id} technicians={technicians} disabled={!canAddJobActivity} />
+          <ServiceJobAssignmentAddForm serviceJobId={job.id} technicians={technicians} dailySheets={dailySheets} disabled={!canAddJobActivity} />
         </div>
         <div className="overflow-auto">
           <Table>
@@ -562,7 +674,7 @@ export default async function ServiceJobDetailPage({ params }: { params: Promise
       <Card>
         <div className="mb-3 text-sm font-semibold">Daily Job Progress</div>
         <div className="mb-4">
-          <ServiceJobProgressUpdateAddForm serviceJobId={job.id} disabled={!canAddJobActivity} />
+          <ServiceJobProgressUpdateAddForm serviceJobId={job.id} dailySheets={dailySheets} disabled={!canAddJobActivity} />
         </div>
         <div className="space-y-3">
           {progressUpdates.map((update) => (
@@ -723,7 +835,7 @@ export default async function ServiceJobDetailPage({ params }: { params: Promise
           <div className="overflow-auto">
             <div className="mb-2 text-sm font-medium">Material Consumption</div>
             <div className="mb-3">
-              <ServiceJobMaterialDispositionAddForm serviceJobId={job.id} materialLines={costing.materialLines} disabled={!canAddJobActivity} />
+              <ServiceJobMaterialDispositionAddForm serviceJobId={job.id} materialLines={costing.materialLines} dailySheets={dailySheets} disabled={!canAddJobActivity} />
             </div>
             <Table>
               <thead>

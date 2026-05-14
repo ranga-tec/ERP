@@ -13,14 +13,17 @@ type MaterialLineRef = {
   quantity: number;
 };
 type DispositionDto = { id: string };
+type DailySheetRef = { id: string; number: string; status: number };
 
 export function ServiceJobMaterialDispositionAddForm({
   serviceJobId,
   materialLines,
+  dailySheets = [],
   disabled,
 }: {
   serviceJobId: string;
   materialLines: MaterialLineRef[];
+  dailySheets?: DailySheetRef[];
   disabled?: boolean;
 }) {
   const router = useRouter();
@@ -33,6 +36,7 @@ export function ServiceJobMaterialDispositionAddForm({
     }
     return [...map.values()];
   }, [materialLines]);
+  const [dailySheetId, setDailySheetId] = useState("");
   const [lineId, setLineId] = useState("");
   const [kind, setKind] = useState("0");
   const [quantity, setQuantity] = useState("1");
@@ -65,8 +69,10 @@ export function ServiceJobMaterialDispositionAddForm({
         supplierReturnId: supplierReturnId.trim() || null,
         responsiblePerson: responsiblePerson.trim() || null,
         serials: serials.split(/\r?\n|,/).map((value) => value.trim()).filter(Boolean),
+        serviceJobDailySheetId: dailySheetId || null,
       });
 
+      setDailySheetId("");
       setLineId("");
       setKind("0");
       setQuantity("1");
@@ -86,7 +92,14 @@ export function ServiceJobMaterialDispositionAddForm({
 
   return (
     <form onSubmit={onSubmit} className="space-y-3">
-      <div className="grid gap-3 lg:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-3 lg:grid-cols-2 xl:grid-cols-5">
+        <div>
+          <label className="mb-1 block text-sm font-medium">Daily sheet</label>
+          <Select value={dailySheetId} onChange={(event) => setDailySheetId(event.target.value)} disabled={disabled || busy}>
+            <option value="">Unlinked</option>
+            {dailySheets.filter((sheet) => sheet.status !== 2).map((sheet) => <option key={sheet.id} value={sheet.id}>{sheet.number}</option>)}
+          </Select>
+        </div>
         <div>
           <label className="mb-1 block text-sm font-medium">Issued material line</label>
           <Select value={lineId} onChange={(event) => setLineId(event.target.value)} disabled={disabled || busy} required>

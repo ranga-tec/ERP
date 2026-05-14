@@ -22,6 +22,7 @@ public sealed class PettyCashIousController(
         string Number,
         Guid ServiceJobId,
         string? ServiceJobNumber,
+        Guid? ServiceJobDailySheetId,
         Guid RequestedByUserId,
         string RequestedByName,
         decimal Amount,
@@ -45,7 +46,8 @@ public sealed class PettyCashIousController(
         decimal Amount,
         string Purpose,
         DateTimeOffset? ExpectedSettlementAt,
-        string? RequestedByName);
+        string? RequestedByName,
+        Guid? ServiceJobDailySheetId);
 
     public sealed record RejectPettyCashIouRequest(string? Reason);
     public sealed record ReleasePettyCashIouRequest(Guid PettyCashFundId, string? ReleaseReference);
@@ -92,6 +94,7 @@ public sealed class PettyCashIousController(
             request.Amount,
             request.Purpose,
             request.ExpectedSettlementAt,
+            request.ServiceJobDailySheetId,
             cancellationToken);
 
         return await Get(id, cancellationToken);
@@ -153,6 +156,7 @@ public sealed class PettyCashIousController(
             iou.Number,
             iou.ServiceJobId,
             null,
+            iou.ServiceJobDailySheetId,
             iou.RequestedByUserId,
             iou.RequestedByName,
             iou.Amount,

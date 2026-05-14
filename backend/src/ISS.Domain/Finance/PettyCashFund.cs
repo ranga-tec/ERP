@@ -293,10 +293,12 @@ public sealed class PettyCashIou : AuditableEntity
         decimal amount,
         string purpose,
         DateTimeOffset requestedAt,
-        DateTimeOffset? expectedSettlementAt)
+        DateTimeOffset? expectedSettlementAt,
+        Guid? serviceJobDailySheetId = null)
     {
         Number = Guard.NotNullOrWhiteSpace(number, nameof(number), maxLength: 32);
         ServiceJobId = serviceJobId;
+        ServiceJobDailySheetId = serviceJobDailySheetId;
         RequestedByUserId = requestedByUserId;
         RequestedByName = Guard.NotNullOrWhiteSpace(requestedByName, nameof(requestedByName), maxLength: 256);
         Amount = Guard.Positive(amount, nameof(amount));
@@ -308,6 +310,7 @@ public sealed class PettyCashIou : AuditableEntity
 
     public string Number { get; private set; } = null!;
     public Guid ServiceJobId { get; private set; }
+    public Guid? ServiceJobDailySheetId { get; private set; }
     public Guid RequestedByUserId { get; private set; }
     public string RequestedByName { get; private set; } = null!;
     public decimal Amount { get; private set; }

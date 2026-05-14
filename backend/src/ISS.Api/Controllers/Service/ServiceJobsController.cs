@@ -71,9 +71,48 @@ public sealed class ServiceJobsController(
         string? ResponsibleOfficerName);
     public sealed record ReopenServiceJobRequest(string? Reason);
     public sealed record MarkFinalInvoiceNotRequiredRequest(string Reason);
+    public sealed record ServiceJobDailySheetDto(
+        Guid Id,
+        string Number,
+        Guid ServiceJobId,
+        DateTimeOffset SheetDate,
+        string PreparedByName,
+        string? SiteLocation,
+        string? ShiftName,
+        string? WeatherOrSiteCondition,
+        string WorkPlanned,
+        string? WorkCompleted,
+        string? WorkPending,
+        string? ProblemsFound,
+        string? CustomerInstructions,
+        string? TechnicianNotes,
+        string? SupervisorNotes,
+        ServiceJobDailySheetStatus Status,
+        DateTimeOffset CreatedAt,
+        int AssignmentCount,
+        int ProgressCount,
+        int MaterialRequisitionCount,
+        int MaterialDispositionCount,
+        int ExpenseClaimCount,
+        int IouCount);
+    public sealed record CreateServiceJobDailySheetRequest(
+        DateTimeOffset? SheetDate,
+        string? PreparedByName,
+        string? SiteLocation,
+        string? ShiftName,
+        string? WeatherOrSiteCondition,
+        string WorkPlanned,
+        string? WorkCompleted,
+        string? WorkPending,
+        string? ProblemsFound,
+        string? CustomerInstructions,
+        string? TechnicianNotes,
+        string? SupervisorNotes);
+    public sealed record RejectServiceJobDailySheetRequest(string? Reason);
     public sealed record ServiceJobAssignmentDto(
         Guid Id,
         Guid ServiceJobId,
+        Guid? ServiceJobDailySheetId,
         Guid? TechnicianId,
         string EmployeeName,
         string Role,
@@ -98,11 +137,13 @@ public sealed class ServiceJobsController(
         DateTimeOffset? WorkEndAt,
         decimal NormalHours,
         decimal OvertimeHours,
-        string? DailyWorkDescription);
+        string? DailyWorkDescription,
+        Guid? ServiceJobDailySheetId);
     public sealed record RejectServiceJobAssignmentRequest(string? Reason);
     public sealed record ServiceJobProgressUpdateDto(
         Guid Id,
         Guid ServiceJobId,
+        Guid? ServiceJobDailySheetId,
         DateTimeOffset ProgressDate,
         string WorkCompleted,
         string? WorkPending,
@@ -124,11 +165,13 @@ public sealed class ServiceJobsController(
         string? CustomerInstructions,
         string? SiteIssues,
         string? TechnicianNotes,
-        string? SupervisorNotes);
+        string? SupervisorNotes,
+        Guid? ServiceJobDailySheetId);
     public sealed record ServiceJobCloseoutCheckDto(string Key, string Label, bool IsClear, int PendingCount, string Detail);
     public sealed record ServiceJobMaterialDispositionDto(
         Guid Id,
         Guid ServiceJobId,
+        Guid? ServiceJobDailySheetId,
         Guid MaterialRequisitionId,
         Guid MaterialRequisitionLineId,
         Guid ItemId,
@@ -154,7 +197,8 @@ public sealed class ServiceJobsController(
         ServiceJobMaterialChargeTo ChargeTo,
         Guid? SupplierReturnId,
         string? ResponsiblePerson,
-        IReadOnlyList<string>? Serials);
+        IReadOnlyList<string>? Serials,
+        Guid? ServiceJobDailySheetId);
 
     [HttpGet]
     public async Task<ActionResult<IReadOnlyList<ServiceJobDto>>> List([FromQuery] int skip = 0, [FromQuery] int take = 100, CancellationToken cancellationToken = default)
@@ -351,6 +395,119 @@ public sealed class ServiceJobsController(
         return NoContent();
     }
 
+    [HttpGet("{id:guid}/daily-sheets")]
+    public async Task<ActionResult<IReadOnlyList<ServiceJobDailySheetDto>>> DailySheets(Guid id, CancellationToken cancellationToken)
+    {
+        var sheets = await dbContext.ServiceJobDailySheets.AsNoTracking()
+            .Where(x => x.ServiceJobId == id)
+            .OrderByDescending(x => x.SheetDate)
+            .ThenByDescending(x => x.CreatedAt)
+            .Select(x => new ServiceJobDailySheetDto(
+                x.Id,
+                x.Number,
+                x.ServiceJobId,
+                x.SheetDate,
+                x.PreparedByName,
+                x.SiteLocation,
+                x.ShiftName,
+                x.WeatherOrSiteCondition,
+                x.WorkPlanned,
+                x.WorkCompleted,
+                x.WorkPending,
+                x.ProblemsFound,
+                x.CustomerInstructions,
+                x.TechnicianNotes,
+                x.SupervisorNotes,
+                x.Status,
+                x.CreatedAt,
+                dbContext.ServiceJobAssignments.Count(a => a.ServiceJobDailySheetId == x.Id),
+                dbContext.ServiceJobProgressUpdates.Count(p => p.ServiceJobDailySheetId == x.Id),
+                dbContext.MaterialRequisitions.Count(m => m.ServiceJobDailySheetId == x.Id),
+                dbContext.ServiceJobMaterialDispositions.Count(d => d.ServiceJobDailySheetId == x.Id),
+                dbContext.ServiceExpenseClaims.Count(c => c.ServiceJobDailySheetId == x.Id),
+                dbContext.PettyCashIous.Count(i => i.ServiceJobDailySheetId == x.Id)))
+            .ToListAsync(cancellationToken);
+
+        return Ok(sheets);
+    }
+
+    [HttpPost("{id:guid}/daily-sheets")]
+    [Authorize(Roles = $"{Roles.Admin},{Roles.Service}")]
+    public async Task<ActionResult<ServiceJobDailySheetDto>> CreateDailySheet(Guid id, CreateServiceJobDailySheetRequest request, CancellationToken cancellationToken)
+    {
+        var preparedByName = string.IsNullOrWhiteSpace(request.PreparedByName)
+            ? User.Identity?.Name ?? "Unknown user"
+            : request.PreparedByName;
+        var dailySheetId = await serviceManagementService.CreateServiceJobDailySheetAsync(
+            id,
+            request.SheetDate,
+            preparedByName,
+            request.SiteLocation,
+            request.ShiftName,
+            request.WeatherOrSiteCondition,
+            request.WorkPlanned,
+            request.WorkCompleted,
+            request.WorkPending,
+            request.ProblemsFound,
+            request.CustomerInstructions,
+            request.TechnicianNotes,
+            request.SupervisorNotes,
+            cancellationToken);
+
+        var sheet = await dbContext.ServiceJobDailySheets.AsNoTracking()
+            .Where(x => x.ServiceJobId == id && x.Id == dailySheetId)
+            .Select(x => new ServiceJobDailySheetDto(
+                x.Id,
+                x.Number,
+                x.ServiceJobId,
+                x.SheetDate,
+                x.PreparedByName,
+                x.SiteLocation,
+                x.ShiftName,
+                x.WeatherOrSiteCondition,
+                x.WorkPlanned,
+                x.WorkCompleted,
+                x.WorkPending,
+                x.ProblemsFound,
+                x.CustomerInstructions,
+                x.TechnicianNotes,
+                x.SupervisorNotes,
+                x.Status,
+                x.CreatedAt,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0))
+            .FirstOrDefaultAsync(cancellationToken);
+        return sheet is null ? NotFound() : Ok(sheet);
+    }
+
+    [HttpPost("{id:guid}/daily-sheets/{dailySheetId:guid}/submit")]
+    [Authorize(Roles = $"{Roles.Admin},{Roles.Service}")]
+    public async Task<ActionResult> SubmitDailySheet(Guid id, Guid dailySheetId, CancellationToken cancellationToken)
+    {
+        await serviceManagementService.SubmitServiceJobDailySheetAsync(id, dailySheetId, cancellationToken);
+        return NoContent();
+    }
+
+    [HttpPost("{id:guid}/daily-sheets/{dailySheetId:guid}/approve")]
+    [Authorize(Roles = $"{Roles.Admin},{Roles.Service}")]
+    public async Task<ActionResult> ApproveDailySheet(Guid id, Guid dailySheetId, CancellationToken cancellationToken)
+    {
+        await serviceManagementService.ApproveServiceJobDailySheetAsync(id, dailySheetId, cancellationToken);
+        return NoContent();
+    }
+
+    [HttpPost("{id:guid}/daily-sheets/{dailySheetId:guid}/reject")]
+    [Authorize(Roles = $"{Roles.Admin},{Roles.Service}")]
+    public async Task<ActionResult> RejectDailySheet(Guid id, Guid dailySheetId, RejectServiceJobDailySheetRequest? request, CancellationToken cancellationToken)
+    {
+        await serviceManagementService.RejectServiceJobDailySheetAsync(id, dailySheetId, request?.Reason, cancellationToken);
+        return NoContent();
+    }
+
     [HttpGet("{id:guid}/material-dispositions")]
     public async Task<ActionResult<IReadOnlyList<ServiceJobMaterialDispositionDto>>> MaterialDispositions(Guid id, CancellationToken cancellationToken)
     {
@@ -360,6 +517,7 @@ public sealed class ServiceJobsController(
             .Select(x => new ServiceJobMaterialDispositionDto(
                 x.Id,
                 x.ServiceJobId,
+                x.ServiceJobDailySheetId,
                 x.MaterialRequisitionId,
                 x.MaterialRequisitionLineId,
                 x.ItemId,
@@ -399,6 +557,7 @@ public sealed class ServiceJobsController(
             request.SupplierReturnId,
             request.ResponsiblePerson,
             request.Serials,
+            request.ServiceJobDailySheetId,
             cancellationToken);
 
         var disposition = await dbContext.ServiceJobMaterialDispositions.AsNoTracking()
@@ -406,6 +565,7 @@ public sealed class ServiceJobsController(
             .Select(x => new ServiceJobMaterialDispositionDto(
                 x.Id,
                 x.ServiceJobId,
+                x.ServiceJobDailySheetId,
                 x.MaterialRequisitionId,
                 x.MaterialRequisitionLineId,
                 x.ItemId,
@@ -437,6 +597,7 @@ public sealed class ServiceJobsController(
             .Select(x => new ServiceJobAssignmentDto(
                 x.Id,
                 x.ServiceJobId,
+                x.ServiceJobDailySheetId,
                 x.TechnicianId,
                 x.EmployeeName,
                 x.Role,
@@ -472,6 +633,7 @@ public sealed class ServiceJobsController(
             request.NormalHours,
             request.OvertimeHours,
             request.DailyWorkDescription,
+            request.ServiceJobDailySheetId,
             cancellationToken);
 
         var assignment = await dbContext.ServiceJobAssignments.AsNoTracking()
@@ -479,6 +641,7 @@ public sealed class ServiceJobsController(
             .Select(x => new ServiceJobAssignmentDto(
                 x.Id,
                 x.ServiceJobId,
+                x.ServiceJobDailySheetId,
                 x.TechnicianId,
                 x.EmployeeName,
                 x.Role,
@@ -532,6 +695,7 @@ public sealed class ServiceJobsController(
             .Select(x => new ServiceJobProgressUpdateDto(
                 x.Id,
                 x.ServiceJobId,
+                x.ServiceJobDailySheetId,
                 x.ProgressDate,
                 x.WorkCompleted,
                 x.WorkPending,
@@ -564,6 +728,7 @@ public sealed class ServiceJobsController(
             request.SiteIssues,
             request.TechnicianNotes,
             request.SupervisorNotes,
+            request.ServiceJobDailySheetId,
             cancellationToken);
 
         var update = await dbContext.ServiceJobProgressUpdates.AsNoTracking()
@@ -571,6 +736,7 @@ public sealed class ServiceJobsController(
             .Select(x => new ServiceJobProgressUpdateDto(
                 x.Id,
                 x.ServiceJobId,
+                x.ServiceJobDailySheetId,
                 x.ProgressDate,
                 x.WorkCompleted,
                 x.WorkPending,

@@ -17,9 +17,11 @@ public sealed class ServiceJobProgressUpdate : AuditableEntity
         string? customerInstructions,
         string? siteIssues,
         string? technicianNotes,
-        string? supervisorNotes)
+        string? supervisorNotes,
+        Guid? serviceJobDailySheetId = null)
     {
         ServiceJobId = serviceJobId;
+        ServiceJobDailySheetId = serviceJobDailySheetId;
         ProgressDate = progressDate;
         WorkCompleted = Guard.NotNullOrWhiteSpace(workCompleted, nameof(workCompleted), 2000);
         WorkPending = NormalizeOptional(workPending, nameof(workPending), 2000);
@@ -33,6 +35,7 @@ public sealed class ServiceJobProgressUpdate : AuditableEntity
     }
 
     public Guid ServiceJobId { get; private set; }
+    public Guid? ServiceJobDailySheetId { get; private set; }
     public DateTimeOffset ProgressDate { get; private set; }
     public string WorkCompleted { get; private set; } = null!;
     public string? WorkPending { get; private set; }

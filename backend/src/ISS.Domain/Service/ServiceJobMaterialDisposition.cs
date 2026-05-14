@@ -38,9 +38,11 @@ public sealed class ServiceJobMaterialDisposition : AuditableEntity
         string reason,
         ServiceJobMaterialChargeTo chargeTo,
         Guid? supplierReturnId,
-        string? responsiblePerson)
+        string? responsiblePerson,
+        Guid? serviceJobDailySheetId = null)
     {
         ServiceJobId = serviceJobId;
+        ServiceJobDailySheetId = serviceJobDailySheetId;
         MaterialRequisitionId = materialRequisitionId;
         MaterialRequisitionLineId = materialRequisitionLineId;
         ItemId = itemId;
@@ -57,6 +59,7 @@ public sealed class ServiceJobMaterialDisposition : AuditableEntity
     }
 
     public Guid ServiceJobId { get; private set; }
+    public Guid? ServiceJobDailySheetId { get; private set; }
     public Guid MaterialRequisitionId { get; private set; }
     public Guid MaterialRequisitionLineId { get; private set; }
     public Guid ItemId { get; private set; }

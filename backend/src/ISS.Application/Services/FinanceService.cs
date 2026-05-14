@@ -106,6 +106,7 @@ public sealed class FinanceService(
         decimal amount,
         string purpose,
         DateTimeOffset? expectedSettlementAt,
+        Guid? serviceJobDailySheetId = null,
         CancellationToken cancellationToken = default)
     {
         var jobStatus = await dbContext.ServiceJobs.AsNoTracking()
@@ -119,6 +120,25 @@ public sealed class FinanceService(
             throw new DomainValidationException("Closed service jobs cannot receive new IOUs.");
         }
 
+        if (serviceJobDailySheetId is not null)
+        {
+            var dailySheet = await dbContext.ServiceJobDailySheets.AsNoTracking()
+                .Where(x => x.Id == serviceJobDailySheetId.Value)
+                .Select(x => new { x.ServiceJobId, x.Status })
+                .FirstOrDefaultAsync(cancellationToken)
+                ?? throw new NotFoundException("Service job daily sheet not found.");
+
+            if (dailySheet.ServiceJobId != serviceJobId)
+            {
+                throw new DomainValidationException("Daily sheet does not belong to this service job.");
+            }
+
+            if (dailySheet.Status == ServiceJobDailySheetStatus.Approved)
+            {
+                throw new DomainValidationException("Approved daily sheets cannot receive new IOUs.");
+            }
+        }
+
         var number = await documentNumberService.NextAsync("IOU", "IOU", cancellationToken);
         var iou = new PettyCashIou(
             number,
@@ -128,7 +148,8 @@ public sealed class FinanceService(
             amount,
             purpose,
             clock.UtcNow,
-            expectedSettlementAt);
+            expectedSettlementAt,
+            serviceJobDailySheetId);
         await dbContext.PettyCashIous.AddAsync(iou, cancellationToken);
         await dbContext.SaveChangesAsync(cancellationToken);
         return iou.Id;

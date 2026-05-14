@@ -665,17 +665,42 @@ Test:
 
 - `Service -> Equipment Units`
 - `Service -> Jobs`
+- job detail `Daily Field Sheets`
 - `Service -> Work Orders`
 - `Service -> Estimates`
 - `Service -> Expense Claims`
 - `Service -> Material Requisitions`
 - `Service -> Quality Checks`
 - `Service -> Handovers`
-- `Finance -> Petty Cash` when petty-cash-funded claims are part of the branch being tested
+- `Finance -> Petty Cash`
+- `Finance -> Petty Cash IOUs`
+
+Daily field-sheet test path:
+
+1. Open a service job and create a daily field sheet for the current work day.
+2. From job detail, link these entries to the daily sheet:
+   - technician assignment
+   - progress update
+   - IOU / petty-cash advance
+   - service expense voucher
+   - material requisition for parts, lubricants, or consumables
+3. Post the MRN after adding available stock lines.
+4. Return to job detail and record material disposition:
+   - `Used`
+   - `Unused returned`
+   - `Incorrect returned`
+   - `Damaged`
+   - `Rejected / supplier return`
+5. Submit and approve the daily field sheet.
+6. Verify closeout readiness blocks the job while daily sheets, IOUs, expenses, MRNs, labor, or material dispositions are pending.
 
 Expected:
 
 - service documents save, change status correctly, support estimate revision and expense-claim settlement where relevant, and can be cross-checked with PDFs, costing views, and audit logs
+- daily field sheets provide the practical running record for multi-day jobs so users do not need paper notes for daily staff, progress, cash advances, expenses, material issues, returns, or damages
+- IOU advances remain visible until settled, rejected, or cancelled
+- unused and incorrect material returns update stock through stock movements
+- final job closeout is blocked until the daily operating records and financial/inventory items are resolved
 
 ## 18. Month-End Sign-Off Checklist
 

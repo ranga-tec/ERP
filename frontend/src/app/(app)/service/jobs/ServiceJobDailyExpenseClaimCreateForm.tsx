@@ -1,0 +1,98 @@
+"use client";
+
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { apiPost } from "@/lib/api-client";
+import { Button, Input, Select, Textarea } from "@/components/ui";
+
+type DailySheetRef = { id: string; number: string; status: number };
+type ClaimDto = { id: string };
+
+export function ServiceJobDailyExpenseClaimCreateForm({
+  serviceJobId,
+  dailySheets,
+  disabled,
+}: {
+  serviceJobId: string;
+  dailySheets: DailySheetRef[];
+  disabled?: boolean;
+}) {
+  const router = useRouter();
+  const [dailySheetId, setDailySheetId] = useState("");
+  const [claimedByName, setClaimedByName] = useState("");
+  const [fundingSource, setFundingSource] = useState("1");
+  const [expenseDate, setExpenseDate] = useState("");
+  const [merchantName, setMerchantName] = useState("");
+  const [receiptReference, setReceiptReference] = useState("");
+  const [notes, setNotes] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function onSubmit(event: React.FormEvent) {
+    event.preventDefault();
+    setError(null);
+    setBusy(true);
+    try {
+      const claim = await apiPost<ClaimDto>("service/expense-claims", {
+        serviceJobId,
+        serviceJobDailySheetId: dailySheetId || null,
+        claimedByName: claimedByName.trim() || null,
+        fundingSource: Number(fundingSource),
+        expenseDate: expenseDate ? new Date(expenseDate).toISOString() : null,
+        merchantName: merchantName.trim() || null,
+        receiptReference: receiptReference.trim() || null,
+        notes: notes.trim() || null,
+      });
+      router.push(`/service/expense-claims/${claim.id}`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <form onSubmit={onSubmit} className="space-y-3">
+      <div className="grid gap-3 lg:grid-cols-4">
+        <div>
+          <label className="mb-1 block text-sm font-medium">Daily sheet</label>
+          <Select value={dailySheetId} onChange={(event) => setDailySheetId(event.target.value)} disabled={disabled || busy}>
+            <option value="">Unlinked</option>
+            {dailySheets.filter((sheet) => sheet.status !== 2).map((sheet) => <option key={sheet.id} value={sheet.id}>{sheet.number}</option>)}
+          </Select>
+        </div>
+        <div>
+          <label className="mb-1 block text-sm font-medium">Funding</label>
+          <Select value={fundingSource} onChange={(event) => setFundingSource(event.target.value)} disabled={disabled || busy}>
+            <option value="1">Out of Pocket</option>
+            <option value="2">Petty Cash</option>
+          </Select>
+        </div>
+        <div>
+          <label className="mb-1 block text-sm font-medium">Claimed by</label>
+          <Input value={claimedByName} onChange={(event) => setClaimedByName(event.target.value)} disabled={disabled || busy} />
+        </div>
+        <div>
+          <label className="mb-1 block text-sm font-medium">Expense date</label>
+          <Input type="datetime-local" value={expenseDate} onChange={(event) => setExpenseDate(event.target.value)} disabled={disabled || busy} />
+        </div>
+      </div>
+      <div className="grid gap-3 lg:grid-cols-2">
+        <div>
+          <label className="mb-1 block text-sm font-medium">Merchant / vendor</label>
+          <Input value={merchantName} onChange={(event) => setMerchantName(event.target.value)} disabled={disabled || busy} />
+        </div>
+        <div>
+          <label className="mb-1 block text-sm font-medium">Receipt ref</label>
+          <Input value={receiptReference} onChange={(event) => setReceiptReference(event.target.value)} disabled={disabled || busy} />
+        </div>
+      </div>
+      <div>
+        <label className="mb-1 block text-sm font-medium">Notes</label>
+        <Textarea value={notes} onChange={(event) => setNotes(event.target.value)} disabled={disabled || busy} />
+      </div>
+      {error ? <div className="text-sm text-red-700 dark:text-red-300">{error}</div> : null}
+      <Button type="submit" disabled={disabled || busy}>{busy ? "Creating..." : "Create Expense Voucher"}</Button>
+    </form>
+  );
+}

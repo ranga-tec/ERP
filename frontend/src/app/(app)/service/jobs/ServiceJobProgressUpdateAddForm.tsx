@@ -3,12 +3,14 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { apiPost } from "@/lib/api-client";
-import { Button, Input, Textarea } from "@/components/ui";
+import { Button, Input, Select, Textarea } from "@/components/ui";
 
 type ProgressUpdateDto = { id: string };
+type DailySheetRef = { id: string; number: string; status: number };
 
-export function ServiceJobProgressUpdateAddForm({ serviceJobId, disabled }: { serviceJobId: string; disabled?: boolean }) {
+export function ServiceJobProgressUpdateAddForm({ serviceJobId, dailySheets = [], disabled }: { serviceJobId: string; dailySheets?: DailySheetRef[]; disabled?: boolean }) {
   const router = useRouter();
+  const [dailySheetId, setDailySheetId] = useState("");
   const [progressDate, setProgressDate] = useState("");
   const [workCompleted, setWorkCompleted] = useState("");
   const [workPending, setWorkPending] = useState("");
@@ -43,8 +45,10 @@ export function ServiceJobProgressUpdateAddForm({ serviceJobId, disabled }: { se
         siteIssues: siteIssues.trim() || null,
         technicianNotes: technicianNotes.trim() || null,
         supervisorNotes: supervisorNotes.trim() || null,
+        serviceJobDailySheetId: dailySheetId || null,
       });
 
+      setDailySheetId("");
       setProgressDate("");
       setWorkCompleted("");
       setWorkPending("");
@@ -65,9 +69,18 @@ export function ServiceJobProgressUpdateAddForm({ serviceJobId, disabled }: { se
 
   return (
     <form onSubmit={onSubmit} className="space-y-3">
-      <div>
-        <label className="mb-1 block text-sm font-medium">Progress date</label>
-        <Input type="datetime-local" value={progressDate} onChange={(event) => setProgressDate(event.target.value)} disabled={disabled || busy} />
+      <div className="grid gap-3 lg:grid-cols-2">
+        <div>
+          <label className="mb-1 block text-sm font-medium">Daily sheet</label>
+          <Select value={dailySheetId} onChange={(event) => setDailySheetId(event.target.value)} disabled={disabled || busy}>
+            <option value="">Unlinked</option>
+            {dailySheets.filter((sheet) => sheet.status !== 2).map((sheet) => <option key={sheet.id} value={sheet.id}>{sheet.number}</option>)}
+          </Select>
+        </div>
+        <div>
+          <label className="mb-1 block text-sm font-medium">Progress date</label>
+          <Input type="datetime-local" value={progressDate} onChange={(event) => setProgressDate(event.target.value)} disabled={disabled || busy} />
+        </div>
       </div>
       <div className="grid gap-3 lg:grid-cols-2">
         <div>

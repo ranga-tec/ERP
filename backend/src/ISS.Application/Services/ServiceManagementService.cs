@@ -259,6 +259,67 @@ public sealed class ServiceManagementService(
         await dbContext.SaveChangesAsync(cancellationToken);
     }
 
+    public async Task<Guid> CreateServiceJobDailySheetAsync(
+        Guid serviceJobId,
+        DateTimeOffset? sheetDate,
+        string preparedByName,
+        string? siteLocation,
+        string? shiftName,
+        string? weatherOrSiteCondition,
+        string workPlanned,
+        string? workCompleted,
+        string? workPending,
+        string? problemsFound,
+        string? customerInstructions,
+        string? technicianNotes,
+        string? supervisorNotes,
+        CancellationToken cancellationToken = default)
+    {
+        await EnsureServiceJobAcceptsNewCostsAsync(serviceJobId, cancellationToken);
+
+        var number = await documentNumberService.NextAsync(ReferenceTypes.ServiceJobDailySheet, "JDS", cancellationToken);
+        var dailySheet = new ServiceJobDailySheet(
+            number,
+            serviceJobId,
+            sheetDate ?? clock.UtcNow,
+            preparedByName,
+            siteLocation,
+            shiftName,
+            weatherOrSiteCondition,
+            workPlanned,
+            workCompleted,
+            workPending,
+            problemsFound,
+            customerInstructions,
+            technicianNotes,
+            supervisorNotes);
+
+        await dbContext.ServiceJobDailySheets.AddAsync(dailySheet, cancellationToken);
+        await dbContext.SaveChangesAsync(cancellationToken);
+        return dailySheet.Id;
+    }
+
+    public async Task SubmitServiceJobDailySheetAsync(Guid serviceJobId, Guid dailySheetId, CancellationToken cancellationToken = default)
+    {
+        var dailySheet = await ResolveDailySheetAsync(serviceJobId, dailySheetId, cancellationToken);
+        dailySheet.Submit(clock.UtcNow);
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task ApproveServiceJobDailySheetAsync(Guid serviceJobId, Guid dailySheetId, CancellationToken cancellationToken = default)
+    {
+        var dailySheet = await ResolveDailySheetAsync(serviceJobId, dailySheetId, cancellationToken);
+        dailySheet.Approve(clock.UtcNow);
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task RejectServiceJobDailySheetAsync(Guid serviceJobId, Guid dailySheetId, string? reason, CancellationToken cancellationToken = default)
+    {
+        var dailySheet = await ResolveDailySheetAsync(serviceJobId, dailySheetId, cancellationToken);
+        dailySheet.Reject(clock.UtcNow, reason);
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
     public async Task<Guid> CreateServiceEstimateAsync(
         Guid serviceJobId,
         DateTimeOffset? validUntil,
@@ -300,9 +361,11 @@ public sealed class ServiceManagementService(
         string? merchantName,
         string? receiptReference,
         string? notes,
+        Guid? serviceJobDailySheetId = null,
         CancellationToken cancellationToken = default)
     {
         await EnsureServiceJobAcceptsNewCostsAsync(serviceJobId, cancellationToken);
+        await EnsureDailySheetBelongsToJobAsync(serviceJobId, serviceJobDailySheetId, cancellationToken);
 
         var number = await documentNumberService.NextAsync(ReferenceTypes.ServiceExpenseClaim, "SEC", cancellationToken);
         var claim = new ServiceExpenseClaim(
@@ -314,7 +377,8 @@ public sealed class ServiceManagementService(
             expenseDate ?? clock.UtcNow,
             merchantName,
             receiptReference,
-            notes);
+            notes,
+            serviceJobDailySheetId);
 
         await dbContext.ServiceExpenseClaims.AddAsync(claim, cancellationToken);
         await dbContext.SaveChangesAsync(cancellationToken);
@@ -1293,9 +1357,11 @@ public sealed class ServiceManagementService(
         decimal normalHours,
         decimal overtimeHours,
         string? dailyWorkDescription,
+        Guid? serviceJobDailySheetId = null,
         CancellationToken cancellationToken = default)
     {
         await EnsureServiceJobAcceptsNewCostsAsync(serviceJobId, cancellationToken);
+        await EnsureDailySheetBelongsToJobAsync(serviceJobId, serviceJobDailySheetId, cancellationToken);
 
         string resolvedEmployeeName;
         if (technicianId is not null)
@@ -1326,7 +1392,8 @@ public sealed class ServiceManagementService(
             workEndAt,
             normalHours,
             overtimeHours,
-            dailyWorkDescription);
+            dailyWorkDescription,
+            serviceJobDailySheetId);
 
         await dbContext.ServiceJobAssignments.AddAsync(assignment, cancellationToken);
         await dbContext.SaveChangesAsync(cancellationToken);
@@ -1380,9 +1447,11 @@ public sealed class ServiceManagementService(
         string? siteIssues,
         string? technicianNotes,
         string? supervisorNotes,
+        Guid? serviceJobDailySheetId = null,
         CancellationToken cancellationToken = default)
     {
         await EnsureServiceJobAcceptsNewCostsAsync(serviceJobId, cancellationToken);
+        await EnsureDailySheetBelongsToJobAsync(serviceJobId, serviceJobDailySheetId, cancellationToken);
 
         var update = new ServiceJobProgressUpdate(
             serviceJobId,
@@ -1395,18 +1464,20 @@ public sealed class ServiceManagementService(
             customerInstructions,
             siteIssues,
             technicianNotes,
-            supervisorNotes);
+            supervisorNotes,
+            serviceJobDailySheetId);
 
         await dbContext.ServiceJobProgressUpdates.AddAsync(update, cancellationToken);
         await dbContext.SaveChangesAsync(cancellationToken);
         return update.Id;
     }
 
-    public async Task<Guid> CreateMaterialRequisitionAsync(Guid serviceJobId, Guid warehouseId, string? purpose = null, CancellationToken cancellationToken = default)
+    public async Task<Guid> CreateMaterialRequisitionAsync(Guid serviceJobId, Guid warehouseId, string? purpose = null, Guid? serviceJobDailySheetId = null, CancellationToken cancellationToken = default)
     {
         await EnsureServiceJobAcceptsNewCostsAsync(serviceJobId, cancellationToken);
+        await EnsureDailySheetBelongsToJobAsync(serviceJobId, serviceJobDailySheetId, cancellationToken);
         var number = await documentNumberService.NextAsync("MR", "MR", cancellationToken);
-        var mr = new MaterialRequisition(number, serviceJobId, warehouseId, clock.UtcNow, purpose);
+        var mr = new MaterialRequisition(number, serviceJobId, warehouseId, clock.UtcNow, purpose, serviceJobDailySheetId);
         await dbContext.MaterialRequisitions.AddAsync(mr, cancellationToken);
         await dbContext.SaveChangesAsync(cancellationToken);
         return mr.Id;
@@ -1595,9 +1666,11 @@ public sealed class ServiceManagementService(
         Guid? supplierReturnId,
         string? responsiblePerson,
         IReadOnlyCollection<string>? serialNumbers,
+        Guid? serviceJobDailySheetId = null,
         CancellationToken cancellationToken = default)
     {
         await EnsureServiceJobAcceptsNewCostsAsync(serviceJobId, cancellationToken);
+        await EnsureDailySheetBelongsToJobAsync(serviceJobId, serviceJobDailySheetId, cancellationToken);
 
         var line = await dbContext.Set<MaterialRequisitionLine>()
             .Include(x => x.Serials)
@@ -1652,7 +1725,8 @@ public sealed class ServiceManagementService(
             reason,
             chargeTo,
             supplierReturnId,
-            responsiblePerson);
+            responsiblePerson,
+            serviceJobDailySheetId);
         disposition.ReplaceSerials(serialNumbers);
 
         if (item.TrackingType == TrackingType.Serial)
@@ -1771,6 +1845,39 @@ public sealed class ServiceManagementService(
         }
     }
 
+    private async Task<ServiceJobDailySheet> ResolveDailySheetAsync(Guid serviceJobId, Guid dailySheetId, CancellationToken cancellationToken)
+    {
+        await EnsureServiceJobAcceptsNewCostsAsync(serviceJobId, cancellationToken);
+
+        return await dbContext.ServiceJobDailySheets
+            .FirstOrDefaultAsync(x => x.ServiceJobId == serviceJobId && x.Id == dailySheetId, cancellationToken)
+            ?? throw new NotFoundException("Service job daily sheet not found.");
+    }
+
+    private async Task EnsureDailySheetBelongsToJobAsync(Guid serviceJobId, Guid? dailySheetId, CancellationToken cancellationToken)
+    {
+        if (dailySheetId is null)
+        {
+            return;
+        }
+
+        var dailySheet = await dbContext.ServiceJobDailySheets.AsNoTracking()
+            .Where(x => x.Id == dailySheetId.Value)
+            .Select(x => new { x.ServiceJobId, x.Status })
+            .FirstOrDefaultAsync(cancellationToken)
+            ?? throw new NotFoundException("Service job daily sheet not found.");
+
+        if (dailySheet.ServiceJobId != serviceJobId)
+        {
+            throw new DomainValidationException("Daily sheet does not belong to this service job.");
+        }
+
+        if (dailySheet.Status is ServiceJobDailySheetStatus.Approved)
+        {
+            throw new DomainValidationException("Approved daily sheets cannot receive new operational entries.");
+        }
+    }
+
     public async Task<IReadOnlyList<ServiceJobCloseoutCheck>> GetServiceJobCloseoutChecksAsync(Guid serviceJobId, CancellationToken cancellationToken = default)
     {
         var jobExists = await dbContext.ServiceJobs.AsNoTracking().AnyAsync(x => x.Id == serviceJobId, cancellationToken);
@@ -1783,6 +1890,11 @@ public sealed class ServiceManagementService(
             .CountAsync(x => x.ServiceJobId == serviceJobId
                              && x.Status != ServiceExpenseClaimStatus.Settled
                              && x.Status != ServiceExpenseClaimStatus.Rejected,
+                cancellationToken);
+
+        var pendingDailySheets = await dbContext.ServiceJobDailySheets.AsNoTracking()
+            .CountAsync(x => x.ServiceJobId == serviceJobId
+                             && (x.Status == ServiceJobDailySheetStatus.Draft || x.Status == ServiceJobDailySheetStatus.Submitted),
                 cancellationToken);
 
         var openIous = await dbContext.PettyCashIous.AsNoTracking()
@@ -1850,6 +1962,11 @@ public sealed class ServiceManagementService(
 
         return
         [
+            CreateCloseoutCheck(
+                "daily-field-sheets",
+                "Daily field sheets",
+                pendingDailySheets,
+                "Submit and approve or reject every daily field sheet before closing."),
             CreateCloseoutCheck(
                 "expense-claims",
                 "Expense claims",

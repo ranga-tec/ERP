@@ -494,6 +494,32 @@ Expected:
 | Job status | Job detail | `Open` |
 | Job intake | Job detail | job description, complaint, supervisor, and intake note are visible |
 
+### 10.1.1 Create Daily Field Sheet
+
+Open the service job detail.
+
+In `Daily Field Sheets`, create a daily sheet:
+
+| Field | Input |
+| --- | --- |
+| Date / time | today, current time |
+| Prepared by | `Service Supervisor` |
+| Site / location | `Customer workshop` |
+| Shift | `Day` |
+| Site condition | `Equipment received at workshop` |
+| Planned work | `Diagnose generator starting system and request required materials` |
+| Completed work | `Initial inspection completed` |
+| Pending work | `Issue parts and complete repair` |
+| Problems found | `Control board output weak` |
+
+Expected:
+
+| Check | Where | Expected output |
+| --- | --- | --- |
+| Daily sheet | Job detail, `Daily Field Sheets` | new `JDS...` row appears with status `Draft` |
+| Counts | Daily sheet row | staff, progress, MRN, returns, expenses, and IOU counts start at `0` |
+| Running job tracking | Job detail | users can continue daily work, cash, expenses, materials, and returns from the system instead of paper notes |
+
 ### 10.2 MRN Available Stock Validation
 
 Go to `Service -> Material Requisitions`.
@@ -504,6 +530,10 @@ Create MRN:
 | --- | --- |
 | Job | The job from 10.1 |
 | Warehouse | `MAIN` |
+
+Preferred daily workflow:
+
+From the job detail, use `Daily Cash, Expense, And Material Actions -> Request materials, spare parts, lubricants, or consumables`. Select the `JDS...` daily sheet, warehouse `MAIN`, and create the MRN. Then open the MRN and add the lines below.
 
 Add valid line:
 
@@ -576,6 +606,7 @@ Expected:
 | Returned stock | `Inventory -> On Hand`, `MAIN` + `SKU-CORE` | increases by `1` because one unused filter was returned |
 | Job closeout readiness | Job detail, `Closeout Readiness` | `Material disposition` is clear after every posted MRN line quantity is fully disposed |
 | Job costing | Job detail | material consumed cost still shows the original MRN issue cost; returned/used/damaged status is shown in disposition trail |
+| Daily sheet | Job detail, `Daily Field Sheets` | MRN and return counts increase for the selected `JDS...` |
 
 ## 11. Service Estimate, Work Order, Expense, Handover
 
@@ -600,6 +631,7 @@ Go back to the job detail and add technician assignment:
 
 | Field | Input |
 | --- | --- |
+| Daily sheet | `JDS...` from section 10.1.1 |
 | Technician | `TECH1` |
 | Role | `Technician` |
 | Assigned task | `Diagnose starting system and replace required parts` |
@@ -626,6 +658,7 @@ Expected:
 | Check | Where | Expected output |
 | --- | --- | --- |
 | Assignment | Job detail | assignment status is `Approved` |
+| Daily sheet count | Job detail, `Daily Field Sheets` | staff count increases |
 | Work order | Work order detail | status moves `Open -> In Progress -> Done` |
 | Labor cost | Work order/job costing | `2 x 10 = 20` |
 | Billable labor before entitlement | Work order | `2 x 25 = 50` |
@@ -637,6 +670,7 @@ Open the service job detail and add progress update:
 
 | Field | Input |
 | --- | --- |
+| Daily sheet | `JDS...` from section 10.1.1 |
 | Work completed | `Starting system diagnosed and replacement parts installed` |
 | Work pending | `Final customer confirmation` |
 | Problems found | `Weak control board output` |
@@ -651,6 +685,7 @@ Expected:
 | Check | Where | Expected output |
 | --- | --- | --- |
 | Daily progress | Job detail | progress update appears with completed/pending/problem notes |
+| Daily sheet count | Job detail, `Daily Field Sheets` | progress count increases |
 
 ### 11.2 Estimate
 
@@ -685,16 +720,18 @@ Expected:
 
 ### 11.3 Expense Claim
 
-Before the expense claim, create an IOU advance if you want to test petty-cash advance handling.
+Before the expense claim, create an IOU advance to test petty-cash advance handling while the job is still running.
 
-Go to `Finance -> Petty Cash IOUs`.
+Preferred daily workflow:
+
+Open the job detail and use `Daily Cash, Expense, And Material Actions -> Issue IOU / petty cash advance`.
 
 Create IOU:
 
 | Field | Input |
 | --- | --- |
-| Job | The same service job |
-| Requested by | current test user |
+| Daily sheet | `JDS...` from section 10.1.1 |
+| Person | `TECH1` |
 | Amount | `20` |
 | Purpose | `Travel and parking advance for generator repair` |
 
@@ -705,15 +742,16 @@ Expected:
 | Check | Where | Expected output |
 | --- | --- | --- |
 | IOU status | `Finance -> Petty Cash IOUs` | status reaches `Settled` |
+| Daily sheet count | Job detail, `Daily Field Sheets` | IOU count increases |
 | Job closeout readiness | Job detail | `Petty cash IOUs` is clear only after settlement/rejection/cancellation |
 
-Go to `Service -> Petty Cash` or `Service -> Expense Claims`.
+Create the employee expense voucher from the job detail using `Daily Cash, Expense, And Material Actions -> Record out-of-pocket or petty-cash expense voucher`.
 
 Create claim:
 
 | Field | Input |
 | --- | --- |
-| Job | The same service job |
+| Daily sheet | `JDS...` from section 10.1.1 |
 | Funding Source | `Out of Pocket` |
 | Merchant | `Test Vendor` |
 
@@ -732,6 +770,7 @@ Expected:
 | Claim status | Claim detail | `Settled` |
 | Job costing | Job detail | Expense claim cost includes `5` |
 | Convert to estimate | Claim detail | Billable line can be converted into draft estimate/change order |
+| Daily sheet count | Job detail, `Daily Field Sheets` | expense count increases |
 | Job closeout readiness | Job detail | `Expense claims` is clear after claim is settled or rejected |
 
 ### 11.4 Handover, Final Invoice, And Closeout
@@ -759,10 +798,13 @@ Expected:
 
 Open the service job detail and review `Closeout Readiness`.
 
+Before final closeout, submit and approve the `JDS...` daily field sheet.
+
 Expected before closing:
 
 | Check | Where | Expected output |
 | --- | --- | --- |
+| Daily sheet | Job detail, `Daily Field Sheets` | status reaches `Approved` |
 | Material disposition | Job detail | `Clear` |
 | Expense claims | Job detail | `Clear` |
 | Petty cash IOUs | Job detail | `Clear` |

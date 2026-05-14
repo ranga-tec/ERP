@@ -168,7 +168,11 @@ Note:
   - once the job is started, header editing is locked and execution should continue through work orders, estimates, material issues, and handover
   - entitlement is captured automatically when the job is created by checking active service contracts first, then manufacturer warranty on the equipment unit
   - use `Refresh Entitlement` on the job if warranty/contract data is added after the job was already opened
-  - recommended operating flow is: receive equipment -> open the job immediately -> diagnose -> draft/send estimate before continuing additional billable work
+  - recommended operating flow is: receive equipment -> open the job immediately -> create a daily field sheet for each working day -> capture labor, progress, IOUs, expenses, materials, returns, damages, and notes from that sheet -> approve the sheet -> finish invoicing/closeout
+  - `Daily Field Sheets` on the job detail page replace manual daily job cards; each sheet has planned/completed/pending work, site condition, staff/progress/material/return/expense/IOU counts, and approval status
+  - `Daily Cash, Expense, And Material Actions` on the job detail page creates IOU advances, expense vouchers, and MRNs directly against the running job and selected daily sheet
+  - UI refinement is pending to split daily IOU advances, petty-cash expenses, employee out-of-pocket claims, material issues, and material returns into clearer separate job-detail sections
+  - closing a job is blocked while daily sheets are still draft or submitted; approve or reject every sheet before closeout
 - Technicians:
   - maintain technician code, name, default cost rate, default billing rate, phone, notes, and active status
   - job detail labor entries select technicians from this master
@@ -197,6 +201,7 @@ Note:
   - billable approved/settled claim lines can be pushed into the latest draft estimate or into an automatic change-order draft revision
   - if an expense-claim line references a spare part item, conversion classifies it as a part line so entitlement rules can still cover it
   - use this for technician reimbursement, emergency cash buys, and petty-cash clearing that should not be hidden as stock or AP workarounds
+  - when created from a job daily sheet, the claim remains part of the same finance approval/settlement flow but is visible in the daily field record
 - Material requisitions:
   - the list page now exposes explicit `View` and `Edit`; `Edit` is available while the requisition is still `Draft`
   - create -> add lines -> post
@@ -205,6 +210,7 @@ Note:
   - the system validates available stock before a line is saved, so zero-stock or over-requested items are rejected before posting
   - serialized items must be selected from currently available serial numbers in the source warehouse
   - the separate stock lookup opens from a compact `Load stock` button instead of taking permanent space on the requisition screen
+  - when created from a job daily sheet, the MRN still follows the same stock validation and posting flow, and material use/return/damage disposition is captured back on the job detail page
 - Quality checks:
   - record pass/fail and notes
 - Service handovers:

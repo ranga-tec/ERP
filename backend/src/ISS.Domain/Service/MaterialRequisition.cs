@@ -13,10 +13,11 @@ public sealed class MaterialRequisition : AuditableEntity
 {
     private MaterialRequisition() { }
 
-    public MaterialRequisition(string number, Guid serviceJobId, Guid warehouseId, DateTimeOffset requestedAt, string? purpose = null)
+    public MaterialRequisition(string number, Guid serviceJobId, Guid warehouseId, DateTimeOffset requestedAt, string? purpose = null, Guid? serviceJobDailySheetId = null)
     {
         Number = Guard.NotNullOrWhiteSpace(number, nameof(Number), maxLength: 32);
         ServiceJobId = serviceJobId;
+        ServiceJobDailySheetId = serviceJobDailySheetId;
         WarehouseId = warehouseId;
         RequestedAt = requestedAt;
         Purpose = NormalizeOptional(purpose, nameof(purpose), 512);
@@ -25,6 +26,7 @@ public sealed class MaterialRequisition : AuditableEntity
 
     public string Number { get; private set; } = null!;
     public Guid ServiceJobId { get; private set; }
+    public Guid? ServiceJobDailySheetId { get; private set; }
     public Guid WarehouseId { get; private set; }
     public DateTimeOffset RequestedAt { get; private set; }
     public string? Purpose { get; private set; }

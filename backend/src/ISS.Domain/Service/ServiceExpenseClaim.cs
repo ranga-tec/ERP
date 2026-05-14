@@ -31,10 +31,12 @@ public sealed class ServiceExpenseClaim : AuditableEntity
         DateTimeOffset expenseDate,
         string? merchantName,
         string? receiptReference,
-        string? notes)
+        string? notes,
+        Guid? serviceJobDailySheetId = null)
     {
         Number = Guard.NotNullOrWhiteSpace(number, nameof(number), maxLength: 32);
         ServiceJobId = serviceJobId;
+        ServiceJobDailySheetId = serviceJobDailySheetId;
         ClaimedByUserId = claimedByUserId;
         ClaimedByName = Guard.NotNullOrWhiteSpace(claimedByName, nameof(claimedByName), maxLength: 256);
         FundingSource = fundingSource;
@@ -51,6 +53,7 @@ public sealed class ServiceExpenseClaim : AuditableEntity
 
     public string Number { get; private set; } = null!;
     public Guid ServiceJobId { get; private set; }
+    public Guid? ServiceJobDailySheetId { get; private set; }
     public Guid? ClaimedByUserId { get; private set; }
     public string ClaimedByName { get; private set; } = null!;
     public ServiceExpenseFundingSource FundingSource { get; private set; }

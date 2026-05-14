@@ -282,28 +282,44 @@ Steps:
    - Name: `Workshop Technician`
    - Default Cost Rate: `10`
    - Default Billing Rate: `25`
-17. Go to `Service -> Work Orders` and create a work order for the job.
-18. Add one billable labor entry on the work order using technician `TECH1`.
-19. Confirm the selected technician fills cost and billing rates, then submit and approve the labor entry.
-20. Confirm the approved billable amount reflects coverage-adjusted billing when entitlement covers labor.
-21. Go to `Service -> Estimates` and create an estimate for the job.
-22. Confirm the estimate list shows explicit `View` / `Edit` actions and open the estimate detail page from the list.
-23. While the estimate is still draft, edit `Valid until` or `Terms`, save, and then add at least:
+17. On the job detail page, create a `Daily Field Sheet`:
+   - Prepared by: `Service Supervisor`
+   - Site / location: `Workshop`
+   - Planned work: `Diagnose, issue parts, and complete repair`
+   - Completed work: `Initial diagnosis completed`
+   - Pending work: `Issue material and complete testing`
+18. From the job detail page, link day-to-day activity to that daily sheet:
+   - add technician assignment for `TECH1`
+   - add daily progress notes
+   - create one IOU / petty-cash advance for `TECH1`
+   - create one expense voucher for an out-of-pocket or petty-cash expense
+   - create one MRN for stocked parts or lubricants
+19. Open the MRN, add available stock lines, and post it.
+20. Return to job detail and record material disposition:
+   - mark used material as `Used`
+   - return unused material as `Unused returned`
+   - record damaged or rejected material if applicable
+21. Submit and approve the daily field sheet.
+22. Go to `Service -> Work Orders` and create a work order for the job.
+23. Add one billable labor entry on the work order using technician `TECH1`.
+24. Confirm the selected technician fills cost and billing rates, then submit and approve the labor entry.
+25. Confirm the approved billable amount reflects coverage-adjusted billing when entitlement covers labor.
+26. Go to `Service -> Estimates` and create an estimate for the job.
+27. Confirm the estimate list shows explicit `View` / `Edit` actions and open the estimate detail page from the list.
+28. While the estimate is still draft, edit `Valid until` or `Terms`, save, and then add at least:
    - one `Part` line using `SKU1`
-24. Send the estimate to the customer and confirm `Customer Approval` becomes `Pending`.
-25. Edit the sent draft estimate again and confirm the pending approval resets to `Not Sent`.
-26. Resend the estimate and then mark it customer approved.
-27. Use `Create Change Order` from the approved estimate and confirm a new draft revision opens.
-28. Create a service expense claim for the same job:
-   - Funding Source: `Petty Cash`
-   - one billable line for an emergency outside expense
-29. Submit the claim.
-30. Approve and settle the claim against petty cash fund `WORKSHOP`.
-31. Convert the billable claim line into the working estimate.
-32. If the claim line used a spare-part item, confirm the new estimate line is classified as `Part`.
-33. Create and complete a service handover.
-34. Convert the handover to sales invoice using the labor source that bills approved timesheets.
-35. Open the service job detail page and review the costing section.
+29. Send the estimate to the customer and confirm `Customer Approval` becomes `Pending`.
+30. Edit the sent draft estimate again and confirm the pending approval resets to `Not Sent`.
+31. Resend the estimate and then mark it customer approved.
+32. Use `Create Change Order` from the approved estimate and confirm a new draft revision opens.
+33. Submit the expense voucher created from the daily sheet.
+34. Approve and settle the claim against petty cash fund `WORKSHOP`.
+35. Convert the billable claim line into the working estimate.
+36. If the claim line used a spare-part item, confirm the new estimate line is classified as `Part`.
+37. Approve/release/settle the IOU advance or reject/cancel it if it was not used.
+38. Create and complete a service handover.
+39. Convert the handover to sales invoice using the labor source that bills approved timesheets.
+40. Open the service job detail page and review the costing and closeout readiness sections.
 
 Expected:
 
@@ -317,6 +333,11 @@ Expected:
 - the job first shows warranty entitlement, then changes to contract entitlement after refresh
 - the job can be opened as `Repair` and moved to `In Progress`
 - technicians can be created in the service master page and selected on job detail labor entries
+- a daily field sheet can be created from the job detail page and becomes the running record for that day's staff, progress, IOU, expense voucher, MRN, and material disposition
+- daily sheet counts increase as linked staff, progress, material, return, expense, and IOU records are added
+- job closeout is blocked until daily field sheets are submitted and approved or rejected
+- IOU advances can be recorded during a running multi-day job and remain pending until released/settled/rejected/cancelled
+- unused material returns from the job add stock back through the material disposition workflow
 - draft estimate headers and lines are editable until customer approval or rejection
 - sending a draft estimate sets customer approval to `Pending`, editing that pending draft resets it, and resending/restating approval works
 - approved estimates stay preserved and `Create Change Order` opens a new draft revision for the changed scope

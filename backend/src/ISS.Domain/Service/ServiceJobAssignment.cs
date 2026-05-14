@@ -24,7 +24,8 @@ public sealed class ServiceJobAssignment : AuditableEntity
         DateTimeOffset? workEndAt,
         decimal normalHours,
         decimal overtimeHours,
-        string? dailyWorkDescription)
+        string? dailyWorkDescription,
+        Guid? serviceJobDailySheetId = null)
     {
         ServiceJobId = serviceJobId;
         TechnicianId = technicianId;
@@ -37,10 +38,12 @@ public sealed class ServiceJobAssignment : AuditableEntity
         NormalHours = Guard.NotNegative(normalHours, nameof(normalHours));
         OvertimeHours = Guard.NotNegative(overtimeHours, nameof(overtimeHours));
         DailyWorkDescription = NormalizeOptional(dailyWorkDescription, nameof(dailyWorkDescription), 2000);
+        ServiceJobDailySheetId = serviceJobDailySheetId;
         ApprovalStatus = ServiceJobAssignmentApprovalStatus.Pending;
     }
 
     public Guid ServiceJobId { get; private set; }
+    public Guid? ServiceJobDailySheetId { get; private set; }
     public Guid? TechnicianId { get; private set; }
     public string EmployeeName { get; private set; } = null!;
     public string Role { get; private set; } = null!;

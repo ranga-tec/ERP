@@ -22,6 +22,7 @@ public sealed class ServiceExpenseClaimsController(
         Guid Id,
         string Number,
         Guid ServiceJobId,
+        Guid? ServiceJobDailySheetId,
         Guid? ClaimedByUserId,
         string ClaimedByName,
         ServiceExpenseFundingSource FundingSource,
@@ -52,6 +53,7 @@ public sealed class ServiceExpenseClaimsController(
         Guid Id,
         string Number,
         Guid ServiceJobId,
+        Guid? ServiceJobDailySheetId,
         Guid? ClaimedByUserId,
         string ClaimedByName,
         ServiceExpenseFundingSource FundingSource,
@@ -79,7 +81,8 @@ public sealed class ServiceExpenseClaimsController(
         DateTimeOffset? ExpenseDate,
         string? MerchantName,
         string? ReceiptReference,
-        string? Notes);
+        string? Notes,
+        Guid? ServiceJobDailySheetId);
 
     public sealed record AddServiceExpenseClaimLineRequest(
         Guid? ItemId,
@@ -102,6 +105,7 @@ public sealed class ServiceExpenseClaimsController(
 
     [HttpGet]
     public async Task<ActionResult<IReadOnlyList<ServiceExpenseClaimSummaryDto>>> List(
+        [FromQuery] Guid? serviceJobId,
         [FromQuery] int skip = 0,
         [FromQuery] int take = 100,
         CancellationToken cancellationToken = default)
@@ -109,7 +113,13 @@ public sealed class ServiceExpenseClaimsController(
         skip = Math.Max(0, skip);
         take = Math.Clamp(take, 1, 500);
 
-        var rows = await dbContext.ServiceExpenseClaims.AsNoTracking()
+        var query = dbContext.ServiceExpenseClaims.AsNoTracking();
+        if (serviceJobId is not null)
+        {
+            query = query.Where(x => x.ServiceJobId == serviceJobId.Value);
+        }
+
+        var rows = await query
             .OrderByDescending(x => x.ExpenseDate)
             .ThenByDescending(x => x.CreatedAt)
             .Skip(skip)
@@ -118,6 +128,7 @@ public sealed class ServiceExpenseClaimsController(
                 x.Id,
                 x.Number,
                 x.ServiceJobId,
+                x.ServiceJobDailySheetId,
                 x.ClaimedByUserId,
                 x.ClaimedByName,
                 x.FundingSource,
@@ -150,6 +161,7 @@ public sealed class ServiceExpenseClaimsController(
             request.MerchantName,
             request.ReceiptReference,
             request.Notes,
+            request.ServiceJobDailySheetId,
             cancellationToken);
 
         return await Get(id, cancellationToken);
@@ -172,6 +184,7 @@ public sealed class ServiceExpenseClaimsController(
             claim.Id,
             claim.Number,
             claim.ServiceJobId,
+            claim.ServiceJobDailySheetId,
             claim.ClaimedByUserId,
             claim.ClaimedByName,
             claim.FundingSource,

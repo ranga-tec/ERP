@@ -15,14 +15,17 @@ type TechnicianRef = {
 };
 
 type AssignmentDto = { id: string };
+type DailySheetRef = { id: string; number: string; status: number };
 
 export function ServiceJobAssignmentAddForm({
   serviceJobId,
   technicians,
+  dailySheets = [],
   disabled,
 }: {
   serviceJobId: string;
   technicians: TechnicianRef[];
+  dailySheets?: DailySheetRef[];
   disabled?: boolean;
 }) {
   const router = useRouter();
@@ -31,6 +34,7 @@ export function ServiceJobAssignmentAddForm({
     [technicians],
   );
   const [technicianId, setTechnicianId] = useState("");
+  const [dailySheetId, setDailySheetId] = useState("");
   const [employeeName, setEmployeeName] = useState("");
   const [role, setRole] = useState("Technician");
   const [assignedTask, setAssignedTask] = useState("");
@@ -78,9 +82,11 @@ export function ServiceJobAssignmentAddForm({
         normalHours: parsedNormalHours,
         overtimeHours: parsedOvertimeHours,
         dailyWorkDescription: dailyWorkDescription.trim() || null,
+        serviceJobDailySheetId: dailySheetId || null,
       });
 
       setTechnicianId("");
+      setDailySheetId("");
       setEmployeeName("");
       setRole("Technician");
       setAssignedTask("");
@@ -100,7 +106,14 @@ export function ServiceJobAssignmentAddForm({
 
   return (
     <form onSubmit={onSubmit} className="space-y-3">
-      <div className="grid gap-3 lg:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-3 lg:grid-cols-2 xl:grid-cols-5">
+        <div>
+          <label className="mb-1 block text-sm font-medium">Daily sheet</label>
+          <Select value={dailySheetId} onChange={(event) => setDailySheetId(event.target.value)} disabled={disabled || busy}>
+            <option value="">Unlinked</option>
+            {dailySheets.filter((sheet) => sheet.status !== 2).map((sheet) => <option key={sheet.id} value={sheet.id}>{sheet.number}</option>)}
+          </Select>
+        </div>
         <div>
           <label className="mb-1 block text-sm font-medium">Technician</label>
           <Select value={technicianId} onChange={(event) => setTechnicianId(event.target.value)} disabled={disabled || busy}>

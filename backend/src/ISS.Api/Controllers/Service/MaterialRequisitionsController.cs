@@ -14,25 +14,31 @@ namespace ISS.Api.Controllers.Service;
 [Authorize(Roles = $"{Roles.Admin},{Roles.Service},{Roles.Inventory}")]
 public sealed class MaterialRequisitionsController(IIssDbContext dbContext, ServiceManagementService serviceManagementService, IDocumentPdfService pdfService) : ControllerBase
 {
-    public sealed record MaterialRequisitionSummaryDto(Guid Id, string Number, Guid ServiceJobId, Guid WarehouseId, DateTimeOffset RequestedAt, string? Purpose, MaterialRequisitionStatus Status, int LineCount);
-    public sealed record MaterialRequisitionDto(Guid Id, string Number, Guid ServiceJobId, Guid WarehouseId, DateTimeOffset RequestedAt, string? Purpose, MaterialRequisitionStatus Status, IReadOnlyList<MaterialRequisitionLineDto> Lines);
+    public sealed record MaterialRequisitionSummaryDto(Guid Id, string Number, Guid ServiceJobId, Guid? ServiceJobDailySheetId, Guid WarehouseId, DateTimeOffset RequestedAt, string? Purpose, MaterialRequisitionStatus Status, int LineCount);
+    public sealed record MaterialRequisitionDto(Guid Id, string Number, Guid ServiceJobId, Guid? ServiceJobDailySheetId, Guid WarehouseId, DateTimeOffset RequestedAt, string? Purpose, MaterialRequisitionStatus Status, IReadOnlyList<MaterialRequisitionLineDto> Lines);
     public sealed record MaterialRequisitionLineDto(Guid Id, Guid ItemId, decimal Quantity, string? BatchNumber, IReadOnlyList<string> Serials);
 
-    public sealed record CreateMaterialRequisitionRequest(Guid ServiceJobId, Guid WarehouseId, string? Purpose);
+    public sealed record CreateMaterialRequisitionRequest(Guid ServiceJobId, Guid WarehouseId, string? Purpose, Guid? ServiceJobDailySheetId);
     public sealed record AddMaterialRequisitionLineRequest(Guid ItemId, decimal Quantity, string? BatchNumber, IReadOnlyList<string>? Serials);
     public sealed record UpdateMaterialRequisitionLineRequest(decimal Quantity, string? BatchNumber, IReadOnlyList<string>? Serials);
 
     [HttpGet]
-    public async Task<ActionResult<IReadOnlyList<MaterialRequisitionSummaryDto>>> List([FromQuery] int skip = 0, [FromQuery] int take = 100, CancellationToken cancellationToken = default)
+    public async Task<ActionResult<IReadOnlyList<MaterialRequisitionSummaryDto>>> List([FromQuery] Guid? serviceJobId, [FromQuery] int skip = 0, [FromQuery] int take = 100, CancellationToken cancellationToken = default)
     {
         skip = Math.Max(0, skip);
         take = Math.Clamp(take, 1, 500);
 
-        var requisitions = await dbContext.MaterialRequisitions.AsNoTracking()
+        var query = dbContext.MaterialRequisitions.AsNoTracking();
+        if (serviceJobId is not null)
+        {
+            query = query.Where(x => x.ServiceJobId == serviceJobId.Value);
+        }
+
+        var requisitions = await query
             .OrderByDescending(x => x.RequestedAt)
             .Skip(skip)
             .Take(take)
-            .Select(x => new MaterialRequisitionSummaryDto(x.Id, x.Number, x.ServiceJobId, x.WarehouseId, x.RequestedAt, x.Purpose, x.Status, x.Lines.Count))
+            .Select(x => new MaterialRequisitionSummaryDto(x.Id, x.Number, x.ServiceJobId, x.ServiceJobDailySheetId, x.WarehouseId, x.RequestedAt, x.Purpose, x.Status, x.Lines.Count))
             .ToListAsync(cancellationToken);
 
         return Ok(requisitions);
@@ -41,7 +47,7 @@ public sealed class MaterialRequisitionsController(IIssDbContext dbContext, Serv
     [HttpPost]
     public async Task<ActionResult<MaterialRequisitionDto>> Create(CreateMaterialRequisitionRequest request, CancellationToken cancellationToken)
     {
-        var id = await serviceManagementService.CreateMaterialRequisitionAsync(request.ServiceJobId, request.WarehouseId, request.Purpose, cancellationToken);
+        var id = await serviceManagementService.CreateMaterialRequisitionAsync(request.ServiceJobId, request.WarehouseId, request.Purpose, request.ServiceJobDailySheetId, cancellationToken);
         return await Get(id, cancellationToken);
     }
 
@@ -62,6 +68,7 @@ public sealed class MaterialRequisitionsController(IIssDbContext dbContext, Serv
             mr.Id,
             mr.Number,
             mr.ServiceJobId,
+            mr.ServiceJobDailySheetId,
             mr.WarehouseId,
             mr.RequestedAt,
             mr.Purpose,
