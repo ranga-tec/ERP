@@ -214,9 +214,9 @@ export default async function ServiceEstimateDetailPage({
           <Table>
             <thead>
               <tr className="border-b border-zinc-200 text-left text-xs uppercase tracking-wide text-zinc-500 dark:border-zinc-800">
+                <th className="py-2 pr-3" aria-label="Line details"></th>
                 <th className="py-2 pr-3">Kind</th>
                 <th className="py-2 pr-3">Item</th>
-                <th className="py-2 pr-3">Description</th>
                 <th className="py-2 pr-3">Qty / Hrs</th>
                 <th className="py-2 pr-3">Unit Price</th>
                 <th className="py-2 pr-3">Tax %</th>

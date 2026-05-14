@@ -1,9 +1,9 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useState, type ReactNode } from "react";
+import { Fragment, useEffect, useState, type ReactNode } from "react";
 import { apiDeleteNoContent, apiPutNoContent } from "@/lib/api-client";
-import { Button, Input, SecondaryButton } from "@/components/ui";
+import { Button, Input, SecondaryButton, Textarea } from "@/components/ui";
 
 type ServiceEstimateLineDto = {
   id: string;
@@ -34,6 +34,7 @@ export function ServiceEstimateLineRow({
   const router = useRouter();
   const allRowsEditing = canEdit && startInEditMode;
   const [isEditing, setIsEditing] = useState(allRowsEditing);
+  const [isExpanded, setIsExpanded] = useState(startInEditMode);
   const [description, setDescription] = useState(line.description);
   const [quantity, setQuantity] = useState(line.quantity.toString());
   const [unitPrice, setUnitPrice] = useState(line.unitPrice.toString());
@@ -59,6 +60,7 @@ export function ServiceEstimateLineRow({
     setQuantity(line.quantity.toString());
     setUnitPrice(line.unitPrice.toString());
     setTaxPercent(line.taxPercent.toString());
+    setIsExpanded(true);
     setIsEditing(true);
   }
 
@@ -127,78 +129,98 @@ export function ServiceEstimateLineRow({
     : NaN;
   const editing = allRowsEditing || isEditing;
 
+  const detailColSpan = canEdit ? 8 : 7;
+
   return (
-    <tr className="border-b border-zinc-100 align-top dark:border-zinc-900">
-      <td className="py-2 pr-3">{kindLabel}</td>
-      <td className="py-2 pr-3">{itemLabel}</td>
-      <td className="py-2 pr-3 text-zinc-500">
-        {editing ? (
-          <Input value={description} onChange={(e) => setDescription(e.target.value)} className="min-w-56" />
-        ) : (
-          line.description
-        )}
-      </td>
-      <td className="py-2 pr-3">
-        {editing ? (
-          <Input value={quantity} onChange={(e) => setQuantity(e.target.value)} inputMode="decimal" className="min-w-20" />
-        ) : (
-          line.quantity
-        )}
-      </td>
-      <td className="py-2 pr-3">
-        {editing ? (
-          <Input value={unitPrice} onChange={(e) => setUnitPrice(e.target.value)} inputMode="decimal" className="min-w-24" />
-        ) : (
-          line.unitPrice.toFixed(2)
-        )}
-      </td>
-      <td className="py-2 pr-3">
-        {editing ? (
-          <Input value={taxPercent} onChange={(e) => setTaxPercent(e.target.value)} inputMode="decimal" className="min-w-20" />
-        ) : (
-          line.taxPercent.toFixed(2)
-        )}
-      </td>
-      <td className="py-2 pr-3">{editing && Number.isFinite(previewTotal) ? previewTotal.toFixed(2) : line.lineTotal.toFixed(2)}</td>
-      {canEdit ? (
+    <Fragment>
+      <tr className="border-b border-zinc-100 align-top dark:border-zinc-900">
         <td className="py-2 pr-3">
-          <div className="flex flex-wrap items-center gap-2">
-            {editing ? (
-              <>
-                <Button type="button" className="px-2 py-1 text-xs" onClick={saveEdit} disabled={busy}>
-                  {busy ? "Saving..." : "Save"}
-                </Button>
-                <SecondaryButton
-                  type="button"
-                  className="px-2 py-1 text-xs"
-                  onClick={() => {
-                    setError(null);
-                    setDescription(line.description);
-                    setQuantity(line.quantity.toString());
-                    setUnitPrice(line.unitPrice.toString());
-                    setTaxPercent(line.taxPercent.toString());
-                    if (!allRowsEditing) {
-                      setIsEditing(false);
-                    }
-                  }}
-                  disabled={busy}
-                >
-                  {allRowsEditing ? "Reset" : "Cancel"}
-                </SecondaryButton>
-              </>
-            ) : (
-              <SecondaryButton type="button" className="px-2 py-1 text-xs" onClick={beginEdit} disabled={busy}>
-                Edit
-              </SecondaryButton>
-            )}
-            <SecondaryButton type="button" className="px-2 py-1 text-xs" onClick={deleteLine} disabled={busy}>
-              Delete
-            </SecondaryButton>
-          </div>
-          {error ? <div className="mt-2 text-xs text-red-700 dark:text-red-300">{error}</div> : null}
+          <button
+            type="button"
+            onClick={() => setIsExpanded((current) => !current)}
+            className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-[var(--input-border)] text-xs font-semibold text-zinc-600 hover:bg-[var(--surface-soft)] dark:text-zinc-300"
+            aria-expanded={isExpanded}
+            title={isExpanded ? "Hide description" : "Show description"}
+          >
+            {isExpanded ? "-" : "+"}
+          </button>
         </td>
+        <td className="py-2 pr-3">{kindLabel}</td>
+        <td className="py-2 pr-3">{itemLabel}</td>
+        <td className="py-2 pr-3">
+          {editing ? (
+            <Input value={quantity} onChange={(e) => setQuantity(e.target.value)} inputMode="decimal" className="min-w-20" />
+          ) : (
+            line.quantity
+          )}
+        </td>
+        <td className="py-2 pr-3">
+          {editing ? (
+            <Input value={unitPrice} onChange={(e) => setUnitPrice(e.target.value)} inputMode="decimal" className="min-w-24" />
+          ) : (
+            line.unitPrice.toFixed(2)
+          )}
+        </td>
+        <td className="py-2 pr-3">
+          {editing ? (
+            <Input value={taxPercent} onChange={(e) => setTaxPercent(e.target.value)} inputMode="decimal" className="min-w-20" />
+          ) : (
+            line.taxPercent.toFixed(2)
+          )}
+        </td>
+        <td className="py-2 pr-3">{editing && Number.isFinite(previewTotal) ? previewTotal.toFixed(2) : line.lineTotal.toFixed(2)}</td>
+        {canEdit ? (
+          <td className="py-2 pr-3">
+            <div className="flex flex-wrap items-center gap-2">
+              {editing ? (
+                <>
+                  <Button type="button" className="px-2 py-1 text-xs" onClick={saveEdit} disabled={busy}>
+                    {busy ? "Saving..." : "Save"}
+                  </Button>
+                  <SecondaryButton
+                    type="button"
+                    className="px-2 py-1 text-xs"
+                    onClick={() => {
+                      setError(null);
+                      setDescription(line.description);
+                      setQuantity(line.quantity.toString());
+                      setUnitPrice(line.unitPrice.toString());
+                      setTaxPercent(line.taxPercent.toString());
+                      if (!allRowsEditing) {
+                        setIsEditing(false);
+                      }
+                    }}
+                    disabled={busy}
+                  >
+                    {allRowsEditing ? "Reset" : "Cancel"}
+                  </SecondaryButton>
+                </>
+              ) : (
+                <SecondaryButton type="button" className="px-2 py-1 text-xs" onClick={beginEdit} disabled={busy}>
+                  Edit
+                </SecondaryButton>
+              )}
+              <SecondaryButton type="button" className="px-2 py-1 text-xs" onClick={deleteLine} disabled={busy}>
+                Delete
+              </SecondaryButton>
+            </div>
+            {error ? <div className="mt-2 text-xs text-red-700 dark:text-red-300">{error}</div> : null}
+          </td>
+        ) : null}
+      </tr>
+      {isExpanded || editing ? (
+        <tr className="border-b border-zinc-100 bg-[var(--surface-soft)]/60 dark:border-zinc-900">
+          <td colSpan={detailColSpan} className="px-3 py-3">
+            <div className="text-xs font-semibold uppercase tracking-wide text-zinc-500">Description</div>
+            {editing ? (
+              <Textarea value={description} onChange={(e) => setDescription(e.target.value)} className="mt-2 min-h-20 w-full" />
+            ) : (
+              <div className="mt-1 whitespace-pre-wrap text-sm text-zinc-700 dark:text-zinc-200">{line.description}</div>
+            )}
+          </td>
+        </tr>
       ) : null}
-    </tr>
+    </Fragment>
   );
 }
 
