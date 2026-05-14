@@ -153,28 +153,33 @@ function compactLabel(label: string): string {
   return `${words[0][0]}${words[1][0]}`.toUpperCase();
 }
 
-function allSectionTitles(): string[] {
-  return sections.map((section) => section.title);
-}
-
 function normalizeSearch(value: string): string {
   return value.trim().toLowerCase();
 }
 
-function readExpandedSectionPreference(): string[] {
-  const fallback = allSectionTitles();
+function activeSectionTitle(pathname: string): string | null {
+  return sections.find((section) => sectionIsActive(pathname, section))?.title ?? null;
+}
 
+function readExpandedSectionPreference(fallback: string | null): string | null {
   if (typeof window === "undefined") return fallback;
 
   try {
     const raw = window.localStorage.getItem(SIDEBAR_SECTION_STORAGE_KEY);
     if (!raw) return fallback;
 
-    const allowed = new Set(fallback);
+    const allowed = new Set(sections.map((section) => section.title));
     const parsed = JSON.parse(raw);
-    if (!Array.isArray(parsed)) return fallback;
 
-    return parsed.filter((value): value is string => typeof value === "string" && allowed.has(value));
+    if (typeof parsed === "string" && allowed.has(parsed)) {
+      return parsed;
+    }
+
+    if (Array.isArray(parsed)) {
+      return parsed.find((value): value is string => typeof value === "string" && allowed.has(value)) ?? fallback;
+    }
+
+    return fallback;
   } catch {
     return fallback;
   }
@@ -228,26 +233,28 @@ export function Sidebar({ roles, collapsed = false, onNavigate, onToggleCollapse
   const pathname = usePathname();
   const canToggle = typeof onToggleCollapse === "function";
   const pinned = !collapsed;
-  const [expandedSections, setExpandedSections] = useState<string[]>(() => readExpandedSectionPreference());
+  const [expandedSection, setExpandedSection] = useState<string | null>(() => readExpandedSectionPreference(activeSectionTitle(pathname)));
   const [search, setSearch] = useState("");
 
   useEffect(() => {
     if (typeof window === "undefined") return;
     window.localStorage.setItem(
       SIDEBAR_SECTION_STORAGE_KEY,
-      JSON.stringify(expandedSections),
+      JSON.stringify(expandedSection),
     );
-  }, [expandedSections]);
+  }, [expandedSection]);
+
+  useEffect(() => {
+    const currentActiveSection = activeSectionTitle(pathname);
+    if (currentActiveSection) {
+      setExpandedSection(currentActiveSection);
+    }
+  }, [pathname]);
 
   function toggleSection(title: string) {
-    setExpandedSections((current) =>
-      current.includes(title)
-        ? current.filter((value) => value !== title)
-        : [...current, title],
-    );
+    setExpandedSection((current) => (current === title ? null : title));
   }
 
-  const expandedSectionSet = new Set(expandedSections);
   const normalizedSearch = normalizeSearch(search);
   const filteredSections = useMemo(() => {
     const visibleSections = sections
@@ -364,7 +371,7 @@ export function Sidebar({ roles, collapsed = false, onNavigate, onToggleCollapse
         ].join(" ")}
       >
         {filteredSections.map((section) => {
-          const expanded = collapsed || normalizedSearch.length > 0 || expandedSectionSet.has(section.title);
+          const expanded = collapsed || normalizedSearch.length > 0 || expandedSection === section.title;
           const activeSection = sectionIsActive(pathname, section);
 
           return (
