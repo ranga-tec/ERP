@@ -2,7 +2,7 @@
 
 import { useDeferredValue, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { apiPut } from "@/lib/api-client";
+import { apiPostNoContent, apiPut } from "@/lib/api-client";
 import {
   EditableDataTable,
   formatGridMoney,
@@ -47,6 +47,14 @@ type EditableReceiptPlanLine = {
   unitCost: string;
   batchNumber: string;
   serials: string;
+};
+
+type ReceiptPlanLinePayload = {
+  purchaseOrderLineId: string;
+  quantity: number;
+  unitCost: number;
+  batchNumber: string | null;
+  serials: string[];
 };
 
 const TRACKING_SERIAL = 1;
@@ -155,61 +163,92 @@ export function GoodsReceiptReceiptPlanForm({
     );
   }
 
-  async function savePlan() {
+  function buildPayload(): ReceiptPlanLinePayload[] {
+    return draftLines.map((line) => {
+      const quantity = Number(line.quantity || 0);
+      if (Number.isNaN(quantity) || quantity < 0) {
+        throw new Error("Receipt quantity must be 0 or greater.");
+      }
+
+      if (quantity > line.availableQuantity) {
+        throw new Error("Receipt quantity cannot exceed the remaining PO quantity.");
+      }
+
+      const unitCost = Number(line.unitCost || 0);
+      if (Number.isNaN(unitCost) || unitCost < 0) {
+        throw new Error("Unit cost must be 0 or greater.");
+      }
+
+      const item = itemById.get(line.itemId);
+      const itemLabel = item ? `${item.sku} - ${item.name}` : line.itemId;
+      const serials = quantity > 0 ? parseList(line.serials) : [];
+
+      if (quantity > 0 && item?.trackingType === TRACKING_SERIAL) {
+        if (!Number.isInteger(quantity)) {
+          throw new Error(`${itemLabel}: quantity must be a whole number for serial-tracked items.`);
+        }
+
+        if (serials.length === 0) {
+          throw new Error(`${itemLabel}: serial numbers are required.`);
+        }
+
+        if (serials.length !== quantity) {
+          throw new Error(`${itemLabel}: quantity must match the serial count.`);
+        }
+      }
+
+      if (quantity > 0 && item?.trackingType === TRACKING_BATCH && !line.batchNumber.trim()) {
+        throw new Error(`${itemLabel}: batch number is required.`);
+      }
+
+      return {
+        purchaseOrderLineId: line.purchaseOrderLineId,
+        quantity,
+        unitCost,
+        batchNumber: quantity > 0 ? line.batchNumber.trim() || null : null,
+        serials,
+      };
+    });
+  }
+
+  async function savePlan(refresh = true): Promise<ReceiptPlanLinePayload[]> {
     setError(null);
     setBusy(true);
 
     try {
-      const payload = draftLines.map((line) => {
-        const quantity = Number(line.quantity || 0);
-        if (Number.isNaN(quantity) || quantity < 0) {
-          throw new Error("Receipt quantity must be 0 or greater.");
-        }
-
-        if (quantity > line.availableQuantity) {
-          throw new Error("Receipt quantity cannot exceed the remaining PO quantity.");
-        }
-
-        const unitCost = Number(line.unitCost || 0);
-        if (Number.isNaN(unitCost) || unitCost < 0) {
-          throw new Error("Unit cost must be 0 or greater.");
-        }
-
-        const item = itemById.get(line.itemId);
-        const itemLabel = item ? `${item.sku} - ${item.name}` : line.itemId;
-        const serials = quantity > 0 ? parseList(line.serials) : [];
-
-        if (quantity > 0 && item?.trackingType === TRACKING_SERIAL) {
-          if (!Number.isInteger(quantity)) {
-            throw new Error(`${itemLabel}: quantity must be a whole number for serial-tracked items.`);
-          }
-
-          if (serials.length === 0) {
-            throw new Error(`${itemLabel}: serial numbers are required.`);
-          }
-
-          if (serials.length !== quantity) {
-            throw new Error(`${itemLabel}: quantity must match the serial count.`);
-          }
-        }
-
-        if (quantity > 0 && item?.trackingType === TRACKING_BATCH && !line.batchNumber.trim()) {
-          throw new Error(`${itemLabel}: batch number is required.`);
-        }
-
-        return {
-          purchaseOrderLineId: line.purchaseOrderLineId,
-          quantity,
-          unitCost,
-          batchNumber: quantity > 0 ? line.batchNumber.trim() || null : null,
-          serials,
-        };
-      });
+      const payload = buildPayload();
 
       await apiPut<ReceiptPlanResponse>(`procurement/goods-receipts/${goodsReceiptId}/receipt-plan`, {
         lines: payload,
       });
 
+      if (refresh) {
+        router.refresh();
+      }
+
+      return payload;
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+      return [];
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function saveAndPost() {
+    setError(null);
+    setBusy(true);
+
+    try {
+      const payload = buildPayload();
+      if (!payload.some((line) => line.quantity > 0)) {
+        throw new Error("Enter at least one received quantity before posting.");
+      }
+
+      await apiPut<ReceiptPlanResponse>(`procurement/goods-receipts/${goodsReceiptId}/receipt-plan`, {
+        lines: payload,
+      });
+      await apiPostNoContent(`procurement/goods-receipts/${goodsReceiptId}/post`, {});
       router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
@@ -368,8 +407,11 @@ export function GoodsReceiptReceiptPlanForm({
           Enter the actual received quantity against each PO line. Leave `0` or blank for anything not yet received. If some
           lines stay open, this PO remains partially received and another GRN can be created later for the balance.
         </div>
-        <Button type="button" onClick={savePlan} disabled={busy}>
+        <Button type="button" onClick={() => void savePlan()} disabled={busy}>
           {busy ? "Saving..." : "Save receipt plan"}
+        </Button>
+        <Button type="button" onClick={saveAndPost} disabled={busy}>
+          {busy ? "Working..." : "Save and post"}
         </Button>
       </div>
 

@@ -65,6 +65,9 @@ export default async function GoodsReceiptDetailPage({ params }: { params: Promi
 
   const poById = new Map(pos.map((p) => [p.id, p]));
   const warehouseById = new Map(warehouses.map((w) => [w.id, w]));
+  const hasDraftReceiptQuantity =
+    grn.lines.some((line) => line.quantity > 0) ||
+    (receiptPlan?.lines.some((line) => line.currentQuantity > 0) ?? false);
 
   return (
     <div className="space-y-6">
@@ -100,7 +103,7 @@ export default async function GoodsReceiptDetailPage({ params }: { params: Promi
             Download PDF
           </SecondaryLink>
         </div>
-        <GoodsReceiptActions goodsReceiptId={grn.id} canPost={isDraft && grn.lines.length > 0} />
+        <GoodsReceiptActions goodsReceiptId={grn.id} canPost={isDraft && hasDraftReceiptQuantity} />
       </Card>
 
       {isDraft ? (
