@@ -8,19 +8,21 @@ import { SecondaryButton } from "@/components/ui";
 export function MaterialRequisitionActions({
   requisitionId,
   canPost,
+  canVoid,
 }: {
   requisitionId: string;
   canPost: boolean;
+  canVoid: boolean;
 }) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  async function post() {
+  async function run(action: "post" | "void") {
     setError(null);
     setBusy(true);
     try {
-      await apiPostNoContent(`service/material-requisitions/${requisitionId}/post`, {});
+      await apiPostNoContent(`service/material-requisitions/${requisitionId}/${action}`, {});
       router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
@@ -32,8 +34,11 @@ export function MaterialRequisitionActions({
   return (
     <div className="space-y-2">
       <div className="flex flex-wrap gap-2">
-        <SecondaryButton type="button" disabled={!canPost || busy} onClick={post}>
+        <SecondaryButton type="button" disabled={!canPost || busy} onClick={() => run("post")}>
           {busy ? "Posting..." : "Post Requisition"}
+        </SecondaryButton>
+        <SecondaryButton type="button" disabled={!canVoid || busy} onClick={() => run("void")}>
+          Void Draft
         </SecondaryButton>
       </div>
       {error ? (
@@ -44,4 +49,3 @@ export function MaterialRequisitionActions({
     </div>
   );
 }
-

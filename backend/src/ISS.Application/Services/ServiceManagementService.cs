@@ -19,6 +19,8 @@ public sealed class ServiceManagementService(
     NotificationService notificationService,
     DocumentAccountMappingService documentAccountMappingService)
 {
+    public sealed record ServiceJobCloseoutCheck(string Key, string Label, bool IsClear, int PendingCount, string Detail);
+
     private sealed record ServiceEntitlementSnapshot(
         Guid? ServiceContractId,
         ServiceEntitlementSource EntitlementSource,
@@ -1237,6 +1239,36 @@ public sealed class ServiceManagementService(
         await dbContext.SaveChangesAsync(cancellationToken);
     }
 
+    public async Task StartWorkOrderAsync(Guid workOrderId, CancellationToken cancellationToken = default)
+    {
+        var workOrder = await dbContext.WorkOrders.FirstOrDefaultAsync(x => x.Id == workOrderId, cancellationToken)
+            ?? throw new NotFoundException("Work order not found.");
+
+        await EnsureServiceJobAcceptsNewCostsAsync(workOrder.ServiceJobId, cancellationToken);
+        workOrder.Start();
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task MarkWorkOrderDoneAsync(Guid workOrderId, CancellationToken cancellationToken = default)
+    {
+        var workOrder = await dbContext.WorkOrders.FirstOrDefaultAsync(x => x.Id == workOrderId, cancellationToken)
+            ?? throw new NotFoundException("Work order not found.");
+
+        await EnsureServiceJobAcceptsNewCostsAsync(workOrder.ServiceJobId, cancellationToken);
+        workOrder.MarkDone();
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task CancelWorkOrderAsync(Guid workOrderId, CancellationToken cancellationToken = default)
+    {
+        var workOrder = await dbContext.WorkOrders.FirstOrDefaultAsync(x => x.Id == workOrderId, cancellationToken)
+            ?? throw new NotFoundException("Work order not found.");
+
+        await EnsureServiceJobAcceptsNewCostsAsync(workOrder.ServiceJobId, cancellationToken);
+        workOrder.Cancel();
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
     public async Task<Guid> AddServiceJobAssignmentAsync(
         Guid serviceJobId,
         Guid? technicianId,
@@ -1530,6 +1562,16 @@ public sealed class ServiceManagementService(
         await dbContext.SaveChangesAsync(cancellationToken);
     }
 
+    public async Task VoidMaterialRequisitionAsync(Guid materialRequisitionId, CancellationToken cancellationToken = default)
+    {
+        var mr = await dbContext.MaterialRequisitions.FirstOrDefaultAsync(x => x.Id == materialRequisitionId, cancellationToken)
+            ?? throw new NotFoundException("Material requisition not found.");
+
+        await EnsureServiceJobAcceptsNewCostsAsync(mr.ServiceJobId, cancellationToken);
+        mr.Void();
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
     private async Task<ServiceEntitlementSnapshot> EvaluateServiceEntitlementAsync(
         Guid equipmentUnitId,
         Guid customerId,
@@ -1605,46 +1647,113 @@ public sealed class ServiceManagementService(
         }
     }
 
-    private async Task EnsureServiceJobReadyToCloseAsync(Guid serviceJobId, CancellationToken cancellationToken)
+    public async Task<IReadOnlyList<ServiceJobCloseoutCheck>> GetServiceJobCloseoutChecksAsync(Guid serviceJobId, CancellationToken cancellationToken = default)
     {
-        var openExpenseClaims = await dbContext.ServiceExpenseClaims.AsNoTracking()
-            .AnyAsync(x => x.ServiceJobId == serviceJobId
-                           && x.Status != ServiceExpenseClaimStatus.Settled
-                           && x.Status != ServiceExpenseClaimStatus.Rejected,
-                cancellationToken);
-        if (openExpenseClaims)
+        var jobExists = await dbContext.ServiceJobs.AsNoTracking().AnyAsync(x => x.Id == serviceJobId, cancellationToken);
+        if (!jobExists)
         {
-            throw new DomainValidationException("Service job cannot close until all expense claims are settled or rejected.");
+            throw new NotFoundException("Service job not found.");
         }
 
-        var openIous = await dbContext.PettyCashIous.AsNoTracking()
-            .AnyAsync(x => x.ServiceJobId == serviceJobId
-                           && x.Status != PettyCashIouStatus.Settled
-                           && x.Status != PettyCashIouStatus.Rejected
-                           && x.Status != PettyCashIouStatus.Cancelled,
+        var openExpenseClaims = await dbContext.ServiceExpenseClaims.AsNoTracking()
+            .CountAsync(x => x.ServiceJobId == serviceJobId
+                             && x.Status != ServiceExpenseClaimStatus.Settled
+                             && x.Status != ServiceExpenseClaimStatus.Rejected,
                 cancellationToken);
-        if (openIous)
-        {
-            throw new DomainValidationException("Service job cannot close until all petty-cash IOUs are settled, rejected, or cancelled.");
-        }
+
+        var openIous = await dbContext.PettyCashIous.AsNoTracking()
+            .CountAsync(x => x.ServiceJobId == serviceJobId
+                             && x.Status != PettyCashIouStatus.Settled
+                             && x.Status != PettyCashIouStatus.Rejected
+                             && x.Status != PettyCashIouStatus.Cancelled,
+                cancellationToken);
 
         var openDirectPurchaseBills = await dbContext.DirectPurchases.AsNoTracking()
             .Where(x => x.ServiceJobId == serviceJobId && x.Status == DirectPurchaseStatus.Posted)
-            .AnyAsync(x => !dbContext.SupplierInvoices.Any(invoice =>
+            .CountAsync(x => !dbContext.SupplierInvoices.Any(invoice =>
                     invoice.DirectPurchaseId == x.Id && invoice.Status == SupplierInvoiceStatus.Posted),
                 cancellationToken);
-        if (openDirectPurchaseBills)
-        {
-            throw new DomainValidationException("Service job cannot close until all posted job-linked direct purchases have posted supplier invoices.");
-        }
+
+        var draftMaterialRequisitions = await dbContext.MaterialRequisitions.AsNoTracking()
+            .CountAsync(x => x.ServiceJobId == serviceJobId && x.Status == MaterialRequisitionStatus.Draft, cancellationToken);
 
         var pendingAssignments = await dbContext.ServiceJobAssignments.AsNoTracking()
-            .AnyAsync(x => x.ServiceJobId == serviceJobId && x.ApprovalStatus == ServiceJobAssignmentApprovalStatus.Pending, cancellationToken);
-        if (pendingAssignments)
+            .CountAsync(x => x.ServiceJobId == serviceJobId && x.ApprovalStatus == ServiceJobAssignmentApprovalStatus.Pending, cancellationToken);
+
+        var pendingLaborEntries = await dbContext.WorkOrderTimeEntries.AsNoTracking()
+            .CountAsync(x => x.ServiceJobId == serviceJobId
+                             && (x.Status == WorkOrderTimeEntryStatus.Draft || x.Status == WorkOrderTimeEntryStatus.Submitted),
+                cancellationToken);
+
+        var unfinishedWorkOrders = await dbContext.WorkOrders.AsNoTracking()
+            .CountAsync(x => x.ServiceJobId == serviceJobId
+                             && (x.Status == WorkOrderStatus.Open || x.Status == WorkOrderStatus.InProgress),
+                cancellationToken);
+
+        var uninvoicedBillableLabor = await dbContext.WorkOrderTimeEntries.AsNoTracking()
+            .CountAsync(x => x.ServiceJobId == serviceJobId
+                             && x.BillableToCustomer
+                             && x.Status == WorkOrderTimeEntryStatus.Approved
+                             && x.SalesInvoiceLineId == null,
+                cancellationToken);
+
+        return
+        [
+            CreateCloseoutCheck(
+                "expense-claims",
+                "Expense claims",
+                openExpenseClaims,
+                "All job expense claims must be settled or rejected."),
+            CreateCloseoutCheck(
+                "petty-cash-ious",
+                "Petty cash IOUs",
+                openIous,
+                "All job IOUs must be settled, rejected, or cancelled."),
+            CreateCloseoutCheck(
+                "direct-purchase-bills",
+                "Direct purchase supplier bills",
+                openDirectPurchaseBills,
+                "All posted job-linked direct purchases must have posted supplier invoices."),
+            CreateCloseoutCheck(
+                "material-requisitions",
+                "Draft material requisitions",
+                draftMaterialRequisitions,
+                "Post or void draft material requisitions before closing the job."),
+            CreateCloseoutCheck(
+                "job-assignments",
+                "Technician assignments",
+                pendingAssignments,
+                "Approve or reject all job assignments before closing."),
+            CreateCloseoutCheck(
+                "labor-entries",
+                "Labor entries",
+                pendingLaborEntries,
+                "Submit and approve or reject all draft/submitted labor entries before closing."),
+            CreateCloseoutCheck(
+                "work-orders",
+                "Job detail work orders",
+                unfinishedWorkOrders,
+                "Mark work orders done or cancel them before closing."),
+            CreateCloseoutCheck(
+                "billable-labor",
+                "Uninvoiced billable labor",
+                uninvoicedBillableLabor,
+                "Convert approved billable labor through handover invoicing or mark it non-billable before closing.")
+        ];
+    }
+
+    private async Task EnsureServiceJobReadyToCloseAsync(Guid serviceJobId, CancellationToken cancellationToken)
+    {
+        var openChecks = await GetServiceJobCloseoutChecksAsync(serviceJobId, cancellationToken);
+        var firstOpenCheck = openChecks.FirstOrDefault(x => !x.IsClear);
+        if (firstOpenCheck is not null)
         {
-            throw new DomainValidationException("Service job cannot close until all technician assignments are approved or rejected.");
+            throw new DomainValidationException($"Service job cannot close: {firstOpenCheck.Detail}");
         }
     }
+
+    private static ServiceJobCloseoutCheck CreateCloseoutCheck(string key, string label, int pendingCount, string detail)
+        => new(key, label, pendingCount == 0, pendingCount, pendingCount == 0 ? "Clear." : detail);
 
     public async Task<Guid> AddQualityCheckAsync(Guid serviceJobId, bool passed, string? notes, CancellationToken cancellationToken = default)
     {

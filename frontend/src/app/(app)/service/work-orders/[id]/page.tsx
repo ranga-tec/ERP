@@ -3,6 +3,7 @@ import { backendFetchJson } from "@/lib/backend.server";
 import { Card, SecondaryLink, Table } from "@/components/ui";
 import { DocumentCollaborationPanel } from "@/components/DocumentCollaborationPanel";
 import { TransactionLink } from "@/components/TransactionLink";
+import { WorkOrderActions } from "../WorkOrderActions";
 import { WorkOrderTimeEntryAddForm } from "../WorkOrderTimeEntryAddForm";
 import { WorkOrderTimeEntryRow } from "../WorkOrderTimeEntryRow";
 
@@ -66,6 +67,9 @@ export default async function WorkOrderDetailPage({ params }: { params: Promise<
 
   const jobById = new Map(jobs.map((j) => [j.id, j]));
   const canAddLabor = wo.status !== 3;
+  const canStart = wo.status === 0;
+  const canMarkDone = wo.status === 1;
+  const canCancel = wo.status === 0 || wo.status === 1;
 
   return (
     <div className="space-y-6">
@@ -121,6 +125,9 @@ export default async function WorkOrderDetailPage({ params }: { params: Promise<
           >
             Download PDF
           </SecondaryLink>
+        </div>
+        <div className="mt-3">
+          <WorkOrderActions workOrderId={wo.id} canStart={canStart} canMarkDone={canMarkDone} canCancel={canCancel} />
         </div>
       </Card>
 

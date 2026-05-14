@@ -87,7 +87,7 @@ export default async function MaterialRequisitionDetailPage({
             Download PDF
           </SecondaryLink>
         </div>
-        <MaterialRequisitionActions requisitionId={mr.id} canPost={isDraft && mr.lines.length > 0} />
+        <MaterialRequisitionActions requisitionId={mr.id} canPost={isDraft && mr.lines.length > 0} canVoid={isDraft} />
       </Card>
 
       {isDraft ? (

@@ -166,6 +166,27 @@ public sealed class WorkOrdersController(
         return File(doc.Content, doc.ContentType, doc.FileName);
     }
 
+    [HttpPost("{id:guid}/start")]
+    public async Task<ActionResult> Start(Guid id, CancellationToken cancellationToken)
+    {
+        await serviceManagementService.StartWorkOrderAsync(id, cancellationToken);
+        return NoContent();
+    }
+
+    [HttpPost("{id:guid}/done")]
+    public async Task<ActionResult> MarkDone(Guid id, CancellationToken cancellationToken)
+    {
+        await serviceManagementService.MarkWorkOrderDoneAsync(id, cancellationToken);
+        return NoContent();
+    }
+
+    [HttpPost("{id:guid}/cancel")]
+    public async Task<ActionResult> Cancel(Guid id, CancellationToken cancellationToken)
+    {
+        await serviceManagementService.CancelWorkOrderAsync(id, cancellationToken);
+        return NoContent();
+    }
+
     [HttpPost("{id:guid}/time-entries")]
     public async Task<ActionResult<WorkOrderDto>> AddTimeEntry(
         Guid id,

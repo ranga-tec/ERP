@@ -109,4 +109,11 @@ public sealed class MaterialRequisitionsController(IIssDbContext dbContext, Serv
         await serviceManagementService.PostMaterialRequisitionAsync(id, cancellationToken);
         return NoContent();
     }
+
+    [HttpPost("{id:guid}/void")]
+    public async Task<ActionResult> Void(Guid id, CancellationToken cancellationToken)
+    {
+        await serviceManagementService.VoidMaterialRequisitionAsync(id, cancellationToken);
+        return NoContent();
+    }
 }

@@ -81,6 +81,13 @@ type ServiceJobProgressUpdateDto = {
   supervisorNotes?: string | null;
   createdAt: string;
 };
+type ServiceJobCloseoutCheckDto = {
+  key: string;
+  label: string;
+  isClear: boolean;
+  pendingCount: number;
+  detail: string;
+};
 type ServiceJobCostingDto = {
   serviceJobId: string;
   jobNumber: string;
@@ -252,7 +259,7 @@ function maybeText(value?: string | null) {
 export default async function ServiceJobDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
 
-  const [job, units, customers, costing, items, technicians, assignments, progressUpdates] = await Promise.all([
+  const [job, units, customers, costing, items, technicians, assignments, progressUpdates, closeoutChecks] = await Promise.all([
     backendFetchJson<ServiceJobDto>(`/service/jobs/${id}`),
     backendFetchJson<EquipmentUnitDto[]>("/service/equipment-units?take=2000"),
     backendFetchJson<CustomerDto[]>("/customers"),
@@ -261,6 +268,7 @@ export default async function ServiceJobDetailPage({ params }: { params: Promise
     backendFetchJson<TechnicianDto[]>("/service/technicians"),
     backendFetchJson<ServiceJobAssignmentDto[]>(`/service/jobs/${id}/assignments`),
     backendFetchJson<ServiceJobProgressUpdateDto[]>(`/service/jobs/${id}/progress-updates`),
+    backendFetchJson<ServiceJobCloseoutCheckDto[]>(`/service/jobs/${id}/closeout-checks`),
   ]);
 
   const selectedUnit =
@@ -417,6 +425,31 @@ export default async function ServiceJobDetailPage({ params }: { params: Promise
           <div className="text-sm text-zinc-700 dark:text-zinc-200">{job.entitlementSummary}</div>
         </Card>
       ) : null}
+
+      <Card>
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <div className="text-sm font-semibold">Closeout Readiness</div>
+            <div className="mt-1 text-xs text-zinc-500">Clear these operational and financial items before closing the job.</div>
+          </div>
+          <div className="text-sm font-medium">
+            {closeoutChecks.every((check) => check.isClear) ? "Ready to close" : `${closeoutChecks.filter((check) => !check.isClear).length} pending`}
+          </div>
+        </div>
+        <div className="grid gap-2 md:grid-cols-2">
+          {closeoutChecks.map((check) => (
+            <div key={check.key} className="rounded-lg border border-[var(--card-border)] p-3">
+              <div className="flex items-center justify-between gap-3">
+                <div className="text-sm font-medium">{check.label}</div>
+                <div className={check.isClear ? "text-xs font-semibold text-emerald-700 dark:text-emerald-300" : "text-xs font-semibold text-amber-700 dark:text-amber-300"}>
+                  {check.isClear ? "Clear" : `${check.pendingCount} pending`}
+                </div>
+              </div>
+              <div className="mt-1 text-xs text-zinc-500">{check.detail}</div>
+            </div>
+          ))}
+        </div>
+      </Card>
 
       <Card>
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">

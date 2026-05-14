@@ -122,6 +122,7 @@ public sealed class ServiceJobsController(
         string? SiteIssues,
         string? TechnicianNotes,
         string? SupervisorNotes);
+    public sealed record ServiceJobCloseoutCheckDto(string Key, string Label, bool IsClear, int PendingCount, string Detail);
 
     [HttpGet]
     public async Task<ActionResult<IReadOnlyList<ServiceJobDto>>> List([FromQuery] int skip = 0, [FromQuery] int take = 100, CancellationToken cancellationToken = default)
@@ -250,6 +251,13 @@ public sealed class ServiceJobsController(
     {
         var costing = await serviceCostingService.GetServiceJobCostingAsync(id, cancellationToken);
         return Ok(costing);
+    }
+
+    [HttpGet("{id:guid}/closeout-checks")]
+    public async Task<ActionResult<IReadOnlyList<ServiceJobCloseoutCheckDto>>> CloseoutChecks(Guid id, CancellationToken cancellationToken)
+    {
+        var checks = await serviceManagementService.GetServiceJobCloseoutChecksAsync(id, cancellationToken);
+        return Ok(checks.Select(x => new ServiceJobCloseoutCheckDto(x.Key, x.Label, x.IsClear, x.PendingCount, x.Detail)).ToList());
     }
 
     [HttpGet("{id:guid}/pdf")]
