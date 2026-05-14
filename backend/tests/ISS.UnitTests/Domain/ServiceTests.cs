@@ -13,11 +13,11 @@ public sealed class ServiceTests
         job.Update(job.EquipmentUnitId, job.CustomerId, "Still won't start", ServiceJobKind.Service);
         Assert.Equal("Still won't start", job.ProblemDescription);
 
-        job.Start();
+        job.Start(DateTimeOffset.UtcNow);
         Assert.Equal(ServiceJobStatus.InProgress, job.Status);
 
         job.Complete(DateTimeOffset.UtcNow);
-        Assert.Equal(ServiceJobStatus.Completed, job.Status);
+        Assert.Equal(ServiceJobStatus.WorkCompleted, job.Status);
 
         job.Close();
         Assert.Equal(ServiceJobStatus.Closed, job.Status);

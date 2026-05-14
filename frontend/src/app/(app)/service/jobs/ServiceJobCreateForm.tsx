@@ -39,8 +39,13 @@ export function ServiceJobCreateForm({
   const [equipmentUnitId, setEquipmentUnitId] = useState("");
   const [customerId, setCustomerId] = useState("");
   const [kind, setKind] = useState(KIND_SERVICE);
+  const [estimatedStartAt, setEstimatedStartAt] = useState("");
   const [expectedCompletionAt, setExpectedCompletionAt] = useState("");
   const [siteLocation, setSiteLocation] = useState("");
+  const [responsibleOfficerName, setResponsibleOfficerName] = useState("");
+  const [jobDescription, setJobDescription] = useState("");
+  const [customerComplaint, setCustomerComplaint] = useState("");
+  const [internalRemarks, setInternalRemarks] = useState("");
   const [problemDescription, setProblemDescription] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -71,8 +76,13 @@ export function ServiceJobCreateForm({
         equipmentUnitId,
         customerId,
         kind: Number(kind),
+        estimatedStartAt: estimatedStartAt || null,
         expectedCompletionAt: expectedCompletionAt || null,
         siteLocation: siteLocation.trim() || null,
+        responsibleOfficerName: responsibleOfficerName.trim() || null,
+        jobDescription: jobDescription.trim() || null,
+        customerComplaint: customerComplaint.trim() || null,
+        internalRemarks: internalRemarks.trim() || null,
         problemDescription: problemDescription.trim(),
       });
       router.push(`/service/jobs/${job.id}`);
@@ -120,9 +130,18 @@ export function ServiceJobCreateForm({
           </Select>
         </div>
         <div>
+          <label className="mb-1 block text-sm font-medium">Estimated start</label>
+          <Input type="date" value={estimatedStartAt} onChange={(e) => setEstimatedStartAt(e.target.value)} />
+        </div>
+        <div>
           <label className="mb-1 block text-sm font-medium">Expected completion</label>
           <Input type="date" value={expectedCompletionAt} onChange={(e) => setExpectedCompletionAt(e.target.value)} />
         </div>
+      </div>
+
+      <div>
+        <label className="mb-1 block text-sm font-medium">Responsible officer / supervisor</label>
+        <Input value={responsibleOfficerName} onChange={(e) => setResponsibleOfficerName(e.target.value)} placeholder="Supervisor or service advisor" />
       </div>
 
       <div>
@@ -131,8 +150,23 @@ export function ServiceJobCreateForm({
       </div>
 
       <div>
-        <label className="mb-1 block text-sm font-medium">Problem description</label>
+        <label className="mb-1 block text-sm font-medium">Job description</label>
+        <Textarea value={jobDescription} onChange={(e) => setJobDescription(e.target.value)} placeholder="Scope of work, PDI checklist summary, installation task, or service plan" />
+      </div>
+
+      <div>
+        <label className="mb-1 block text-sm font-medium">Customer complaint / service requirement</label>
+        <Textarea value={customerComplaint} onChange={(e) => setCustomerComplaint(e.target.value)} />
+      </div>
+
+      <div>
+        <label className="mb-1 block text-sm font-medium">Problem description / intake note</label>
         <Textarea value={problemDescription} onChange={(e) => setProblemDescription(e.target.value)} required />
+      </div>
+
+      <div>
+        <label className="mb-1 block text-sm font-medium">Internal remarks</label>
+        <Textarea value={internalRemarks} onChange={(e) => setInternalRemarks(e.target.value)} />
       </div>
 
       {error ? (

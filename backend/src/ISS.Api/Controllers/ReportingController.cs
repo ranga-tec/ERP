@@ -353,11 +353,11 @@ public sealed class ReportingController(IIssDbContext dbContext, InventoryServic
                 .Select(x => new { x.Status, x.OpenedAt })
                 .ToListAsync(cancellationToken);
 
-            openServiceJobs = serviceJobs.Count(x => x.Status is ServiceJobStatus.Open or ServiceJobStatus.InProgress);
+            openServiceJobs = serviceJobs.Count(x => x.Status is ServiceJobStatus.Draft or ServiceJobStatus.Open or ServiceJobStatus.Assigned or ServiceJobStatus.InProgress or ServiceJobStatus.Reopened);
             inProgressServiceJobs = serviceJobs.Count(x => x.Status == ServiceJobStatus.InProgress);
-            completedServiceJobs = serviceJobs.Count(x => x.Status == ServiceJobStatus.Completed);
+            completedServiceJobs = serviceJobs.Count(x => x.Status == ServiceJobStatus.WorkCompleted);
             openJobsOlderThan7Days = serviceJobs.Count(x =>
-                x.Status is ServiceJobStatus.Open or ServiceJobStatus.InProgress &&
+                x.Status is ServiceJobStatus.Draft or ServiceJobStatus.Open or ServiceJobStatus.Assigned or ServiceJobStatus.InProgress or ServiceJobStatus.Reopened &&
                 (generatedAt - x.OpenedAt).TotalDays > 7d);
 
             var workOrderStatusCounts = await dbContext.WorkOrders.AsNoTracking()
@@ -1024,14 +1024,14 @@ public sealed class ReportingController(IIssDbContext dbContext, InventoryServic
         return Ok(new ServiceKpiReportDto(
             reportFrom,
             reportTo,
-            jobs.Count(x => x.Status == ServiceJobStatus.Open),
+            jobs.Count(x => x.Status is ServiceJobStatus.Draft or ServiceJobStatus.Open or ServiceJobStatus.Assigned or ServiceJobStatus.Reopened),
             jobs.Count(x => x.Status == ServiceJobStatus.InProgress),
-            jobs.Count(x => x.Status == ServiceJobStatus.Completed),
+            jobs.Count(x => x.Status == ServiceJobStatus.WorkCompleted),
             jobs.Count(x => x.Status == ServiceJobStatus.Closed),
             jobs.Count(x => x.Status == ServiceJobStatus.Cancelled),
             completionHours.Count == 0 ? null : Math.Round(completionHours.Average(), 2),
-            jobs.Count(x => (x.Status is ServiceJobStatus.Open or ServiceJobStatus.InProgress) && (now - x.OpenedAt).TotalDays > 7),
-            jobs.Count(x => (x.Status is ServiceJobStatus.Open or ServiceJobStatus.InProgress) && (now - x.OpenedAt).TotalDays > 30),
+            jobs.Count(x => (x.Status is ServiceJobStatus.Draft or ServiceJobStatus.Open or ServiceJobStatus.Assigned or ServiceJobStatus.InProgress or ServiceJobStatus.Reopened) && (now - x.OpenedAt).TotalDays > 7),
+            jobs.Count(x => (x.Status is ServiceJobStatus.Draft or ServiceJobStatus.Open or ServiceJobStatus.Assigned or ServiceJobStatus.InProgress or ServiceJobStatus.Reopened) && (now - x.OpenedAt).TotalDays > 30),
             estimates.Count,
             estimates.Count(x => x == ServiceEstimateStatus.Approved),
             handoversCompleted,

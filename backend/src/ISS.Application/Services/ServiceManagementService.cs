@@ -125,6 +125,11 @@ public sealed class ServiceManagementService(
         ServiceJobKind kind = ServiceJobKind.Service,
         DateTimeOffset? expectedCompletionAt = null,
         string? siteLocation = null,
+        DateTimeOffset? estimatedStartAt = null,
+        string? jobDescription = null,
+        string? customerComplaint = null,
+        string? internalRemarks = null,
+        string? responsibleOfficerName = null,
         CancellationToken cancellationToken = default)
     {
         var entitlement = await EvaluateServiceEntitlementAsync(equipmentUnitId, customerId, clock.UtcNow, cancellationToken);
@@ -143,7 +148,12 @@ public sealed class ServiceManagementService(
             clock.UtcNow,
             entitlement.EntitlementSummary,
             expectedCompletionAt,
-            siteLocation);
+            siteLocation,
+            estimatedStartAt,
+            jobDescription,
+            customerComplaint,
+            internalRemarks,
+            responsibleOfficerName);
         await dbContext.ServiceJobs.AddAsync(job, cancellationToken);
         await dbContext.SaveChangesAsync(cancellationToken);
         return job.Id;
@@ -174,13 +184,29 @@ public sealed class ServiceManagementService(
         ServiceJobKind kind,
         DateTimeOffset? expectedCompletionAt = null,
         string? siteLocation = null,
+        DateTimeOffset? estimatedStartAt = null,
+        string? jobDescription = null,
+        string? customerComplaint = null,
+        string? internalRemarks = null,
+        string? responsibleOfficerName = null,
         CancellationToken cancellationToken = default)
     {
         var job = await dbContext.ServiceJobs
             .FirstOrDefaultAsync(x => x.Id == serviceJobId, cancellationToken)
             ?? throw new NotFoundException("Service job not found.");
 
-        job.Update(equipmentUnitId, customerId, problemDescription, kind, expectedCompletionAt, siteLocation);
+        job.Update(
+            equipmentUnitId,
+            customerId,
+            problemDescription,
+            kind,
+            expectedCompletionAt,
+            siteLocation,
+            estimatedStartAt,
+            jobDescription,
+            customerComplaint,
+            internalRemarks,
+            responsibleOfficerName);
 
         var entitlement = await EvaluateServiceEntitlementAsync(equipmentUnitId, customerId, clock.UtcNow, cancellationToken);
         job.ApplyEntitlement(
@@ -199,7 +225,7 @@ public sealed class ServiceManagementService(
         var job = await dbContext.ServiceJobs.FirstOrDefaultAsync(x => x.Id == serviceJobId, cancellationToken)
                   ?? throw new NotFoundException("Service job not found.");
 
-        job.Start();
+        job.Start(clock.UtcNow);
         await dbContext.SaveChangesAsync(cancellationToken);
     }
 
@@ -219,6 +245,15 @@ public sealed class ServiceManagementService(
 
         await EnsureServiceJobReadyToCloseAsync(serviceJobId, cancellationToken);
         job.Close();
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task ReopenServiceJobAsync(Guid serviceJobId, string? reason, CancellationToken cancellationToken = default)
+    {
+        var job = await dbContext.ServiceJobs.FirstOrDefaultAsync(x => x.Id == serviceJobId, cancellationToken)
+                  ?? throw new NotFoundException("Service job not found.");
+
+        job.Reopen(reason);
         await dbContext.SaveChangesAsync(cancellationToken);
     }
 

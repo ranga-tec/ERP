@@ -27,9 +27,15 @@ public sealed class ServiceJobsController(
         string ProblemDescription,
         ServiceJobKind Kind,
         ServiceJobStatus Status,
+        DateTimeOffset? EstimatedStartAt,
+        DateTimeOffset? ActualStartAt,
         DateTimeOffset? CompletedAt,
         DateTimeOffset? ExpectedCompletionAt,
         string? SiteLocation,
+        string? JobDescription,
+        string? CustomerComplaint,
+        string? InternalRemarks,
+        string? ResponsibleOfficerName,
         Guid? ServiceContractId,
         string? ServiceContractNumber,
         ServiceEntitlementSource EntitlementSource,
@@ -37,8 +43,31 @@ public sealed class ServiceJobsController(
         CustomerBillingTreatment CustomerBillingTreatment,
         DateTimeOffset? EntitlementEvaluatedAt,
         string? EntitlementSummary);
-    public sealed record CreateServiceJobRequest(Guid EquipmentUnitId, Guid CustomerId, string ProblemDescription, ServiceJobKind? Kind, DateTimeOffset? ExpectedCompletionAt, string? SiteLocation);
-    public sealed record UpdateServiceJobRequest(Guid EquipmentUnitId, Guid CustomerId, string ProblemDescription, ServiceJobKind Kind, DateTimeOffset? ExpectedCompletionAt, string? SiteLocation);
+    public sealed record CreateServiceJobRequest(
+        Guid EquipmentUnitId,
+        Guid CustomerId,
+        string ProblemDescription,
+        ServiceJobKind? Kind,
+        DateTimeOffset? EstimatedStartAt,
+        DateTimeOffset? ExpectedCompletionAt,
+        string? SiteLocation,
+        string? JobDescription,
+        string? CustomerComplaint,
+        string? InternalRemarks,
+        string? ResponsibleOfficerName);
+    public sealed record UpdateServiceJobRequest(
+        Guid EquipmentUnitId,
+        Guid CustomerId,
+        string ProblemDescription,
+        ServiceJobKind Kind,
+        DateTimeOffset? EstimatedStartAt,
+        DateTimeOffset? ExpectedCompletionAt,
+        string? SiteLocation,
+        string? JobDescription,
+        string? CustomerComplaint,
+        string? InternalRemarks,
+        string? ResponsibleOfficerName);
+    public sealed record ReopenServiceJobRequest(string? Reason);
 
     [HttpGet]
     public async Task<ActionResult<IReadOnlyList<ServiceJobDto>>> List([FromQuery] int skip = 0, [FromQuery] int take = 100, CancellationToken cancellationToken = default)
@@ -59,9 +88,15 @@ public sealed class ServiceJobsController(
                 x.ProblemDescription,
                 x.Kind,
                 x.Status,
+                x.EstimatedStartAt,
+                x.ActualStartAt,
                 x.CompletedAt,
                 x.ExpectedCompletionAt,
                 x.SiteLocation,
+                x.JobDescription,
+                x.CustomerComplaint,
+                x.InternalRemarks,
+                x.ResponsibleOfficerName,
                 x.ServiceContractId,
                 dbContext.ServiceContracts
                     .Where(contract => contract.Id == x.ServiceContractId)
@@ -88,6 +123,11 @@ public sealed class ServiceJobsController(
             request.Kind ?? ServiceJobKind.Service,
             request.ExpectedCompletionAt,
             request.SiteLocation,
+            request.EstimatedStartAt,
+            request.JobDescription,
+            request.CustomerComplaint,
+            request.InternalRemarks,
+            request.ResponsibleOfficerName,
             cancellationToken);
         return await Get(id, cancellationToken);
     }
@@ -104,6 +144,11 @@ public sealed class ServiceJobsController(
             request.Kind,
             request.ExpectedCompletionAt,
             request.SiteLocation,
+            request.EstimatedStartAt,
+            request.JobDescription,
+            request.CustomerComplaint,
+            request.InternalRemarks,
+            request.ResponsibleOfficerName,
             cancellationToken);
         return await Get(id, cancellationToken);
     }
@@ -122,9 +167,15 @@ public sealed class ServiceJobsController(
                 x.ProblemDescription,
                 x.Kind,
                 x.Status,
+                x.EstimatedStartAt,
+                x.ActualStartAt,
                 x.CompletedAt,
                 x.ExpectedCompletionAt,
                 x.SiteLocation,
+                x.JobDescription,
+                x.CustomerComplaint,
+                x.InternalRemarks,
+                x.ResponsibleOfficerName,
                 x.ServiceContractId,
                 dbContext.ServiceContracts
                     .Where(contract => contract.Id == x.ServiceContractId)
@@ -175,6 +226,14 @@ public sealed class ServiceJobsController(
     public async Task<ActionResult> Close(Guid id, CancellationToken cancellationToken)
     {
         await serviceManagementService.CloseServiceJobAsync(id, cancellationToken);
+        return NoContent();
+    }
+
+    [HttpPost("{id:guid}/reopen")]
+    [Authorize(Roles = $"{Roles.Admin},{Roles.Service}")]
+    public async Task<ActionResult> Reopen(Guid id, ReopenServiceJobRequest? request, CancellationToken cancellationToken)
+    {
+        await serviceManagementService.ReopenServiceJobAsync(id, request?.Reason, cancellationToken);
         return NoContent();
     }
 

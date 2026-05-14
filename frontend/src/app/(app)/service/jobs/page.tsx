@@ -13,9 +13,15 @@ type ServiceJobDto = {
   problemDescription: string;
   kind: number;
   status: number;
+  estimatedStartAt?: string | null;
+  actualStartAt?: string | null;
   completedAt?: string | null;
   expectedCompletionAt?: string | null;
   siteLocation?: string | null;
+  jobDescription?: string | null;
+  customerComplaint?: string | null;
+  internalRemarks?: string | null;
+  responsibleOfficerName?: string | null;
   serviceContractId?: string | null;
   serviceContractNumber?: string | null;
   entitlementSource: number;
@@ -30,11 +36,21 @@ type CustomerDto = { id: string; code: string; name: string };
 type ItemDto = { id: string; sku: string; name: string };
 
 const statusLabel: Record<number, string> = {
-  0: "Open",
-  1: "In Progress",
-  2: "Completed",
-  3: "Closed",
-  4: "Cancelled",
+  0: "Draft",
+  1: "Open",
+  2: "Assigned",
+  3: "In Progress",
+  4: "Waiting for Parts",
+  5: "Waiting for Customer Approval",
+  6: "Waiting for Supplier",
+  7: "Work Completed",
+  8: "Pending Expense Settlement",
+  9: "Pending Material Return",
+  10: "Ready for Invoice",
+  11: "Invoiced",
+  12: "Closed",
+  13: "Reopened",
+  14: "Cancelled",
 };
 
 const kindLabel: Record<number, string> = {
@@ -83,7 +99,7 @@ export default async function ServiceJobsPage() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-semibold">Job Orders</h1>
-        <p className="mt-1 text-sm text-zinc-500">Open -&gt; in progress -&gt; completed -&gt; closed.</p>
+        <p className="mt-1 text-sm text-zinc-500">Open, assign, execute, complete, invoice, close, and reopen when authorized.</p>
       </div>
 
       <Card>
@@ -104,6 +120,7 @@ export default async function ServiceJobsPage() {
                 <th className="py-2 pr-3">Entitlement</th>
                 <th className="py-2 pr-3">Billing</th>
                 <th className="py-2 pr-3">Opened</th>
+                <th className="py-2 pr-3">Responsible</th>
                 <th className="py-2 pr-3">Status</th>
                 <th className="py-2 pr-3">Completed</th>
                 <th className="py-2 pr-3">Actions</th>
@@ -135,6 +152,7 @@ export default async function ServiceJobsPage() {
                   </td>
                   <td className="py-2 pr-3">{billingTreatmentLabel[j.customerBillingTreatment] ?? j.customerBillingTreatment}</td>
                   <td className="py-2 pr-3 text-zinc-500">{new Date(j.openedAt).toLocaleString()}</td>
+                  <td className="py-2 pr-3">{j.responsibleOfficerName ?? "-"}</td>
                   <td className="py-2 pr-3">{statusLabel[j.status] ?? j.status}</td>
                   <td className="py-2 pr-3 text-zinc-500">
                     {j.completedAt ? new Date(j.completedAt).toLocaleString() : "-"}
@@ -144,7 +162,7 @@ export default async function ServiceJobsPage() {
                       <Link className="font-semibold text-[var(--link)] underline underline-offset-2" href={`/service/jobs/${j.id}`}>
                         View
                       </Link>
-                      {j.status === 0 ? (
+                      {j.status === 0 || j.status === 1 || j.status === 13 ? (
                         <Link className="font-semibold text-[var(--link)] underline underline-offset-2" href={`/service/jobs/${j.id}`}>
                           Edit
                         </Link>
@@ -157,7 +175,7 @@ export default async function ServiceJobsPage() {
               ))}
               {jobs.length === 0 ? (
                 <tr>
-                  <td className="py-6 text-sm text-zinc-500" colSpan={10}>
+                  <td className="py-6 text-sm text-zinc-500" colSpan={11}>
                     No job orders yet.
                   </td>
                 </tr>

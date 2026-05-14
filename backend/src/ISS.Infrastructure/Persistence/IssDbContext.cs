@@ -632,6 +632,10 @@ public sealed class IssDbContext(
             entity.Property(x => x.Number).HasMaxLength(32);
             entity.Property(x => x.ProblemDescription).HasMaxLength(2000);
             entity.Property(x => x.SiteLocation).HasMaxLength(512);
+            entity.Property(x => x.JobDescription).HasMaxLength(2000);
+            entity.Property(x => x.CustomerComplaint).HasMaxLength(2000);
+            entity.Property(x => x.InternalRemarks).HasMaxLength(2000);
+            entity.Property(x => x.ResponsibleOfficerName).HasMaxLength(256);
             entity.Property(x => x.EntitlementSummary).HasMaxLength(512);
             entity.HasOne<ServiceContract>().WithMany().HasForeignKey(x => x.ServiceContractId).OnDelete(DeleteBehavior.SetNull);
         });

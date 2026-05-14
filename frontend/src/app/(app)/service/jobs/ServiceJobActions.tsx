@@ -10,11 +10,13 @@ export function ServiceJobActions({
   canStart,
   canComplete,
   canClose,
+  canReopen,
 }: {
   jobId: string;
   canStart: boolean;
   canComplete: boolean;
   canClose: boolean;
+  canReopen: boolean;
 }) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
@@ -25,6 +27,22 @@ export function ServiceJobActions({
     setBusy(true);
     try {
       await apiPostNoContent(`service/jobs/${jobId}/${path}`, {});
+      router.refresh();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function reopen() {
+    const reason = window.prompt("Reason for reopening this closed job?");
+    if (reason === null) return;
+
+    setError(null);
+    setBusy(true);
+    try {
+      await apiPostNoContent(`service/jobs/${jobId}/reopen`, { reason: reason.trim() || null });
       router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
@@ -44,6 +62,9 @@ export function ServiceJobActions({
         </SecondaryButton>
         <SecondaryButton type="button" disabled={!canClose || busy} onClick={() => act("close")}>
           Close
+        </SecondaryButton>
+        <SecondaryButton type="button" disabled={!canReopen || busy} onClick={reopen}>
+          Reopen
         </SecondaryButton>
         <SecondaryButton type="button" disabled={busy} onClick={() => act("refresh-entitlement")}>
           Refresh Entitlement

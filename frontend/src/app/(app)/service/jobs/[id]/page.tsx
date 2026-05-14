@@ -16,9 +16,15 @@ type ServiceJobDto = {
   problemDescription: string;
   kind: number;
   status: number;
+  estimatedStartAt?: string | null;
+  actualStartAt?: string | null;
   completedAt?: string | null;
   expectedCompletionAt?: string | null;
   siteLocation?: string | null;
+  jobDescription?: string | null;
+  customerComplaint?: string | null;
+  internalRemarks?: string | null;
+  responsibleOfficerName?: string | null;
   serviceContractId?: string | null;
   serviceContractNumber?: string | null;
   entitlementSource: number;
@@ -111,11 +117,21 @@ type ServiceJobCostingDto = {
 };
 
 const statusLabel: Record<number, string> = {
-  0: "Open",
-  1: "In Progress",
-  2: "Completed",
-  3: "Closed",
-  4: "Cancelled",
+  0: "Draft",
+  1: "Open",
+  2: "Assigned",
+  3: "In Progress",
+  4: "Waiting for Parts",
+  5: "Waiting for Customer Approval",
+  6: "Waiting for Supplier",
+  7: "Work Completed",
+  8: "Pending Expense Settlement",
+  9: "Pending Material Return",
+  10: "Ready for Invoice",
+  11: "Invoiced",
+  12: "Closed",
+  13: "Reopened",
+  14: "Cancelled",
 };
 
 const kindLabel: Record<number, string> = {
@@ -210,9 +226,11 @@ export default async function ServiceJobDetailPage({ params }: { params: Promise
     };
   });
 
-  const canStart = job.status === 0;
-  const canComplete = job.status === 0 || job.status === 1;
-  const canClose = job.status === 2;
+  const canStart = job.status === 0 || job.status === 1 || job.status === 2 || job.status === 13;
+  const canComplete = job.status === 1 || job.status === 2 || job.status === 3 || job.status === 13;
+  const canClose = job.status === 7 || job.status === 10 || job.status === 11;
+  const canReopen = job.status === 12;
+  const canEditHeader = job.status === 0 || job.status === 1 || job.status === 13;
 
   return (
     <div className="space-y-6">
@@ -235,9 +253,12 @@ export default async function ServiceJobDetailPage({ params }: { params: Promise
           <div>Type: {kindLabel[job.kind] ?? job.kind}</div>
           <div>Status: {statusLabel[job.status] ?? job.status}</div>
           <div>Opened: {new Date(job.openedAt).toLocaleString()}</div>
+          <div>Est. start: {job.estimatedStartAt ? new Date(job.estimatedStartAt).toLocaleDateString() : "-"}</div>
+          <div>Actual start: {job.actualStartAt ? new Date(job.actualStartAt).toLocaleString() : "-"}</div>
           <div>Expected: {job.expectedCompletionAt ? new Date(job.expectedCompletionAt).toLocaleDateString() : "-"}</div>
           <div>Completed: {job.completedAt ? new Date(job.completedAt).toLocaleString() : "-"}</div>
           <div>Site: {job.siteLocation ?? "-"}</div>
+          <div>Responsible: {job.responsibleOfficerName ?? "-"}</div>
         </div>
       </div>
 
@@ -252,10 +273,10 @@ export default async function ServiceJobDetailPage({ params }: { params: Promise
             Download PDF
           </SecondaryLink>
         </div>
-        <ServiceJobActions jobId={job.id} canStart={canStart} canComplete={canComplete} canClose={canClose} />
+        <ServiceJobActions jobId={job.id} canStart={canStart} canComplete={canComplete} canClose={canClose} canReopen={canReopen} />
       </Card>
 
-      {job.status === 0 ? (
+      {canEditHeader ? (
         <Card>
           <div className="mb-3 text-sm font-semibold">Edit Job</div>
           <ServiceJobEditForm job={job} equipmentUnits={equipmentUnitOptions} customers={customers} />
@@ -263,14 +284,31 @@ export default async function ServiceJobDetailPage({ params }: { params: Promise
       ) : (
         <Card>
           <div className="text-sm text-zinc-500">
-            Job header fields are editable while the job is still open. After work starts, use the job status flow and linked service documents instead of changing the intake header.
+            Job header fields are editable while the job is draft, open, or reopened. After work starts, use the job status flow and linked service documents instead of changing the intake header.
           </div>
         </Card>
       )}
 
       <Card>
-        <div className="mb-2 text-sm font-semibold">Problem</div>
-        <div className="whitespace-pre-wrap text-sm text-zinc-700 dark:text-zinc-200">{job.problemDescription}</div>
+        <div className="mb-2 text-sm font-semibold">Job Intake</div>
+        <div className="grid gap-4 md:grid-cols-2">
+          <div>
+            <div className="text-xs uppercase tracking-wide text-zinc-500">Job Description</div>
+            <div className="mt-1 whitespace-pre-wrap text-sm text-zinc-700 dark:text-zinc-200">{job.jobDescription ?? "-"}</div>
+          </div>
+          <div>
+            <div className="text-xs uppercase tracking-wide text-zinc-500">Customer Complaint</div>
+            <div className="mt-1 whitespace-pre-wrap text-sm text-zinc-700 dark:text-zinc-200">{job.customerComplaint ?? "-"}</div>
+          </div>
+          <div>
+            <div className="text-xs uppercase tracking-wide text-zinc-500">Problem / Intake Note</div>
+            <div className="mt-1 whitespace-pre-wrap text-sm text-zinc-700 dark:text-zinc-200">{job.problemDescription}</div>
+          </div>
+          <div>
+            <div className="text-xs uppercase tracking-wide text-zinc-500">Internal Remarks</div>
+            <div className="mt-1 whitespace-pre-wrap text-sm text-zinc-700 dark:text-zinc-200">{job.internalRemarks ?? "-"}</div>
+          </div>
+        </div>
       </Card>
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">

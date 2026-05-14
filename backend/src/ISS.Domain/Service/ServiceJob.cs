@@ -13,11 +13,21 @@ public enum ServiceJobKind
 
 public enum ServiceJobStatus
 {
-    Open = 0,
-    InProgress = 1,
-    Completed = 2,
-    Closed = 3,
-    Cancelled = 4
+    Draft = 0,
+    Open = 1,
+    Assigned = 2,
+    InProgress = 3,
+    WaitingForParts = 4,
+    WaitingForCustomerApproval = 5,
+    WaitingForSupplier = 6,
+    WorkCompleted = 7,
+    PendingExpenseSettlement = 8,
+    PendingMaterialReturn = 9,
+    ReadyForInvoice = 10,
+    Invoiced = 11,
+    Closed = 12,
+    Reopened = 13,
+    Cancelled = 14
 }
 
 public sealed class ServiceJob : AuditableEntity
@@ -38,7 +48,12 @@ public sealed class ServiceJob : AuditableEntity
         DateTimeOffset? entitlementEvaluatedAt = null,
         string? entitlementSummary = null,
         DateTimeOffset? expectedCompletionAt = null,
-        string? siteLocation = null)
+        string? siteLocation = null,
+        DateTimeOffset? estimatedStartAt = null,
+        string? jobDescription = null,
+        string? customerComplaint = null,
+        string? internalRemarks = null,
+        string? responsibleOfficerName = null)
     {
         Number = Guard.NotNullOrWhiteSpace(number, nameof(Number), maxLength: 32);
         EquipmentUnitId = equipmentUnitId;
@@ -47,8 +62,13 @@ public sealed class ServiceJob : AuditableEntity
         ProblemDescription = Guard.NotNullOrWhiteSpace(problemDescription, nameof(ProblemDescription), maxLength: 2000);
         Kind = kind;
         Status = ServiceJobStatus.Open;
+        EstimatedStartAt = estimatedStartAt;
         ExpectedCompletionAt = expectedCompletionAt;
         SiteLocation = NormalizeOptional(siteLocation, nameof(siteLocation), 512);
+        JobDescription = NormalizeOptional(jobDescription, nameof(jobDescription), 2000);
+        CustomerComplaint = NormalizeOptional(customerComplaint, nameof(customerComplaint), 2000);
+        InternalRemarks = NormalizeOptional(internalRemarks, nameof(internalRemarks), 2000);
+        ResponsibleOfficerName = NormalizeOptional(responsibleOfficerName, nameof(responsibleOfficerName), 256);
         ApplyEntitlement(
             serviceContractId,
             entitlementSource,
@@ -65,9 +85,15 @@ public sealed class ServiceJob : AuditableEntity
     public string ProblemDescription { get; private set; } = null!;
     public ServiceJobKind Kind { get; private set; }
     public ServiceJobStatus Status { get; private set; }
+    public DateTimeOffset? EstimatedStartAt { get; private set; }
+    public DateTimeOffset? ActualStartAt { get; private set; }
     public DateTimeOffset? CompletedAt { get; private set; }
     public DateTimeOffset? ExpectedCompletionAt { get; private set; }
     public string? SiteLocation { get; private set; }
+    public string? JobDescription { get; private set; }
+    public string? CustomerComplaint { get; private set; }
+    public string? InternalRemarks { get; private set; }
+    public string? ResponsibleOfficerName { get; private set; }
     public Guid? ServiceContractId { get; private set; }
     public ServiceEntitlementSource EntitlementSource { get; private set; }
     public ServiceCoverageScope EntitlementCoverage { get; private set; }
@@ -75,35 +101,54 @@ public sealed class ServiceJob : AuditableEntity
     public DateTimeOffset? EntitlementEvaluatedAt { get; private set; }
     public string? EntitlementSummary { get; private set; }
 
-    public void Start()
+    public void Start(DateTimeOffset startedAt)
     {
-        if (Status != ServiceJobStatus.Open)
+        if (Status is not (ServiceJobStatus.Draft or ServiceJobStatus.Open or ServiceJobStatus.Assigned or ServiceJobStatus.Reopened))
         {
-            throw new DomainValidationException("Only open service jobs can be started.");
+            throw new DomainValidationException("Only draft, open, assigned, or reopened service jobs can be started.");
         }
 
         Status = ServiceJobStatus.InProgress;
+        ActualStartAt ??= startedAt;
     }
 
     public void Complete(DateTimeOffset completedAt)
     {
-        if (Status is not (ServiceJobStatus.Open or ServiceJobStatus.InProgress))
+        if (Status is not (ServiceJobStatus.Open or ServiceJobStatus.Assigned or ServiceJobStatus.InProgress or ServiceJobStatus.Reopened))
         {
-            throw new DomainValidationException("Service job must be open or in progress to complete.");
+            throw new DomainValidationException("Service job must be open, assigned, in progress, or reopened to complete.");
         }
 
-        Status = ServiceJobStatus.Completed;
+        Status = ServiceJobStatus.WorkCompleted;
+        ActualStartAt ??= completedAt;
         CompletedAt = completedAt;
     }
 
     public void Close()
     {
-        if (Status != ServiceJobStatus.Completed)
+        if (Status is not (ServiceJobStatus.WorkCompleted or ServiceJobStatus.ReadyForInvoice or ServiceJobStatus.Invoiced))
         {
-            throw new DomainValidationException("Only completed service jobs can be closed.");
+            throw new DomainValidationException("Only work-completed, ready-for-invoice, or invoiced service jobs can be closed.");
         }
 
         Status = ServiceJobStatus.Closed;
+    }
+
+    public void Reopen(string? reason)
+    {
+        if (Status != ServiceJobStatus.Closed)
+        {
+            throw new DomainValidationException("Only closed service jobs can be reopened.");
+        }
+
+        Status = ServiceJobStatus.Reopened;
+        var normalizedReason = NormalizeOptional(reason, nameof(reason), 1000);
+        if (normalizedReason is not null)
+        {
+            InternalRemarks = string.IsNullOrWhiteSpace(InternalRemarks)
+                ? $"Reopened: {normalizedReason}"
+                : $"{InternalRemarks}{Environment.NewLine}Reopened: {normalizedReason}";
+        }
     }
 
     public void Cancel()
@@ -175,19 +220,29 @@ public sealed class ServiceJob : AuditableEntity
         string problemDescription,
         ServiceJobKind kind,
         DateTimeOffset? expectedCompletionAt = null,
-        string? siteLocation = null)
+        string? siteLocation = null,
+        DateTimeOffset? estimatedStartAt = null,
+        string? jobDescription = null,
+        string? customerComplaint = null,
+        string? internalRemarks = null,
+        string? responsibleOfficerName = null)
     {
-        if (Status != ServiceJobStatus.Open)
+        if (Status is not (ServiceJobStatus.Open or ServiceJobStatus.Draft or ServiceJobStatus.Reopened))
         {
-            throw new DomainValidationException("Only open service jobs can be edited.");
+            throw new DomainValidationException("Only draft, open, or reopened service jobs can be edited.");
         }
 
         EquipmentUnitId = equipmentUnitId;
         CustomerId = customerId;
         ProblemDescription = Guard.NotNullOrWhiteSpace(problemDescription, nameof(problemDescription), maxLength: 2000);
         Kind = kind;
+        EstimatedStartAt = estimatedStartAt;
         ExpectedCompletionAt = expectedCompletionAt;
         SiteLocation = NormalizeOptional(siteLocation, nameof(siteLocation), 512);
+        JobDescription = NormalizeOptional(jobDescription, nameof(jobDescription), 2000);
+        CustomerComplaint = NormalizeOptional(customerComplaint, nameof(customerComplaint), 2000);
+        InternalRemarks = NormalizeOptional(internalRemarks, nameof(internalRemarks), 2000);
+        ResponsibleOfficerName = NormalizeOptional(responsibleOfficerName, nameof(responsibleOfficerName), 256);
     }
 
     private static string? NormalizeOptional(string? value, string paramName, int maxLength)
