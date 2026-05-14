@@ -111,7 +111,7 @@ const sections: NavSection[] = [
       { href: "/reporting/sales-analysis", label: "Sales Analysis" },
       { href: "/reporting/purchase-analysis", label: "Purchase Analysis" },
       { href: "/reporting/supplier-performance", label: "Supplier Performance" },
-      { href: "/reporting/costing", label: "Profitability Report" },
+      { href: "/reporting/costing", label: "Costing" },
     ],
   },
   {
@@ -247,8 +247,11 @@ export function Sidebar({ roles, collapsed = false, onNavigate, onToggleCollapse
   useEffect(() => {
     const currentActiveSection = activeSectionTitle(pathname);
     if (currentActiveSection) {
-      setExpandedSection(currentActiveSection);
+      const handle = window.setTimeout(() => setExpandedSection(currentActiveSection), 0);
+      return () => window.clearTimeout(handle);
     }
+
+    return undefined;
   }, [pathname]);
 
   function toggleSection(title: string) {

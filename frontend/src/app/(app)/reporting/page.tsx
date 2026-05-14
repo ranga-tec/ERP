@@ -39,7 +39,7 @@ const reports = [
   },
   {
     href: "/reporting/costing",
-    title: "Profitability Report",
+    title: "Costing",
     description: "Default vs weighted costs, last receipt rates, and current on-hand valuation.",
   },
 ];

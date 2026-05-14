@@ -67,7 +67,7 @@ export default async function CostingPage({
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold">Profitability Report</h1>
+        <h1 className="text-2xl font-semibold">Costing</h1>
         <p className="mt-1 text-sm text-zinc-500">Default vs weighted costs, last receipt rates, and on-hand valuation.</p>
       </div>
 
