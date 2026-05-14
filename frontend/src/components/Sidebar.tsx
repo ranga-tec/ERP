@@ -118,6 +118,7 @@ const sections: NavSection[] = [
     title: "Admin",
     items: [
       { href: "/admin/import", label: "Import (Excel)" },
+      { href: "/admin/testing-cleanup", label: "Testing Cleanup" },
       { href: "/admin/notifications", label: "Notifications" },
       { href: "/admin/users", label: "Users" },
       { href: "/settings", label: "Settings" },
