@@ -19,7 +19,11 @@ public sealed class DirectDispatch : AuditableEntity
         DateTimeOffset dispatchedAt,
         Guid? customerId,
         Guid? serviceJobId,
-        string? reason)
+        string? reason,
+        DateTimeOffset? warrantyUntil,
+        ISS.Domain.Service.ServiceCoverageScope warrantyCoverage,
+        int? serviceIntervalDays,
+        DateTimeOffset? nextServiceDueAt)
     {
         Number = Guard.NotNullOrWhiteSpace(number, nameof(Number), maxLength: 32);
         WarehouseId = warehouseId;
@@ -27,10 +31,29 @@ public sealed class DirectDispatch : AuditableEntity
         CustomerId = customerId;
         ServiceJobId = serviceJobId;
         Reason = reason?.Trim();
+        WarrantyUntil = warrantyUntil;
+        WarrantyCoverage = warrantyUntil is null ? ISS.Domain.Service.ServiceCoverageScope.None : warrantyCoverage;
+        ServiceIntervalDays = serviceIntervalDays;
+        NextServiceDueAt = nextServiceDueAt;
 
         if (CustomerId is null && ServiceJobId is null)
         {
             throw new DomainValidationException("Direct dispatch requires a customer or service job reference.");
+        }
+
+        if (warrantyUntil is null && warrantyCoverage != ISS.Domain.Service.ServiceCoverageScope.None)
+        {
+            throw new DomainValidationException("Warranty coverage requires a warranty end date.");
+        }
+
+        if (warrantyUntil is not null && warrantyCoverage == ISS.Domain.Service.ServiceCoverageScope.None)
+        {
+            throw new DomainValidationException("Select warranty coverage when a warranty end date is provided.");
+        }
+
+        if (serviceIntervalDays is <= 0)
+        {
+            throw new DomainValidationException("Service interval days must be positive.");
         }
 
         Status = DirectDispatchStatus.Draft;
@@ -42,6 +65,10 @@ public sealed class DirectDispatch : AuditableEntity
     public Guid? CustomerId { get; private set; }
     public Guid? ServiceJobId { get; private set; }
     public string? Reason { get; private set; }
+    public DateTimeOffset? WarrantyUntil { get; private set; }
+    public ISS.Domain.Service.ServiceCoverageScope WarrantyCoverage { get; private set; }
+    public int? ServiceIntervalDays { get; private set; }
+    public DateTimeOffset? NextServiceDueAt { get; private set; }
     public DirectDispatchStatus Status { get; private set; }
 
     public List<DirectDispatchLine> Lines { get; private set; } = new();

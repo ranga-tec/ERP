@@ -2,8 +2,10 @@ using ISS.Application.Abstractions;
 using ISS.Application.Common;
 using ISS.Application.Persistence;
 using ISS.Domain.Common;
+using ISS.Domain.MasterData;
 using ISS.Domain.Finance;
 using ISS.Domain.Sales;
+using ISS.Domain.Service;
 using Microsoft.EntityFrameworkCore;
 
 namespace ISS.Application.Services;
@@ -136,10 +138,25 @@ public sealed class SalesService(
         await dbContext.SaveChangesAsync(cancellationToken);
     }
 
-    public async Task<Guid> CreateDispatchAsync(Guid orderId, Guid warehouseId, CancellationToken cancellationToken = default)
+    public async Task<Guid> CreateDispatchAsync(
+        Guid orderId,
+        Guid warehouseId,
+        DateTimeOffset? warrantyUntil = null,
+        ServiceCoverageScope warrantyCoverage = ServiceCoverageScope.None,
+        int? serviceIntervalDays = null,
+        DateTimeOffset? nextServiceDueAt = null,
+        CancellationToken cancellationToken = default)
     {
         var number = await documentNumberService.NextAsync("DN", "DN", cancellationToken);
-        var dispatch = new DispatchNote(number, orderId, warehouseId, clock.UtcNow);
+        var dispatch = new DispatchNote(
+            number,
+            orderId,
+            warehouseId,
+            clock.UtcNow,
+            warrantyUntil,
+            warrantyCoverage,
+            serviceIntervalDays,
+            nextServiceDueAt);
         await dbContext.DispatchNotes.AddAsync(dispatch, cancellationToken);
         await dbContext.SaveChangesAsync(cancellationToken);
         return dispatch.Id;
@@ -150,6 +167,10 @@ public sealed class SalesService(
         Guid? customerId,
         Guid? serviceJobId,
         string? reason,
+        DateTimeOffset? warrantyUntil = null,
+        ServiceCoverageScope warrantyCoverage = ServiceCoverageScope.None,
+        int? serviceIntervalDays = null,
+        DateTimeOffset? nextServiceDueAt = null,
         CancellationToken cancellationToken = default)
     {
         if (customerId is null && serviceJobId is null)
@@ -183,7 +204,17 @@ public sealed class SalesService(
         }
 
         var number = await documentNumberService.NextAsync(ReferenceTypes.DirectDispatch, "DDN", cancellationToken);
-        var dispatch = new DirectDispatch(number, warehouseId, clock.UtcNow, customerId, serviceJobId, reason);
+        var dispatch = new DirectDispatch(
+            number,
+            warehouseId,
+            clock.UtcNow,
+            customerId,
+            serviceJobId,
+            reason,
+            warrantyUntil,
+            warrantyCoverage,
+            serviceIntervalDays,
+            nextServiceDueAt);
         await dbContext.DirectDispatches.AddAsync(dispatch, cancellationToken);
         await dbContext.SaveChangesAsync(cancellationToken);
         return dispatch.Id;
@@ -350,6 +381,17 @@ public sealed class SalesService(
                 cancellationToken);
         }
 
+        await CreateEquipmentUnitsFromDispatchAsync(
+            order.CustomerId,
+            dispatch.DispatchedAt,
+            dispatch.WarrantyUntil,
+            dispatch.WarrantyCoverage,
+            dispatch.ServiceIntervalDays,
+            dispatch.NextServiceDueAt,
+            dispatch.Lines.Select(line => (line.ItemId, Serials: (IReadOnlyList<string>)line.Serials.Select(serial => serial.SerialNumber).ToList())),
+            itemById,
+            cancellationToken);
+
         order.MarkFulfilled();
         await dbContext.SaveChangesAsync(cancellationToken);
     }
@@ -363,6 +405,15 @@ public sealed class SalesService(
         var itemIds = dispatch.Lines.Select(l => l.ItemId).Distinct().ToList();
         var items = await dbContext.Items.Where(i => itemIds.Contains(i.Id)).ToListAsync(cancellationToken);
         var itemById = items.ToDictionary(i => i.Id, i => i);
+
+        var customerId = dispatch.CustomerId;
+        if (customerId is null && dispatch.ServiceJobId is { } jobId)
+        {
+            customerId = await dbContext.ServiceJobs.AsNoTracking()
+                .Where(x => x.Id == jobId)
+                .Select(x => (Guid?)x.CustomerId)
+                .FirstOrDefaultAsync(cancellationToken);
+        }
 
         dispatch.Post();
 
@@ -387,7 +438,78 @@ public sealed class SalesService(
                 cancellationToken);
         }
 
+        if (customerId is not null)
+        {
+            await CreateEquipmentUnitsFromDispatchAsync(
+                customerId.Value,
+                dispatch.DispatchedAt,
+                dispatch.WarrantyUntil,
+                dispatch.WarrantyCoverage,
+                dispatch.ServiceIntervalDays,
+                dispatch.NextServiceDueAt,
+                dispatch.Lines.Select(line => (line.ItemId, Serials: (IReadOnlyList<string>)line.Serials.Select(serial => serial.SerialNumber).ToList())),
+                itemById,
+                cancellationToken);
+        }
+
         await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    private async Task CreateEquipmentUnitsFromDispatchAsync(
+        Guid customerId,
+        DateTimeOffset dispatchedAt,
+        DateTimeOffset? warrantyUntil,
+        ServiceCoverageScope warrantyCoverage,
+        int? serviceIntervalDays,
+        DateTimeOffset? nextServiceDueAt,
+        IEnumerable<(Guid ItemId, IReadOnlyList<string> Serials)> dispatchedLines,
+        IReadOnlyDictionary<Guid, ISS.Domain.MasterData.Item> itemById,
+        CancellationToken cancellationToken)
+    {
+        var equipmentSerials = dispatchedLines
+            .Where(line => itemById.TryGetValue(line.ItemId, out var item) && item.Type == ItemType.Equipment)
+            .SelectMany(line => line.Serials.Select(serial => (line.ItemId, SerialNumber: serial.Trim())))
+            .Where(line => !string.IsNullOrWhiteSpace(line.SerialNumber))
+            .ToList();
+
+        if (equipmentSerials.Count == 0)
+        {
+            return;
+        }
+
+        var duplicateInDocument = equipmentSerials
+            .GroupBy(x => x.SerialNumber, StringComparer.OrdinalIgnoreCase)
+            .FirstOrDefault(group => group.Count() > 1);
+        if (duplicateInDocument is not null)
+        {
+            throw new DomainValidationException($"Duplicate equipment serial '{duplicateInDocument.Key}' on dispatch.");
+        }
+
+        var serials = equipmentSerials.Select(x => x.SerialNumber).ToList();
+        var existingSerial = await dbContext.EquipmentUnits.AsNoTracking()
+            .Where(x => serials.Contains(x.SerialNumber))
+            .Select(x => x.SerialNumber)
+            .FirstOrDefaultAsync(cancellationToken);
+        if (existingSerial is not null)
+        {
+            throw new DomainValidationException($"Equipment unit already exists for serial '{existingSerial}'.");
+        }
+
+        foreach (var line in equipmentSerials)
+        {
+            await dbContext.EquipmentUnits.AddAsync(
+                new EquipmentUnit(
+                    line.ItemId,
+                    line.SerialNumber,
+                    customerId,
+                    dispatchedAt,
+                    warrantyUntil,
+                    warrantyUntil is null ? ServiceCoverageScope.None : warrantyCoverage,
+                    serviceIntervalDays,
+                    nextServiceDueAt,
+                    nextRepairDueAt: null),
+                cancellationToken);
+        }
     }
 
     public async Task<Guid> CreateInvoiceAsync(Guid customerId, DateTimeOffset? dueDate, CancellationToken cancellationToken = default)

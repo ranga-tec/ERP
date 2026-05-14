@@ -240,6 +240,7 @@ Recent service/finance workflow surfaces:
 - Service contracts live under `/api/service/contracts` and bind `AMC`, `SLA`, and warranty-extension coverage to specific equipment units/customers.
 - Equipment units live under `/api/service/equipment-units`; each equipment unit points to an Item table row via `ItemId`, so service contracts and jobs always select the serialized unit while the UI can display the linked item SKU/name.
 - `POST /api/service/equipment-units/external` lets Service users register outside-purchased customer equipment by creating an `Equipment` item and the serialized equipment unit in one service intake action.
+- Posted sales Dispatch/AOD documents create equipment units automatically for serialized `Equipment` item lines, using dispatch warranty/service defaults and dispatched serial numbers.
 - The equipment-unit list endpoint supports larger lookup requests so service forms can load installed-base options without the older 500-row cap.
 - Equipment units and service jobs now carry warranty/entitlement fields so job creation can snapshot customer billing treatment from active warranty or contract coverage.
 - Service jobs expose `GET /api/service/jobs/{id}/costing` for per-job margin and actual-cost rollups, including approved labor and billable-timesheet visibility.

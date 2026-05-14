@@ -18,6 +18,10 @@ type DirectDispatchDto = {
   serviceJobId?: string | null;
   dispatchedAt: string;
   status: number;
+  warrantyUntil?: string | null;
+  warrantyCoverage: number;
+  serviceIntervalDays?: number | null;
+  nextServiceDueAt?: string | null;
   reason?: string | null;
   lines: { id: string; itemId: string; quantity: number; batchNumber?: string | null; serials: string[] }[];
 };
@@ -28,6 +32,13 @@ type WarehouseDto = { id: string; code: string; name: string };
 type ItemDto = { id: string; sku: string; name: string; trackingType: number };
 
 const statusLabel: Record<number, string> = { 0: "Draft", 1: "Posted", 2: "Voided" };
+const coverageLabel: Record<number, string> = {
+  0: "No Warranty",
+  1: "Inspection Only",
+  2: "Labor Only",
+  3: "Parts Only",
+  4: "Labor and Parts",
+};
 
 export default async function DirectDispatchDetailPage({
   params,
@@ -78,6 +89,9 @@ export default async function DirectDispatchDetailPage({
           <div>Warehouse: {warehouseById.get(dispatch.warehouseId)?.code ?? dispatch.warehouseId}</div>
           <div>Status: {statusLabel[dispatch.status] ?? dispatch.status}</div>
           <div>Date: {new Date(dispatch.dispatchedAt).toLocaleString()}</div>
+          <div>Warranty: {dispatch.warrantyUntil ? new Date(dispatch.warrantyUntil).toLocaleDateString() : "-"}</div>
+          <div>Coverage: {coverageLabel[dispatch.warrantyCoverage] ?? dispatch.warrantyCoverage}</div>
+          <div>Next service: {dispatch.nextServiceDueAt ? new Date(dispatch.nextServiceDueAt).toLocaleDateString() : "-"}</div>
         </div>
         {dispatch.reason ? <div className="mt-2 text-sm text-zinc-500">Reason: {dispatch.reason}</div> : null}
       </div>

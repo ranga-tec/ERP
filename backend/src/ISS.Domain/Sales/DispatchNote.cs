@@ -13,12 +13,40 @@ public sealed class DispatchNote : AuditableEntity
 {
     private DispatchNote() { }
 
-    public DispatchNote(string number, Guid salesOrderId, Guid warehouseId, DateTimeOffset dispatchedAt)
+    public DispatchNote(
+        string number,
+        Guid salesOrderId,
+        Guid warehouseId,
+        DateTimeOffset dispatchedAt,
+        DateTimeOffset? warrantyUntil,
+        ISS.Domain.Service.ServiceCoverageScope warrantyCoverage,
+        int? serviceIntervalDays,
+        DateTimeOffset? nextServiceDueAt)
     {
         Number = Guard.NotNullOrWhiteSpace(number, nameof(Number), maxLength: 32);
         SalesOrderId = salesOrderId;
         WarehouseId = warehouseId;
         DispatchedAt = dispatchedAt;
+        WarrantyUntil = warrantyUntil;
+        WarrantyCoverage = warrantyUntil is null ? ISS.Domain.Service.ServiceCoverageScope.None : warrantyCoverage;
+        ServiceIntervalDays = serviceIntervalDays;
+        NextServiceDueAt = nextServiceDueAt;
+
+        if (warrantyUntil is null && warrantyCoverage != ISS.Domain.Service.ServiceCoverageScope.None)
+        {
+            throw new DomainValidationException("Warranty coverage requires a warranty end date.");
+        }
+
+        if (warrantyUntil is not null && warrantyCoverage == ISS.Domain.Service.ServiceCoverageScope.None)
+        {
+            throw new DomainValidationException("Select warranty coverage when a warranty end date is provided.");
+        }
+
+        if (serviceIntervalDays is <= 0)
+        {
+            throw new DomainValidationException("Service interval days must be positive.");
+        }
+
         Status = DispatchStatus.Draft;
     }
 
@@ -26,6 +54,10 @@ public sealed class DispatchNote : AuditableEntity
     public Guid SalesOrderId { get; private set; }
     public Guid WarehouseId { get; private set; }
     public DateTimeOffset DispatchedAt { get; private set; }
+    public DateTimeOffset? WarrantyUntil { get; private set; }
+    public ISS.Domain.Service.ServiceCoverageScope WarrantyCoverage { get; private set; }
+    public int? ServiceIntervalDays { get; private set; }
+    public DateTimeOffset? NextServiceDueAt { get; private set; }
     public DispatchStatus Status { get; private set; }
 
     public List<DispatchLine> Lines { get; private set; } = new();

@@ -3,6 +3,7 @@ using ISS.Application.Abstractions;
 using ISS.Application.Persistence;
 using ISS.Application.Services;
 using ISS.Domain.Sales;
+using ISS.Domain.Service;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -25,6 +26,10 @@ public sealed class DirectDispatchesController(
         Guid? ServiceJobId,
         DateTimeOffset DispatchedAt,
         DirectDispatchStatus Status,
+        DateTimeOffset? WarrantyUntil,
+        ServiceCoverageScope WarrantyCoverage,
+        int? ServiceIntervalDays,
+        DateTimeOffset? NextServiceDueAt,
         string? Reason,
         int LineCount);
 
@@ -37,10 +42,14 @@ public sealed class DirectDispatchesController(
         Guid? ServiceJobId,
         DateTimeOffset DispatchedAt,
         DirectDispatchStatus Status,
+        DateTimeOffset? WarrantyUntil,
+        ServiceCoverageScope WarrantyCoverage,
+        int? ServiceIntervalDays,
+        DateTimeOffset? NextServiceDueAt,
         string? Reason,
         IReadOnlyList<DirectDispatchLineDto> Lines);
 
-    public sealed record CreateDirectDispatchRequest(Guid WarehouseId, Guid? CustomerId, Guid? ServiceJobId, string? Reason);
+    public sealed record CreateDirectDispatchRequest(Guid WarehouseId, Guid? CustomerId, Guid? ServiceJobId, string? Reason, DateTimeOffset? WarrantyUntil, ServiceCoverageScope? WarrantyCoverage, int? ServiceIntervalDays, DateTimeOffset? NextServiceDueAt);
     public sealed record AddDirectDispatchLineRequest(Guid ItemId, decimal Quantity, string? BatchNumber, IReadOnlyList<string>? Serials);
     public sealed record UpdateDirectDispatchLineRequest(decimal Quantity, string? BatchNumber, IReadOnlyList<string>? Serials);
 
@@ -62,6 +71,10 @@ public sealed class DirectDispatchesController(
                 x.ServiceJobId,
                 x.DispatchedAt,
                 x.Status,
+                x.WarrantyUntil,
+                x.WarrantyCoverage,
+                x.ServiceIntervalDays,
+                x.NextServiceDueAt,
                 x.Reason,
                 x.Lines.Count))
             .ToListAsync(cancellationToken);
@@ -77,6 +90,10 @@ public sealed class DirectDispatchesController(
             request.CustomerId,
             request.ServiceJobId,
             request.Reason,
+            request.WarrantyUntil,
+            request.WarrantyUntil is null ? ServiceCoverageScope.None : request.WarrantyCoverage ?? ServiceCoverageScope.LaborAndParts,
+            request.ServiceIntervalDays,
+            request.NextServiceDueAt,
             cancellationToken);
         return await Get(id, cancellationToken);
     }
@@ -102,6 +119,10 @@ public sealed class DirectDispatchesController(
             dispatch.ServiceJobId,
             dispatch.DispatchedAt,
             dispatch.Status,
+            dispatch.WarrantyUntil,
+            dispatch.WarrantyCoverage,
+            dispatch.ServiceIntervalDays,
+            dispatch.NextServiceDueAt,
             dispatch.Reason,
             dispatch.Lines.Select(l => new DirectDispatchLineDto(l.Id, l.ItemId, l.Quantity, l.BatchNumber, l.Serials.Select(s => s.SerialNumber).ToList())).ToList()));
     }

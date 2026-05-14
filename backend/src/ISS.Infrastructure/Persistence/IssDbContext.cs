@@ -509,6 +509,7 @@ public sealed class IssDbContext(
         {
             entity.HasIndex(x => x.Number).IsUnique();
             entity.Property(x => x.Number).HasMaxLength(32);
+            entity.Property(x => x.ServiceIntervalDays);
             entity.HasMany(x => x.Lines).WithOne().HasForeignKey(x => x.DispatchNoteId).OnDelete(DeleteBehavior.Cascade);
         });
         builder.Entity<DispatchLine>(entity =>
@@ -528,6 +529,7 @@ public sealed class IssDbContext(
             entity.HasIndex(x => x.Number).IsUnique();
             entity.Property(x => x.Number).HasMaxLength(32);
             entity.Property(x => x.Reason).HasMaxLength(2000);
+            entity.Property(x => x.ServiceIntervalDays);
             entity.HasMany(x => x.Lines).WithOne().HasForeignKey(x => x.DirectDispatchId).OnDelete(DeleteBehavior.Cascade);
         });
         builder.Entity<DirectDispatchLine>(entity =>

@@ -3,6 +3,7 @@ using ISS.Application.Abstractions;
 using ISS.Application.Persistence;
 using ISS.Application.Services;
 using ISS.Domain.Sales;
+using ISS.Domain.Service;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -14,11 +15,11 @@ namespace ISS.Api.Controllers.Sales;
 [Authorize(Roles = $"{Roles.Admin},{Roles.Sales},{Roles.Inventory},{Roles.Finance}")]
 public sealed class DispatchesController(IIssDbContext dbContext, SalesService salesService, IDocumentPdfService pdfService) : ControllerBase
 {
-    public sealed record DispatchSummaryDto(Guid Id, string Number, Guid SalesOrderId, Guid WarehouseId, DateTimeOffset DispatchedAt, DispatchStatus Status, int LineCount);
-    public sealed record DispatchDto(Guid Id, string Number, Guid SalesOrderId, Guid WarehouseId, DateTimeOffset DispatchedAt, DispatchStatus Status, IReadOnlyList<DispatchLineDto> Lines);
+    public sealed record DispatchSummaryDto(Guid Id, string Number, Guid SalesOrderId, Guid WarehouseId, DateTimeOffset DispatchedAt, DispatchStatus Status, DateTimeOffset? WarrantyUntil, ServiceCoverageScope WarrantyCoverage, int? ServiceIntervalDays, DateTimeOffset? NextServiceDueAt, int LineCount);
+    public sealed record DispatchDto(Guid Id, string Number, Guid SalesOrderId, Guid WarehouseId, DateTimeOffset DispatchedAt, DispatchStatus Status, DateTimeOffset? WarrantyUntil, ServiceCoverageScope WarrantyCoverage, int? ServiceIntervalDays, DateTimeOffset? NextServiceDueAt, IReadOnlyList<DispatchLineDto> Lines);
     public sealed record DispatchLineDto(Guid Id, Guid ItemId, decimal Quantity, string? BatchNumber, IReadOnlyList<string> Serials);
 
-    public sealed record CreateDispatchRequest(Guid SalesOrderId, Guid WarehouseId);
+    public sealed record CreateDispatchRequest(Guid SalesOrderId, Guid WarehouseId, DateTimeOffset? WarrantyUntil, ServiceCoverageScope? WarrantyCoverage, int? ServiceIntervalDays, DateTimeOffset? NextServiceDueAt);
     public sealed record AddDispatchLineRequest(Guid ItemId, decimal Quantity, string? BatchNumber, IReadOnlyList<string>? Serials);
     public sealed record UpdateDispatchLineRequest(decimal Quantity, string? BatchNumber, IReadOnlyList<string>? Serials);
 
@@ -32,7 +33,7 @@ public sealed class DispatchesController(IIssDbContext dbContext, SalesService s
             .OrderByDescending(x => x.DispatchedAt)
             .Skip(skip)
             .Take(take)
-            .Select(x => new DispatchSummaryDto(x.Id, x.Number, x.SalesOrderId, x.WarehouseId, x.DispatchedAt, x.Status, x.Lines.Count))
+            .Select(x => new DispatchSummaryDto(x.Id, x.Number, x.SalesOrderId, x.WarehouseId, x.DispatchedAt, x.Status, x.WarrantyUntil, x.WarrantyCoverage, x.ServiceIntervalDays, x.NextServiceDueAt, x.Lines.Count))
             .ToListAsync(cancellationToken);
 
         return Ok(dispatches);
@@ -42,7 +43,14 @@ public sealed class DispatchesController(IIssDbContext dbContext, SalesService s
     [Authorize(Roles = $"{Roles.Admin},{Roles.Sales},{Roles.Inventory}")]
     public async Task<ActionResult<DispatchDto>> Create(CreateDispatchRequest request, CancellationToken cancellationToken)
     {
-        var id = await salesService.CreateDispatchAsync(request.SalesOrderId, request.WarehouseId, cancellationToken);
+        var id = await salesService.CreateDispatchAsync(
+            request.SalesOrderId,
+            request.WarehouseId,
+            request.WarrantyUntil,
+            request.WarrantyUntil is null ? ServiceCoverageScope.None : request.WarrantyCoverage ?? ServiceCoverageScope.LaborAndParts,
+            request.ServiceIntervalDays,
+            request.NextServiceDueAt,
+            cancellationToken);
         return await Get(id, cancellationToken);
     }
 
@@ -66,6 +74,10 @@ public sealed class DispatchesController(IIssDbContext dbContext, SalesService s
             dispatch.WarehouseId,
             dispatch.DispatchedAt,
             dispatch.Status,
+            dispatch.WarrantyUntil,
+            dispatch.WarrantyCoverage,
+            dispatch.ServiceIntervalDays,
+            dispatch.NextServiceDueAt,
             dispatch.Lines.Select(l => new DispatchLineDto(l.Id, l.ItemId, l.Quantity, l.BatchNumber, l.Serials.Select(s => s.SerialNumber).ToList())).ToList()));
     }
 

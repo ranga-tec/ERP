@@ -107,10 +107,14 @@ Note:
   - use `Tab` to move between editable cells and `Enter` to save the active line
 - Dispatch:
   - create -> add lines -> post
+  - when serialized `Equipment` items are posted, the system creates customer equipment units automatically from the dispatched serial numbers
+  - warranty end date, coverage, service interval, and next service date entered on the dispatch header become the equipment-unit warranty/service defaults
   - while the dispatch is still `Draft`, existing lines can be edited directly in the line grid
   - use `Tab` to move between editable cells and `Enter` to save the active line
 - Direct dispatch:
   - create -> add lines -> post
+  - use for AOD/direct delivery; serialized `Equipment` lines also create customer equipment units automatically on post
+  - if the AOD is linked to a job order, the equipment unit is assigned to that job's customer when no customer is selected directly
   - while the direct dispatch is still `Draft`, existing lines can be edited directly in the line grid
   - use `Tab` to move between editable cells and `Enter` to save the active line
 - Invoice:
@@ -129,6 +133,7 @@ Note:
 - Equipment units:
   - register serialized customer equipment against an `Equipment` type item from `Master Data -> Items`
   - the item record stores the equipment model/SKU/name; the equipment unit stores the serial number, customer ownership, warranty, and service scheduling fields
+  - ISS-sold serialized equipment is normally created automatically when Dispatch/AOD is posted
   - use `Existing item` when the model already exists in Item Master
   - use `Outside equipment` when a customer brings equipment bought elsewhere; this creates an Equipment item and the serialized customer unit in one step
   - outside equipment normally has no ISS warranty unless a service contract or manually entered warranty coverage applies

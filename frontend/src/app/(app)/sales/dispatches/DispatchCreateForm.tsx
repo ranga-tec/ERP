@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { apiPost } from "@/lib/api-client";
-import { Button, Select } from "@/components/ui";
+import { Button, Input, Select } from "@/components/ui";
 
 type SalesOrderRef = { id: string; number: string };
 type WarehouseRef = { id: string; code: string; name: string };
@@ -28,6 +28,10 @@ export function DispatchCreateForm({
 
   const [salesOrderId, setSalesOrderId] = useState("");
   const [warehouseId, setWarehouseId] = useState("");
+  const [warrantyUntil, setWarrantyUntil] = useState("");
+  const [warrantyCoverage, setWarrantyCoverage] = useState("4");
+  const [serviceIntervalDays, setServiceIntervalDays] = useState("");
+  const [nextServiceDueAt, setNextServiceDueAt] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -36,7 +40,14 @@ export function DispatchCreateForm({
     setError(null);
     setBusy(true);
     try {
-      const dn = await apiPost<DispatchDto>("sales/dispatches", { salesOrderId, warehouseId });
+      const dn = await apiPost<DispatchDto>("sales/dispatches", {
+        salesOrderId,
+        warehouseId,
+        warrantyUntil: warrantyUntil ? new Date(warrantyUntil).toISOString() : null,
+        warrantyCoverage: warrantyUntil ? Number(warrantyCoverage) : 0,
+        serviceIntervalDays: serviceIntervalDays ? Number(serviceIntervalDays) : null,
+        nextServiceDueAt: nextServiceDueAt ? new Date(nextServiceDueAt).toISOString() : null,
+      });
       router.push(`/sales/dispatches/${dn.id}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
@@ -76,6 +87,31 @@ export function DispatchCreateForm({
         </div>
       </div>
 
+      <div className="grid gap-3 sm:grid-cols-4">
+        <div>
+          <label className="mb-1 block text-sm font-medium">Warranty until</label>
+          <Input type="date" value={warrantyUntil} onChange={(e) => setWarrantyUntil(e.target.value)} />
+        </div>
+        <div>
+          <label className="mb-1 block text-sm font-medium">Warranty coverage</label>
+          <Select value={warrantyUntil ? warrantyCoverage : "0"} onChange={(e) => setWarrantyCoverage(e.target.value)} disabled={!warrantyUntil}>
+            <option value="0">No Warranty</option>
+            <option value="1">Inspection Only</option>
+            <option value="2">Labor Only</option>
+            <option value="3">Parts Only</option>
+            <option value="4">Labor and Parts</option>
+          </Select>
+        </div>
+        <div>
+          <label className="mb-1 block text-sm font-medium">Service interval days</label>
+          <Input type="number" min="1" value={serviceIntervalDays} onChange={(e) => setServiceIntervalDays(e.target.value)} />
+        </div>
+        <div>
+          <label className="mb-1 block text-sm font-medium">Next service date</label>
+          <Input type="date" value={nextServiceDueAt} onChange={(e) => setNextServiceDueAt(e.target.value)} />
+        </div>
+      </div>
+
       {error ? (
         <div className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-900 dark:border-red-900/40 dark:bg-red-950/40 dark:text-red-100">
           {error}
@@ -88,4 +124,3 @@ export function DispatchCreateForm({
     </form>
   );
 }
-
