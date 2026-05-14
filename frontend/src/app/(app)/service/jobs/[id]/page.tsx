@@ -4,6 +4,9 @@ import { ItemInlineLink } from "@/components/InlineLink";
 import { Card, SecondaryLink, Table } from "@/components/ui";
 import { ServiceJobActions } from "../ServiceJobActions";
 import { ServiceJobEditForm } from "../ServiceJobEditForm";
+import { ServiceJobAssignmentActions } from "../ServiceJobAssignmentActions";
+import { ServiceJobAssignmentAddForm } from "../ServiceJobAssignmentAddForm";
+import { ServiceJobProgressUpdateAddForm } from "../ServiceJobProgressUpdateAddForm";
 import { DocumentCollaborationPanel } from "@/components/DocumentCollaborationPanel";
 import { TransactionLink } from "@/components/TransactionLink";
 
@@ -37,6 +40,47 @@ type ServiceJobDto = {
 type EquipmentUnitDto = { id: string; serialNumber: string; itemId: string; customerId: string };
 type CustomerDto = { id: string; code: string; name: string };
 type ItemDto = { id: string; sku: string; name: string };
+type TechnicianDto = {
+  id: string;
+  code: string;
+  name: string;
+  defaultCostRate: number;
+  defaultBillingRate: number;
+  isActive: boolean;
+};
+type ServiceJobAssignmentDto = {
+  id: string;
+  serviceJobId: string;
+  technicianId?: string | null;
+  employeeName: string;
+  role: string;
+  assignedTask: string;
+  assignedDate: string;
+  workStartAt?: string | null;
+  workEndAt?: string | null;
+  normalHours: number;
+  overtimeHours: number;
+  dailyWorkDescription?: string | null;
+  approvalStatus: number;
+  approvedAt?: string | null;
+  rejectedAt?: string | null;
+  rejectionReason?: string | null;
+};
+type ServiceJobProgressUpdateDto = {
+  id: string;
+  serviceJobId: string;
+  progressDate: string;
+  workCompleted: string;
+  workPending?: string | null;
+  problemsFound?: string | null;
+  additionalPartsRequired?: string | null;
+  additionalLaborRequired?: string | null;
+  customerInstructions?: string | null;
+  siteIssues?: string | null;
+  technicianNotes?: string | null;
+  supervisorNotes?: string | null;
+  createdAt: string;
+};
 type ServiceJobCostingDto = {
   serviceJobId: string;
   jobNumber: string;
@@ -191,19 +235,32 @@ const laborStatusLabel: Record<number, string> = {
   4: "Invoiced",
 };
 
+const assignmentStatusLabel: Record<number, string> = {
+  0: "Pending",
+  1: "Approved",
+  2: "Rejected",
+};
+
 function money(value?: number | null) {
   return typeof value === "number" ? value.toFixed(2) : "-";
+}
+
+function maybeText(value?: string | null) {
+  return value && value.trim().length > 0 ? value : "-";
 }
 
 export default async function ServiceJobDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
 
-  const [job, units, customers, costing, items] = await Promise.all([
+  const [job, units, customers, costing, items, technicians, assignments, progressUpdates] = await Promise.all([
     backendFetchJson<ServiceJobDto>(`/service/jobs/${id}`),
     backendFetchJson<EquipmentUnitDto[]>("/service/equipment-units?take=2000"),
     backendFetchJson<CustomerDto[]>("/customers"),
     backendFetchJson<ServiceJobCostingDto>(`/service/jobs/${id}/costing`),
     backendFetchJson<ItemDto[]>("/items/options"),
+    backendFetchJson<TechnicianDto[]>("/service/technicians"),
+    backendFetchJson<ServiceJobAssignmentDto[]>(`/service/jobs/${id}/assignments`),
+    backendFetchJson<ServiceJobProgressUpdateDto[]>(`/service/jobs/${id}/progress-updates`),
   ]);
 
   const selectedUnit =
@@ -231,6 +288,7 @@ export default async function ServiceJobDetailPage({ params }: { params: Promise
   const canClose = job.status === 7 || job.status === 10 || job.status === 11;
   const canReopen = job.status === 12;
   const canEditHeader = job.status === 0 || job.status === 1 || job.status === 13;
+  const canAddJobActivity = job.status !== 12 && job.status !== 14;
 
   return (
     <div className="space-y-6">
@@ -359,6 +417,101 @@ export default async function ServiceJobDetailPage({ params }: { params: Promise
           <div className="text-sm text-zinc-700 dark:text-zinc-200">{job.entitlementSummary}</div>
         </Card>
       ) : null}
+
+      <Card>
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <div className="text-sm font-semibold">Technician / Worker Assignments</div>
+            <div className="mt-1 text-xs text-zinc-500">Assign service staff to this job and approve daily assignment records before closeout.</div>
+          </div>
+          <Link className="text-sm font-semibold text-[var(--link)] underline underline-offset-2" href="/service/technicians">
+            Technician Master
+          </Link>
+        </div>
+        <div className="mb-4">
+          <ServiceJobAssignmentAddForm serviceJobId={job.id} technicians={technicians} disabled={!canAddJobActivity} />
+        </div>
+        <div className="overflow-auto">
+          <Table>
+            <thead>
+              <tr className="border-b border-zinc-200 text-left text-xs uppercase tracking-wide text-zinc-500 dark:border-zinc-800">
+                <th className="py-2 pr-3">Assigned</th>
+                <th className="py-2 pr-3">Employee</th>
+                <th className="py-2 pr-3">Role</th>
+                <th className="py-2 pr-3">Task</th>
+                <th className="py-2 pr-3">Hours</th>
+                <th className="py-2 pr-3">Status</th>
+                <th className="py-2 pr-3">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {assignments.map((assignment) => (
+                <tr key={assignment.id} className="border-b border-zinc-100 align-top dark:border-zinc-900">
+                  <td className="py-2 pr-3 text-zinc-500">
+                    <div>{new Date(assignment.assignedDate).toLocaleString()}</div>
+                    <div className="text-xs">
+                      {assignment.workStartAt ? new Date(assignment.workStartAt).toLocaleTimeString() : "-"} - {assignment.workEndAt ? new Date(assignment.workEndAt).toLocaleTimeString() : "-"}
+                    </div>
+                  </td>
+                  <td className="py-2 pr-3">{assignment.employeeName}</td>
+                  <td className="py-2 pr-3">{assignment.role}</td>
+                  <td className="py-2 pr-3">
+                    <div>{assignment.assignedTask}</div>
+                    {assignment.dailyWorkDescription ? <div className="mt-1 text-xs text-zinc-500">{assignment.dailyWorkDescription}</div> : null}
+                    {assignment.rejectionReason ? <div className="mt-1 text-xs text-red-600 dark:text-red-300">{assignment.rejectionReason}</div> : null}
+                  </td>
+                  <td className="py-2 pr-3">
+                    <div>Normal {assignment.normalHours.toFixed(2)}</div>
+                    <div className="text-xs text-zinc-500">OT {assignment.overtimeHours.toFixed(2)}</div>
+                  </td>
+                  <td className="py-2 pr-3">{assignmentStatusLabel[assignment.approvalStatus] ?? assignment.approvalStatus}</td>
+                  <td className="py-2 pr-3">
+                    <ServiceJobAssignmentActions serviceJobId={job.id} assignmentId={assignment.id} status={assignment.approvalStatus} />
+                  </td>
+                </tr>
+              ))}
+              {assignments.length === 0 ? (
+                <tr>
+                  <td className="py-6 text-sm text-zinc-500" colSpan={7}>
+                    No technicians or workers assigned yet.
+                  </td>
+                </tr>
+              ) : null}
+            </tbody>
+          </Table>
+        </div>
+      </Card>
+
+      <Card>
+        <div className="mb-3 text-sm font-semibold">Daily Job Progress</div>
+        <div className="mb-4">
+          <ServiceJobProgressUpdateAddForm serviceJobId={job.id} disabled={!canAddJobActivity} />
+        </div>
+        <div className="space-y-3">
+          {progressUpdates.map((update) => (
+            <div key={update.id} className="rounded-lg border border-[var(--card-border)] p-3">
+              <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+                <div className="text-sm font-medium">{new Date(update.progressDate).toLocaleString()}</div>
+                <div className="text-xs text-zinc-500">Created {new Date(update.createdAt).toLocaleString()}</div>
+              </div>
+              <div className="grid gap-3 md:grid-cols-2 text-sm">
+                <div><span className="font-medium">Completed:</span> {maybeText(update.workCompleted)}</div>
+                <div><span className="font-medium">Pending:</span> {maybeText(update.workPending)}</div>
+                <div><span className="font-medium">Problems:</span> {maybeText(update.problemsFound)}</div>
+                <div><span className="font-medium">Parts required:</span> {maybeText(update.additionalPartsRequired)}</div>
+                <div><span className="font-medium">Labor required:</span> {maybeText(update.additionalLaborRequired)}</div>
+                <div><span className="font-medium">Customer instructions:</span> {maybeText(update.customerInstructions)}</div>
+                <div><span className="font-medium">Site issues:</span> {maybeText(update.siteIssues)}</div>
+                <div><span className="font-medium">Technician notes:</span> {maybeText(update.technicianNotes)}</div>
+                <div><span className="font-medium">Supervisor notes:</span> {maybeText(update.supervisorNotes)}</div>
+              </div>
+            </div>
+          ))}
+          {progressUpdates.length === 0 ? (
+            <div className="text-sm text-zinc-500">No daily progress updates recorded yet.</div>
+          ) : null}
+        </div>
+      </Card>
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <Card>

@@ -1237,6 +1237,127 @@ public sealed class ServiceManagementService(
         await dbContext.SaveChangesAsync(cancellationToken);
     }
 
+    public async Task<Guid> AddServiceJobAssignmentAsync(
+        Guid serviceJobId,
+        Guid? technicianId,
+        string? employeeName,
+        string role,
+        string assignedTask,
+        DateTimeOffset? assignedDate,
+        DateTimeOffset? workStartAt,
+        DateTimeOffset? workEndAt,
+        decimal normalHours,
+        decimal overtimeHours,
+        string? dailyWorkDescription,
+        CancellationToken cancellationToken = default)
+    {
+        await EnsureServiceJobAcceptsNewCostsAsync(serviceJobId, cancellationToken);
+
+        string resolvedEmployeeName;
+        if (technicianId is not null)
+        {
+            var technician = await dbContext.ServiceTechnicians.AsNoTracking()
+                .FirstOrDefaultAsync(x => x.Id == technicianId.Value, cancellationToken)
+                ?? throw new NotFoundException("Technician not found.");
+            if (!technician.IsActive)
+            {
+                throw new DomainValidationException("Inactive technicians cannot be assigned to service jobs.");
+            }
+
+            resolvedEmployeeName = technician.Name;
+        }
+        else
+        {
+            resolvedEmployeeName = Guard.NotNullOrWhiteSpace(employeeName, nameof(employeeName), 256);
+        }
+
+        var assignment = new ServiceJobAssignment(
+            serviceJobId,
+            technicianId,
+            resolvedEmployeeName,
+            role,
+            assignedTask,
+            assignedDate ?? clock.UtcNow,
+            workStartAt,
+            workEndAt,
+            normalHours,
+            overtimeHours,
+            dailyWorkDescription);
+
+        await dbContext.ServiceJobAssignments.AddAsync(assignment, cancellationToken);
+        await dbContext.SaveChangesAsync(cancellationToken);
+        return assignment.Id;
+    }
+
+    public async Task ApproveServiceJobAssignmentAsync(Guid serviceJobId, Guid assignmentId, CancellationToken cancellationToken = default)
+    {
+        var assignment = await dbContext.ServiceJobAssignments
+            .FirstOrDefaultAsync(x => x.ServiceJobId == serviceJobId && x.Id == assignmentId, cancellationToken)
+            ?? throw new NotFoundException("Service job assignment not found.");
+
+        assignment.Approve(clock.UtcNow);
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task RejectServiceJobAssignmentAsync(Guid serviceJobId, Guid assignmentId, string? reason, CancellationToken cancellationToken = default)
+    {
+        var assignment = await dbContext.ServiceJobAssignments
+            .FirstOrDefaultAsync(x => x.ServiceJobId == serviceJobId && x.Id == assignmentId, cancellationToken)
+            ?? throw new NotFoundException("Service job assignment not found.");
+
+        assignment.Reject(clock.UtcNow, reason);
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task RemoveServiceJobAssignmentAsync(Guid serviceJobId, Guid assignmentId, CancellationToken cancellationToken = default)
+    {
+        var assignment = await dbContext.ServiceJobAssignments
+            .FirstOrDefaultAsync(x => x.ServiceJobId == serviceJobId && x.Id == assignmentId, cancellationToken)
+            ?? throw new NotFoundException("Service job assignment not found.");
+
+        if (assignment.ApprovalStatus == ServiceJobAssignmentApprovalStatus.Approved)
+        {
+            throw new DomainValidationException("Approved service job assignments cannot be deleted.");
+        }
+
+        dbContext.ServiceJobAssignments.Remove(assignment);
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task<Guid> AddServiceJobProgressUpdateAsync(
+        Guid serviceJobId,
+        DateTimeOffset? progressDate,
+        string workCompleted,
+        string? workPending,
+        string? problemsFound,
+        string? additionalPartsRequired,
+        string? additionalLaborRequired,
+        string? customerInstructions,
+        string? siteIssues,
+        string? technicianNotes,
+        string? supervisorNotes,
+        CancellationToken cancellationToken = default)
+    {
+        await EnsureServiceJobAcceptsNewCostsAsync(serviceJobId, cancellationToken);
+
+        var update = new ServiceJobProgressUpdate(
+            serviceJobId,
+            progressDate ?? clock.UtcNow,
+            workCompleted,
+            workPending,
+            problemsFound,
+            additionalPartsRequired,
+            additionalLaborRequired,
+            customerInstructions,
+            siteIssues,
+            technicianNotes,
+            supervisorNotes);
+
+        await dbContext.ServiceJobProgressUpdates.AddAsync(update, cancellationToken);
+        await dbContext.SaveChangesAsync(cancellationToken);
+        return update.Id;
+    }
+
     public async Task<Guid> CreateMaterialRequisitionAsync(Guid serviceJobId, Guid warehouseId, string? purpose = null, CancellationToken cancellationToken = default)
     {
         await EnsureServiceJobAcceptsNewCostsAsync(serviceJobId, cancellationToken);
@@ -1515,6 +1636,13 @@ public sealed class ServiceManagementService(
         if (openDirectPurchaseBills)
         {
             throw new DomainValidationException("Service job cannot close until all posted job-linked direct purchases have posted supplier invoices.");
+        }
+
+        var pendingAssignments = await dbContext.ServiceJobAssignments.AsNoTracking()
+            .AnyAsync(x => x.ServiceJobId == serviceJobId && x.ApprovalStatus == ServiceJobAssignmentApprovalStatus.Pending, cancellationToken);
+        if (pendingAssignments)
+        {
+            throw new DomainValidationException("Service job cannot close until all technician assignments are approved or rejected.");
         }
     }
 

@@ -73,6 +73,8 @@ public sealed class IssDbContext(
     public DbSet<ServiceExpenseClaim> ServiceExpenseClaims => Set<ServiceExpenseClaim>();
     public DbSet<ServiceHandover> ServiceHandovers => Set<ServiceHandover>();
     public DbSet<ServiceTechnician> ServiceTechnicians => Set<ServiceTechnician>();
+    public DbSet<ServiceJobAssignment> ServiceJobAssignments => Set<ServiceJobAssignment>();
+    public DbSet<ServiceJobProgressUpdate> ServiceJobProgressUpdates => Set<ServiceJobProgressUpdate>();
     public DbSet<WorkOrder> WorkOrders => Set<WorkOrder>();
     public DbSet<WorkOrderTimeEntry> WorkOrderTimeEntries => Set<WorkOrderTimeEntry>();
     public DbSet<MaterialRequisition> MaterialRequisitions => Set<MaterialRequisition>();
@@ -638,6 +640,36 @@ public sealed class IssDbContext(
             entity.Property(x => x.ResponsibleOfficerName).HasMaxLength(256);
             entity.Property(x => x.EntitlementSummary).HasMaxLength(512);
             entity.HasOne<ServiceContract>().WithMany().HasForeignKey(x => x.ServiceContractId).OnDelete(DeleteBehavior.SetNull);
+        });
+
+        builder.Entity<ServiceJobAssignment>(entity =>
+        {
+            entity.HasIndex(x => new { x.ServiceJobId, x.AssignedDate });
+            entity.HasIndex(x => x.TechnicianId);
+            entity.Property(x => x.EmployeeName).HasMaxLength(256);
+            entity.Property(x => x.Role).HasMaxLength(128);
+            entity.Property(x => x.AssignedTask).HasMaxLength(1000);
+            entity.Property(x => x.NormalHours).HasPrecision(18, 4);
+            entity.Property(x => x.OvertimeHours).HasPrecision(18, 4);
+            entity.Property(x => x.DailyWorkDescription).HasMaxLength(2000);
+            entity.Property(x => x.RejectionReason).HasMaxLength(512);
+            entity.HasOne<ServiceJob>().WithMany().HasForeignKey(x => x.ServiceJobId).OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne<ServiceTechnician>().WithMany().HasForeignKey(x => x.TechnicianId).OnDelete(DeleteBehavior.Restrict);
+        });
+
+        builder.Entity<ServiceJobProgressUpdate>(entity =>
+        {
+            entity.HasIndex(x => new { x.ServiceJobId, x.ProgressDate });
+            entity.Property(x => x.WorkCompleted).HasMaxLength(2000);
+            entity.Property(x => x.WorkPending).HasMaxLength(2000);
+            entity.Property(x => x.ProblemsFound).HasMaxLength(2000);
+            entity.Property(x => x.AdditionalPartsRequired).HasMaxLength(2000);
+            entity.Property(x => x.AdditionalLaborRequired).HasMaxLength(2000);
+            entity.Property(x => x.CustomerInstructions).HasMaxLength(2000);
+            entity.Property(x => x.SiteIssues).HasMaxLength(2000);
+            entity.Property(x => x.TechnicianNotes).HasMaxLength(2000);
+            entity.Property(x => x.SupervisorNotes).HasMaxLength(2000);
+            entity.HasOne<ServiceJob>().WithMany().HasForeignKey(x => x.ServiceJobId).OnDelete(DeleteBehavior.Cascade);
         });
 
         builder.Entity<ServiceEstimate>(entity =>

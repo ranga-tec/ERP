@@ -68,6 +68,60 @@ public sealed class ServiceJobsController(
         string? InternalRemarks,
         string? ResponsibleOfficerName);
     public sealed record ReopenServiceJobRequest(string? Reason);
+    public sealed record ServiceJobAssignmentDto(
+        Guid Id,
+        Guid ServiceJobId,
+        Guid? TechnicianId,
+        string EmployeeName,
+        string Role,
+        string AssignedTask,
+        DateTimeOffset AssignedDate,
+        DateTimeOffset? WorkStartAt,
+        DateTimeOffset? WorkEndAt,
+        decimal NormalHours,
+        decimal OvertimeHours,
+        string? DailyWorkDescription,
+        ServiceJobAssignmentApprovalStatus ApprovalStatus,
+        DateTimeOffset? ApprovedAt,
+        DateTimeOffset? RejectedAt,
+        string? RejectionReason);
+    public sealed record AddServiceJobAssignmentRequest(
+        Guid? TechnicianId,
+        string? EmployeeName,
+        string Role,
+        string AssignedTask,
+        DateTimeOffset? AssignedDate,
+        DateTimeOffset? WorkStartAt,
+        DateTimeOffset? WorkEndAt,
+        decimal NormalHours,
+        decimal OvertimeHours,
+        string? DailyWorkDescription);
+    public sealed record RejectServiceJobAssignmentRequest(string? Reason);
+    public sealed record ServiceJobProgressUpdateDto(
+        Guid Id,
+        Guid ServiceJobId,
+        DateTimeOffset ProgressDate,
+        string WorkCompleted,
+        string? WorkPending,
+        string? ProblemsFound,
+        string? AdditionalPartsRequired,
+        string? AdditionalLaborRequired,
+        string? CustomerInstructions,
+        string? SiteIssues,
+        string? TechnicianNotes,
+        string? SupervisorNotes,
+        DateTimeOffset CreatedAt);
+    public sealed record AddServiceJobProgressUpdateRequest(
+        DateTimeOffset? ProgressDate,
+        string WorkCompleted,
+        string? WorkPending,
+        string? ProblemsFound,
+        string? AdditionalPartsRequired,
+        string? AdditionalLaborRequired,
+        string? CustomerInstructions,
+        string? SiteIssues,
+        string? TechnicianNotes,
+        string? SupervisorNotes);
 
     [HttpGet]
     public async Task<ActionResult<IReadOnlyList<ServiceJobDto>>> List([FromQuery] int skip = 0, [FromQuery] int take = 100, CancellationToken cancellationToken = default)
@@ -243,5 +297,165 @@ public sealed class ServiceJobsController(
     {
         await serviceManagementService.RefreshServiceJobEntitlementAsync(id, cancellationToken);
         return NoContent();
+    }
+
+    [HttpGet("{id:guid}/assignments")]
+    public async Task<ActionResult<IReadOnlyList<ServiceJobAssignmentDto>>> Assignments(Guid id, CancellationToken cancellationToken)
+    {
+        var assignments = await dbContext.ServiceJobAssignments.AsNoTracking()
+            .Where(x => x.ServiceJobId == id)
+            .OrderByDescending(x => x.AssignedDate)
+            .ThenByDescending(x => x.CreatedAt)
+            .Select(x => new ServiceJobAssignmentDto(
+                x.Id,
+                x.ServiceJobId,
+                x.TechnicianId,
+                x.EmployeeName,
+                x.Role,
+                x.AssignedTask,
+                x.AssignedDate,
+                x.WorkStartAt,
+                x.WorkEndAt,
+                x.NormalHours,
+                x.OvertimeHours,
+                x.DailyWorkDescription,
+                x.ApprovalStatus,
+                x.ApprovedAt,
+                x.RejectedAt,
+                x.RejectionReason))
+            .ToListAsync(cancellationToken);
+
+        return Ok(assignments);
+    }
+
+    [HttpPost("{id:guid}/assignments")]
+    [Authorize(Roles = $"{Roles.Admin},{Roles.Service}")]
+    public async Task<ActionResult<ServiceJobAssignmentDto>> AddAssignment(Guid id, AddServiceJobAssignmentRequest request, CancellationToken cancellationToken)
+    {
+        var assignmentId = await serviceManagementService.AddServiceJobAssignmentAsync(
+            id,
+            request.TechnicianId,
+            request.EmployeeName,
+            request.Role,
+            request.AssignedTask,
+            request.AssignedDate,
+            request.WorkStartAt,
+            request.WorkEndAt,
+            request.NormalHours,
+            request.OvertimeHours,
+            request.DailyWorkDescription,
+            cancellationToken);
+
+        var assignment = await dbContext.ServiceJobAssignments.AsNoTracking()
+            .Where(x => x.ServiceJobId == id && x.Id == assignmentId)
+            .Select(x => new ServiceJobAssignmentDto(
+                x.Id,
+                x.ServiceJobId,
+                x.TechnicianId,
+                x.EmployeeName,
+                x.Role,
+                x.AssignedTask,
+                x.AssignedDate,
+                x.WorkStartAt,
+                x.WorkEndAt,
+                x.NormalHours,
+                x.OvertimeHours,
+                x.DailyWorkDescription,
+                x.ApprovalStatus,
+                x.ApprovedAt,
+                x.RejectedAt,
+                x.RejectionReason))
+            .FirstOrDefaultAsync(cancellationToken);
+
+        return assignment is null ? NotFound() : Ok(assignment);
+    }
+
+    [HttpPost("{id:guid}/assignments/{assignmentId:guid}/approve")]
+    [Authorize(Roles = $"{Roles.Admin},{Roles.Service}")]
+    public async Task<ActionResult> ApproveAssignment(Guid id, Guid assignmentId, CancellationToken cancellationToken)
+    {
+        await serviceManagementService.ApproveServiceJobAssignmentAsync(id, assignmentId, cancellationToken);
+        return NoContent();
+    }
+
+    [HttpPost("{id:guid}/assignments/{assignmentId:guid}/reject")]
+    [Authorize(Roles = $"{Roles.Admin},{Roles.Service}")]
+    public async Task<ActionResult> RejectAssignment(Guid id, Guid assignmentId, RejectServiceJobAssignmentRequest? request, CancellationToken cancellationToken)
+    {
+        await serviceManagementService.RejectServiceJobAssignmentAsync(id, assignmentId, request?.Reason, cancellationToken);
+        return NoContent();
+    }
+
+    [HttpDelete("{id:guid}/assignments/{assignmentId:guid}")]
+    [Authorize(Roles = $"{Roles.Admin},{Roles.Service}")]
+    public async Task<ActionResult> RemoveAssignment(Guid id, Guid assignmentId, CancellationToken cancellationToken)
+    {
+        await serviceManagementService.RemoveServiceJobAssignmentAsync(id, assignmentId, cancellationToken);
+        return NoContent();
+    }
+
+    [HttpGet("{id:guid}/progress-updates")]
+    public async Task<ActionResult<IReadOnlyList<ServiceJobProgressUpdateDto>>> ProgressUpdates(Guid id, CancellationToken cancellationToken)
+    {
+        var updates = await dbContext.ServiceJobProgressUpdates.AsNoTracking()
+            .Where(x => x.ServiceJobId == id)
+            .OrderByDescending(x => x.ProgressDate)
+            .ThenByDescending(x => x.CreatedAt)
+            .Select(x => new ServiceJobProgressUpdateDto(
+                x.Id,
+                x.ServiceJobId,
+                x.ProgressDate,
+                x.WorkCompleted,
+                x.WorkPending,
+                x.ProblemsFound,
+                x.AdditionalPartsRequired,
+                x.AdditionalLaborRequired,
+                x.CustomerInstructions,
+                x.SiteIssues,
+                x.TechnicianNotes,
+                x.SupervisorNotes,
+                x.CreatedAt))
+            .ToListAsync(cancellationToken);
+
+        return Ok(updates);
+    }
+
+    [HttpPost("{id:guid}/progress-updates")]
+    [Authorize(Roles = $"{Roles.Admin},{Roles.Service}")]
+    public async Task<ActionResult<ServiceJobProgressUpdateDto>> AddProgressUpdate(Guid id, AddServiceJobProgressUpdateRequest request, CancellationToken cancellationToken)
+    {
+        var updateId = await serviceManagementService.AddServiceJobProgressUpdateAsync(
+            id,
+            request.ProgressDate,
+            request.WorkCompleted,
+            request.WorkPending,
+            request.ProblemsFound,
+            request.AdditionalPartsRequired,
+            request.AdditionalLaborRequired,
+            request.CustomerInstructions,
+            request.SiteIssues,
+            request.TechnicianNotes,
+            request.SupervisorNotes,
+            cancellationToken);
+
+        var update = await dbContext.ServiceJobProgressUpdates.AsNoTracking()
+            .Where(x => x.ServiceJobId == id && x.Id == updateId)
+            .Select(x => new ServiceJobProgressUpdateDto(
+                x.Id,
+                x.ServiceJobId,
+                x.ProgressDate,
+                x.WorkCompleted,
+                x.WorkPending,
+                x.ProblemsFound,
+                x.AdditionalPartsRequired,
+                x.AdditionalLaborRequired,
+                x.CustomerInstructions,
+                x.SiteIssues,
+                x.TechnicianNotes,
+                x.SupervisorNotes,
+                x.CreatedAt))
+            .FirstOrDefaultAsync(cancellationToken);
+
+        return update is null ? NotFound() : Ok(update);
     }
 }
