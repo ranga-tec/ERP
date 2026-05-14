@@ -142,14 +142,26 @@ public sealed class MaterialRequisitionLine : Entity
 
     public void ReplaceSerials(IReadOnlyCollection<string>? serialNumbers)
     {
-        Serials.Clear();
-        if (serialNumbers is null)
+        var normalizedSerials = serialNumbers?
+            .Select(serial => Guard.NotNullOrWhiteSpace(serial, nameof(serial), maxLength: 128))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList() ?? [];
+
+        if (normalizedSerials.Count == 0)
         {
+            Serials.Clear();
             return;
         }
 
-        foreach (var serial in serialNumbers)
+        Serials.RemoveAll(existing => !normalizedSerials.Contains(existing.SerialNumber, StringComparer.OrdinalIgnoreCase));
+
+        foreach (var serial in normalizedSerials)
         {
+            if (Serials.Any(existing => string.Equals(existing.SerialNumber, serial, StringComparison.OrdinalIgnoreCase)))
+            {
+                continue;
+            }
+
             AddSerial(serial);
         }
     }

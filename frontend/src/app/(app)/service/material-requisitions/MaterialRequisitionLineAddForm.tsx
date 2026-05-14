@@ -1,11 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { apiPostNoContent } from "@/lib/api-client";
 import { ItemLookupField } from "@/components/ItemLookupField";
 import { Button, Input, Textarea } from "@/components/ui";
 import { LineStockInsight } from "@/components/LineStockInsight";
+import { AvailableSerialPicker } from "@/components/AvailableSerialPicker";
 
 type ItemRef = { id: string; sku: string; name: string; trackingType: number };
 type WarehouseRef = { id: string; code: string; name: string };
@@ -36,6 +37,11 @@ export function MaterialRequisitionLineAddForm({
   const [serials, setSerials] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const selectedItem = items.find((item) => item.id === itemId);
+
+  useEffect(() => {
+    setSerials("");
+  }, [itemId]);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -52,6 +58,15 @@ export function MaterialRequisitionLineAddForm({
       }
 
       const serialList = parseList(serials);
+      if (selectedItem?.trackingType === 1) {
+        if (!Number.isInteger(qty)) {
+          throw new Error("Quantity must be a whole number for serial-tracked items.");
+        }
+
+        if (serialList.length !== qty) {
+          throw new Error("Select one available serial number for each requested unit.");
+        }
+      }
 
       await apiPostNoContent(`service/material-requisitions/${requisitionId}/lines`, {
         itemId,
@@ -90,9 +105,18 @@ export function MaterialRequisitionLineAddForm({
       </div>
 
       <div>
-        <label className="mb-1 block text-sm font-medium">Serials (optional)</label>
-        <Textarea value={serials} onChange={(e) => setSerials(e.target.value)} placeholder="One per line or comma-separated" />
+        <label className="mb-1 block text-sm font-medium">Serials{selectedItem?.trackingType === 1 ? "" : " (optional)"}</label>
+        <Textarea
+          value={serials}
+          onChange={(e) => setSerials(e.target.value)}
+          placeholder="One per line or comma-separated"
+          readOnly={selectedItem?.trackingType === 1}
+        />
       </div>
+
+      {selectedItem?.trackingType === 1 ? (
+        <AvailableSerialPicker warehouseId={warehouseId} itemId={itemId} quantity={quantity} value={serials} onChange={setSerials} />
+      ) : null}
 
       <LineStockInsight warehouses={warehouses} warehouseId={warehouseId} itemId={itemId} batchNumber={batchNumber} />
 

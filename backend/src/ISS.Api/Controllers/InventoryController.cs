@@ -10,10 +10,11 @@ namespace ISS.Api.Controllers;
 
 [ApiController]
 [Route("api/inventory")]
-[Authorize(Roles = $"{Roles.Admin},{Roles.Inventory},{Roles.Reporting}")]
+[Authorize(Roles = $"{Roles.Admin},{Roles.Inventory},{Roles.Reporting},{Roles.Service}")]
 public sealed class InventoryController(IIssDbContext dbContext, InventoryService inventoryService, ProcurementService procurementService) : ControllerBase
 {
     public sealed record OnHandDto(Guid WarehouseId, Guid ItemId, string? BatchNumber, decimal OnHand);
+    public sealed record SerialOnHandDto(string SerialNumber);
 
     [HttpGet("onhand")]
     public async Task<ActionResult<IReadOnlyList<OnHandDto>>> GetOnHand(
@@ -24,6 +25,26 @@ public sealed class InventoryController(IIssDbContext dbContext, InventoryServic
     {
         var rows = await inventoryService.GetOnHandBreakdownAsync(warehouseId, itemId, batchNumber, cancellationToken);
         return Ok(rows.Select(row => new OnHandDto(row.WarehouseId, row.ItemId, row.BatchNumber, row.OnHand)).ToList());
+    }
+
+    [HttpGet("serials-on-hand")]
+    public async Task<ActionResult<IReadOnlyList<SerialOnHandDto>>> GetSerialsOnHand(
+        [FromQuery] Guid warehouseId,
+        [FromQuery] Guid itemId,
+        CancellationToken cancellationToken)
+    {
+        if (warehouseId == Guid.Empty)
+        {
+            return BadRequest("warehouseId is required.");
+        }
+
+        if (itemId == Guid.Empty)
+        {
+            return BadRequest("itemId is required.");
+        }
+
+        var serials = await inventoryService.GetSerialsOnHandAsync(warehouseId, itemId, cancellationToken);
+        return Ok(serials.Select(serial => new SerialOnHandDto(serial)).ToList());
     }
 
     public sealed record ReorderAlertDto(Guid WarehouseId, Guid ItemId, decimal ReorderPoint, decimal ReorderQuantity, decimal OnHand);

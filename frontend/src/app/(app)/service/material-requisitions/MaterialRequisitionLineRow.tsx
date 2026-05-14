@@ -5,6 +5,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import { apiDeleteNoContent, apiPutNoContent } from "@/lib/api-client";
 import { Button, Input, SecondaryButton, Textarea } from "@/components/ui";
 import { LineStockInsight } from "@/components/LineStockInsight";
+import { AvailableSerialPicker } from "@/components/AvailableSerialPicker";
 
 type MaterialRequisitionLineDto = {
   id: string;
@@ -28,6 +29,7 @@ export function MaterialRequisitionLineRow({
   warehouseId,
   warehouses,
   itemLabel,
+  trackingType,
   canEdit,
   startInEditMode = false,
 }: {
@@ -37,6 +39,7 @@ export function MaterialRequisitionLineRow({
   warehouseId: string;
   warehouses: WarehouseRef[];
   itemLabel: ReactNode;
+  trackingType?: number;
   canEdit: boolean;
   startInEditMode?: boolean;
 }) {
@@ -86,6 +89,15 @@ export function MaterialRequisitionLineRow({
       }
 
       const serialList = parseList(serials);
+      if (trackingType === 1) {
+        if (!Number.isInteger(qty)) {
+          throw new Error("Quantity must be a whole number for serial-tracked items.");
+        }
+
+        if (serialList.length !== qty) {
+          throw new Error("Select one available serial number for each requested unit.");
+        }
+      }
 
       await apiPutNoContent(`service/material-requisitions/${requisitionId}/lines/${line.id}`, {
         quantity: qty,
@@ -142,6 +154,7 @@ export function MaterialRequisitionLineRow({
             value={serials}
             onChange={(e) => setSerials(e.target.value)}
             placeholder="One per line or comma-separated"
+            readOnly={trackingType === 1}
             className="min-h-20 min-w-56"
           />
         ) : (
@@ -184,7 +197,12 @@ export function MaterialRequisitionLineRow({
       {isEditing ? (
         <tr className="border-b border-zinc-100 dark:border-zinc-900">
           <td className="pb-3 pr-3" colSpan={colSpan}>
-            <LineStockInsight warehouses={warehouses} warehouseId={warehouseId} itemId={itemId} batchNumber={batchNumber} />
+            <div className="space-y-3">
+              {trackingType === 1 ? (
+                <AvailableSerialPicker warehouseId={warehouseId} itemId={itemId} quantity={quantity} value={serials} onChange={setSerials} />
+              ) : null}
+              <LineStockInsight warehouses={warehouses} warehouseId={warehouseId} itemId={itemId} batchNumber={batchNumber} />
+            </div>
           </td>
         </tr>
       ) : null}

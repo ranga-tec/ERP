@@ -94,6 +94,36 @@ public sealed class InventoryService(IIssDbContext dbContext)
         return serialRows.Select(x => x.SerialNumber).ToList();
     }
 
+    public async Task EnsureAvailableForIssueAsync(
+        Guid warehouseId,
+        Item item,
+        decimal quantity,
+        string? batchNumber,
+        IReadOnlyCollection<string>? serialNumbers,
+        CancellationToken cancellationToken = default)
+    {
+        ValidateTracking(item, quantity, batchNumber, serialNumbers);
+
+        if (item.TrackingType == TrackingType.Serial)
+        {
+            foreach (var serial in serialNumbers!)
+            {
+                if (!await IsSerialInStockAsync(warehouseId, item.Id, serial, cancellationToken))
+                {
+                    throw new DomainValidationException($"Serial '{serial}' is not in stock.");
+                }
+            }
+
+            return;
+        }
+
+        var onHand = await GetOnHandAsync(warehouseId, item.Id, batchNumber, cancellationToken);
+        if (onHand - quantity < 0)
+        {
+            throw new DomainValidationException($"Insufficient stock for item '{item.Sku}'. Available quantity is {onHand}.");
+        }
+    }
+
     public async Task RecordReceiptAsync(
         DateTimeOffset occurredAt,
         Guid warehouseId,

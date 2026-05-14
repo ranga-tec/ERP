@@ -1226,6 +1226,8 @@ public sealed class ServiceManagementService(
 
         await EnsureServiceJobAcceptsNewCostsAsync(mr.ServiceJobId, cancellationToken);
 
+        await EnsureMaterialRequisitionLineAvailabilityAsync(mr, itemId, lineId: null, quantity, batchNumber, serialNumbers, cancellationToken);
+
         var line = mr.AddLine(itemId, quantity, batchNumber);
         if (serialNumbers is { Count: > 0 })
         {
@@ -1258,6 +1260,9 @@ public sealed class ServiceManagementService(
             throw new NotFoundException("Material requisition line not found.");
         }
 
+        var line = mr.Lines.First(x => x.Id == lineId);
+        await EnsureMaterialRequisitionLineAvailabilityAsync(mr, line.ItemId, lineId, quantity, batchNumber, serialNumbers, cancellationToken);
+
         mr.UpdateLine(lineId, quantity, batchNumber, serialNumbers);
         await dbContext.SaveChangesAsync(cancellationToken);
     }
@@ -1277,6 +1282,59 @@ public sealed class ServiceManagementService(
         dbContext.DbContext.Remove(line);
         await dbContext.SaveChangesAsync(cancellationToken);
     }
+
+    private async Task EnsureMaterialRequisitionLineAvailabilityAsync(
+        MaterialRequisition mr,
+        Guid itemId,
+        Guid? lineId,
+        decimal quantity,
+        string? batchNumber,
+        IReadOnlyCollection<string>? serialNumbers,
+        CancellationToken cancellationToken)
+    {
+        var item = await dbContext.Items.FirstOrDefaultAsync(x => x.Id == itemId, cancellationToken)
+            ?? throw new DomainValidationException("Invalid item on material requisition.");
+
+        if (item.TrackingType == TrackingType.Serial)
+        {
+            await inventoryService.EnsureAvailableForIssueAsync(mr.WarehouseId, item, quantity, batchNumber, serialNumbers, cancellationToken);
+
+            var requestedSerials = serialNumbers?
+                .Select(serial => serial.Trim())
+                .Where(serial => serial.Length > 0)
+                .ToHashSet(StringComparer.OrdinalIgnoreCase) ?? [];
+
+            var duplicateSerial = mr.Lines
+                .Where(line => line.Id != lineId)
+                .SelectMany(line => line.Serials)
+                .Select(serial => serial.SerialNumber)
+                .FirstOrDefault(requestedSerials.Contains);
+
+            if (duplicateSerial is not null)
+            {
+                throw new DomainValidationException($"Serial '{duplicateSerial}' is already selected on this material requisition.");
+            }
+
+            return;
+        }
+
+        var normalizedBatch = string.IsNullOrWhiteSpace(batchNumber) ? null : batchNumber.Trim();
+        var existingQuantity = mr.Lines
+            .Where(line => line.Id != lineId && line.ItemId == itemId && MaterialRequisitionBatchMatches(line.BatchNumber, normalizedBatch))
+            .Sum(line => line.Quantity);
+
+        await inventoryService.EnsureAvailableForIssueAsync(
+            mr.WarehouseId,
+            item,
+            existingQuantity + quantity,
+            normalizedBatch,
+            serialNumbers,
+            cancellationToken);
+    }
+
+    private static bool MaterialRequisitionBatchMatches(string? existingBatch, string? requestedBatch)
+        => string.IsNullOrWhiteSpace(requestedBatch)
+            || string.Equals(existingBatch?.Trim(), requestedBatch, StringComparison.OrdinalIgnoreCase);
 
     public async Task PostMaterialRequisitionAsync(Guid materialRequisitionId, CancellationToken cancellationToken = default)
     {

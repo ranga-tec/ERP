@@ -7,7 +7,7 @@ import { MaterialRequisitionActions } from "../MaterialRequisitionActions";
 import { MaterialRequisitionLineAddForm } from "../MaterialRequisitionLineAddForm";
 import { MaterialRequisitionLineRow } from "../MaterialRequisitionLineRow";
 import { DocumentCollaborationPanel } from "@/components/DocumentCollaborationPanel";
-import { StockAvailabilityExplorer } from "@/components/StockAvailabilityExplorer";
+import { StockAvailabilityModal } from "@/components/StockAvailabilityModal";
 import { DocumentDirectEditNotice } from "@/components/DocumentDirectEditNotice";
 
 type MaterialRequisitionDto = {
@@ -102,8 +102,13 @@ export default async function MaterialRequisitionDetailPage({
           )}
 
           <Card>
-            <div className="mb-3 text-sm font-semibold">Stock visibility</div>
-            <StockAvailabilityExplorer warehouses={warehouses} items={items} initialWarehouseId={mr.warehouseId} />
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <div className="text-sm font-semibold">Stock visibility</div>
+                <div className="mt-1 text-xs text-zinc-500">Open stock lookup when you need warehouse, batch, or total availability.</div>
+              </div>
+              <StockAvailabilityModal warehouses={warehouses} items={items} initialWarehouseId={mr.warehouseId} />
+            </div>
           </Card>
         </>
       ) : null}
@@ -138,6 +143,7 @@ export default async function MaterialRequisitionDetailPage({
                     warehouseId={mr.warehouseId}
                     warehouses={warehouses}
                     itemLabel={itemLabel}
+                    trackingType={item?.trackingType}
                     canEdit={isDraft}
                     startInEditMode={startInEditMode}
                   />
