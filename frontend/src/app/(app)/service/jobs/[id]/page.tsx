@@ -6,6 +6,8 @@ import { ServiceJobActions } from "../ServiceJobActions";
 import { ServiceJobEditForm } from "../ServiceJobEditForm";
 import { ServiceJobAssignmentActions } from "../ServiceJobAssignmentActions";
 import { ServiceJobAssignmentAddForm } from "../ServiceJobAssignmentAddForm";
+import { ServiceJobFinalInvoiceActions } from "../ServiceJobFinalInvoiceActions";
+import { ServiceJobMaterialDispositionAddForm } from "../ServiceJobMaterialDispositionAddForm";
 import { ServiceJobProgressUpdateAddForm } from "../ServiceJobProgressUpdateAddForm";
 import { DocumentCollaborationPanel } from "@/components/DocumentCollaborationPanel";
 import { TransactionLink } from "@/components/TransactionLink";
@@ -28,6 +30,8 @@ type ServiceJobDto = {
   customerComplaint?: string | null;
   internalRemarks?: string | null;
   responsibleOfficerName?: string | null;
+  finalInvoiceNotRequired: boolean;
+  finalInvoiceNotRequiredReason?: string | null;
   serviceContractId?: string | null;
   serviceContractNumber?: string | null;
   entitlementSource: number;
@@ -112,6 +116,7 @@ type ServiceJobCostingDto = {
   invoices: { id: string; number: string; status: number; total: number }[];
   materialLines: {
     materialRequisitionId: string;
+    materialRequisitionLineId: string;
     materialRequisitionNumber: string;
     itemId: string;
     itemSku: string;
@@ -165,6 +170,23 @@ type ServiceJobCostingDto = {
     convertedToServiceEstimateId?: string | null;
     lineTotal: number;
   }[];
+};
+type ServiceJobMaterialDispositionDto = {
+  id: string;
+  materialRequisitionLineId: string;
+  itemId: string;
+  kind: number;
+  quantity: number;
+  unitCost: number;
+  costImpact: number;
+  batchNumber?: string | null;
+  condition: string;
+  reason: string;
+  chargeTo: number;
+  supplierReturnId?: string | null;
+  responsiblePerson?: string | null;
+  serials: string[];
+  createdAt: string;
 };
 
 const statusLabel: Record<number, string> = {
@@ -241,6 +263,20 @@ const laborStatusLabel: Record<number, string> = {
   3: "Rejected",
   4: "Invoiced",
 };
+const materialDispositionLabel: Record<number, string> = {
+  0: "Used",
+  1: "Unused returned",
+  2: "Incorrect returned",
+  3: "Damaged",
+  4: "Rejected / supplier return",
+};
+const materialChargeToLabel: Record<number, string> = {
+  0: "Customer",
+  1: "Company",
+  2: "Supplier",
+  3: "Employee",
+  4: "Warranty",
+};
 
 const assignmentStatusLabel: Record<number, string> = {
   0: "Pending",
@@ -259,7 +295,7 @@ function maybeText(value?: string | null) {
 export default async function ServiceJobDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
 
-  const [job, units, customers, costing, items, technicians, assignments, progressUpdates, closeoutChecks] = await Promise.all([
+  const [job, units, customers, costing, items, technicians, assignments, progressUpdates, closeoutChecks, materialDispositions] = await Promise.all([
     backendFetchJson<ServiceJobDto>(`/service/jobs/${id}`),
     backendFetchJson<EquipmentUnitDto[]>("/service/equipment-units?take=2000"),
     backendFetchJson<CustomerDto[]>("/customers"),
@@ -269,6 +305,7 @@ export default async function ServiceJobDetailPage({ params }: { params: Promise
     backendFetchJson<ServiceJobAssignmentDto[]>(`/service/jobs/${id}/assignments`),
     backendFetchJson<ServiceJobProgressUpdateDto[]>(`/service/jobs/${id}/progress-updates`),
     backendFetchJson<ServiceJobCloseoutCheckDto[]>(`/service/jobs/${id}/closeout-checks`),
+    backendFetchJson<ServiceJobMaterialDispositionDto[]>(`/service/jobs/${id}/material-dispositions`),
   ]);
 
   const selectedUnit =
@@ -325,6 +362,7 @@ export default async function ServiceJobDetailPage({ params }: { params: Promise
           <div>Completed: {job.completedAt ? new Date(job.completedAt).toLocaleString() : "-"}</div>
           <div>Site: {job.siteLocation ?? "-"}</div>
           <div>Responsible: {job.responsibleOfficerName ?? "-"}</div>
+          <div>Invoice required: {job.finalInvoiceNotRequired ? "No" : "Yes"}</div>
         </div>
       </div>
 
@@ -448,6 +486,12 @@ export default async function ServiceJobDetailPage({ params }: { params: Promise
               <div className="mt-1 text-xs text-zinc-500">{check.detail}</div>
             </div>
           ))}
+        </div>
+        {job.finalInvoiceNotRequiredReason ? (
+          <div className="mt-3 text-xs text-zinc-500">Not billable reason: {job.finalInvoiceNotRequiredReason}</div>
+        ) : null}
+        <div className="mt-3">
+          <ServiceJobFinalInvoiceActions jobId={job.id} disabled={job.status === 12 || job.finalInvoiceNotRequired} />
         </div>
       </Card>
 
@@ -678,6 +722,9 @@ export default async function ServiceJobDetailPage({ params }: { params: Promise
         <div className="space-y-4">
           <div className="overflow-auto">
             <div className="mb-2 text-sm font-medium">Material Consumption</div>
+            <div className="mb-3">
+              <ServiceJobMaterialDispositionAddForm serviceJobId={job.id} materialLines={costing.materialLines} disabled={!canAddJobActivity} />
+            </div>
             <Table>
               <thead>
                 <tr className="border-b border-zinc-200 text-left text-xs uppercase tracking-wide text-zinc-500 dark:border-zinc-800">
@@ -686,11 +733,14 @@ export default async function ServiceJobDetailPage({ params }: { params: Promise
                   <th className="py-2 pr-3">Qty</th>
                   <th className="py-2 pr-3">Unit Cost</th>
                   <th className="py-2 pr-3">Total</th>
+                  <th className="py-2 pr-3">Disposition</th>
                 </tr>
               </thead>
               <tbody>
-                {costing.materialLines.map((line) => (
-                  <tr key={`${line.materialRequisitionId}-${line.itemId}-${line.quantity}`} className="border-b border-zinc-100 dark:border-zinc-900">
+                {costing.materialLines.map((line) => {
+                  const dispositionsForLine = materialDispositions.filter((disposition) => disposition.materialRequisitionLineId === line.materialRequisitionLineId);
+                  return (
+                  <tr key={`${line.materialRequisitionId}-${line.materialRequisitionLineId}-${line.itemId}-${line.quantity}`} className="border-b border-zinc-100 align-top dark:border-zinc-900">
                     <td className="py-2 pr-3">
                       <TransactionLink referenceType="MR" referenceId={line.materialRequisitionId} monospace>
                         {line.materialRequisitionNumber}
@@ -702,11 +752,20 @@ export default async function ServiceJobDetailPage({ params }: { params: Promise
                     <td className="py-2 pr-3">{line.quantity}</td>
                     <td className="py-2 pr-3">{money(line.unitCost)}</td>
                     <td className="py-2 pr-3">{money(line.lineTotal)}</td>
+                    <td className="py-2 pr-3 text-xs text-zinc-500">
+                      {dispositionsForLine.length > 0 ? dispositionsForLine.map((disposition) => (
+                        <div key={disposition.id} className="mb-1">
+                          {materialDispositionLabel[disposition.kind] ?? disposition.kind}: {disposition.quantity} ({materialChargeToLabel[disposition.chargeTo] ?? disposition.chargeTo})
+                          <div>{disposition.reason}</div>
+                        </div>
+                      )) : "Pending"}
+                    </td>
                   </tr>
-                ))}
+                  );
+                })}
                 {costing.materialLines.length === 0 ? (
                   <tr>
-                    <td className="py-6 text-sm text-zinc-500" colSpan={5}>
+                    <td className="py-6 text-sm text-zinc-500" colSpan={6}>
                       No posted material consumption yet.
                     </td>
                   </tr>

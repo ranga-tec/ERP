@@ -14,6 +14,7 @@ public static class ReferenceTypes
     public const string DispatchNote = "DN";
     public const string SalesInvoice = "INV";
     public const string MaterialRequisition = "MR";
+    public const string ServiceJobMaterialDisposition = "SJMD";
     public const string ServiceExpenseClaim = "SEC";
     public const string PettyCashFund = "PCF";
     public const string StockAdjustment = "ADJ";

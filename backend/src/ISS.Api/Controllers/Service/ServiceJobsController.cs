@@ -36,6 +36,8 @@ public sealed class ServiceJobsController(
         string? CustomerComplaint,
         string? InternalRemarks,
         string? ResponsibleOfficerName,
+        bool FinalInvoiceNotRequired,
+        string? FinalInvoiceNotRequiredReason,
         Guid? ServiceContractId,
         string? ServiceContractNumber,
         ServiceEntitlementSource EntitlementSource,
@@ -68,6 +70,7 @@ public sealed class ServiceJobsController(
         string? InternalRemarks,
         string? ResponsibleOfficerName);
     public sealed record ReopenServiceJobRequest(string? Reason);
+    public sealed record MarkFinalInvoiceNotRequiredRequest(string Reason);
     public sealed record ServiceJobAssignmentDto(
         Guid Id,
         Guid ServiceJobId,
@@ -123,6 +126,35 @@ public sealed class ServiceJobsController(
         string? TechnicianNotes,
         string? SupervisorNotes);
     public sealed record ServiceJobCloseoutCheckDto(string Key, string Label, bool IsClear, int PendingCount, string Detail);
+    public sealed record ServiceJobMaterialDispositionDto(
+        Guid Id,
+        Guid ServiceJobId,
+        Guid MaterialRequisitionId,
+        Guid MaterialRequisitionLineId,
+        Guid ItemId,
+        Guid WarehouseId,
+        ServiceJobMaterialDispositionKind Kind,
+        decimal Quantity,
+        decimal UnitCost,
+        decimal CostImpact,
+        string? BatchNumber,
+        string Condition,
+        string Reason,
+        ServiceJobMaterialChargeTo ChargeTo,
+        Guid? SupplierReturnId,
+        string? ResponsiblePerson,
+        IReadOnlyList<string> Serials,
+        DateTimeOffset CreatedAt);
+    public sealed record AddServiceJobMaterialDispositionRequest(
+        Guid MaterialRequisitionLineId,
+        ServiceJobMaterialDispositionKind Kind,
+        decimal Quantity,
+        string? Condition,
+        string Reason,
+        ServiceJobMaterialChargeTo ChargeTo,
+        Guid? SupplierReturnId,
+        string? ResponsiblePerson,
+        IReadOnlyList<string>? Serials);
 
     [HttpGet]
     public async Task<ActionResult<IReadOnlyList<ServiceJobDto>>> List([FromQuery] int skip = 0, [FromQuery] int take = 100, CancellationToken cancellationToken = default)
@@ -152,6 +184,8 @@ public sealed class ServiceJobsController(
                 x.CustomerComplaint,
                 x.InternalRemarks,
                 x.ResponsibleOfficerName,
+                x.FinalInvoiceNotRequired,
+                x.FinalInvoiceNotRequiredReason,
                 x.ServiceContractId,
                 dbContext.ServiceContracts
                     .Where(contract => contract.Id == x.ServiceContractId)
@@ -231,6 +265,8 @@ public sealed class ServiceJobsController(
                 x.CustomerComplaint,
                 x.InternalRemarks,
                 x.ResponsibleOfficerName,
+                x.FinalInvoiceNotRequired,
+                x.FinalInvoiceNotRequiredReason,
                 x.ServiceContractId,
                 dbContext.ServiceContracts
                     .Where(contract => contract.Id == x.ServiceContractId)
@@ -305,6 +341,90 @@ public sealed class ServiceJobsController(
     {
         await serviceManagementService.RefreshServiceJobEntitlementAsync(id, cancellationToken);
         return NoContent();
+    }
+
+    [HttpPost("{id:guid}/final-invoice-not-required")]
+    [Authorize(Roles = $"{Roles.Admin},{Roles.Service}")]
+    public async Task<ActionResult> MarkFinalInvoiceNotRequired(Guid id, MarkFinalInvoiceNotRequiredRequest request, CancellationToken cancellationToken)
+    {
+        await serviceManagementService.MarkServiceJobFinalInvoiceNotRequiredAsync(id, request.Reason, cancellationToken);
+        return NoContent();
+    }
+
+    [HttpGet("{id:guid}/material-dispositions")]
+    public async Task<ActionResult<IReadOnlyList<ServiceJobMaterialDispositionDto>>> MaterialDispositions(Guid id, CancellationToken cancellationToken)
+    {
+        var rows = await dbContext.ServiceJobMaterialDispositions.AsNoTracking()
+            .Where(x => x.ServiceJobId == id)
+            .OrderByDescending(x => x.CreatedAt)
+            .Select(x => new ServiceJobMaterialDispositionDto(
+                x.Id,
+                x.ServiceJobId,
+                x.MaterialRequisitionId,
+                x.MaterialRequisitionLineId,
+                x.ItemId,
+                x.WarehouseId,
+                x.Kind,
+                x.Quantity,
+                x.UnitCost,
+                x.CostImpact,
+                x.BatchNumber,
+                x.Condition,
+                x.Reason,
+                x.ChargeTo,
+                x.SupplierReturnId,
+                x.ResponsiblePerson,
+                x.Serials.Select(s => s.SerialNumber).ToList(),
+                x.CreatedAt))
+            .ToListAsync(cancellationToken);
+
+        return Ok(rows);
+    }
+
+    [HttpPost("{id:guid}/material-dispositions")]
+    [Authorize(Roles = $"{Roles.Admin},{Roles.Service},{Roles.Inventory}")]
+    public async Task<ActionResult<ServiceJobMaterialDispositionDto>> AddMaterialDisposition(
+        Guid id,
+        AddServiceJobMaterialDispositionRequest request,
+        CancellationToken cancellationToken)
+    {
+        var dispositionId = await serviceManagementService.AddServiceJobMaterialDispositionAsync(
+            id,
+            request.MaterialRequisitionLineId,
+            request.Kind,
+            request.Quantity,
+            request.Condition,
+            request.Reason,
+            request.ChargeTo,
+            request.SupplierReturnId,
+            request.ResponsiblePerson,
+            request.Serials,
+            cancellationToken);
+
+        var disposition = await dbContext.ServiceJobMaterialDispositions.AsNoTracking()
+            .Where(x => x.ServiceJobId == id && x.Id == dispositionId)
+            .Select(x => new ServiceJobMaterialDispositionDto(
+                x.Id,
+                x.ServiceJobId,
+                x.MaterialRequisitionId,
+                x.MaterialRequisitionLineId,
+                x.ItemId,
+                x.WarehouseId,
+                x.Kind,
+                x.Quantity,
+                x.UnitCost,
+                x.CostImpact,
+                x.BatchNumber,
+                x.Condition,
+                x.Reason,
+                x.ChargeTo,
+                x.SupplierReturnId,
+                x.ResponsiblePerson,
+                x.Serials.Select(s => s.SerialNumber).ToList(),
+                x.CreatedAt))
+            .FirstOrDefaultAsync(cancellationToken);
+
+        return disposition is null ? NotFound() : Ok(disposition);
     }
 
     [HttpGet("{id:guid}/assignments")]

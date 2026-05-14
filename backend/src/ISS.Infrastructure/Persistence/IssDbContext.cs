@@ -75,6 +75,7 @@ public sealed class IssDbContext(
     public DbSet<ServiceTechnician> ServiceTechnicians => Set<ServiceTechnician>();
     public DbSet<ServiceJobAssignment> ServiceJobAssignments => Set<ServiceJobAssignment>();
     public DbSet<ServiceJobProgressUpdate> ServiceJobProgressUpdates => Set<ServiceJobProgressUpdate>();
+    public DbSet<ServiceJobMaterialDisposition> ServiceJobMaterialDispositions => Set<ServiceJobMaterialDisposition>();
     public DbSet<WorkOrder> WorkOrders => Set<WorkOrder>();
     public DbSet<WorkOrderTimeEntry> WorkOrderTimeEntries => Set<WorkOrderTimeEntry>();
     public DbSet<MaterialRequisition> MaterialRequisitions => Set<MaterialRequisition>();
@@ -638,6 +639,7 @@ public sealed class IssDbContext(
             entity.Property(x => x.CustomerComplaint).HasMaxLength(2000);
             entity.Property(x => x.InternalRemarks).HasMaxLength(2000);
             entity.Property(x => x.ResponsibleOfficerName).HasMaxLength(256);
+            entity.Property(x => x.FinalInvoiceNotRequiredReason).HasMaxLength(1000);
             entity.Property(x => x.EntitlementSummary).HasMaxLength(512);
             entity.HasOne<ServiceContract>().WithMany().HasForeignKey(x => x.ServiceContractId).OnDelete(DeleteBehavior.SetNull);
         });
@@ -670,6 +672,30 @@ public sealed class IssDbContext(
             entity.Property(x => x.TechnicianNotes).HasMaxLength(2000);
             entity.Property(x => x.SupervisorNotes).HasMaxLength(2000);
             entity.HasOne<ServiceJob>().WithMany().HasForeignKey(x => x.ServiceJobId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        builder.Entity<ServiceJobMaterialDisposition>(entity =>
+        {
+            entity.HasIndex(x => x.ServiceJobId);
+            entity.HasIndex(x => x.MaterialRequisitionId);
+            entity.HasIndex(x => x.MaterialRequisitionLineId);
+            entity.HasIndex(x => x.SupplierReturnId);
+            entity.Property(x => x.Quantity).HasPrecision(18, 4);
+            entity.Property(x => x.UnitCost).HasPrecision(18, 4);
+            entity.Property(x => x.BatchNumber).HasMaxLength(128);
+            entity.Property(x => x.Condition).HasMaxLength(128);
+            entity.Property(x => x.Reason).HasMaxLength(1000);
+            entity.Property(x => x.ResponsiblePerson).HasMaxLength(256);
+            entity.HasOne<ServiceJob>().WithMany().HasForeignKey(x => x.ServiceJobId).OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne<MaterialRequisition>().WithMany().HasForeignKey(x => x.MaterialRequisitionId).OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne<MaterialRequisitionLine>().WithMany().HasForeignKey(x => x.MaterialRequisitionLineId).OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne<SupplierReturn>().WithMany().HasForeignKey(x => x.SupplierReturnId).OnDelete(DeleteBehavior.SetNull);
+            entity.HasMany(x => x.Serials).WithOne().HasForeignKey(x => x.ServiceJobMaterialDispositionId).OnDelete(DeleteBehavior.Cascade);
+        });
+        builder.Entity<ServiceJobMaterialDispositionSerial>(entity =>
+        {
+            entity.Property(x => x.SerialNumber).HasMaxLength(128);
+            entity.HasIndex(x => x.SerialNumber);
         });
 
         builder.Entity<ServiceEstimate>(entity =>

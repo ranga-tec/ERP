@@ -28,6 +28,7 @@ public sealed class ServiceCostingService(IIssDbContext dbContext)
     public sealed record MaterialCostLine(
         DateTimeOffset OccurredAt,
         Guid MaterialRequisitionId,
+        Guid MaterialRequisitionLineId,
         string MaterialRequisitionNumber,
         Guid WarehouseId,
         string WarehouseCode,
@@ -162,6 +163,7 @@ public sealed class ServiceCostingService(IIssDbContext dbContext)
             select new MaterialCostLine(
                 movement.OccurredAt,
                 materialRequisition.Id,
+                movement.ReferenceLineId ?? Guid.Empty,
                 materialRequisition.Number,
                 warehouse.Id,
                 warehouse.Code,

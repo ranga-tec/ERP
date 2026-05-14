@@ -63,6 +63,7 @@ public interface IIssDbContext
     DbSet<ServiceTechnician> ServiceTechnicians { get; }
     DbSet<ServiceJobAssignment> ServiceJobAssignments { get; }
     DbSet<ServiceJobProgressUpdate> ServiceJobProgressUpdates { get; }
+    DbSet<ServiceJobMaterialDisposition> ServiceJobMaterialDispositions { get; }
     DbSet<WorkOrder> WorkOrders { get; }
     DbSet<WorkOrderTimeEntry> WorkOrderTimeEntries { get; }
     DbSet<MaterialRequisition> MaterialRequisitions { get; }

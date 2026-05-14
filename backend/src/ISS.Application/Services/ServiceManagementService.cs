@@ -989,8 +989,20 @@ public sealed class ServiceManagementService(
         }
 
         handover.LinkSalesInvoice(invoice.Id, clock.UtcNow);
+        var invoiceJob = await dbContext.ServiceJobs.FirstOrDefaultAsync(x => x.Id == job.Id, cancellationToken)
+            ?? throw new NotFoundException("Service job not found.");
+        invoiceJob.MarkInvoiced();
         await dbContext.SaveChangesAsync(cancellationToken);
         return invoice.Id;
+    }
+
+    public async Task MarkServiceJobFinalInvoiceNotRequiredAsync(Guid serviceJobId, string reason, CancellationToken cancellationToken = default)
+    {
+        var job = await dbContext.ServiceJobs.FirstOrDefaultAsync(x => x.Id == serviceJobId, cancellationToken)
+            ?? throw new NotFoundException("Service job not found.");
+
+        job.MarkFinalInvoiceNotRequired(reason);
+        await dbContext.SaveChangesAsync(cancellationToken);
     }
 
     private async Task<ServiceEstimate> ResolveDraftEstimateForExpenseConversionAsync(
@@ -1572,6 +1584,118 @@ public sealed class ServiceManagementService(
         await dbContext.SaveChangesAsync(cancellationToken);
     }
 
+    public async Task<Guid> AddServiceJobMaterialDispositionAsync(
+        Guid serviceJobId,
+        Guid materialRequisitionLineId,
+        ServiceJobMaterialDispositionKind kind,
+        decimal quantity,
+        string? condition,
+        string reason,
+        ServiceJobMaterialChargeTo chargeTo,
+        Guid? supplierReturnId,
+        string? responsiblePerson,
+        IReadOnlyCollection<string>? serialNumbers,
+        CancellationToken cancellationToken = default)
+    {
+        await EnsureServiceJobAcceptsNewCostsAsync(serviceJobId, cancellationToken);
+
+        var line = await dbContext.Set<MaterialRequisitionLine>()
+            .Include(x => x.Serials)
+            .FirstOrDefaultAsync(x => x.Id == materialRequisitionLineId, cancellationToken)
+            ?? throw new NotFoundException("Material requisition line not found.");
+
+        var mr = await dbContext.MaterialRequisitions.AsNoTracking()
+            .FirstOrDefaultAsync(x => x.Id == line.MaterialRequisitionId, cancellationToken)
+            ?? throw new NotFoundException("Material requisition not found.");
+
+        if (mr.ServiceJobId != serviceJobId)
+        {
+            throw new DomainValidationException("Material requisition line does not belong to this service job.");
+        }
+
+        if (mr.Status != MaterialRequisitionStatus.Posted)
+        {
+            throw new DomainValidationException("Only posted material requisition lines can receive material disposition.");
+        }
+
+        var item = await dbContext.Items.AsNoTracking().FirstOrDefaultAsync(x => x.Id == line.ItemId, cancellationToken)
+            ?? throw new DomainValidationException("Invalid item on material disposition.");
+
+        var alreadyDisposed = await dbContext.ServiceJobMaterialDispositions.AsNoTracking()
+            .Where(x => x.MaterialRequisitionLineId == materialRequisitionLineId)
+            .SumAsync(x => (decimal?)x.Quantity, cancellationToken) ?? 0m;
+        if (alreadyDisposed + quantity > line.Quantity)
+        {
+            throw new DomainValidationException($"Material disposition exceeds issued quantity. Remaining quantity is {line.Quantity - alreadyDisposed}.");
+        }
+
+        if (kind == ServiceJobMaterialDispositionKind.RejectedSupplierReturn && supplierReturnId is not null)
+        {
+            var supplierReturnExists = await dbContext.SupplierReturns.AsNoTracking().AnyAsync(x => x.Id == supplierReturnId.Value, cancellationToken);
+            if (!supplierReturnExists)
+            {
+                throw new NotFoundException("Supplier return not found.");
+            }
+        }
+
+        var disposition = new ServiceJobMaterialDisposition(
+            serviceJobId,
+            mr.Id,
+            line.Id,
+            line.ItemId,
+            mr.WarehouseId,
+            kind,
+            quantity,
+            item.DefaultUnitCost,
+            line.BatchNumber,
+            condition ?? kind.ToString(),
+            reason,
+            chargeTo,
+            supplierReturnId,
+            responsiblePerson);
+        disposition.ReplaceSerials(serialNumbers);
+
+        if (item.TrackingType == TrackingType.Serial)
+        {
+            var requestedSerials = serialNumbers?
+                .Select(serial => serial.Trim())
+                .Where(serial => serial.Length > 0)
+                .ToHashSet(StringComparer.OrdinalIgnoreCase) ?? [];
+            if (requestedSerials.Count != quantity)
+            {
+                throw new DomainValidationException("Serial count must match disposition quantity.");
+            }
+
+            var issuedSerials = line.Serials.Select(x => x.SerialNumber).ToHashSet(StringComparer.OrdinalIgnoreCase);
+            var invalidSerial = requestedSerials.FirstOrDefault(serial => !issuedSerials.Contains(serial));
+            if (invalidSerial is not null)
+            {
+                throw new DomainValidationException($"Serial '{invalidSerial}' was not issued on this material requisition line.");
+            }
+        }
+
+        await dbContext.ServiceJobMaterialDispositions.AddAsync(disposition, cancellationToken);
+
+        if (kind is ServiceJobMaterialDispositionKind.UnusedReturned or ServiceJobMaterialDispositionKind.IncorrectReturned)
+        {
+            await inventoryService.RecordReceiptAsync(
+                clock.UtcNow,
+                mr.WarehouseId,
+                item,
+                quantity,
+                item.DefaultUnitCost,
+                ReferenceTypes.ServiceJobMaterialDisposition,
+                disposition.Id,
+                disposition.Id,
+                line.BatchNumber,
+                serialNumbers,
+                cancellationToken);
+        }
+
+        await dbContext.SaveChangesAsync(cancellationToken);
+        return disposition.Id;
+    }
+
     private async Task<ServiceEntitlementSnapshot> EvaluateServiceEntitlementAsync(
         Guid equipmentUnitId,
         Guid customerId,
@@ -1697,6 +1821,33 @@ public sealed class ServiceManagementService(
                              && x.SalesInvoiceLineId == null,
                 cancellationToken);
 
+        var materialLineRows = await (
+            from mr in dbContext.MaterialRequisitions.AsNoTracking()
+            from line in mr.Lines
+            where mr.ServiceJobId == serviceJobId && mr.Status == MaterialRequisitionStatus.Posted
+            select new { LineId = line.Id, line.Quantity })
+            .ToListAsync(cancellationToken);
+        var lineIds = materialLineRows.Select(x => x.LineId).ToList();
+        var dispositionRows = lineIds.Count == 0
+            ? []
+            : await dbContext.ServiceJobMaterialDispositions.AsNoTracking()
+                .Where(x => lineIds.Contains(x.MaterialRequisitionLineId))
+                .GroupBy(x => x.MaterialRequisitionLineId)
+                .Select(x => new { LineId = x.Key, Quantity = x.Sum(d => d.Quantity) })
+                .ToListAsync(cancellationToken);
+        var disposedByLine = dispositionRows.ToDictionary(x => x.LineId, x => x.Quantity);
+        var undisposedMaterialLines = materialLineRows.Count(line => !disposedByLine.TryGetValue(line.LineId, out var disposedQty) || disposedQty < line.Quantity);
+
+        var finalInvoiceResolved = await dbContext.ServiceJobs.AsNoTracking()
+            .Where(x => x.Id == serviceJobId)
+            .Select(x => x.FinalInvoiceNotRequired)
+            .FirstAsync(cancellationToken);
+        if (!finalInvoiceResolved)
+        {
+            finalInvoiceResolved = await dbContext.ServiceHandovers.AsNoTracking()
+                .AnyAsync(x => x.ServiceJobId == serviceJobId && x.SalesInvoiceId != null, cancellationToken);
+        }
+
         return
         [
             CreateCloseoutCheck(
@@ -1738,7 +1889,17 @@ public sealed class ServiceManagementService(
                 "billable-labor",
                 "Uninvoiced billable labor",
                 uninvoicedBillableLabor,
-                "Convert approved billable labor through handover invoicing or mark it non-billable before closing.")
+                "Convert approved billable labor through handover invoicing or mark it non-billable before closing."),
+            CreateCloseoutCheck(
+                "material-disposition",
+                "Material disposition",
+                undisposedMaterialLines,
+                "Mark every posted material issue line as used, returned, damaged, or supplier-returned before closing."),
+            CreateCloseoutCheck(
+                "final-invoice",
+                "Final invoice decision",
+                finalInvoiceResolved ? 0 : 1,
+                "Generate the final invoice from a completed handover, or mark the job as not billable with a reason.")
         ];
     }
 

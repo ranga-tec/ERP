@@ -456,6 +456,8 @@ Expected:
 
 ## 10. Material Requisition For Service Job
 
+Start this section after completing the partial GRN tests in sections 3.2 and 3.3. At that point stock should already contain `SKU-CORE = 20`, `SKU-BATCH = 10` in batch `LOT-A`, and serials `SER-001` / `SER-002` in `MAIN`. If you also completed sections 5 through 9, use the lower balances shown there.
+
 ### 10.1 Create Equipment And Job
 
 Go to `Service -> Equipment Units`.
@@ -479,6 +481,9 @@ Create job:
 | Equipment unit | `GEN-SN-001` |
 | Customer | `CUS1` |
 | Kind | `Repair` |
+| Job description | `Repair and test generator starting system` |
+| Customer complaint / service requirement | `Customer reports generator does not start` |
+| Responsible officer / supervisor | `Service Supervisor` |
 | Problem description | `Generator does not start` |
 
 Expected:
@@ -487,6 +492,7 @@ Expected:
 | --- | --- | --- |
 | Equipment unit | `Service -> Equipment Units` | `GEN-SN-001` exists |
 | Job status | Job detail | `Open` |
+| Job intake | Job detail | job description, complaint, supervisor, and intake note are visible |
 
 ### 10.2 MRN Available Stock Validation
 
@@ -550,9 +556,30 @@ Expected after posting:
 | Serial `SER-002` | `Inventory -> Inventory Availability`, search `SER-002` | still available with on hand `1` |
 | Job costing | Service job detail costing section | Material cost includes `2 x 5 + 1 x 25 = 35` |
 
+### 10.4 Job Material Disposition And Return
+
+Open the service job detail.
+
+In `Material Consumption`, add material dispositions for the posted MRN lines:
+
+| MRN Line | Disposition | Qty | Condition | Charge To | Reason | Serials |
+| --- | --- | ---: | --- | --- | --- | --- |
+| `SKU-CORE` line | `Used` | `1` | `Installed` | `Customer` | `Installed filter during repair` | blank |
+| `SKU-CORE` line | `Unused returned` | `1` | `Good` | `Company` | `Extra filter not used` | blank |
+| `SKU-SERIAL` line | `Used` | `1` | `Installed` | `Warranty` | `Installed replacement board` | `SER-001` |
+
+Expected:
+
+| Check | Where | Expected output |
+| --- | --- | --- |
+| Disposition rows | Job detail, material consumption table | each MRN line shows disposition instead of `Pending` |
+| Returned stock | `Inventory -> On Hand`, `MAIN` + `SKU-CORE` | increases by `1` because one unused filter was returned |
+| Job closeout readiness | Job detail, `Closeout Readiness` | `Material disposition` is clear after every posted MRN line quantity is fully disposed |
+| Job costing | Job detail | material consumed cost still shows the original MRN issue cost; returned/used/damaged status is shown in disposition trail |
+
 ## 11. Service Estimate, Work Order, Expense, Handover
 
-### 11.1 Technician And Work Order
+### 11.1 Technician Assignment And Work Order
 
 Go to `Service -> Technicians`.
 
@@ -569,6 +596,19 @@ Go to `Service -> Work Orders`.
 
 Create work order for the job.
 
+Go back to the job detail and add technician assignment:
+
+| Field | Input |
+| --- | --- |
+| Technician | `TECH1` |
+| Role | `Technician` |
+| Assigned task | `Diagnose starting system and replace required parts` |
+| Normal hours | `2` |
+| Overtime hours | `0` |
+| Daily work description | `Diagnosis and replacement completed` |
+
+Approve the assignment.
+
 Add time entry:
 
 | Field | Input |
@@ -579,15 +619,38 @@ Add time entry:
 | Billing rate | `25` |
 | Billable | `Yes` |
 
-Submit and approve the time entry.
+Start the work order, submit and approve the time entry, then mark the work order done.
 
 Expected:
 
 | Check | Where | Expected output |
 | --- | --- | --- |
+| Assignment | Job detail | assignment status is `Approved` |
+| Work order | Work order detail | status moves `Open -> In Progress -> Done` |
 | Labor cost | Work order/job costing | `2 x 10 = 20` |
 | Billable labor before entitlement | Work order | `2 x 25 = 50` |
 | If warranty/contract covers labor | Estimate/invoice conversion | effective customer billing can be `0` for covered labor |
+
+### 11.1.1 Daily Job Progress
+
+Open the service job detail and add progress update:
+
+| Field | Input |
+| --- | --- |
+| Work completed | `Starting system diagnosed and replacement parts installed` |
+| Work pending | `Final customer confirmation` |
+| Problems found | `Weak control board output` |
+| Additional parts required | `None` |
+| Additional labor required | `None` |
+| Customer instructions | `Call before delivery` |
+| Technician notes | `Test run completed` |
+| Supervisor notes | `Ready for handover after invoice review` |
+
+Expected:
+
+| Check | Where | Expected output |
+| --- | --- | --- |
+| Daily progress | Job detail | progress update appears with completed/pending/problem notes |
 
 ### 11.2 Estimate
 
@@ -622,6 +685,28 @@ Expected:
 
 ### 11.3 Expense Claim
 
+Before the expense claim, create an IOU advance if you want to test petty-cash advance handling.
+
+Go to `Finance -> Petty Cash IOUs`.
+
+Create IOU:
+
+| Field | Input |
+| --- | --- |
+| Job | The same service job |
+| Requested by | current test user |
+| Amount | `20` |
+| Purpose | `Travel and parking advance for generator repair` |
+
+Submit, approve, release from petty cash fund, then settle the IOU.
+
+Expected:
+
+| Check | Where | Expected output |
+| --- | --- | --- |
+| IOU status | `Finance -> Petty Cash IOUs` | status reaches `Settled` |
+| Job closeout readiness | Job detail | `Petty cash IOUs` is clear only after settlement/rejection/cancellation |
+
 Go to `Service -> Petty Cash` or `Service -> Expense Claims`.
 
 Create claim:
@@ -647,8 +732,9 @@ Expected:
 | Claim status | Claim detail | `Settled` |
 | Job costing | Job detail | Expense claim cost includes `5` |
 | Convert to estimate | Claim detail | Billable line can be converted into draft estimate/change order |
+| Job closeout readiness | Job detail | `Expense claims` is clear after claim is settled or rejected |
 
-### 11.4 Handover And Invoice
+### 11.4 Handover, Final Invoice, And Closeout
 
 Go to `Service -> Handovers`.
 
@@ -669,6 +755,42 @@ Expected:
 | Handover status | Handover detail | `Completed` |
 | Sales invoice | Handover detail / `Sales -> Invoices` | Invoice created and linked |
 | Job costing | Job detail | Invoice value appears in costing summary |
+| Job status | Job detail | status becomes `Invoiced` after handover conversion |
+
+Open the service job detail and review `Closeout Readiness`.
+
+Expected before closing:
+
+| Check | Where | Expected output |
+| --- | --- | --- |
+| Material disposition | Job detail | `Clear` |
+| Expense claims | Job detail | `Clear` |
+| Petty cash IOUs | Job detail | `Clear` |
+| Work orders | Job detail | `Clear` |
+| Labor entries | Job detail | `Clear` |
+| Final invoice decision | Job detail | `Clear` because invoice was generated |
+
+If this is a no-charge/warranty-only job and no invoice should be generated, click `Mark Not Billable` on job detail and enter:
+
+| Field | Input |
+| --- | --- |
+| Reason | `Warranty/no-charge job - final invoice not required` |
+
+Expected:
+
+| Check | Where | Expected output |
+| --- | --- | --- |
+| Final invoice decision | Job detail closeout readiness | `Clear` |
+| Job header | Job detail | `Invoice required: No` and reason is visible |
+
+Complete the job and close it.
+
+Expected:
+
+| Check | Where | Expected output |
+| --- | --- | --- |
+| Job close | Job detail actions | close succeeds only when all closeout checks are clear |
+| Locked job | Try adding MRN/expense/labor after close | blocked with closed-job validation |
 
 ## 12. Finance Payment Checks
 
@@ -738,14 +860,15 @@ Expected movement trail:
 | Supplier return | `-2` |
 | Stock adjustment | `+1` |
 | MRN consumption | `-2` |
+| Job unused material return | `+1` |
 
 Expected final balances:
 
 | Warehouse | Expected `SKU-CORE` |
 | --- | ---: |
-| MAIN | `7` |
+| MAIN | `8` |
 | SEC | `5` |
-| Total | `12` |
+| Total | `13` |
 
 ### Costing
 
@@ -757,9 +880,9 @@ Expected:
 
 | Check | Expected |
 | --- | ---: |
-| Total on hand | `12` |
+| Total on hand | `13` if the unused service material return was completed |
 | Weighted avg cost | `5` |
-| Inventory value | `60` |
+| Inventory value | `65` if the unused service material return was completed |
 
 ### Service KPIs
 
@@ -803,14 +926,14 @@ After all sections above:
 
 | Area | Where | Expected |
 | --- | --- | --- |
-| `SKU-CORE` stock | `Inventory -> Inventory Availability` | MAIN `7`, SEC `5`, total `12` |
+| `SKU-CORE` stock | `Inventory -> Inventory Availability` | MAIN `8`, SEC `5`, total `13` after unused service material return |
 | `SKU-BATCH` stock | Availability search `LOT-A` | MAIN `10`, batch `LOT-A` |
 | `SKU-SERIAL` stock | Availability search `SER-001` | consumed/unavailable |
 | `SKU-SERIAL` stock | Availability search `SER-002` | available `1` |
-| Inventory value for `SKU-CORE` | `Reporting -> Costing` | `12 x 5 = 60` |
+| Inventory value for `SKU-CORE` | `Reporting -> Costing` | `13 x 5 = 65` after unused service material return |
 | Customer AR | `Finance -> AR` | sales invoice cleared if payment allocated |
 | Supplier AP | `Finance -> AP` | GRN/AP entries cleared if payment allocated |
-| Service job costing | Job detail | material `35`, labor cost `20`, expense `5`, plus invoice/estimate values from service flow |
+| Service job costing | Job detail | material issue `35`, labor cost `20`, expense `5`, material dispositions clear, plus invoice/estimate values from service flow |
 
 ## 16. Common Failures And Where To Look
 
@@ -824,4 +947,5 @@ After all sections above:
 | Stock value does not match | Check `Reporting -> Stock Ledger` movement quantities and unit costs |
 | AP/AR does not clear | Confirm payment allocation is saved against the correct outstanding entry |
 | Service estimate billing differs from raw total | Check warranty/contract entitlement on the job; covered labor/parts can bill at zero |
-
+| Job cannot close | Open job detail `Closeout Readiness`; clear the listed pending item such as material disposition, IOU, expense claim, work order, labor entry, or final invoice decision |
+| Returned service material not back in stock | Confirm disposition type is `Unused returned` or `Incorrect returned`; `Used`, `Damaged`, and `Rejected / supplier return` do not add warehouse stock |

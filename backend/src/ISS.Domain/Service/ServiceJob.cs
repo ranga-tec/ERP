@@ -94,6 +94,8 @@ public sealed class ServiceJob : AuditableEntity
     public string? CustomerComplaint { get; private set; }
     public string? InternalRemarks { get; private set; }
     public string? ResponsibleOfficerName { get; private set; }
+    public bool FinalInvoiceNotRequired { get; private set; }
+    public string? FinalInvoiceNotRequiredReason { get; private set; }
     public Guid? ServiceContractId { get; private set; }
     public ServiceEntitlementSource EntitlementSource { get; private set; }
     public ServiceCoverageScope EntitlementCoverage { get; private set; }
@@ -132,6 +134,37 @@ public sealed class ServiceJob : AuditableEntity
         }
 
         Status = ServiceJobStatus.Closed;
+    }
+
+    public void MarkReadyForInvoice()
+    {
+        if (Status is not (ServiceJobStatus.WorkCompleted or ServiceJobStatus.PendingExpenseSettlement or ServiceJobStatus.PendingMaterialReturn))
+        {
+            throw new DomainValidationException("Only completed service jobs can be marked ready for invoice.");
+        }
+
+        Status = ServiceJobStatus.ReadyForInvoice;
+    }
+
+    public void MarkInvoiced()
+    {
+        if (Status is not (ServiceJobStatus.WorkCompleted or ServiceJobStatus.ReadyForInvoice))
+        {
+            throw new DomainValidationException("Only completed or ready-for-invoice service jobs can be marked invoiced.");
+        }
+
+        Status = ServiceJobStatus.Invoiced;
+    }
+
+    public void MarkFinalInvoiceNotRequired(string reason)
+    {
+        if (Status == ServiceJobStatus.Closed)
+        {
+            throw new DomainValidationException("Closed service jobs cannot be changed.");
+        }
+
+        FinalInvoiceNotRequired = true;
+        FinalInvoiceNotRequiredReason = Guard.NotNullOrWhiteSpace(reason, nameof(reason), 1000);
     }
 
     public void Reopen(string? reason)
