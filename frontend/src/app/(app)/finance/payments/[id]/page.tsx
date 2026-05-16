@@ -39,6 +39,7 @@ type ArDto = {
   customerId: string;
   referenceType: string;
   referenceId: string;
+  referenceNumber: string;
   amount: number;
   outstanding: number;
   postedAt: string;
@@ -49,6 +50,7 @@ type ApDto = {
   supplierId: string;
   referenceType: string;
   referenceId: string;
+  referenceNumber: string;
   amount: number;
   outstanding: number;
   postedAt: string;
@@ -156,7 +158,7 @@ export default async function PaymentDetailPage({ params }: { params: Promise<{ 
                   : a.accountsPayableEntryId
                     ? apById.get(a.accountsPayableEntryId)
                     : undefined;
-                const ref = entry ? `${entry.referenceType}:${entry.referenceId.slice(0, 8)}` : entryId ? entryId.slice(0, 8) : "-";
+                const ref = entry ? `${entry.referenceType}:${entry.referenceNumber}` : entryId ? entryId.slice(0, 8) : "-";
                 const href = entry
                   ? resolveReferenceHref(referenceRouteMap, entry.referenceType, entry.referenceId)
                   : null;
@@ -195,7 +197,13 @@ export default async function PaymentDetailPage({ params }: { params: Promise<{ 
             <PaymentAllocateForm
               paymentId={payment.id}
               kind={isIncoming ? "ar" : "ap"}
-              entries={allocateEntries.map((e) => ({ id: e.id, referenceType: e.referenceType, referenceId: e.referenceId, outstanding: e.outstanding }))}
+              entries={allocateEntries.map((e) => ({
+                id: e.id,
+                referenceType: e.referenceType,
+                referenceId: e.referenceId,
+                referenceNumber: e.referenceNumber,
+                outstanding: e.outstanding,
+              }))}
               maxAmount={remaining}
             />
           ) : (

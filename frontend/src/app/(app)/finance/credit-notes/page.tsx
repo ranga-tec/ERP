@@ -16,6 +16,7 @@ type CreditNoteDto = {
   notes?: string | null;
   sourceReferenceType?: string | null;
   sourceReferenceId?: string | null;
+  sourceReferenceNumber?: string | null;
 };
 
 type CustomerDto = { id: string; code: string; name: string };
@@ -85,7 +86,9 @@ export default async function CreditNotesPage() {
                   <td className="py-2 pr-3 font-mono text-xs text-zinc-500">
                     {note.sourceReferenceType ? (
                       <TransactionLink referenceType={note.sourceReferenceType} referenceId={note.sourceReferenceId} monospace>
-                        {`${note.sourceReferenceType}:${note.sourceReferenceId ?? ""}`}
+                        {note.sourceReferenceNumber
+                          ? `${note.sourceReferenceType}:${note.sourceReferenceNumber}`
+                          : `${note.sourceReferenceType}:source unavailable`}
                       </TransactionLink>
                     ) : (
                       "-"

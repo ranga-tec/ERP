@@ -9,6 +9,7 @@ type ArDto = {
   customerId: string;
   referenceType: string;
   referenceId: string;
+  referenceNumber: string;
   amount: number;
   outstanding: number;
   postedAt: string;
@@ -75,11 +76,11 @@ export default async function AccountsReceivablePage({ searchParams }: { searchP
                     <td className="py-2 pr-3 font-mono text-xs">
                       {href ? (
                         <Link className="hover:underline" href={href}>
-                          {e.referenceType}:{e.referenceId.slice(0, 8)}
+                          {e.referenceType}:{e.referenceNumber}
                         </Link>
                       ) : (
                         <span>
-                          {e.referenceType}:{e.referenceId.slice(0, 8)}
+                          {e.referenceType}:{e.referenceNumber}
                         </span>
                       )}
                     </td>

@@ -16,6 +16,7 @@ type CreditNoteDto = {
   notes?: string | null;
   sourceReferenceType?: string | null;
   sourceReferenceId?: string | null;
+  sourceReferenceNumber?: string | null;
 };
 
 type CreditNoteAllocationDto = {
@@ -38,6 +39,7 @@ type ArDto = {
   customerId: string;
   referenceType: string;
   referenceId: string;
+  referenceNumber: string;
   amount: number;
   outstanding: number;
   postedAt: string;
@@ -48,6 +50,7 @@ type ApDto = {
   supplierId: string;
   referenceType: string;
   referenceId: string;
+  referenceNumber: string;
   amount: number;
   outstanding: number;
   postedAt: string;
@@ -111,7 +114,9 @@ export default async function CreditNoteDetailPage({ params }: { params: Promise
           Source:{" "}
           {note.sourceReferenceType ? (
             <TransactionLink referenceType={note.sourceReferenceType} referenceId={note.sourceReferenceId}>
-              {`${note.sourceReferenceType}:${note.sourceReferenceId ?? ""}`}
+              {note.sourceReferenceNumber
+                ? `${note.sourceReferenceType}:${note.sourceReferenceNumber}`
+                : `${note.sourceReferenceType}:source unavailable`}
             </TransactionLink>
           ) : (
             "-"
@@ -153,7 +158,7 @@ export default async function CreditNoteDetailPage({ params }: { params: Promise
                     <td className="py-2 pr-3 font-mono text-xs">
                       {entry ? (
                         <TransactionLink referenceType={entry.referenceType} referenceId={entry.referenceId} monospace>
-                          {`${entry.referenceType}:${entry.referenceId} (outstanding ${entry.outstanding})`}
+                          {`${entry.referenceType}:${entry.referenceNumber} (outstanding ${entry.outstanding})`}
                         </TransactionLink>
                       ) : (
                         entryId || "-"

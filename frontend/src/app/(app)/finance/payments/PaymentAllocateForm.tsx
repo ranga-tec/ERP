@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { apiPostNoContent } from "@/lib/api-client";
 import { Button, Input, Select } from "@/components/ui";
 
-type EntryRef = { id: string; referenceType: string; referenceId: string; outstanding: number };
+type EntryRef = { id: string; referenceType: string; referenceId: string; referenceNumber: string; outstanding: number };
 
 export function PaymentAllocateForm({
   paymentId,
@@ -57,7 +57,7 @@ export function PaymentAllocateForm({
             </option>
             {entryOptions.map((e) => (
               <option key={e.id} value={e.id}>
-                {e.referenceType}:{e.referenceId.slice(0, 8)} (out {e.outstanding})
+                {e.referenceType}:{e.referenceNumber} (out {e.outstanding})
               </option>
             ))}
           </Select>
@@ -81,4 +81,3 @@ export function PaymentAllocateForm({
     </form>
   );
 }
-

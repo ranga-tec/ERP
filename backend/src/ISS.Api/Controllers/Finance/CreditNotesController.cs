@@ -24,7 +24,8 @@ public sealed class CreditNotesController(IIssDbContext dbContext, FinanceServic
         DateTimeOffset IssuedAt,
         string? Notes,
         string? SourceReferenceType,
-        Guid? SourceReferenceId);
+        Guid? SourceReferenceId,
+        string? SourceReferenceNumber);
 
     public sealed record CreditNoteAllocationDto(Guid Id, Guid? AccountsReceivableEntryId, Guid? AccountsPayableEntryId, decimal Amount);
     public sealed record CreditNoteDetailDto(CreditNoteDto CreditNote, IReadOnlyList<CreditNoteAllocationDto> Allocations);
@@ -68,9 +69,11 @@ public sealed class CreditNotesController(IIssDbContext dbContext, FinanceServic
                 x.IssuedAt,
                 x.Notes,
                 x.SourceReferenceType,
-                x.SourceReferenceId))
+                x.SourceReferenceId,
+                null))
             .ToListAsync(cancellationToken);
 
+        await PopulateSourceReferenceNumbersAsync(notes, cancellationToken);
         return Ok(notes);
     }
 
@@ -96,7 +99,8 @@ public sealed class CreditNotesController(IIssDbContext dbContext, FinanceServic
             creditNote.IssuedAt,
             creditNote.Notes,
             creditNote.SourceReferenceType,
-            creditNote.SourceReferenceId);
+            creditNote.SourceReferenceId,
+            await ResolveSourceReferenceNumberAsync(creditNote.SourceReferenceType, creditNote.SourceReferenceId, cancellationToken));
 
         return Ok(new CreditNoteDetailDto(
             dto,
@@ -132,8 +136,14 @@ public sealed class CreditNotesController(IIssDbContext dbContext, FinanceServic
                 x.IssuedAt,
                 x.Notes,
                 x.SourceReferenceType,
-                x.SourceReferenceId))
+                x.SourceReferenceId,
+                null))
             .FirstAsync(cancellationToken);
+
+        note = note with
+        {
+            SourceReferenceNumber = await ResolveSourceReferenceNumberAsync(note.SourceReferenceType, note.SourceReferenceId, cancellationToken)
+        };
 
         return Ok(note);
     }
@@ -157,5 +167,91 @@ public sealed class CreditNotesController(IIssDbContext dbContext, FinanceServic
     {
         await financeService.AutoAllocateCreditNoteAsync(id, cancellationToken);
         return NoContent();
+    }
+
+    private async Task PopulateSourceReferenceNumbersAsync(List<CreditNoteDto> notes, CancellationToken cancellationToken)
+    {
+        var customerReturnIds = notes
+            .Where(x => x.SourceReferenceType == "CRTN" && x.SourceReferenceId is not null)
+            .Select(x => x.SourceReferenceId!.Value)
+            .Distinct()
+            .ToList();
+        var supplierReturnIds = notes
+            .Where(x => x.SourceReferenceType == "SR" && x.SourceReferenceId is not null)
+            .Select(x => x.SourceReferenceId!.Value)
+            .Distinct()
+            .ToList();
+
+        var customerReturnNumbers = await dbContext.CustomerReturns.AsNoTracking()
+            .Where(x => customerReturnIds.Contains(x.Id))
+            .Select(x => new { x.Id, x.Number })
+            .ToDictionaryAsync(x => x.Id, x => x.Number, cancellationToken);
+        var supplierReturnNumbers = await dbContext.SupplierReturns.AsNoTracking()
+            .Where(x => supplierReturnIds.Contains(x.Id))
+            .Select(x => new { x.Id, x.Number })
+            .ToDictionaryAsync(x => x.Id, x => x.Number, cancellationToken);
+
+        for (var index = 0; index < notes.Count; index++)
+        {
+            var note = notes[index];
+            notes[index] = note with
+            {
+                SourceReferenceNumber = ResolveSourceReferenceNumber(
+                    note.SourceReferenceType,
+                    note.SourceReferenceId,
+                    customerReturnNumbers,
+                    supplierReturnNumbers)
+            };
+        }
+    }
+
+    private async Task<string?> ResolveSourceReferenceNumberAsync(string? sourceReferenceType, Guid? sourceReferenceId, CancellationToken cancellationToken)
+    {
+        if (sourceReferenceId is null)
+        {
+            return null;
+        }
+
+        if (sourceReferenceType == "CRTN")
+        {
+            return await dbContext.CustomerReturns.AsNoTracking()
+                .Where(x => x.Id == sourceReferenceId.Value)
+                .Select(x => x.Number)
+                .FirstOrDefaultAsync(cancellationToken);
+        }
+
+        if (sourceReferenceType == "SR")
+        {
+            return await dbContext.SupplierReturns.AsNoTracking()
+                .Where(x => x.Id == sourceReferenceId.Value)
+                .Select(x => x.Number)
+                .FirstOrDefaultAsync(cancellationToken);
+        }
+
+        return null;
+    }
+
+    private static string? ResolveSourceReferenceNumber(
+        string? sourceReferenceType,
+        Guid? sourceReferenceId,
+        IReadOnlyDictionary<Guid, string> customerReturnNumbers,
+        IReadOnlyDictionary<Guid, string> supplierReturnNumbers)
+    {
+        if (sourceReferenceId is null)
+        {
+            return null;
+        }
+
+        if (sourceReferenceType == "CRTN" && customerReturnNumbers.TryGetValue(sourceReferenceId.Value, out var customerReturnNumber))
+        {
+            return customerReturnNumber;
+        }
+
+        if (sourceReferenceType == "SR" && supplierReturnNumbers.TryGetValue(sourceReferenceId.Value, out var supplierReturnNumber))
+        {
+            return supplierReturnNumber;
+        }
+
+        return null;
     }
 }

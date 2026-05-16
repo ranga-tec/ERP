@@ -9,6 +9,7 @@ type EntryRef = {
   id: string;
   referenceType: string;
   referenceId: string;
+  referenceNumber: string;
   outstanding: number;
   postedAt: string;
 };
@@ -87,7 +88,7 @@ export function CreditNoteActions({
               </option>
               {outstanding.map((x) => (
                 <option key={x.id} value={x.id}>
-                  {x.referenceType}:{x.referenceId} (outstanding {x.outstanding})
+                  {x.referenceType}:{x.referenceNumber} (outstanding {x.outstanding})
                 </option>
               ))}
             </Select>
@@ -106,4 +107,3 @@ export function CreditNoteActions({
     </div>
   );
 }
-
