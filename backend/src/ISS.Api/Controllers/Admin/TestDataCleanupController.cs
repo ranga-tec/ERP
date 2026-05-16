@@ -74,10 +74,14 @@ public sealed class TestDataCleanupController(IIssDbContext dbContext) : Control
         await using var tx = await dbContext.DbContext.Database.BeginTransactionAsync(cancellationToken);
         await dbContext.DbContext.Database.ExecuteSqlRawAsync(
             """
-            DELETE FROM "DocumentComments" WHERE "ReferenceType" IN ('SC', 'SJ', 'SE', 'SH', 'MR', 'SEC', 'WO', 'QC');
-            DELETE FROM "DocumentAttachments" WHERE "ReferenceType" IN ('SC', 'SJ', 'SE', 'SH', 'MR', 'SEC', 'WO', 'QC');
-            DELETE FROM "NotificationOutboxItems" WHERE "ReferenceType" IN ('SC', 'SJ', 'SE', 'SH', 'MR', 'SEC', 'WO', 'QC');
-            DELETE FROM "InventoryMovements" WHERE "ReferenceType" = 'MR';
+            DELETE FROM "DocumentComments" WHERE "ReferenceType" IN ('SC', 'SJ', 'SJDS', 'SJMD', 'SE', 'SH', 'MR', 'SEC', 'WO', 'QC');
+            DELETE FROM "DocumentAttachments" WHERE "ReferenceType" IN ('SC', 'SJ', 'SJDS', 'SJMD', 'SE', 'SH', 'MR', 'SEC', 'WO', 'QC');
+            DELETE FROM "NotificationOutboxItems" WHERE "ReferenceType" IN ('SC', 'SJ', 'SJDS', 'SJMD', 'SE', 'SH', 'MR', 'SEC', 'WO', 'QC');
+            DELETE FROM "PettyCashTransaction"
+            WHERE ("ReferenceType" = 'SEC' AND "ReferenceId" IN (SELECT "Id" FROM "ServiceExpenseClaims"))
+               OR ("ReferenceType" = 'IOU' AND "ReferenceId" IN (SELECT "Id" FROM "PettyCashIous" WHERE "ServiceJobId" IN (SELECT "Id" FROM "ServiceJobs")));
+            DELETE FROM "InventoryMovements" WHERE "ReferenceType" IN ('MR', 'SJMD');
+            DELETE FROM "PettyCashIous" WHERE "ServiceJobId" IN (SELECT "Id" FROM "ServiceJobs");
             TRUNCATE TABLE "MaterialRequisitions" CASCADE;
             TRUNCATE TABLE "QualityChecks" CASCADE;
             TRUNCATE TABLE "WorkOrders" CASCADE;
@@ -90,6 +94,6 @@ public sealed class TestDataCleanupController(IIssDbContext dbContext) : Control
             cancellationToken);
         await tx.CommitAsync(cancellationToken);
 
-        return Ok(new CleanupResponse("service", "Cleared service contracts, jobs, estimates, work orders, expenses, MRNs, QC, handovers, MR stock movements, and related document metadata."));
+        return Ok(new CleanupResponse("service", "Cleared service contracts, jobs, daily sheets, assignments, progress, IOUs, expenses, MRNs, material dispositions, QC, handovers, service stock movements, and related document metadata."));
     }
 }

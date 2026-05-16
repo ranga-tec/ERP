@@ -31,6 +31,7 @@ Expected:
 | Cleanup response | Same page | Success message after each button |
 | Inventory reset | `Inventory -> Inventory Availability`, click `Load inventory` | No inventory rows |
 | PO/GRN reset | `Procurement -> Purchase Orders`, `Procurement -> Goods Receipts` | No old test PO/GRN documents, unless the database has unrelated retained data |
+| Service reset | `Service -> Jobs`, `Finance -> Petty Cash IOUs` | No old test jobs, daily sheets, job-linked IOUs, service expenses, MRNs, material dispositions, work orders, QC, or handovers |
 
 Do not use cleanup buttons on real production data.
 
@@ -533,7 +534,7 @@ Create MRN:
 
 Preferred daily workflow:
 
-From the job detail, use `Daily Cash, Expense, And Material Actions -> Request materials, spare parts, lubricants, or consumables`. Select the `JDS...` daily sheet, warehouse `MAIN`, and create the MRN. Then open the MRN and add the lines below.
+From the job detail, use `Materials / Lubricants Issue`. Select the `JDS...` daily sheet, warehouse `MAIN`, and create the MRN. Then open the MRN and add the lines below.
 
 Add valid line:
 
@@ -590,7 +591,7 @@ Expected after posting:
 
 Open the service job detail.
 
-In `Material Consumption`, add material dispositions for the posted MRN lines:
+In `Material Returns / Damage / Rejection`, add material dispositions for the posted MRN lines:
 
 | MRN Line | Disposition | Qty | Condition | Charge To | Reason | Serials |
 | --- | --- | ---: | --- | --- | --- | --- |
@@ -724,7 +725,7 @@ Before the expense claim, create an IOU advance to test petty-cash advance handl
 
 Preferred daily workflow:
 
-Open the job detail and use `Daily Cash, Expense, And Material Actions -> Issue IOU / petty cash advance`.
+Open the job detail and use `IOU / Employee Advance`.
 
 Create IOU:
 
@@ -745,7 +746,7 @@ Expected:
 | Daily sheet count | Job detail, `Daily Field Sheets` | IOU count increases |
 | Job closeout readiness | Job detail | `Petty cash IOUs` is clear only after settlement/rejection/cancellation |
 
-Create the employee expense voucher from the job detail using `Daily Cash, Expense, And Material Actions -> Record out-of-pocket or petty-cash expense voucher`.
+Create the employee expense voucher from the job detail using `Employee Out-of-Pocket Claim`. To test company-funded cash spending separately, use `Petty Cash Expense`.
 
 Create claim:
 

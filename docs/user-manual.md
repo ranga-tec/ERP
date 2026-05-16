@@ -170,8 +170,7 @@ Note:
   - use `Refresh Entitlement` on the job if warranty/contract data is added after the job was already opened
   - recommended operating flow is: receive equipment -> open the job immediately -> create a daily field sheet for each working day -> capture labor, progress, IOUs, expenses, materials, returns, damages, and notes from that sheet -> approve the sheet -> finish invoicing/closeout
   - `Daily Field Sheets` on the job detail page replace manual daily job cards; each sheet has planned/completed/pending work, site condition, staff/progress/material/return/expense/IOU counts, and approval status
-  - `Daily Cash, Expense, And Material Actions` on the job detail page creates IOU advances, expense vouchers, and MRNs directly against the running job and selected daily sheet
-  - UI refinement is pending to split daily IOU advances, petty-cash expenses, employee out-of-pocket claims, material issues, and material returns into clearer separate job-detail sections
+  - daily job detail sections keep the running work separated into `Daily Staff / Labor`, `Daily Progress`, `IOU / Employee Advance`, `Petty Cash Expense`, `Employee Out-of-Pocket Claim`, `Materials / Lubricants Issue`, and `Material Returns / Damage / Rejection`
   - closing a job is blocked while daily sheets are still draft or submitted; approve or reject every sheet before closeout
 - Technicians:
   - maintain technician code, name, default cost rate, default billing rate, phone, notes, and active status

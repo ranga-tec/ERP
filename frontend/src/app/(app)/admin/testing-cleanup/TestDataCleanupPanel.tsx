@@ -39,8 +39,8 @@ const actions: CleanupAction[] = [
     key: "service",
     label: "Clear Jobs / Service",
     path: "admin/test-data/clear-service",
-    description: "Clears service contracts, jobs, estimates, work orders, MRNs, expenses, QC, and handovers.",
-    impact: "Keeps equipment units and technician master data.",
+    description: "Clears service contracts, jobs, daily sheets, staff/progress entries, IOUs, expenses, MRNs, material dispositions, QC, and handovers.",
+    impact: "Also removes service stock movements and service petty-cash ledger entries. Keeps equipment units, technicians, and petty cash funds.",
   },
 ];
 
@@ -79,7 +79,7 @@ export function TestDataCleanupPanel() {
     <div className="space-y-4">
       <div className="rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-950 dark:border-amber-700/60 dark:bg-amber-950/30 dark:text-amber-100">
         These actions are destructive and are intended for test databases only. They do not delete master data such as items,
-        warehouses, customers, or suppliers.
+        warehouses, customers, suppliers, equipment units, technicians, or petty cash funds.
       </div>
 
       <div>
