@@ -11,16 +11,22 @@ type ClaimDto = { id: string };
 export function ServiceJobDailyExpenseClaimCreateForm({
   serviceJobId,
   dailySheets,
+  defaultFundingSource = "1",
+  lockFundingSource = false,
+  submitLabel = "Create Expense Voucher",
   disabled,
 }: {
   serviceJobId: string;
   dailySheets: DailySheetRef[];
+  defaultFundingSource?: "1" | "2";
+  lockFundingSource?: boolean;
+  submitLabel?: string;
   disabled?: boolean;
 }) {
   const router = useRouter();
   const [dailySheetId, setDailySheetId] = useState("");
   const [claimedByName, setClaimedByName] = useState("");
-  const [fundingSource, setFundingSource] = useState("1");
+  const [fundingSource, setFundingSource] = useState(defaultFundingSource);
   const [expenseDate, setExpenseDate] = useState("");
   const [merchantName, setMerchantName] = useState("");
   const [receiptReference, setReceiptReference] = useState("");
@@ -63,7 +69,11 @@ export function ServiceJobDailyExpenseClaimCreateForm({
         </div>
         <div>
           <label className="mb-1 block text-sm font-medium">Funding</label>
-          <Select value={fundingSource} onChange={(event) => setFundingSource(event.target.value)} disabled={disabled || busy}>
+          <Select
+            value={fundingSource}
+            onChange={(event) => setFundingSource(event.target.value === "2" ? "2" : "1")}
+            disabled={disabled || busy || lockFundingSource}
+          >
             <option value="1">Out of Pocket</option>
             <option value="2">Petty Cash</option>
           </Select>
@@ -92,7 +102,7 @@ export function ServiceJobDailyExpenseClaimCreateForm({
         <Textarea value={notes} onChange={(event) => setNotes(event.target.value)} disabled={disabled || busy} />
       </div>
       {error ? <div className="text-sm text-red-700 dark:text-red-300">{error}</div> : null}
-      <Button type="submit" disabled={disabled || busy}>{busy ? "Creating..." : "Create Expense Voucher"}</Button>
+      <Button type="submit" disabled={disabled || busy}>{busy ? "Creating..." : submitLabel}</Button>
     </form>
   );
 }

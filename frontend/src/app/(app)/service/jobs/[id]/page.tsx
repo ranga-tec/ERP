@@ -590,28 +590,10 @@ export default async function ServiceJobDetailPage({ params }: { params: Promise
       </Card>
 
       <Card>
-        <div className="mb-3 text-sm font-semibold">Daily Cash, Expense, And Material Actions</div>
-        <div className="space-y-5">
-          <div>
-            <div className="mb-2 text-sm font-medium">Issue IOU / petty cash advance</div>
-            <ServiceJobDailyIouCreateForm serviceJobId={job.id} dailySheets={dailySheets} disabled={!canAddJobActivity} />
-          </div>
-          <div>
-            <div className="mb-2 text-sm font-medium">Record out-of-pocket or petty-cash expense voucher</div>
-            <ServiceJobDailyExpenseClaimCreateForm serviceJobId={job.id} dailySheets={dailySheets} disabled={!canAddJobActivity} />
-          </div>
-          <div>
-            <div className="mb-2 text-sm font-medium">Request materials, spare parts, lubricants, or consumables</div>
-            <ServiceJobDailyMaterialRequisitionCreateForm serviceJobId={job.id} dailySheets={dailySheets} warehouses={warehouses} disabled={!canAddJobActivity} />
-          </div>
-        </div>
-      </Card>
-
-      <Card>
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
           <div>
-            <div className="text-sm font-semibold">Technician / Worker Assignments</div>
-            <div className="mt-1 text-xs text-zinc-500">Assign service staff to this job and approve daily assignment records before closeout.</div>
+            <div className="text-sm font-semibold">Daily Staff / Labor</div>
+            <div className="mt-1 text-xs text-zinc-500">Assign service staff, capture work times and daily labor descriptions, then approve the labor record.</div>
           </div>
           <Link className="text-sm font-semibold text-[var(--link)] underline underline-offset-2" href="/service/technicians">
             Technician Master
@@ -672,7 +654,10 @@ export default async function ServiceJobDetailPage({ params }: { params: Promise
       </Card>
 
       <Card>
-        <div className="mb-3 text-sm font-semibold">Daily Job Progress</div>
+        <div className="mb-3">
+          <div className="text-sm font-semibold">Daily Progress</div>
+          <div className="mt-1 text-xs text-zinc-500">Record completed work, pending work, problems found, customer instructions, and technician or supervisor notes.</div>
+        </div>
         <div className="mb-4">
           <ServiceJobProgressUpdateAddForm serviceJobId={job.id} dailySheets={dailySheets} disabled={!canAddJobActivity} />
         </div>
@@ -700,6 +685,62 @@ export default async function ServiceJobDetailPage({ params }: { params: Promise
             <div className="text-sm text-zinc-500">No daily progress updates recorded yet.</div>
           ) : null}
         </div>
+      </Card>
+
+      <div className="grid gap-4 xl:grid-cols-2">
+        <Card>
+          <div className="mb-3">
+            <div className="text-sm font-semibold">IOU / Employee Advance</div>
+            <div className="mt-1 text-xs text-zinc-500">Issue an advance against this job and daily sheet for later approval, release, and settlement tracking.</div>
+          </div>
+          <ServiceJobDailyIouCreateForm serviceJobId={job.id} dailySheets={dailySheets} disabled={!canAddJobActivity} />
+        </Card>
+
+        <Card>
+          <div className="mb-3">
+            <div className="text-sm font-semibold">Petty Cash Expense</div>
+            <div className="mt-1 text-xs text-zinc-500">Record expenses paid from company petty cash and link the voucher back to the daily field sheet.</div>
+          </div>
+          <ServiceJobDailyExpenseClaimCreateForm
+            serviceJobId={job.id}
+            dailySheets={dailySheets}
+            defaultFundingSource="2"
+            lockFundingSource
+            submitLabel="Create Petty Cash Voucher"
+            disabled={!canAddJobActivity}
+          />
+        </Card>
+
+        <Card>
+          <div className="mb-3">
+            <div className="text-sm font-semibold">Employee Out-of-Pocket Claim</div>
+            <div className="mt-1 text-xs text-zinc-500">Capture reimbursement claims paid personally by staff before finance approval and settlement.</div>
+          </div>
+          <ServiceJobDailyExpenseClaimCreateForm
+            serviceJobId={job.id}
+            dailySheets={dailySheets}
+            defaultFundingSource="1"
+            lockFundingSource
+            submitLabel="Create Reimbursement Claim"
+            disabled={!canAddJobActivity}
+          />
+        </Card>
+
+        <Card>
+          <div className="mb-3">
+            <div className="text-sm font-semibold">Materials / Lubricants Issue</div>
+            <div className="mt-1 text-xs text-zinc-500">Create an MRN for spare parts, lubricants, consumables, or other issued materials needed on the job.</div>
+          </div>
+          <ServiceJobDailyMaterialRequisitionCreateForm serviceJobId={job.id} dailySheets={dailySheets} warehouses={warehouses} disabled={!canAddJobActivity} />
+        </Card>
+      </div>
+
+      <Card>
+        <div className="mb-3">
+          <div className="text-sm font-semibold">Material Returns / Damage / Rejection</div>
+          <div className="mt-1 text-xs text-zinc-500">Record used material, unused returns, incorrect returns, damaged parts, rejected parts, and supplier-return responsibility.</div>
+        </div>
+        <ServiceJobMaterialDispositionAddForm serviceJobId={job.id} materialLines={costing.materialLines} dailySheets={dailySheets} disabled={!canAddJobActivity} />
       </Card>
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
@@ -834,9 +875,6 @@ export default async function ServiceJobDetailPage({ params }: { params: Promise
         <div className="space-y-4">
           <div className="overflow-auto">
             <div className="mb-2 text-sm font-medium">Material Consumption</div>
-            <div className="mb-3">
-              <ServiceJobMaterialDispositionAddForm serviceJobId={job.id} materialLines={costing.materialLines} dailySheets={dailySheets} disabled={!canAddJobActivity} />
-            </div>
             <Table>
               <thead>
                 <tr className="border-b border-zinc-200 text-left text-xs uppercase tracking-wide text-zinc-500 dark:border-zinc-800">
