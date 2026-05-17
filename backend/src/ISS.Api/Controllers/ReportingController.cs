@@ -1862,44 +1862,91 @@ public sealed class ReportingController(IIssDbContext dbContext, InventoryServic
         DateTimeOffset reportFrom,
         DateTimeOffset reportTo,
         CancellationToken cancellationToken)
-        => await (
+    {
+        var lines = await (
             from invoice in dbContext.SalesInvoices.AsNoTracking()
+            from line in invoice.Lines
             join customer in dbContext.Customers.AsNoTracking() on invoice.CustomerId equals customer.Id
             where invoice.InvoiceDate >= reportFrom && invoice.InvoiceDate <= reportTo
             where invoice.Status == SalesInvoiceStatus.Posted || invoice.Status == SalesInvoiceStatus.Paid
-            select new SalesInvoiceHeaderSnapshot(
+            select new
+            {
                 invoice.Id,
                 invoice.CustomerId,
-                customer.Code,
-                customer.Name,
+                CustomerCode = customer.Code,
+                CustomerName = customer.Name,
                 invoice.InvoiceDate,
-                invoice.Lines.Sum(line =>
-                    (line.Quantity * line.UnitPrice) * (1m - (line.DiscountPercent / 100m))),
-                invoice.Lines.Sum(line =>
-                    ((line.Quantity * line.UnitPrice) * (1m - (line.DiscountPercent / 100m))) * (line.TaxPercent / 100m)),
-                invoice.Lines.Sum(line =>
-                    ((line.Quantity * line.UnitPrice) * (1m - (line.DiscountPercent / 100m))) * (1m + (line.TaxPercent / 100m)))))
+                line.Quantity,
+                line.UnitPrice,
+                line.DiscountPercent,
+                line.TaxPercent
+            })
             .ToListAsync(cancellationToken);
+
+        return lines
+            .GroupBy(x => new { x.Id, x.CustomerId, x.CustomerCode, x.CustomerName, x.InvoiceDate })
+            .Select(g =>
+            {
+                var netSales = g.Sum(x => CalculateNetLine(x.Quantity, x.UnitPrice, x.DiscountPercent));
+                var taxTotal = g.Sum(x => CalculateTaxLine(x.Quantity, x.UnitPrice, x.DiscountPercent, x.TaxPercent));
+                return new SalesInvoiceHeaderSnapshot(
+                    g.Key.Id,
+                    g.Key.CustomerId,
+                    g.Key.CustomerCode,
+                    g.Key.CustomerName,
+                    g.Key.InvoiceDate,
+                    netSales,
+                    taxTotal,
+                    netSales + taxTotal);
+            })
+            .ToList();
+    }
 
     private async Task<List<SalesInvoiceLineSnapshot>> GetSalesInvoiceLinesAsync(
         DateTimeOffset reportFrom,
         DateTimeOffset reportTo,
         CancellationToken cancellationToken)
-        => await (
+    {
+        var lines = await (
             from invoice in dbContext.SalesInvoices.AsNoTracking()
             from line in invoice.Lines
             join item in dbContext.Items.AsNoTracking() on line.ItemId equals item.Id
             where invoice.InvoiceDate >= reportFrom && invoice.InvoiceDate <= reportTo
             where invoice.Status == SalesInvoiceStatus.Posted || invoice.Status == SalesInvoiceStatus.Paid
-            select new SalesInvoiceLineSnapshot(
+            select new
+            {
                 line.ItemId,
-                item.Sku,
-                item.Name,
+                ItemSku = item.Sku,
+                ItemName = item.Name,
                 line.Quantity,
-                (line.Quantity * line.UnitPrice) * (1m - (line.DiscountPercent / 100m)),
-                ((line.Quantity * line.UnitPrice) * (1m - (line.DiscountPercent / 100m))) * (line.TaxPercent / 100m),
-                ((line.Quantity * line.UnitPrice) * (1m - (line.DiscountPercent / 100m))) * (1m + (line.TaxPercent / 100m))))
+                line.UnitPrice,
+                line.DiscountPercent,
+                line.TaxPercent
+            })
             .ToListAsync(cancellationToken);
+
+        return lines
+            .Select(x =>
+            {
+                var netSales = CalculateNetLine(x.Quantity, x.UnitPrice, x.DiscountPercent);
+                var taxTotal = CalculateTaxLine(x.Quantity, x.UnitPrice, x.DiscountPercent, x.TaxPercent);
+                return new SalesInvoiceLineSnapshot(
+                    x.ItemId,
+                    x.ItemSku,
+                    x.ItemName,
+                    x.Quantity,
+                    netSales,
+                    taxTotal,
+                    netSales + taxTotal);
+            })
+            .ToList();
+    }
+
+    private static decimal CalculateNetLine(decimal quantity, decimal unitPrice, decimal discountPercent)
+        => quantity * unitPrice * (100m - discountPercent) / 100m;
+
+    private static decimal CalculateTaxLine(decimal quantity, decimal unitPrice, decimal discountPercent, decimal taxPercent)
+        => CalculateNetLine(quantity, unitPrice, discountPercent) * taxPercent / 100m;
 
     private async Task<List<SupplierInvoiceSnapshot>> GetSupplierInvoiceSnapshotsAsync(
         DateTimeOffset reportFrom,
