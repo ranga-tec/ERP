@@ -92,6 +92,14 @@ The daily sheet does not bypass accounting or inventory controls.
 
 This version gives the practical daily operating structure. Later refinements can add:
 
+- complex job structure for assemblies and sub-parts:
+  - define job operations/tasks under the service job, such as inspect, dismantle, repair, assemble, test, and handover
+  - allow each operation to carry its own planned parts, service tasks, labor/resource requirements, and required date
+  - support reusable job templates by job type/incident type so common repairs can preload tasks, parts, labor estimates, and technician skill requirements
+  - support asset/activity BOM selection so a known equipment model or activity can copy expected components into the job's material requirements
+  - treat the copied BOM as a plan only; actual stock movement must still happen through MRN issue, direct purchase, and material disposition/return
+  - capture subassemblies as either child job operations for service/repair work or child jobs only when they need separate scheduling, responsibility, costing, or customer sign-off
+  - keep a planned-vs-actual view for each operation and for the whole job: planned parts/labor, issued parts, returned/damaged/rejected parts, approved labor, expenses, estimate, invoice, and margin
 - split the current job detail daily action area into separate sections for staff/labor, progress, IOU advances, petty-cash expenses, employee out-of-pocket claims, material/lubricant issues, and material returns/damage/rejection
 - photo capture directly per daily sheet section
 - mobile/offline technician screen

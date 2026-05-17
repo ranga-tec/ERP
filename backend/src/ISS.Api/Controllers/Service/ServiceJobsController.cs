@@ -71,6 +71,35 @@ public sealed class ServiceJobsController(
         string? ResponsibleOfficerName);
     public sealed record ReopenServiceJobRequest(string? Reason);
     public sealed record MarkFinalInvoiceNotRequiredRequest(string Reason);
+    public sealed record ServiceJobOperationDto(
+        Guid Id,
+        Guid ServiceJobId,
+        int Sequence,
+        string Name,
+        string? Description,
+        Guid? PlannedItemId,
+        string? PlannedItemSku,
+        string? PlannedItemName,
+        decimal PlannedQuantity,
+        decimal EstimatedLaborHours,
+        DateTimeOffset? RequiredAt,
+        string? Notes,
+        ServiceJobOperationStatus Status,
+        DateTimeOffset? StartedAt,
+        DateTimeOffset? CompletedAt,
+        decimal ActualMaterialQuantity,
+        decimal ActualMaterialCost,
+        decimal ApprovedLaborHours,
+        decimal ApprovedLaborCost);
+    public sealed record UpsertServiceJobOperationRequest(
+        int Sequence,
+        string Name,
+        string? Description,
+        Guid? PlannedItemId,
+        decimal PlannedQuantity,
+        decimal EstimatedLaborHours,
+        DateTimeOffset? RequiredAt,
+        string? Notes);
     public sealed record ServiceJobDailySheetDto(
         Guid Id,
         string Number,
@@ -392,6 +421,164 @@ public sealed class ServiceJobsController(
     public async Task<ActionResult> MarkFinalInvoiceNotRequired(Guid id, MarkFinalInvoiceNotRequiredRequest request, CancellationToken cancellationToken)
     {
         await serviceManagementService.MarkServiceJobFinalInvoiceNotRequiredAsync(id, request.Reason, cancellationToken);
+        return NoContent();
+    }
+
+    [HttpGet("{id:guid}/operations")]
+    public async Task<ActionResult<IReadOnlyList<ServiceJobOperationDto>>> Operations(Guid id, CancellationToken cancellationToken)
+    {
+        var materialRows = await (
+            from mr in dbContext.MaterialRequisitions.AsNoTracking()
+            from line in mr.Lines
+            join item in dbContext.Items.AsNoTracking() on line.ItemId equals item.Id
+            where mr.ServiceJobId == id && mr.Status == MaterialRequisitionStatus.Posted
+            group new { mr, line, item } by line.ItemId into g
+            select new
+            {
+                ItemId = g.Key,
+                Quantity = g.Sum(x => x.line.Quantity),
+                Cost = g.Sum(x => x.line.Quantity * x.item.DefaultUnitCost)
+            })
+            .ToDictionaryAsync(x => x.ItemId, x => new { x.Quantity, x.Cost }, cancellationToken);
+
+        var laborTotals = await dbContext.WorkOrders.AsNoTracking()
+            .Where(x => x.ServiceJobId == id)
+            .SelectMany(x => x.TimeEntries)
+            .Where(x => x.Status == WorkOrderTimeEntryStatus.Approved || x.Status == WorkOrderTimeEntryStatus.Invoiced)
+            .GroupBy(_ => 1)
+            .Select(g => new
+            {
+                Hours = g.Sum(x => x.HoursWorked),
+                Cost = g.Sum(x => x.LaborCost)
+            })
+            .FirstOrDefaultAsync(cancellationToken);
+
+        var operations = await (
+            from operation in dbContext.ServiceJobOperations.AsNoTracking()
+            join item in dbContext.Items.AsNoTracking() on operation.PlannedItemId equals item.Id into itemJoin
+            from item in itemJoin.DefaultIfEmpty()
+            where operation.ServiceJobId == id
+            orderby operation.Sequence, operation.CreatedAt
+            select new
+            {
+                Operation = operation,
+                PlannedItemSku = item == null ? null : item.Sku,
+                PlannedItemName = item == null ? null : item.Name
+            })
+            .ToListAsync(cancellationToken);
+
+        var plannedLaborTotal = operations.Sum(x => x.Operation.EstimatedLaborHours);
+        var plannedQuantityByItem = operations
+            .Where(x => x.Operation.PlannedItemId is not null)
+            .GroupBy(x => x.Operation.PlannedItemId!.Value)
+            .ToDictionary(x => x.Key, x => x.Sum(row => row.Operation.PlannedQuantity));
+        var rows = operations.Select(x =>
+        {
+            var material = x.Operation.PlannedItemId is { } plannedItemId && materialRows.TryGetValue(plannedItemId, out var match)
+                ? match
+                : null;
+            var materialShare = x.Operation.PlannedItemId is { } itemId
+                                && plannedQuantityByItem.TryGetValue(itemId, out var plannedItemQuantity)
+                                && plannedItemQuantity > 0m
+                                && x.Operation.PlannedQuantity > 0m
+                ? x.Operation.PlannedQuantity / plannedItemQuantity
+                : material is null ? 0m : 1m;
+            var laborShare = plannedLaborTotal > 0m && x.Operation.EstimatedLaborHours > 0m
+                ? x.Operation.EstimatedLaborHours / plannedLaborTotal
+                : 0m;
+
+            return new ServiceJobOperationDto(
+                x.Operation.Id,
+                x.Operation.ServiceJobId,
+                x.Operation.Sequence,
+                x.Operation.Name,
+                x.Operation.Description,
+                x.Operation.PlannedItemId,
+                x.PlannedItemSku,
+                x.PlannedItemName,
+                x.Operation.PlannedQuantity,
+                x.Operation.EstimatedLaborHours,
+                x.Operation.RequiredAt,
+                x.Operation.Notes,
+                x.Operation.Status,
+                x.Operation.StartedAt,
+                x.Operation.CompletedAt,
+                material is null ? 0m : material.Quantity * materialShare,
+                material is null ? 0m : material.Cost * materialShare,
+                laborTotals is null ? 0m : laborTotals.Hours * laborShare,
+                laborTotals is null ? 0m : laborTotals.Cost * laborShare);
+        }).ToList();
+
+        return Ok(rows);
+    }
+
+    [HttpPost("{id:guid}/operations")]
+    [Authorize(Roles = $"{Roles.Admin},{Roles.Service}")]
+    public async Task<ActionResult<object>> AddOperation(Guid id, UpsertServiceJobOperationRequest request, CancellationToken cancellationToken)
+    {
+        var operationId = await serviceManagementService.AddServiceJobOperationAsync(
+            id,
+            request.Sequence,
+            request.Name,
+            request.Description,
+            request.PlannedItemId,
+            request.PlannedQuantity,
+            request.EstimatedLaborHours,
+            request.RequiredAt,
+            request.Notes,
+            cancellationToken);
+
+        return Ok(new { id = operationId });
+    }
+
+    [HttpPut("{id:guid}/operations/{operationId:guid}")]
+    [Authorize(Roles = $"{Roles.Admin},{Roles.Service}")]
+    public async Task<ActionResult> UpdateOperation(Guid id, Guid operationId, UpsertServiceJobOperationRequest request, CancellationToken cancellationToken)
+    {
+        await serviceManagementService.UpdateServiceJobOperationAsync(
+            id,
+            operationId,
+            request.Sequence,
+            request.Name,
+            request.Description,
+            request.PlannedItemId,
+            request.PlannedQuantity,
+            request.EstimatedLaborHours,
+            request.RequiredAt,
+            request.Notes,
+            cancellationToken);
+        return NoContent();
+    }
+
+    [HttpPost("{id:guid}/operations/{operationId:guid}/start")]
+    [Authorize(Roles = $"{Roles.Admin},{Roles.Service}")]
+    public async Task<ActionResult> StartOperation(Guid id, Guid operationId, CancellationToken cancellationToken)
+    {
+        await serviceManagementService.StartServiceJobOperationAsync(id, operationId, cancellationToken);
+        return NoContent();
+    }
+
+    [HttpPost("{id:guid}/operations/{operationId:guid}/complete")]
+    [Authorize(Roles = $"{Roles.Admin},{Roles.Service}")]
+    public async Task<ActionResult> CompleteOperation(Guid id, Guid operationId, CancellationToken cancellationToken)
+    {
+        await serviceManagementService.CompleteServiceJobOperationAsync(id, operationId, cancellationToken);
+        return NoContent();
+    }
+
+    [HttpPost("{id:guid}/operations/{operationId:guid}/skip")]
+    [Authorize(Roles = $"{Roles.Admin},{Roles.Service}")]
+    public async Task<ActionResult> SkipOperation(Guid id, Guid operationId, CancellationToken cancellationToken)
+    {
+        await serviceManagementService.SkipServiceJobOperationAsync(id, operationId, cancellationToken);
+        return NoContent();
+    }
+
+    [HttpDelete("{id:guid}/operations/{operationId:guid}")]
+    [Authorize(Roles = $"{Roles.Admin},{Roles.Service}")]
+    public async Task<ActionResult> RemoveOperation(Guid id, Guid operationId, CancellationToken cancellationToken)
+    {
+        await serviceManagementService.RemoveServiceJobOperationAsync(id, operationId, cancellationToken);
         return NoContent();
     }
 

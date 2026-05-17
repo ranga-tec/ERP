@@ -231,6 +231,99 @@ public sealed class ServiceManagementService(
         await dbContext.SaveChangesAsync(cancellationToken);
     }
 
+    public async Task<Guid> AddServiceJobOperationAsync(
+        Guid serviceJobId,
+        int sequence,
+        string name,
+        string? description,
+        Guid? plannedItemId,
+        decimal plannedQuantity,
+        decimal estimatedLaborHours,
+        DateTimeOffset? requiredAt,
+        string? notes,
+        CancellationToken cancellationToken = default)
+    {
+        await EnsureServiceJobAcceptsNewCostsAsync(serviceJobId, cancellationToken);
+        await EnsurePlannedOperationItemExistsAsync(plannedItemId, cancellationToken);
+
+        var operation = new ServiceJobOperation(
+            serviceJobId,
+            sequence,
+            name,
+            description,
+            plannedItemId,
+            plannedQuantity,
+            estimatedLaborHours,
+            requiredAt,
+            notes);
+
+        await dbContext.ServiceJobOperations.AddAsync(operation, cancellationToken);
+        await dbContext.SaveChangesAsync(cancellationToken);
+        return operation.Id;
+    }
+
+    public async Task UpdateServiceJobOperationAsync(
+        Guid serviceJobId,
+        Guid operationId,
+        int sequence,
+        string name,
+        string? description,
+        Guid? plannedItemId,
+        decimal plannedQuantity,
+        decimal estimatedLaborHours,
+        DateTimeOffset? requiredAt,
+        string? notes,
+        CancellationToken cancellationToken = default)
+    {
+        await EnsureServiceJobAcceptsNewCostsAsync(serviceJobId, cancellationToken);
+        await EnsurePlannedOperationItemExistsAsync(plannedItemId, cancellationToken);
+
+        var operation = await ResolveServiceJobOperationAsync(serviceJobId, operationId, cancellationToken);
+        operation.Update(sequence, name, description, plannedItemId, plannedQuantity, estimatedLaborHours, requiredAt, notes);
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task StartServiceJobOperationAsync(Guid serviceJobId, Guid operationId, CancellationToken cancellationToken = default)
+    {
+        await EnsureServiceJobAcceptsNewCostsAsync(serviceJobId, cancellationToken);
+
+        var operation = await ResolveServiceJobOperationAsync(serviceJobId, operationId, cancellationToken);
+        operation.Start(clock.UtcNow);
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task CompleteServiceJobOperationAsync(Guid serviceJobId, Guid operationId, CancellationToken cancellationToken = default)
+    {
+        await EnsureServiceJobAcceptsNewCostsAsync(serviceJobId, cancellationToken);
+
+        var operation = await ResolveServiceJobOperationAsync(serviceJobId, operationId, cancellationToken);
+        operation.Complete(clock.UtcNow);
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task SkipServiceJobOperationAsync(Guid serviceJobId, Guid operationId, CancellationToken cancellationToken = default)
+    {
+        await EnsureServiceJobAcceptsNewCostsAsync(serviceJobId, cancellationToken);
+
+        var operation = await ResolveServiceJobOperationAsync(serviceJobId, operationId, cancellationToken);
+        operation.Skip();
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task RemoveServiceJobOperationAsync(Guid serviceJobId, Guid operationId, CancellationToken cancellationToken = default)
+    {
+        await EnsureServiceJobAcceptsNewCostsAsync(serviceJobId, cancellationToken);
+
+        var operation = await ResolveServiceJobOperationAsync(serviceJobId, operationId, cancellationToken);
+        if (operation.Status == ServiceJobOperationStatus.Completed)
+        {
+            throw new DomainValidationException("Completed job operations cannot be deleted.");
+        }
+
+        dbContext.ServiceJobOperations.Remove(operation);
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
     public async Task CompleteServiceJobAsync(Guid serviceJobId, CancellationToken cancellationToken = default)
     {
         var job = await dbContext.ServiceJobs.FirstOrDefaultAsync(x => x.Id == serviceJobId, cancellationToken)
@@ -1843,6 +1936,27 @@ public sealed class ServiceManagementService(
         {
             throw new DomainValidationException("Closed service jobs cannot receive new expenses, bills, material issues, or labor entries.");
         }
+    }
+
+    private async Task EnsurePlannedOperationItemExistsAsync(Guid? plannedItemId, CancellationToken cancellationToken)
+    {
+        if (plannedItemId is null)
+        {
+            return;
+        }
+
+        var exists = await dbContext.Items.AsNoTracking().AnyAsync(x => x.Id == plannedItemId.Value, cancellationToken);
+        if (!exists)
+        {
+            throw new NotFoundException("Planned item not found.");
+        }
+    }
+
+    private async Task<ServiceJobOperation> ResolveServiceJobOperationAsync(Guid serviceJobId, Guid operationId, CancellationToken cancellationToken)
+    {
+        return await dbContext.ServiceJobOperations
+            .FirstOrDefaultAsync(x => x.ServiceJobId == serviceJobId && x.Id == operationId, cancellationToken)
+            ?? throw new NotFoundException("Service job operation not found.");
     }
 
     private async Task<ServiceJobDailySheet> ResolveDailySheetAsync(Guid serviceJobId, Guid dailySheetId, CancellationToken cancellationToken)

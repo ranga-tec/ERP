@@ -73,6 +73,7 @@ public sealed class IssDbContext(
     public DbSet<ServiceExpenseClaim> ServiceExpenseClaims => Set<ServiceExpenseClaim>();
     public DbSet<ServiceHandover> ServiceHandovers => Set<ServiceHandover>();
     public DbSet<ServiceTechnician> ServiceTechnicians => Set<ServiceTechnician>();
+    public DbSet<ServiceJobOperation> ServiceJobOperations => Set<ServiceJobOperation>();
     public DbSet<ServiceJobDailySheet> ServiceJobDailySheets => Set<ServiceJobDailySheet>();
     public DbSet<ServiceJobAssignment> ServiceJobAssignments => Set<ServiceJobAssignment>();
     public DbSet<ServiceJobProgressUpdate> ServiceJobProgressUpdates => Set<ServiceJobProgressUpdate>();
@@ -643,6 +644,19 @@ public sealed class IssDbContext(
             entity.Property(x => x.FinalInvoiceNotRequiredReason).HasMaxLength(1000);
             entity.Property(x => x.EntitlementSummary).HasMaxLength(512);
             entity.HasOne<ServiceContract>().WithMany().HasForeignKey(x => x.ServiceContractId).OnDelete(DeleteBehavior.SetNull);
+        });
+
+        builder.Entity<ServiceJobOperation>(entity =>
+        {
+            entity.HasIndex(x => new { x.ServiceJobId, x.Sequence });
+            entity.HasIndex(x => x.PlannedItemId);
+            entity.Property(x => x.Name).HasMaxLength(256);
+            entity.Property(x => x.Description).HasMaxLength(2000);
+            entity.Property(x => x.PlannedQuantity).HasPrecision(18, 4);
+            entity.Property(x => x.EstimatedLaborHours).HasPrecision(18, 4);
+            entity.Property(x => x.Notes).HasMaxLength(2000);
+            entity.HasOne<ServiceJob>().WithMany().HasForeignKey(x => x.ServiceJobId).OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne<Item>().WithMany().HasForeignKey(x => x.PlannedItemId).OnDelete(DeleteBehavior.SetNull);
         });
 
         builder.Entity<ServiceJobAssignment>(entity =>

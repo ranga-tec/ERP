@@ -187,6 +187,45 @@ public sealed class ServiceTests
     }
 
     [Fact]
+    public void ServiceJobOperation_Tracks_Planned_And_Actual_State()
+    {
+        var operation = new ServiceJobOperation(
+            Guid.NewGuid(),
+            sequence: 10,
+            name: "Dismantle pump head",
+            description: "Strip assembly and inspect wear parts",
+            plannedItemId: Guid.NewGuid(),
+            plannedQuantity: 2m,
+            estimatedLaborHours: 1.5m,
+            requiredAt: null,
+            notes: "Check seals before ordering.");
+
+        Assert.Equal(ServiceJobOperationStatus.Planned, operation.Status);
+
+        operation.Start(DateTimeOffset.UtcNow);
+        Assert.Equal(ServiceJobOperationStatus.InProgress, operation.Status);
+
+        operation.Complete(DateTimeOffset.UtcNow);
+        Assert.Equal(ServiceJobOperationStatus.Completed, operation.Status);
+        Assert.Throws<DomainValidationException>(() => operation.Update(20, "Changed", null, null, 0m, 0m, null, null));
+    }
+
+    [Fact]
+    public void ServiceJobOperation_Planned_Quantity_Requires_Item()
+    {
+        Assert.Throws<DomainValidationException>(() => new ServiceJobOperation(
+            Guid.NewGuid(),
+            sequence: 10,
+            name: "Replace seal kit",
+            description: null,
+            plannedItemId: null,
+            plannedQuantity: 1m,
+            estimatedLaborHours: 0m,
+            requiredAt: null,
+            notes: null));
+    }
+
+    [Fact]
     public void ServiceEntitlementRules_Zero_Covered_Labor_And_Parts()
     {
         Assert.Equal(0m, ServiceEntitlementRules.ApplyEstimateUnitPrice(ServiceCoverageScope.LaborOnly, ServiceEstimateLineKind.Labor, 40m));

@@ -495,6 +495,15 @@ Expected:
 | Job status | Job detail | `Open` |
 | Job intake | Job detail | job description, complaint, supervisor, and intake note are visible |
 
+Start the job from the service job detail before recording execution activity.
+
+Expected:
+
+| Check | Where | Expected output |
+| --- | --- | --- |
+| Job status | Job detail | status moves from `Open` to `In Progress` |
+| Header lock | Job detail | core intake/header fields are no longer editable after work starts |
+
 ### 10.1.1 Create Daily Field Sheet
 
 Open the service job detail.

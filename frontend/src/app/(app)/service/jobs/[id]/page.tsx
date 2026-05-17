@@ -13,6 +13,8 @@ import { ServiceJobDailySheetActions } from "../ServiceJobDailySheetActions";
 import { ServiceJobDailySheetCreateForm } from "../ServiceJobDailySheetCreateForm";
 import { ServiceJobFinalInvoiceActions } from "../ServiceJobFinalInvoiceActions";
 import { ServiceJobMaterialDispositionAddForm } from "../ServiceJobMaterialDispositionAddForm";
+import { ServiceJobOperationActions } from "../ServiceJobOperationActions";
+import { ServiceJobOperationAddForm } from "../ServiceJobOperationAddForm";
 import { ServiceJobProgressUpdateAddForm } from "../ServiceJobProgressUpdateAddForm";
 import { DocumentCollaborationPanel } from "@/components/DocumentCollaborationPanel";
 import { TransactionLink } from "@/components/TransactionLink";
@@ -123,6 +125,27 @@ type ServiceJobCloseoutCheckDto = {
   isClear: boolean;
   pendingCount: number;
   detail: string;
+};
+type ServiceJobOperationDto = {
+  id: string;
+  serviceJobId: string;
+  sequence: number;
+  name: string;
+  description?: string | null;
+  plannedItemId?: string | null;
+  plannedItemSku?: string | null;
+  plannedItemName?: string | null;
+  plannedQuantity: number;
+  estimatedLaborHours: number;
+  requiredAt?: string | null;
+  notes?: string | null;
+  status: number;
+  startedAt?: string | null;
+  completedAt?: string | null;
+  actualMaterialQuantity: number;
+  actualMaterialCost: number;
+  approvedLaborHours: number;
+  approvedLaborCost: number;
 };
 type ServiceJobCostingDto = {
   serviceJobId: string;
@@ -322,6 +345,12 @@ const dailySheetStatusLabel: Record<number, string> = {
   2: "Approved",
   3: "Rejected",
 };
+const operationStatusLabel: Record<number, string> = {
+  0: "Planned",
+  1: "In Progress",
+  2: "Completed",
+  3: "Skipped",
+};
 
 function money(value?: number | null) {
   return typeof value === "number" ? value.toFixed(2) : "-";
@@ -334,7 +363,7 @@ function maybeText(value?: string | null) {
 export default async function ServiceJobDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
 
-  const [job, units, customers, costing, items, technicians, warehouses, dailySheets, assignments, progressUpdates, closeoutChecks, materialDispositions] = await Promise.all([
+  const [job, units, customers, costing, items, technicians, warehouses, dailySheets, assignments, progressUpdates, closeoutChecks, materialDispositions, operations] = await Promise.all([
     backendFetchJson<ServiceJobDto>(`/service/jobs/${id}`),
     backendFetchJson<EquipmentUnitDto[]>("/service/equipment-units?take=2000"),
     backendFetchJson<CustomerDto[]>("/customers"),
@@ -347,6 +376,7 @@ export default async function ServiceJobDetailPage({ params }: { params: Promise
     backendFetchJson<ServiceJobProgressUpdateDto[]>(`/service/jobs/${id}/progress-updates`),
     backendFetchJson<ServiceJobCloseoutCheckDto[]>(`/service/jobs/${id}/closeout-checks`),
     backendFetchJson<ServiceJobMaterialDispositionDto[]>(`/service/jobs/${id}/material-dispositions`),
+    backendFetchJson<ServiceJobOperationDto[]>(`/service/jobs/${id}/operations`),
   ]);
 
   const selectedUnit =
@@ -375,6 +405,7 @@ export default async function ServiceJobDetailPage({ params }: { params: Promise
   const canReopen = job.status === 12;
   const canEditHeader = job.status === 0 || job.status === 1 || job.status === 13;
   const canAddJobActivity = job.status !== 12 && job.status !== 14;
+  const nextOperationSequence = operations.length > 0 ? Math.max(...operations.map((operation) => operation.sequence)) + 10 : 10;
 
   return (
     <div className="space-y-6">
@@ -504,6 +535,73 @@ export default async function ServiceJobDetailPage({ params }: { params: Promise
           <div className="text-sm text-zinc-700 dark:text-zinc-200">{job.entitlementSummary}</div>
         </Card>
       ) : null}
+
+      <Card>
+        <div className="mb-3">
+          <div className="text-sm font-semibold">Job Operations / Sub-Parts Plan</div>
+          <div className="mt-1 text-xs text-zinc-500">Plan complex repair stages, expected sub-parts, labor, and due dates before issuing actual MRNs or recording labor.</div>
+        </div>
+        <ServiceJobOperationAddForm serviceJobId={job.id} items={items} nextSequence={nextOperationSequence} disabled={!canAddJobActivity} />
+        <div className="mt-4 overflow-auto">
+          <Table>
+            <thead>
+              <tr className="border-b border-zinc-200 text-left text-xs uppercase tracking-wide text-zinc-500 dark:border-zinc-800">
+                <th className="py-2 pr-3">Seq</th>
+                <th className="py-2 pr-3">Operation</th>
+                <th className="py-2 pr-3">Planned Part</th>
+                <th className="py-2 pr-3">Plan</th>
+                <th className="py-2 pr-3">Actual</th>
+                <th className="py-2 pr-3">Status</th>
+                <th className="py-2 pr-3">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {operations.map((operation) => (
+                <tr key={operation.id} className="border-b border-zinc-100 align-top dark:border-zinc-900">
+                  <td className="py-2 pr-3 text-xs font-medium">{operation.sequence}</td>
+                  <td className="py-2 pr-3">
+                    <div className="text-sm font-medium">{operation.name}</div>
+                    {operation.description ? <div className="mt-1 text-xs text-zinc-500">{operation.description}</div> : null}
+                    {operation.notes ? <div className="mt-1 text-xs text-zinc-500">Notes: {operation.notes}</div> : null}
+                    {operation.requiredAt ? <div className="mt-1 text-xs text-zinc-500">Required: {new Date(operation.requiredAt).toLocaleDateString()}</div> : null}
+                  </td>
+                  <td className="py-2 pr-3 text-sm">
+                    {operation.plannedItemId ? (
+                      <ItemInlineLink itemId={operation.plannedItemId}>
+                        {operation.plannedItemSku ?? operation.plannedItemId}
+                        {operation.plannedItemName ? ` - ${operation.plannedItemName}` : ""}
+                      </ItemInlineLink>
+                    ) : (
+                      "-"
+                    )}
+                  </td>
+                  <td className="py-2 pr-3 text-xs text-zinc-500">
+                    <div>Qty {operation.plannedQuantity}</div>
+                    <div>Labor {operation.estimatedLaborHours.toFixed(2)} hrs</div>
+                  </td>
+                  <td className="py-2 pr-3 text-xs text-zinc-500">
+                    <div>Material {operation.actualMaterialQuantity} / {money(operation.actualMaterialCost)}</div>
+                    <div>Labor {operation.approvedLaborHours.toFixed(2)} hrs / {money(operation.approvedLaborCost)}</div>
+                  </td>
+                  <td className="py-2 pr-3 text-sm">
+                    <div>{operationStatusLabel[operation.status] ?? operation.status}</div>
+                    {operation.startedAt ? <div className="mt-1 text-xs text-zinc-500">Started {new Date(operation.startedAt).toLocaleString()}</div> : null}
+                    {operation.completedAt ? <div className="mt-1 text-xs text-zinc-500">Done {new Date(operation.completedAt).toLocaleString()}</div> : null}
+                  </td>
+                  <td className="py-2 pr-3">
+                    <ServiceJobOperationActions serviceJobId={job.id} operationId={operation.id} status={operation.status} disabled={!canAddJobActivity} />
+                  </td>
+                </tr>
+              ))}
+              {operations.length === 0 ? (
+                <tr>
+                  <td className="py-6 text-sm text-zinc-500" colSpan={7}>No planned job operations or sub-parts yet.</td>
+                </tr>
+              ) : null}
+            </tbody>
+          </Table>
+        </div>
+      </Card>
 
       <Card>
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
