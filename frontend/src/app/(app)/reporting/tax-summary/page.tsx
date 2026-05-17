@@ -1,5 +1,5 @@
 import { backendFetchJson } from "@/lib/backend.server";
-import { Card, Table } from "@/components/ui";
+import { Card, SecondaryLink, Table } from "@/components/ui";
 import { userSettingsFromCookies } from "@/lib/user-settings.server";
 
 type TaxSummaryReport = {
@@ -53,13 +53,16 @@ export default async function TaxSummaryPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold">Tax Summary</h1>
-        <p className="mt-1 text-sm text-zinc-500">
-          Posted sales and supplier invoice tax totals from{" "}
-          {dateFormat(report.from)} to{" "}
-          {dateFormat(report.to)}.
-        </p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-semibold">Tax Summary</h1>
+          <p className="mt-1 text-sm text-zinc-500">
+            Posted sales and supplier invoice tax totals from{" "}
+            {dateFormat(report.from)} to{" "}
+            {dateFormat(report.to)}.
+          </p>
+        </div>
+        <SecondaryLink href="/api/backend/reporting/tax-summary/pdf" target="_blank" rel="noopener noreferrer">Download PDF</SecondaryLink>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-3">

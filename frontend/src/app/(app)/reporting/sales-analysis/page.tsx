@@ -135,6 +135,7 @@ export default async function SalesAnalysisPage({
   const qs = new URLSearchParams({ take: String(take) });
   if (from) qs.set("from", from);
   if (to) qs.set("to", to);
+  const pdfHref = `/api/backend/reporting/sales-analysis/pdf?${qs.toString()}`;
 
   const report = await backendFetchJson<SalesAnalysisReportDto>(`/reporting/sales-analysis?${qs.toString()}`);
   const locale = settings.locale;
@@ -142,11 +143,14 @@ export default async function SalesAnalysisPage({
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold">Sales Analysis</h1>
-        <p className="mt-1 text-sm text-zinc-500">
-          Posted and paid sales invoices summarized by period, trend, customer, and item.
-        </p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-semibold">Sales Analysis</h1>
+          <p className="mt-1 text-sm text-zinc-500">
+            Posted and paid sales invoices summarized by period, trend, customer, and item.
+          </p>
+        </div>
+        <SecondaryLink href={pdfHref} target="_blank" rel="noopener noreferrer">Download PDF</SecondaryLink>
       </div>
 
       <Card>

@@ -1,5 +1,5 @@
 import { backendFetchJson } from "@/lib/backend.server";
-import { Card, Table } from "@/components/ui";
+import { Card, SecondaryLink, Table } from "@/components/ui";
 
 type ServiceKpiReport = {
   from: string;
@@ -47,13 +47,16 @@ export default async function ServiceKpisPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold">Service KPIs</h1>
-        <p className="mt-1 text-sm text-zinc-500">
-          Service throughput and operational indicators from{" "}
-          {new Date(report.from).toLocaleDateString()} to{" "}
-          {new Date(report.to).toLocaleDateString()}.
-        </p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-semibold">Service KPIs</h1>
+          <p className="mt-1 text-sm text-zinc-500">
+            Service throughput and operational indicators from{" "}
+            {new Date(report.from).toLocaleDateString()} to{" "}
+            {new Date(report.to).toLocaleDateString()}.
+          </p>
+        </div>
+        <SecondaryLink href="/api/backend/reporting/service-kpis/pdf" target="_blank" rel="noopener noreferrer">Download PDF</SecondaryLink>
       </div>
 
       <div className="grid gap-4 md:grid-cols-2">

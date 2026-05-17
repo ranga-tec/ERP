@@ -122,6 +122,7 @@ export default async function PurchaseAnalysisPage({
   const qs = new URLSearchParams({ take: String(take) });
   if (from) qs.set("from", from);
   if (to) qs.set("to", to);
+  const pdfHref = `/api/backend/reporting/purchase-analysis/pdf?${qs.toString()}`;
 
   const report = await backendFetchJson<PurchaseAnalysisReportDto>(`/reporting/purchase-analysis?${qs.toString()}`);
   const locale = settings.locale;
@@ -129,11 +130,14 @@ export default async function PurchaseAnalysisPage({
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold">Purchase Analysis</h1>
-        <p className="mt-1 text-sm text-zinc-500">
-          Posted supplier invoices summarized by period, trend, and supplier concentration.
-        </p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-semibold">Purchase Analysis</h1>
+          <p className="mt-1 text-sm text-zinc-500">
+            Posted supplier invoices summarized by period, trend, and supplier concentration.
+          </p>
+        </div>
+        <SecondaryLink href={pdfHref} target="_blank" rel="noopener noreferrer">Download PDF</SecondaryLink>
       </div>
 
       <Card>

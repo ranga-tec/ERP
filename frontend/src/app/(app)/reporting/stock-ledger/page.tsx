@@ -1,7 +1,7 @@
 import { backendFetchJson } from "@/lib/backend.server";
 import { ItemInlineLink } from "@/components/InlineLink";
 import { TransactionLink } from "@/components/TransactionLink";
-import { Button, Card, Select, Table } from "@/components/ui";
+import { Button, Card, SecondaryLink, Select, Table } from "@/components/ui";
 
 type WarehouseDto = { id: string; code: string; name: string };
 type ItemDto = { id: string; sku: string; name: string };
@@ -76,6 +76,7 @@ export default async function StockLedgerPage({
   const qs = new URLSearchParams({ take: String(take) });
   if (warehouseId) qs.set("warehouseId", warehouseId);
   if (itemId) qs.set("itemId", itemId);
+  const pdfHref = `/api/backend/reporting/stock-ledger/pdf?${qs.toString()}`;
 
   const [warehouses, items, report] = await Promise.all([
     backendFetchJson<WarehouseDto[]>("/warehouses"),
@@ -88,9 +89,12 @@ export default async function StockLedgerPage({
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold">Stock Ledger</h1>
-        <p className="mt-1 text-sm text-zinc-500">Inventory movement history by warehouse and item with running quantities.</p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-semibold">Stock Ledger</h1>
+          <p className="mt-1 text-sm text-zinc-500">Inventory movement history by warehouse and item with running quantities.</p>
+        </div>
+        <SecondaryLink href={pdfHref} target="_blank" rel="noopener noreferrer">Download PDF</SecondaryLink>
       </div>
 
       <Card>

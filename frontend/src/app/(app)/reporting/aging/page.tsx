@@ -175,6 +175,7 @@ export default async function AgingPage({
   if (asOfInput) {
     qs.set("asOf", asOfInput);
   }
+  const pdfHref = `/api/backend/reporting/aging/pdf${qs.size > 0 ? `?${qs.toString()}` : ""}`;
 
   const report = await backendFetchJson<AgingReport>(`/reporting/aging${qs.size > 0 ? `?${qs.toString()}` : ""}`);
   const money = (value: number) => {
@@ -215,11 +216,14 @@ export default async function AgingPage({
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold">AR/AP Aging</h1>
-        <p className="mt-1 text-sm text-zinc-500">
-          Outstanding balances bucketed by entry age as of {asOf}.
-        </p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-semibold">AR/AP Aging</h1>
+          <p className="mt-1 text-sm text-zinc-500">
+            Outstanding balances bucketed by entry age as of {asOf}.
+          </p>
+        </div>
+        <SecondaryLink href={pdfHref} target="_blank" rel="noopener noreferrer">Download PDF</SecondaryLink>
       </div>
 
       <Card>

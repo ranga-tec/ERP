@@ -134,6 +134,7 @@ export default async function SupplierPerformancePage({
   const qs = new URLSearchParams({ take: String(take) });
   if (from) qs.set("from", from);
   if (to) qs.set("to", to);
+  const pdfHref = `/api/backend/reporting/supplier-performance/pdf?${qs.toString()}`;
 
   const report = await backendFetchJson<SupplierPerformanceReportDto>(`/reporting/supplier-performance?${qs.toString()}`);
   const locale = settings.locale;
@@ -141,11 +142,14 @@ export default async function SupplierPerformancePage({
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold">Supplier Performance</h1>
-        <p className="mt-1 text-sm text-zinc-500">
-          Purchase-order execution by supplier, with receipt progress and first-receipt speed.
-        </p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-semibold">Supplier Performance</h1>
+          <p className="mt-1 text-sm text-zinc-500">
+            Purchase-order execution by supplier, with receipt progress and first-receipt speed.
+          </p>
+        </div>
+        <SecondaryLink href={pdfHref} target="_blank" rel="noopener noreferrer">Download PDF</SecondaryLink>
       </div>
 
       <Card>

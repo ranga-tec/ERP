@@ -3,6 +3,7 @@ using ISS.Application.Common;
 using ISS.Application.Persistence;
 using ISS.Application.Services;
 using ISS.Domain.Finance;
+using ISS.Domain.Common;
 using ISS.Domain.Inventory;
 using ISS.Domain.Procurement;
 using ISS.Domain.Sales;
@@ -10,6 +11,9 @@ using ISS.Domain.Service;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using QuestPDF.Fluent;
+using QuestPDF.Helpers;
+using QuestPDF.Infrastructure;
 using System.Globalization;
 
 namespace ISS.Api.Controllers;
@@ -1506,6 +1510,347 @@ public sealed class ReportingController(IIssDbContext dbContext, InventoryServic
             rows.Sum(x => x.InventoryValue),
             rows));
     }
+
+    [HttpGet("stock-ledger/pdf")]
+    [Authorize(Roles = Roles.AdminOrReporting)]
+    public async Task<IActionResult> StockLedgerPdf(
+        [FromQuery] Guid? warehouseId = null,
+        [FromQuery] Guid? itemId = null,
+        [FromQuery] DateTimeOffset? from = null,
+        [FromQuery] DateTimeOffset? to = null,
+        [FromQuery] int take = 200,
+        CancellationToken cancellationToken = default)
+    {
+        var report = await ExtractReportAsync(StockLedger(warehouseId, itemId, from, to, take, cancellationToken));
+        var rows = report.Rows.Select(x => new[]
+        {
+            FormatDateTime(x.OccurredAt),
+            x.WarehouseCode,
+            $"{x.ItemSku} - {x.ItemName}",
+            x.MovementType.ToString(),
+            FormatQty(x.Quantity),
+            FormatQty(x.RunningQuantity),
+            FormatMoney(x.UnitCost),
+            x.ReferenceNumber ?? x.ReferenceId.ToString("N")[..8]
+        });
+
+        return ReportPdf(
+            "Stock Ledger",
+            [
+                ("Rows", report.Count.ToString(CultureInfo.InvariantCulture)),
+                ("Net Quantity", FormatQty(report.NetQuantity)),
+                ("From", report.From?.ToString("u") ?? "All"),
+                ("To", report.To?.ToString("u") ?? "All")
+            ],
+            [new ReportTable("Movements", ["When", "WH", "Item", "Type", "Qty", "Running", "Unit Cost", "Reference"], rows)],
+            "stock-ledger.pdf");
+    }
+
+    [HttpGet("aging/pdf")]
+    [Authorize(Roles = Roles.AdminOrReporting)]
+    public async Task<IActionResult> AgingPdf([FromQuery] DateTimeOffset? asOf = null, CancellationToken cancellationToken = default)
+    {
+        var report = await ExtractReportAsync(Aging(asOf, cancellationToken));
+        return ReportPdf(
+            "AR/AP Aging",
+            [
+                ("As Of", report.AsOf.ToString("u")),
+                ("AR Total", FormatMoney(report.ArTotals.Total)),
+                ("AP Total", FormatMoney(report.ApTotals.Total))
+            ],
+            [
+                new ReportTable("Accounts Receivable", ["Customer", "Current", "1-30", "31-60", "61-90", "90+", "Total"],
+                    report.AccountsReceivable.Select(x => AgingRow($"{x.CustomerCode} - {x.CustomerName}", x.Buckets))),
+                new ReportTable("Accounts Payable", ["Supplier", "Current", "1-30", "31-60", "61-90", "90+", "Total"],
+                    report.AccountsPayable.Select(x => AgingRow($"{x.SupplierCode} - {x.SupplierName}", x.Buckets)))
+            ],
+            "ar-ap-aging.pdf");
+    }
+
+    [HttpGet("tax-summary/pdf")]
+    [Authorize(Roles = Roles.AdminOrReporting)]
+    public async Task<IActionResult> TaxSummaryPdf(
+        [FromQuery] DateTimeOffset? from = null,
+        [FromQuery] DateTimeOffset? to = null,
+        CancellationToken cancellationToken = default)
+    {
+        var report = await ExtractReportAsync(TaxSummary(from, to, cancellationToken));
+        return ReportPdf(
+            "Tax Summary",
+            [("From", report.From.ToString("u")), ("To", report.To.ToString("u")), ("Net Tax Payable", FormatMoney(report.NetTaxPayable))],
+            [new ReportTable("Summary", ["Metric", "Value"],
+            [
+                ["Sales invoice count", report.SalesInvoiceCount.ToString(CultureInfo.InvariantCulture)],
+                ["Sales taxable subtotal", FormatMoney(report.SalesTaxableSubtotal)],
+                ["Sales tax total", FormatMoney(report.SalesTaxTotal)],
+                ["Supplier invoice count", report.SupplierInvoiceCount.ToString(CultureInfo.InvariantCulture)],
+                ["Purchase taxable subtotal", FormatMoney(report.PurchaseTaxableSubtotal)],
+                ["Purchase tax total", FormatMoney(report.PurchaseTaxTotal)]
+            ])],
+            "tax-summary.pdf");
+    }
+
+    [HttpGet("service-kpis/pdf")]
+    [Authorize(Roles = Roles.AdminOrReporting)]
+    public async Task<IActionResult> ServiceKpisPdf(
+        [FromQuery] DateTimeOffset? from = null,
+        [FromQuery] DateTimeOffset? to = null,
+        CancellationToken cancellationToken = default)
+    {
+        var report = await ExtractReportAsync(ServiceKpis(from, to, cancellationToken));
+        return ReportPdf(
+            "Service KPIs",
+            [("From", report.From.ToString("u")), ("To", report.To.ToString("u"))],
+            [new ReportTable("KPIs", ["Metric", "Value"],
+            [
+                ["Opened jobs", report.OpenedJobs.ToString(CultureInfo.InvariantCulture)],
+                ["In progress jobs", report.InProgressJobs.ToString(CultureInfo.InvariantCulture)],
+                ["Completed jobs", report.CompletedJobs.ToString(CultureInfo.InvariantCulture)],
+                ["Closed jobs", report.ClosedJobs.ToString(CultureInfo.InvariantCulture)],
+                ["Cancelled jobs", report.CancelledJobs.ToString(CultureInfo.InvariantCulture)],
+                ["Average completion hours", report.AverageCompletionHours?.ToString("0.##", CultureInfo.InvariantCulture) ?? "-"],
+                ["Open jobs older than 7 days", report.OpenJobsOlderThan7Days.ToString(CultureInfo.InvariantCulture)],
+                ["Open jobs older than 30 days", report.OpenJobsOlderThan30Days.ToString(CultureInfo.InvariantCulture)],
+                ["Estimates issued", report.EstimatesIssued.ToString(CultureInfo.InvariantCulture)],
+                ["Estimates approved", report.EstimatesApproved.ToString(CultureInfo.InvariantCulture)],
+                ["Handovers completed", report.HandoversCompleted.ToString(CultureInfo.InvariantCulture)],
+                ["Posted material requisitions", report.MaterialRequisitionsPosted.ToString(CultureInfo.InvariantCulture)],
+                ["Parts consumed quantity", FormatQty(report.PartsConsumedQuantity)]
+            ])],
+            "service-kpis.pdf");
+    }
+
+    [HttpGet("sales-analysis/pdf")]
+    [Authorize(Roles = Roles.AdminOrReporting)]
+    public async Task<IActionResult> SalesAnalysisPdf(
+        [FromQuery] DateTimeOffset? from = null,
+        [FromQuery] DateTimeOffset? to = null,
+        CancellationToken cancellationToken = default)
+    {
+        var report = await ExtractReportAsync(SalesAnalysis(from, to, 10, cancellationToken));
+        return ReportPdf(
+            "Sales Analysis",
+            [
+                ("From", report.From.ToString("u")),
+                ("To", report.To.ToString("u")),
+                ("Gross Sales", FormatMoney(report.GrossSales)),
+                ("Invoices", report.InvoiceCount.ToString(CultureInfo.InvariantCulture))
+            ],
+            [
+                new ReportTable("Top Customers", ["Customer", "Invoices", "Net Sales", "Tax", "Gross"],
+                    report.TopCustomers.Select(x => new[] { $"{x.CustomerCode} - {x.CustomerName}", x.InvoiceCount.ToString(CultureInfo.InvariantCulture), FormatMoney(x.NetSales), FormatMoney(x.TaxTotal), FormatMoney(x.GrossSales) })),
+                new ReportTable("Top Items", ["Item", "Qty", "Net Sales", "Tax", "Gross"],
+                    report.TopItems.Select(x => new[] { $"{x.ItemSku} - {x.ItemName}", FormatQty(x.Quantity), FormatMoney(x.NetSales), FormatMoney(x.TaxTotal), FormatMoney(x.GrossSales) }))
+            ],
+            "sales-analysis.pdf");
+    }
+
+    [HttpGet("purchase-analysis/pdf")]
+    [Authorize(Roles = Roles.AdminOrReporting)]
+    public async Task<IActionResult> PurchaseAnalysisPdf(
+        [FromQuery] DateTimeOffset? from = null,
+        [FromQuery] DateTimeOffset? to = null,
+        CancellationToken cancellationToken = default)
+    {
+        var report = await ExtractReportAsync(PurchaseAnalysis(from, to, 10, cancellationToken));
+        return ReportPdf(
+            "Purchase Analysis",
+            [
+                ("From", report.From.ToString("u")),
+                ("To", report.To.ToString("u")),
+                ("Gross Spend", FormatMoney(report.GrossSpend)),
+                ("Invoices", report.InvoiceCount.ToString(CultureInfo.InvariantCulture))
+            ],
+            [new ReportTable("Top Suppliers", ["Supplier", "Invoices", "Subtotal", "Tax", "Gross"],
+                report.TopSuppliers.Select(x => new[] { $"{x.SupplierCode} - {x.SupplierName}", x.InvoiceCount.ToString(CultureInfo.InvariantCulture), FormatMoney(x.Subtotal), FormatMoney(x.TaxTotal), FormatMoney(x.GrossSpend) }))],
+            "purchase-analysis.pdf");
+    }
+
+    [HttpGet("supplier-performance/pdf")]
+    [Authorize(Roles = Roles.AdminOrReporting)]
+    public async Task<IActionResult> SupplierPerformancePdf(
+        [FromQuery] DateTimeOffset? from = null,
+        [FromQuery] DateTimeOffset? to = null,
+        CancellationToken cancellationToken = default)
+    {
+        var report = await ExtractReportAsync(SupplierPerformance(from, to, 25, cancellationToken));
+        return ReportPdf(
+            "Supplier Performance",
+            [
+                ("From", report.From.ToString("u")),
+                ("To", report.To.ToString("u")),
+                ("Ordered", FormatMoney(report.OrderedAmount)),
+                ("Received", FormatMoney(report.ReceivedAmount))
+            ],
+            [new ReportTable("Suppliers", ["Supplier", "POs", "Ordered", "Received", "Fill %", "Invoices", "Spend"],
+                report.Suppliers.Select(x => new[] { $"{x.SupplierCode} - {x.SupplierName}", x.PurchaseOrderCount.ToString(CultureInfo.InvariantCulture), FormatMoney(x.OrderedAmount), FormatMoney(x.ReceivedAmount), FormatPercent(x.ReceiptFillPercent), x.SupplierInvoiceCount.ToString(CultureInfo.InvariantCulture), FormatMoney(x.InvoicedSpend) }))],
+            "supplier-performance.pdf");
+    }
+
+    [HttpGet("costing/pdf")]
+    [Authorize(Roles = Roles.AdminOrReporting)]
+    public async Task<IActionResult> CostingPdf(
+        [FromQuery] Guid? warehouseId = null,
+        [FromQuery] Guid? itemId = null,
+        [FromQuery] int take = 500,
+        CancellationToken cancellationToken = default)
+    {
+        var report = await ExtractReportAsync(Costing(warehouseId, itemId, take, cancellationToken));
+        return ReportPdf(
+            "Costing",
+            [
+                ("Items", report.Count.ToString(CultureInfo.InvariantCulture)),
+                ("Total On Hand", FormatQty(report.TotalOnHandQuantity)),
+                ("Inventory Value", $"{report.BaseCurrencyCode} {FormatMoney(report.TotalInventoryValue)}")
+            ],
+            [new ReportTable("Items", ["Item", "UoM", "On Hand", "Default Cost", "Weighted Avg", "Last Receipt", "Variance", "Value"],
+                report.Rows.Select(x => new[]
+                {
+                    $"{x.ItemSku} - {x.ItemName}",
+                    x.UnitOfMeasure,
+                    FormatQty(x.OnHandQuantity),
+                    FormatMoney(x.DefaultUnitCost),
+                    x.WeightedAverageCost is null ? "-" : FormatMoney(x.WeightedAverageCost.Value),
+                    x.LastReceiptCost is null ? "-" : FormatMoney(x.LastReceiptCost.Value),
+                    x.CostVariancePercent is null ? "-" : FormatPercent(x.CostVariancePercent.Value),
+                    FormatMoney(x.InventoryValue)
+                }))],
+            "costing.pdf");
+    }
+
+    private static async Task<T> ExtractReportAsync<T>(Task<ActionResult<T>> actionTask)
+    {
+        var result = await actionTask;
+        if (result.Value is not null)
+        {
+            return result.Value;
+        }
+
+        if (result.Result is OkObjectResult { Value: T value })
+        {
+            return value;
+        }
+
+        throw new DomainValidationException("Report could not be generated as PDF.");
+    }
+
+    private sealed record ReportTable(string Title, IReadOnlyList<string> Headers, IEnumerable<IReadOnlyList<string>> Rows);
+
+    private static IActionResult ReportPdf(
+        string title,
+        IReadOnlyList<(string Label, string Value)> summary,
+        IReadOnlyList<ReportTable> tables,
+        string fileName)
+    {
+        var bytes = Document.Create(container =>
+        {
+            container.Page(page =>
+            {
+                page.Size(PageSizes.A4.Landscape());
+                page.Margin(24);
+                page.DefaultTextStyle(x => x.FontSize(8));
+
+                page.Header().Column(col =>
+                {
+                    col.Item().Text(title).FontSize(18).SemiBold();
+                    col.Item().Text($"Generated {DateTimeOffset.UtcNow:u}").FontSize(8).FontColor(Colors.Grey.Darken1);
+                    col.Item().PaddingTop(8).Element(c => ReportSummary(c, summary));
+                });
+
+                page.Content().PaddingTop(12).Column(col =>
+                {
+                    foreach (var table in tables)
+                    {
+                        col.Item().PaddingBottom(6).Text(table.Title).FontSize(11).SemiBold();
+                        col.Item().PaddingBottom(12).Element(c => ReportTableElement(c, table));
+                    }
+                });
+
+                page.Footer().AlignCenter().Text(x =>
+                {
+                    x.DefaultTextStyle(style => style.FontSize(8).FontColor(Colors.Grey.Darken1));
+                    x.Span("Page ");
+                    x.CurrentPageNumber();
+                    x.Span(" of ");
+                    x.TotalPages();
+                });
+            });
+        }).GeneratePdf();
+
+        return new FileContentResult(bytes, "application/pdf") { FileDownloadName = fileName };
+    }
+
+    private static void ReportSummary(IContainer container, IReadOnlyList<(string Label, string Value)> summary)
+    {
+        container.Table(table =>
+        {
+            table.ColumnsDefinition(cols =>
+            {
+                cols.RelativeColumn();
+                cols.RelativeColumn();
+                cols.RelativeColumn();
+                cols.RelativeColumn();
+            });
+
+            foreach (var (label, value) in summary)
+            {
+                table.Cell().BorderBottom(1).BorderColor(Colors.Grey.Lighten2).Padding(3).Text(label).SemiBold();
+                table.Cell().BorderBottom(1).BorderColor(Colors.Grey.Lighten2).Padding(3).Text(value);
+            }
+        });
+    }
+
+    private static void ReportTableElement(IContainer container, ReportTable reportTable)
+    {
+        var rows = reportTable.Rows.ToList();
+        container.Table(table =>
+        {
+            table.ColumnsDefinition(cols =>
+            {
+                foreach (var _ in reportTable.Headers)
+                {
+                    cols.RelativeColumn();
+                }
+            });
+
+            table.Header(header =>
+            {
+                foreach (var column in reportTable.Headers)
+                {
+                    header.Cell().Background(Colors.Grey.Lighten3).Padding(3).Text(column).SemiBold();
+                }
+            });
+
+            foreach (var row in rows)
+            {
+                foreach (var value in row.Take(reportTable.Headers.Count))
+                {
+                    table.Cell().BorderBottom(1).BorderColor(Colors.Grey.Lighten4).Padding(3).Text(value);
+                }
+            }
+
+            if (rows.Count == 0)
+            {
+                table.Cell().ColumnSpan((uint)reportTable.Headers.Count).Padding(6).Text("No rows for the selected filters.").FontColor(Colors.Grey.Darken1);
+            }
+        });
+    }
+
+    private static string[] AgingRow(string label, AgingBucketsDto buckets) =>
+    [
+        label,
+        FormatMoney(buckets.Current),
+        FormatMoney(buckets.Days1To30),
+        FormatMoney(buckets.Days31To60),
+        FormatMoney(buckets.Days61To90),
+        FormatMoney(buckets.DaysOver90),
+        FormatMoney(buckets.Total)
+    ];
+
+    private static string FormatDateTime(DateTimeOffset value) => value.ToString("yyyy-MM-dd HH:mm", CultureInfo.InvariantCulture);
+    private static string FormatMoney(decimal value) => value.ToString("0.00", CultureInfo.InvariantCulture);
+    private static string FormatQty(decimal value) => value.ToString("0.####", CultureInfo.InvariantCulture);
+    private static string FormatPercent(decimal value) => value.ToString("0.##", CultureInfo.InvariantCulture);
 
     private async Task<string> GetBaseCurrencyCodeAsync(CancellationToken cancellationToken)
         => await dbContext.Currencies.AsNoTracking()
