@@ -21,11 +21,15 @@ export function ServiceJobAssignmentAddForm({
   serviceJobId,
   technicians,
   dailySheets = [],
+  defaultDailySheetId = "",
+  requireDailySheet = false,
   disabled,
 }: {
   serviceJobId: string;
   technicians: TechnicianRef[];
   dailySheets?: DailySheetRef[];
+  defaultDailySheetId?: string;
+  requireDailySheet?: boolean;
   disabled?: boolean;
 }) {
   const router = useRouter();
@@ -34,7 +38,7 @@ export function ServiceJobAssignmentAddForm({
     [technicians],
   );
   const [technicianId, setTechnicianId] = useState("");
-  const [dailySheetId, setDailySheetId] = useState("");
+  const [dailySheetId, setDailySheetId] = useState(defaultDailySheetId);
   const [employeeName, setEmployeeName] = useState("");
   const [role, setRole] = useState("Technician");
   const [assignedTask, setAssignedTask] = useState("");
@@ -57,6 +61,10 @@ export function ServiceJobAssignmentAddForm({
       const parsedOvertimeHours = Number(overtimeHours);
       if (!technicianId && !employeeName.trim()) {
         throw new Error("Select a technician or enter an employee name.");
+      }
+
+      if (requireDailySheet && !dailySheetId) {
+        throw new Error("Select a daily sheet before adding labor.");
       }
 
       if (!assignedTask.trim()) {
@@ -86,7 +94,7 @@ export function ServiceJobAssignmentAddForm({
       });
 
       setTechnicianId("");
-      setDailySheetId("");
+      setDailySheetId(defaultDailySheetId);
       setEmployeeName("");
       setRole("Technician");
       setAssignedTask("");
@@ -110,7 +118,7 @@ export function ServiceJobAssignmentAddForm({
         <div>
           <label className="mb-1 block text-sm font-medium">Daily sheet</label>
           <Select value={dailySheetId} onChange={(event) => setDailySheetId(event.target.value)} disabled={disabled || busy}>
-            <option value="">Unlinked</option>
+            {requireDailySheet ? null : <option value="">Unlinked</option>}
             {dailySheets.filter((sheet) => sheet.status !== 2).map((sheet) => <option key={sheet.id} value={sheet.id}>{sheet.number}</option>)}
           </Select>
         </div>

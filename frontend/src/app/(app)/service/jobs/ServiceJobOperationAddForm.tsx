@@ -72,11 +72,11 @@ export function ServiceJobOperationAddForm({
     <form onSubmit={onSubmit} className="space-y-3">
       <div className="grid gap-3 lg:grid-cols-4">
         <div>
-          <label className="mb-1 block text-sm font-medium">Seq</label>
+          <label className="mb-1 block text-sm font-medium">Step No.</label>
           <Input type="number" min="1" step="1" value={sequence} onChange={(event) => setSequence(event.target.value)} disabled={disabled || busy} />
         </div>
         <div className="lg:col-span-2">
-          <label className="mb-1 block text-sm font-medium">Operation / subassembly</label>
+          <label className="mb-1 block text-sm font-medium">Work step / subassembly</label>
           <Input value={name} onChange={(event) => setName(event.target.value)} disabled={disabled || busy} required />
         </div>
         <div>

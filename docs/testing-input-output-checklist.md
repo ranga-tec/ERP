@@ -537,8 +537,8 @@ In `Job Operations / Sub-Parts Plan`, expand `Add operation / sub-part` and add:
 
 | Field | Input |
 | --- | --- |
-| Seq | `10` |
-| Operation / subassembly | `Diagnose starting system` |
+| Step No. | `10` |
+| Work step / subassembly | `Diagnose starting system` |
 | Required by | tomorrow |
 | Planned part | `SKU-SERIAL - Control Board Serialized` |
 | Planned qty | `1` |

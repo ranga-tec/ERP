@@ -8,9 +8,21 @@ import { Button, Input, Select, Textarea } from "@/components/ui";
 type ProgressUpdateDto = { id: string };
 type DailySheetRef = { id: string; number: string; status: number };
 
-export function ServiceJobProgressUpdateAddForm({ serviceJobId, dailySheets = [], disabled }: { serviceJobId: string; dailySheets?: DailySheetRef[]; disabled?: boolean }) {
+export function ServiceJobProgressUpdateAddForm({
+  serviceJobId,
+  dailySheets = [],
+  defaultDailySheetId = "",
+  requireDailySheet = false,
+  disabled,
+}: {
+  serviceJobId: string;
+  dailySheets?: DailySheetRef[];
+  defaultDailySheetId?: string;
+  requireDailySheet?: boolean;
+  disabled?: boolean;
+}) {
   const router = useRouter();
-  const [dailySheetId, setDailySheetId] = useState("");
+  const [dailySheetId, setDailySheetId] = useState(defaultDailySheetId);
   const [progressDate, setProgressDate] = useState("");
   const [workCompleted, setWorkCompleted] = useState("");
   const [workPending, setWorkPending] = useState("");
@@ -34,6 +46,10 @@ export function ServiceJobProgressUpdateAddForm({ serviceJobId, dailySheets = []
         throw new Error("Work completed is required.");
       }
 
+      if (requireDailySheet && !dailySheetId) {
+        throw new Error("Select a daily sheet before adding progress.");
+      }
+
       await apiPost<ProgressUpdateDto>(`service/jobs/${serviceJobId}/progress-updates`, {
         progressDate: progressDate ? new Date(progressDate).toISOString() : null,
         workCompleted: workCompleted.trim(),
@@ -48,7 +64,7 @@ export function ServiceJobProgressUpdateAddForm({ serviceJobId, dailySheets = []
         serviceJobDailySheetId: dailySheetId || null,
       });
 
-      setDailySheetId("");
+      setDailySheetId(defaultDailySheetId);
       setProgressDate("");
       setWorkCompleted("");
       setWorkPending("");
@@ -73,7 +89,7 @@ export function ServiceJobProgressUpdateAddForm({ serviceJobId, dailySheets = []
         <div>
           <label className="mb-1 block text-sm font-medium">Daily sheet</label>
           <Select value={dailySheetId} onChange={(event) => setDailySheetId(event.target.value)} disabled={disabled || busy}>
-            <option value="">Unlinked</option>
+            {requireDailySheet ? null : <option value="">Unlinked</option>}
             {dailySheets.filter((sheet) => sheet.status !== 2).map((sheet) => <option key={sheet.id} value={sheet.id}>{sheet.number}</option>)}
           </Select>
         </div>

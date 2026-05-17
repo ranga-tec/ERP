@@ -414,15 +414,20 @@ function tabHref(jobId: string, tab: JobTabKey) {
   return tab === "overview" ? `/service/jobs/${jobId}` : `/service/jobs/${jobId}?tab=${tab}`;
 }
 
+function dailyWorkHref(jobId: string, dailySheetId: string) {
+  return `/service/jobs/${jobId}?tab=daily-work&dailySheetId=${dailySheetId}`;
+}
+
 export default async function ServiceJobDetailPage({
   params,
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams?: Promise<{ tab?: string }>;
+  searchParams?: Promise<{ tab?: string; dailySheetId?: string }>;
 }) {
   const { id } = await params;
-  const activeTab = resolveJobTab((await searchParams)?.tab);
+  const resolvedSearchParams = await searchParams;
+  const activeTab = resolveJobTab(resolvedSearchParams?.tab);
 
   const [job, units, customers, costing, items, technicians, warehouses, dailySheets, assignments, progressUpdates, closeoutChecks, materialDispositions, operations] = await Promise.all([
     backendFetchJson<ServiceJobDto>(`/service/jobs/${id}`),
@@ -467,6 +472,14 @@ export default async function ServiceJobDetailPage({
   const canEditHeader = job.status === 0 || job.status === 1 || job.status === 13;
   const canAddJobActivity = job.status !== 12 && job.status !== 14;
   const nextOperationSequence = operations.length > 0 ? Math.max(...operations.map((operation) => operation.sequence)) + 10 : 10;
+  const selectedDailySheet = dailySheets.find((sheet) => sheet.id === resolvedSearchParams?.dailySheetId) ?? dailySheets[0] ?? null;
+  const selectedDailySheets = selectedDailySheet ? [selectedDailySheet] : [];
+  const selectedAssignments = selectedDailySheet
+    ? assignments.filter((assignment) => assignment.serviceJobDailySheetId === selectedDailySheet.id)
+    : [];
+  const selectedProgressUpdates = selectedDailySheet
+    ? progressUpdates.filter((update) => update.serviceJobDailySheetId === selectedDailySheet.id)
+    : [];
 
   return (
     <div className="space-y-6">
@@ -673,8 +686,8 @@ export default async function ServiceJobDetailPage({
           <Table>
             <thead>
               <tr className="border-b border-zinc-200 text-left text-xs uppercase tracking-wide text-zinc-500 dark:border-zinc-800">
-                <th className="py-2 pr-3">Seq</th>
-                <th className="py-2 pr-3">Operation</th>
+                <th className="py-2 pr-3">Step No.</th>
+                <th className="py-2 pr-3">Work Step / Subassembly</th>
                 <th className="py-2 pr-3">Planned Part</th>
                 <th className="py-2 pr-3">Plan</th>
                 <th className="py-2 pr-3">Actual</th>
@@ -810,7 +823,12 @@ export default async function ServiceJobDetailPage({
                   </td>
                   <td className="py-2 pr-3">{dailySheetStatusLabel[sheet.status] ?? sheet.status}</td>
                   <td className="py-2 pr-3">
-                    <ServiceJobDailySheetActions serviceJobId={job.id} dailySheetId={sheet.id} status={sheet.status} />
+                    <div className="flex flex-wrap gap-3">
+                      <Link className="text-xs font-semibold text-[var(--link)] underline underline-offset-2" href={dailyWorkHref(job.id, sheet.id)}>
+                        Open
+                      </Link>
+                      <ServiceJobDailySheetActions serviceJobId={job.id} dailySheetId={sheet.id} status={sheet.status} />
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -824,10 +842,35 @@ export default async function ServiceJobDetailPage({
         </div>
       </Card>
 
+      {selectedDailySheet ? (
+        <Card>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <div className="text-sm font-semibold">Selected Daily Sheet</div>
+              <div className="mt-1 text-xs text-zinc-500">
+                {selectedDailySheet.number} / {new Date(selectedDailySheet.sheetDate).toLocaleString()} / {dailySheetStatusLabel[selectedDailySheet.status] ?? selectedDailySheet.status}
+              </div>
+            </div>
+            <div className="flex flex-wrap gap-2 text-xs text-zinc-500">
+              <span>Staff {selectedAssignments.length}</span>
+              <span>Progress {selectedProgressUpdates.length}</span>
+              <span>MRN {selectedDailySheet.materialRequisitionCount}</span>
+              <span>Returns {selectedDailySheet.materialDispositionCount}</span>
+              <span>Expenses {selectedDailySheet.expenseClaimCount}</span>
+              <span>IOU {selectedDailySheet.iouCount}</span>
+            </div>
+          </div>
+        </Card>
+      ) : (
+        <Card>
+          <div className="text-sm text-zinc-500">Create a daily field sheet first. Staff/labor and progress are recorded against the selected daily sheet.</div>
+        </Card>
+      )}
+
       <CollapsibleCard
         title="Daily Staff / Labor"
-        summary="Assign service staff, capture work times and daily labor descriptions, then approve the labor record."
-        meta={`${assignments.length} assigned`}
+        summary={selectedDailySheet ? `Assign staff and labor for ${selectedDailySheet.number}.` : "Create a daily sheet before adding staff or labor."}
+        meta={selectedDailySheet ? `${selectedAssignments.length} assigned` : "No sheet selected"}
       >
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
           <Link className="text-sm font-semibold text-[var(--link)] underline underline-offset-2" href="/service/technicians">
@@ -835,7 +878,14 @@ export default async function ServiceJobDetailPage({
           </Link>
         </div>
         <div className="mb-4">
-          <ServiceJobAssignmentAddForm serviceJobId={job.id} technicians={technicians} dailySheets={dailySheets} disabled={!canAddJobActivity} />
+          <ServiceJobAssignmentAddForm
+            serviceJobId={job.id}
+            technicians={technicians}
+            dailySheets={selectedDailySheets}
+            defaultDailySheetId={selectedDailySheet?.id ?? ""}
+            requireDailySheet
+            disabled={!canAddJobActivity || !selectedDailySheet}
+          />
         </div>
         <div className="overflow-auto">
           <Table>
@@ -851,7 +901,7 @@ export default async function ServiceJobDetailPage({
               </tr>
             </thead>
             <tbody>
-              {assignments.map((assignment) => (
+              {selectedAssignments.map((assignment) => (
                 <tr key={assignment.id} className="border-b border-zinc-100 align-top dark:border-zinc-900">
                   <td className="py-2 pr-3 text-zinc-500">
                     <div>{new Date(assignment.assignedDate).toLocaleString()}</div>
@@ -876,7 +926,7 @@ export default async function ServiceJobDetailPage({
                   </td>
                 </tr>
               ))}
-              {assignments.length === 0 ? (
+              {selectedAssignments.length === 0 ? (
                 <tr>
                   <td className="py-6 text-sm text-zinc-500" colSpan={7}>
                     No technicians or workers assigned yet.
@@ -890,14 +940,20 @@ export default async function ServiceJobDetailPage({
 
       <CollapsibleCard
         title="Daily Progress"
-        summary="Record completed work, pending work, problems found, customer instructions, and technician or supervisor notes."
-        meta={`${progressUpdates.length} updates`}
+        summary={selectedDailySheet ? `Record completed work, pending work, and issues for ${selectedDailySheet.number}.` : "Create a daily sheet before adding progress."}
+        meta={selectedDailySheet ? `${selectedProgressUpdates.length} updates` : "No sheet selected"}
       >
         <div className="mb-4">
-          <ServiceJobProgressUpdateAddForm serviceJobId={job.id} dailySheets={dailySheets} disabled={!canAddJobActivity} />
+          <ServiceJobProgressUpdateAddForm
+            serviceJobId={job.id}
+            dailySheets={selectedDailySheets}
+            defaultDailySheetId={selectedDailySheet?.id ?? ""}
+            requireDailySheet
+            disabled={!canAddJobActivity || !selectedDailySheet}
+          />
         </div>
         <div className="space-y-3">
-          {progressUpdates.map((update) => (
+          {selectedProgressUpdates.map((update) => (
             <div key={update.id} className="rounded-lg border border-[var(--card-border)] p-3">
               <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
                 <div className="text-sm font-medium">{new Date(update.progressDate).toLocaleString()}</div>
@@ -916,8 +972,8 @@ export default async function ServiceJobDetailPage({
               </div>
             </div>
           ))}
-          {progressUpdates.length === 0 ? (
-            <div className="text-sm text-zinc-500">No daily progress updates recorded yet.</div>
+          {selectedProgressUpdates.length === 0 ? (
+            <div className="text-sm text-zinc-500">No progress updates recorded for the selected daily sheet yet.</div>
           ) : null}
         </div>
       </CollapsibleCard>
