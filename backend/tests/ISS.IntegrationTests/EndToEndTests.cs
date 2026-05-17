@@ -2865,12 +2865,14 @@ public sealed class EndToEndTests(IssApiFixture fixture) : IClassFixture<IssApiF
                 Assert.Equal((int)InventoryMovementType.Adjustment, row.MovementType);
                 Assert.Equal(5m, row.Quantity);
                 Assert.Equal(5m, row.RunningQuantity);
+                Assert.Equal(adjIn.Number, row.ReferenceNumber);
             },
             row =>
             {
                 Assert.Equal((int)InventoryMovementType.Adjustment, row.MovementType);
                 Assert.Equal(-2m, row.Quantity);
                 Assert.Equal(3m, row.RunningQuantity);
+                Assert.Equal(adjOut.Number, row.ReferenceNumber);
             });
     }
 
@@ -3068,6 +3070,7 @@ public sealed class EndToEndTests(IssApiFixture fixture) : IClassFixture<IssApiF
         decimal RunningQuantity,
         string ReferenceType,
         Guid ReferenceId,
+        string? ReferenceNumber,
         string? BatchNumber,
         string? SerialNumber);
     private sealed record StockLedgerReportDto(

@@ -1,4 +1,5 @@
 using ISS.Api.Security;
+using ISS.Application.Common;
 using ISS.Application.Persistence;
 using ISS.Application.Services;
 using ISS.Domain.Finance;
@@ -65,6 +66,7 @@ public sealed class ReportingController(IIssDbContext dbContext, InventoryServic
         decimal RunningQuantity,
         string ReferenceType,
         Guid ReferenceId,
+        string? ReferenceNumber,
         string? BatchNumber,
         string? SerialNumber);
     public sealed record StockLedgerReportDto(
@@ -245,6 +247,7 @@ public sealed class ReportingController(IIssDbContext dbContext, InventoryServic
         Guid ReferenceId,
         string? BatchNumber,
         string? SerialNumber);
+    private sealed record ReferenceNumberLookup(Guid Id, string Number);
 
     private sealed record ArAgingRawRow(Guid CustomerId, string CustomerCode, string CustomerName, decimal Outstanding, DateTimeOffset PostedAt);
     private sealed record ApAgingRawRow(Guid SupplierId, string SupplierCode, string SupplierName, decimal Outstanding, DateTimeOffset PostedAt);
@@ -826,6 +829,7 @@ public sealed class ReportingController(IIssDbContext dbContext, InventoryServic
             .Take(take)
             .ToListAsync(cancellationToken);
 
+        var referenceNumbers = await LoadStockLedgerReferenceNumbersAsync(rawRows, cancellationToken);
         var runningByPair = new Dictionary<(Guid WarehouseId, Guid ItemId), decimal>();
         var rows = new List<StockLedgerRowDto>(rawRows.Count);
         foreach (var row in rawRows)
@@ -850,6 +854,7 @@ public sealed class ReportingController(IIssDbContext dbContext, InventoryServic
                 runningQty,
                 row.ReferenceType,
                 row.ReferenceId,
+                referenceNumbers.GetValueOrDefault((row.ReferenceType, row.ReferenceId)),
                 row.BatchNumber,
                 row.SerialNumber));
         }
@@ -862,6 +867,90 @@ public sealed class ReportingController(IIssDbContext dbContext, InventoryServic
             rows.Count,
             rows.Sum(x => x.Quantity),
             rows));
+    }
+
+    private async Task<Dictionary<(string ReferenceType, Guid ReferenceId), string>> LoadStockLedgerReferenceNumbersAsync(
+        IReadOnlyCollection<StockLedgerRawRow> rows,
+        CancellationToken cancellationToken)
+    {
+        var referenceIdsByType = rows
+            .GroupBy(x => x.ReferenceType)
+            .ToDictionary(x => x.Key, x => x.Select(row => row.ReferenceId).Distinct().ToArray());
+
+        var referenceNumbers = new Dictionary<(string ReferenceType, Guid ReferenceId), string>();
+
+        async Task AddReferenceNumbersAsync(
+            string referenceType,
+            Func<IReadOnlyCollection<Guid>, Task<List<ReferenceNumberLookup>>> loadAsync)
+        {
+            if (!referenceIdsByType.TryGetValue(referenceType, out var ids) || ids.Length == 0)
+            {
+                return;
+            }
+
+            var matches = await loadAsync(ids);
+            foreach (var match in matches)
+            {
+                referenceNumbers[(referenceType, match.Id)] = match.Number;
+            }
+        }
+
+        await AddReferenceNumbersAsync(
+            ReferenceTypes.GoodsReceipt,
+            ids => dbContext.GoodsReceipts.AsNoTracking()
+                .Where(x => ids.Contains(x.Id))
+                .Select(x => new ReferenceNumberLookup(x.Id, x.Number))
+                .ToListAsync(cancellationToken));
+        await AddReferenceNumbersAsync(
+            ReferenceTypes.DirectPurchase,
+            ids => dbContext.DirectPurchases.AsNoTracking()
+                .Where(x => ids.Contains(x.Id))
+                .Select(x => new ReferenceNumberLookup(x.Id, x.Number))
+                .ToListAsync(cancellationToken));
+        await AddReferenceNumbersAsync(
+            ReferenceTypes.SupplierReturn,
+            ids => dbContext.SupplierReturns.AsNoTracking()
+                .Where(x => ids.Contains(x.Id))
+                .Select(x => new ReferenceNumberLookup(x.Id, x.Number))
+                .ToListAsync(cancellationToken));
+        await AddReferenceNumbersAsync(
+            ReferenceTypes.DispatchNote,
+            ids => dbContext.DispatchNotes.AsNoTracking()
+                .Where(x => ids.Contains(x.Id))
+                .Select(x => new ReferenceNumberLookup(x.Id, x.Number))
+                .ToListAsync(cancellationToken));
+        await AddReferenceNumbersAsync(
+            ReferenceTypes.DirectDispatch,
+            ids => dbContext.DirectDispatches.AsNoTracking()
+                .Where(x => ids.Contains(x.Id))
+                .Select(x => new ReferenceNumberLookup(x.Id, x.Number))
+                .ToListAsync(cancellationToken));
+        await AddReferenceNumbersAsync(
+            ReferenceTypes.CustomerReturn,
+            ids => dbContext.CustomerReturns.AsNoTracking()
+                .Where(x => ids.Contains(x.Id))
+                .Select(x => new ReferenceNumberLookup(x.Id, x.Number))
+                .ToListAsync(cancellationToken));
+        await AddReferenceNumbersAsync(
+            ReferenceTypes.MaterialRequisition,
+            ids => dbContext.MaterialRequisitions.AsNoTracking()
+                .Where(x => ids.Contains(x.Id))
+                .Select(x => new ReferenceNumberLookup(x.Id, x.Number))
+                .ToListAsync(cancellationToken));
+        await AddReferenceNumbersAsync(
+            ReferenceTypes.StockAdjustment,
+            ids => dbContext.StockAdjustments.AsNoTracking()
+                .Where(x => ids.Contains(x.Id))
+                .Select(x => new ReferenceNumberLookup(x.Id, x.Number))
+                .ToListAsync(cancellationToken));
+        await AddReferenceNumbersAsync(
+            ReferenceTypes.StockTransfer,
+            ids => dbContext.StockTransfers.AsNoTracking()
+                .Where(x => ids.Contains(x.Id))
+                .Select(x => new ReferenceNumberLookup(x.Id, x.Number))
+                .ToListAsync(cancellationToken));
+
+        return referenceNumbers;
     }
 
     [HttpGet("aging")]

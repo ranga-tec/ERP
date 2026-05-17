@@ -21,6 +21,7 @@ type StockLedgerRow = {
   runningQuantity: number;
   referenceType: string;
   referenceId: string;
+  referenceNumber?: string | null;
   batchNumber?: string | null;
   serialNumber?: string | null;
 };
@@ -195,7 +196,7 @@ export default async function StockLedgerPage({
                   <div className="font-mono">{row.referenceType}</div>
                   <div className="text-zinc-500">
                     <TransactionLink referenceType={row.referenceType} referenceId={row.referenceId} monospace>
-                      {row.referenceId.slice(0, 8)}
+                      {row.referenceNumber?.trim() ? row.referenceNumber : row.referenceId.slice(0, 8)}
                     </TransactionLink>
                   </div>
                 </td>
