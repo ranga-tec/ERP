@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import Link from "next/link";
 import { backendFetchJson } from "@/lib/backend.server";
 import { ItemInlineLink } from "@/components/InlineLink";
@@ -360,6 +361,38 @@ function maybeText(value?: string | null) {
   return value && value.trim().length > 0 ? value : "-";
 }
 
+function CollapsibleCard({
+  title,
+  summary,
+  meta,
+  defaultOpen = false,
+  children,
+}: {
+  title: string;
+  summary?: string;
+  meta?: string;
+  defaultOpen?: boolean;
+  children: ReactNode;
+}) {
+  return (
+    <details
+      open={defaultOpen}
+      className="rounded-lg border border-[var(--card-border)] bg-[var(--card-bg)] p-3 shadow-[var(--shadow-card)] transition-colors duration-150"
+    >
+      <summary className="cursor-pointer list-none">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <div className="text-sm font-semibold">{title}</div>
+            {summary ? <div className="mt-1 text-xs text-zinc-500">{summary}</div> : null}
+          </div>
+          {meta ? <div className="text-xs font-medium text-zinc-500">{meta}</div> : null}
+        </div>
+      </summary>
+      <div className="mt-4">{children}</div>
+    </details>
+  );
+}
+
 export default async function ServiceJobDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
 
@@ -453,20 +486,18 @@ export default async function ServiceJobDetailPage({ params }: { params: Promise
       </Card>
 
       {canEditHeader ? (
-        <Card>
-          <div className="mb-3 text-sm font-semibold">Edit Job</div>
+        <CollapsibleCard title="Edit Job" summary="Change intake header fields while the job is still editable.">
           <ServiceJobEditForm job={job} equipmentUnits={equipmentUnitOptions} customers={customers} />
-        </Card>
+        </CollapsibleCard>
       ) : (
-        <Card>
+        <CollapsibleCard title="Edit Job" summary="Header fields are locked after work starts.">
           <div className="text-sm text-zinc-500">
             Job header fields are editable while the job is draft, open, or reopened. After work starts, use the job status flow and linked service documents instead of changing the intake header.
           </div>
-        </Card>
+        </CollapsibleCard>
       )}
 
-      <Card>
-        <div className="mb-2 text-sm font-semibold">Job Intake</div>
+      <CollapsibleCard title="Job Intake" summary="Original customer requirement, problem note, scope, and internal remarks.">
         <div className="grid gap-4 md:grid-cols-2">
           <div>
             <div className="text-xs uppercase tracking-wide text-zinc-500">Job Description</div>
@@ -485,63 +516,67 @@ export default async function ServiceJobDetailPage({ params }: { params: Promise
             <div className="mt-1 whitespace-pre-wrap text-sm text-zinc-700 dark:text-zinc-200">{job.internalRemarks ?? "-"}</div>
           </div>
         </div>
-      </Card>
+      </CollapsibleCard>
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <Card>
-          <div className="text-xs uppercase tracking-wide text-zinc-500">Entitlement Source</div>
-          <div className="mt-2 text-sm font-medium">
-            {job.serviceContractId && job.serviceContractNumber ? (
-              <Link className="hover:underline" href={`/service/contracts/${job.serviceContractId}`}>
-                {job.serviceContractNumber}
-              </Link>
-            ) : (
-              entitlementSourceLabel[job.entitlementSource] ?? job.entitlementSource
-            )}
+      <CollapsibleCard
+        title="Warranty / Billing Entitlement"
+        summary={job.entitlementSummary ?? "Coverage and billing treatment calculated when the job was opened."}
+        meta={billingTreatmentLabel[job.customerBillingTreatment] ?? String(job.customerBillingTreatment)}
+      >
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <div>
+            <div className="text-xs uppercase tracking-wide text-zinc-500">Entitlement Source</div>
+            <div className="mt-2 text-sm font-medium">
+              {job.serviceContractId && job.serviceContractNumber ? (
+                <Link className="hover:underline" href={`/service/contracts/${job.serviceContractId}`}>
+                  {job.serviceContractNumber}
+                </Link>
+              ) : (
+                entitlementSourceLabel[job.entitlementSource] ?? job.entitlementSource
+              )}
+            </div>
+            <div className="mt-1 text-xs text-zinc-500">
+              {job.entitlementEvaluatedAt ? `Evaluated ${new Date(job.entitlementEvaluatedAt).toLocaleString()}` : "Not evaluated yet"}
+            </div>
           </div>
-          <div className="mt-1 text-xs text-zinc-500">
-            {job.entitlementEvaluatedAt ? `Evaluated ${new Date(job.entitlementEvaluatedAt).toLocaleString()}` : "Not evaluated yet"}
+          <div>
+            <div className="text-xs uppercase tracking-wide text-zinc-500">Coverage</div>
+            <div className="mt-2 text-sm font-medium">
+              {entitlementCoverageLabel[job.entitlementCoverage] ?? job.entitlementCoverage}
+            </div>
           </div>
-        </Card>
-        <Card>
-          <div className="text-xs uppercase tracking-wide text-zinc-500">Coverage</div>
-          <div className="mt-2 text-sm font-medium">
-            {entitlementCoverageLabel[job.entitlementCoverage] ?? job.entitlementCoverage}
+          <div>
+            <div className="text-xs uppercase tracking-wide text-zinc-500">Billing Treatment</div>
+            <div className="mt-2 text-sm font-medium">
+              {billingTreatmentLabel[job.customerBillingTreatment] ?? job.customerBillingTreatment}
+            </div>
           </div>
-        </Card>
-        <Card>
-          <div className="text-xs uppercase tracking-wide text-zinc-500">Billing Treatment</div>
-          <div className="mt-2 text-sm font-medium">
-            {billingTreatmentLabel[job.customerBillingTreatment] ?? job.customerBillingTreatment}
+          <div>
+            <div className="text-xs uppercase tracking-wide text-zinc-500">Contract Link</div>
+            <div className="mt-2 text-sm font-medium">
+              {job.serviceContractId && job.serviceContractNumber ? (
+                <Link className="hover:underline" href={`/service/contracts/${job.serviceContractId}`}>
+                  {job.serviceContractNumber}
+                </Link>
+              ) : (
+                "No linked contract"
+              )}
+            </div>
           </div>
-        </Card>
-        <Card>
-          <div className="text-xs uppercase tracking-wide text-zinc-500">Contract Link</div>
-          <div className="mt-2 text-sm font-medium">
-            {job.serviceContractId && job.serviceContractNumber ? (
-              <Link className="hover:underline" href={`/service/contracts/${job.serviceContractId}`}>
-                {job.serviceContractNumber}
-              </Link>
-            ) : (
-              "No linked contract"
-            )}
-          </div>
-        </Card>
-      </div>
-
-      {job.entitlementSummary ? (
-        <Card>
-          <div className="mb-2 text-sm font-semibold">Entitlement Summary</div>
-          <div className="text-sm text-zinc-700 dark:text-zinc-200">{job.entitlementSummary}</div>
-        </Card>
-      ) : null}
+        </div>
+      </CollapsibleCard>
 
       <Card>
         <div className="mb-3">
           <div className="text-sm font-semibold">Job Operations / Sub-Parts Plan</div>
           <div className="mt-1 text-xs text-zinc-500">Plan complex repair stages, expected sub-parts, labor, and due dates before issuing actual MRNs or recording labor.</div>
         </div>
-        <ServiceJobOperationAddForm serviceJobId={job.id} items={items} nextSequence={nextOperationSequence} disabled={!canAddJobActivity} />
+        <details className="rounded-md border border-[var(--card-border)] p-3">
+          <summary className="cursor-pointer text-sm font-medium">Add operation / sub-part</summary>
+          <div className="mt-3">
+            <ServiceJobOperationAddForm serviceJobId={job.id} items={items} nextSequence={nextOperationSequence} disabled={!canAddJobActivity} />
+          </div>
+        </details>
         <div className="mt-4 overflow-auto">
           <Table>
             <thead>
@@ -641,7 +676,12 @@ export default async function ServiceJobDetailPage({ params }: { params: Promise
             <div className="mt-1 text-xs text-zinc-500">Capture each working day before replacing paper job sheets, cash notes, and material return notes.</div>
           </div>
         </div>
-        <ServiceJobDailySheetCreateForm serviceJobId={job.id} disabled={!canAddJobActivity} />
+        <details className="rounded-md border border-[var(--card-border)] p-3">
+          <summary className="cursor-pointer text-sm font-medium">Create daily field sheet</summary>
+          <div className="mt-3">
+            <ServiceJobDailySheetCreateForm serviceJobId={job.id} disabled={!canAddJobActivity} />
+          </div>
+        </details>
         <div className="mt-4 overflow-auto">
           <Table>
             <thead>
@@ -687,12 +727,12 @@ export default async function ServiceJobDetailPage({ params }: { params: Promise
         </div>
       </Card>
 
-      <Card>
+      <CollapsibleCard
+        title="Daily Staff / Labor"
+        summary="Assign service staff, capture work times and daily labor descriptions, then approve the labor record."
+        meta={`${assignments.length} assigned`}
+      >
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-          <div>
-            <div className="text-sm font-semibold">Daily Staff / Labor</div>
-            <div className="mt-1 text-xs text-zinc-500">Assign service staff, capture work times and daily labor descriptions, then approve the labor record.</div>
-          </div>
           <Link className="text-sm font-semibold text-[var(--link)] underline underline-offset-2" href="/service/technicians">
             Technician Master
           </Link>
@@ -749,13 +789,13 @@ export default async function ServiceJobDetailPage({ params }: { params: Promise
             </tbody>
           </Table>
         </div>
-      </Card>
+      </CollapsibleCard>
 
-      <Card>
-        <div className="mb-3">
-          <div className="text-sm font-semibold">Daily Progress</div>
-          <div className="mt-1 text-xs text-zinc-500">Record completed work, pending work, problems found, customer instructions, and technician or supervisor notes.</div>
-        </div>
+      <CollapsibleCard
+        title="Daily Progress"
+        summary="Record completed work, pending work, problems found, customer instructions, and technician or supervisor notes."
+        meta={`${progressUpdates.length} updates`}
+      >
         <div className="mb-4">
           <ServiceJobProgressUpdateAddForm serviceJobId={job.id} dailySheets={dailySheets} disabled={!canAddJobActivity} />
         </div>
@@ -783,18 +823,22 @@ export default async function ServiceJobDetailPage({ params }: { params: Promise
             <div className="text-sm text-zinc-500">No daily progress updates recorded yet.</div>
           ) : null}
         </div>
-      </Card>
+      </CollapsibleCard>
 
-      <div className="grid gap-4 xl:grid-cols-2">
-        <Card>
+      <CollapsibleCard
+        title="Cash, Expenses, and Material Issue"
+        summary="Create IOUs, petty cash vouchers, reimbursement claims, and MRNs when they are needed for the job."
+      >
+        <div className="grid gap-4 xl:grid-cols-2">
+        <div className="rounded-lg border border-[var(--card-border)] p-3">
           <div className="mb-3">
             <div className="text-sm font-semibold">IOU / Employee Advance</div>
             <div className="mt-1 text-xs text-zinc-500">Issue an advance against this job and daily sheet for later approval, release, and settlement tracking.</div>
           </div>
           <ServiceJobDailyIouCreateForm serviceJobId={job.id} dailySheets={dailySheets} disabled={!canAddJobActivity} />
-        </Card>
+        </div>
 
-        <Card>
+        <div className="rounded-lg border border-[var(--card-border)] p-3">
           <div className="mb-3">
             <div className="text-sm font-semibold">Petty Cash Expense</div>
             <div className="mt-1 text-xs text-zinc-500">Record expenses paid from company petty cash and link the voucher back to the daily field sheet.</div>
@@ -807,9 +851,9 @@ export default async function ServiceJobDetailPage({ params }: { params: Promise
             submitLabel="Create Petty Cash Voucher"
             disabled={!canAddJobActivity}
           />
-        </Card>
+        </div>
 
-        <Card>
+        <div className="rounded-lg border border-[var(--card-border)] p-3">
           <div className="mb-3">
             <div className="text-sm font-semibold">Employee Out-of-Pocket Claim</div>
             <div className="mt-1 text-xs text-zinc-500">Capture reimbursement claims paid personally by staff before finance approval and settlement.</div>
@@ -822,24 +866,24 @@ export default async function ServiceJobDetailPage({ params }: { params: Promise
             submitLabel="Create Reimbursement Claim"
             disabled={!canAddJobActivity}
           />
-        </Card>
+        </div>
 
-        <Card>
+        <div className="rounded-lg border border-[var(--card-border)] p-3">
           <div className="mb-3">
             <div className="text-sm font-semibold">Materials / Lubricants Issue</div>
             <div className="mt-1 text-xs text-zinc-500">Create an MRN for spare parts, lubricants, consumables, or other issued materials needed on the job.</div>
           </div>
           <ServiceJobDailyMaterialRequisitionCreateForm serviceJobId={job.id} dailySheets={dailySheets} warehouses={warehouses} disabled={!canAddJobActivity} />
-        </Card>
-      </div>
-
-      <Card>
-        <div className="mb-3">
-          <div className="text-sm font-semibold">Material Returns / Damage / Rejection</div>
-          <div className="mt-1 text-xs text-zinc-500">Record used material, unused returns, incorrect returns, damaged parts, rejected parts, and supplier-return responsibility.</div>
         </div>
+        </div>
+      </CollapsibleCard>
+
+      <CollapsibleCard
+        title="Material Returns / Damage / Rejection"
+        summary="Record used material, unused returns, damaged parts, rejected parts, and supplier-return responsibility."
+      >
         <ServiceJobMaterialDispositionAddForm serviceJobId={job.id} materialLines={costing.materialLines} dailySheets={dailySheets} disabled={!canAddJobActivity} />
-      </Card>
+      </CollapsibleCard>
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <Card>
@@ -866,8 +910,7 @@ export default async function ServiceJobDetailPage({ params }: { params: Promise
         </Card>
       </div>
 
-      <Card>
-        <div className="mb-3 text-sm font-semibold">Profitability Report</div>
+      <CollapsibleCard title="Profitability Report" summary="Detailed cost, margin, estimate, and invoice totals.">
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3 text-sm">
           <div className="rounded-xl border border-[var(--card-border)] p-3">
             <div className="font-medium">Cost Breakdown</div>
@@ -895,10 +938,13 @@ export default async function ServiceJobDetailPage({ params }: { params: Promise
             <div className="text-zinc-500">Posted invoice total: {money(costing.postedInvoiceTotal)}</div>
           </div>
         </div>
-      </Card>
+      </CollapsibleCard>
 
-      <Card>
-        <div className="mb-3 text-sm font-semibold">Quotations & Final Invoices</div>
+      <CollapsibleCard
+        title="Quotations & Final Invoices"
+        summary="Linked service estimates and final sales invoices."
+        meta={`${costing.estimates.length} estimates / ${costing.invoices.length} invoices`}
+      >
         <div className="grid gap-4 lg:grid-cols-2">
           <div className="overflow-auto">
             <Table>
@@ -966,10 +1012,9 @@ export default async function ServiceJobDetailPage({ params }: { params: Promise
             </Table>
           </div>
         </div>
-      </Card>
+      </CollapsibleCard>
 
-      <Card>
-        <div className="mb-3 text-sm font-semibold">Cost Sources</div>
+      <CollapsibleCard title="Cost Sources" summary="Posted material, direct purchase, labor, and petty cash source lines.">
         <div className="space-y-4">
           <div className="overflow-auto">
             <div className="mb-2 text-sm font-medium">Material Consumption</div>
@@ -1173,7 +1218,7 @@ export default async function ServiceJobDetailPage({ params }: { params: Promise
             </Table>
           </div>
         </div>
-      </Card>
+      </CollapsibleCard>
 
       <Card>
         <div className="text-sm text-zinc-500">
@@ -1187,7 +1232,9 @@ export default async function ServiceJobDetailPage({ params }: { params: Promise
         </div>
       </Card>
 
-      <DocumentCollaborationPanel referenceType="SJ" referenceId={id} />
+      <CollapsibleCard title="Comments & Attachments" summary="Notes, approvals, customer communication, and uploaded files.">
+        <DocumentCollaborationPanel referenceType="SJ" referenceId={id} />
+      </CollapsibleCard>
     </div>
   );
 }

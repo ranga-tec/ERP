@@ -104,7 +104,7 @@ If you already created a database using `EnsureCreated`, recreate it (recommende
 
 Required:
 
-- `ConnectionStrings__Default`
+- `ConnectionStrings__Default` or Railway/Postgres-style `DATABASE_URL`
 - `Jwt__Key` (required in non-Development, minimum 32 chars, and must not use the built-in dev default)
 
 Optional:
@@ -144,6 +144,57 @@ Frontend environment variables:
 - `ISS_SECURE_COOKIES` (`true` | `false`; defaults to `true` in production, set to `false` only when deliberately serving plain HTTP)
 - `ISS_BACKEND_PROXY_TIMEOUT_MS` (optional; backend proxy upstream timeout in ms, default `30000`)
 - `NEXT_PUBLIC_ISS_ALLOW_SELF_REGISTRATION` (optional; register link is enabled by default in dev and disabled by default in production)
+
+## Railway deployment notes
+
+The repo-root `Dockerfile` runs the API and frontend in one Railway web service:
+
+- frontend listens on Railway's `$PORT`
+- API listens internally on `API_PORT` (default `8080`)
+- `ISS_API_BASE_URL` defaults to `http://127.0.0.1:8080`
+- `Database__InitializationMode` defaults to `Migrate` in the Railway image
+
+Railway's PostgreSQL service exposes `DATABASE_URL` by default. The API accepts that URL directly, so a Railway service can either reference the database URL:
+
+```text
+DATABASE_URL=${{Postgres.DATABASE_URL}}
+```
+
+or provide the native .NET setting:
+
+```text
+ConnectionStrings__Default=Host=...;Port=5432;Database=...;Username=...;Password=...
+```
+
+Keep `Jwt__Key` set to a real production secret. After deploying, check `/health`; it includes database connectivity and will fail if the Railway service cannot reach Postgres or migrations did not apply.
+
+### Deploy to Railway from the CLI
+
+Use the latest Railway CLI package instead of an old globally installed `railway` binary:
+
+```powershell
+npx @railway/cli@latest link --project <project-id> --environment production --service ERP
+npx @railway/cli@latest up --service ERP --environment production --detach
+```
+
+When deploying from a local machine with uncommitted work, deploy from a clean git worktree or a clean checkout of the pushed commit. That prevents unrelated local files from being uploaded:
+
+```powershell
+git worktree add --detach ..\ISS-deploy-<commit> <commit>
+cd ..\ISS-deploy-<commit>
+npx @railway/cli@latest link --project <project-id> --environment production --service ERP
+npx @railway/cli@latest up --service ERP --environment production --detach
+```
+
+After the detached upload starts, verify Railway status and the live app:
+
+```powershell
+npx @railway/cli@latest status
+Invoke-WebRequest https://<railway-app-url>/login -UseBasicParsing
+Invoke-WebRequest https://<railway-app-url>/health -UseBasicParsing
+```
+
+If the container fails immediately with a shell startup error, check that `deploy/railway/start.sh` is normalized to Unix line endings in the Docker image before execution.
 
 ## Integration test database fallback (without Testcontainers)
 

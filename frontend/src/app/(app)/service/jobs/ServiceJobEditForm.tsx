@@ -58,8 +58,8 @@ export function ServiceJobEditForm({
   const [expectedCompletionAt, setExpectedCompletionAt] = useState(job.expectedCompletionAt?.slice(0, 10) ?? "");
   const [siteLocation, setSiteLocation] = useState(job.siteLocation ?? "");
   const [responsibleOfficerName, setResponsibleOfficerName] = useState(job.responsibleOfficerName ?? "");
+  const [serviceRequirement, setServiceRequirement] = useState(job.customerComplaint ?? job.problemDescription);
   const [jobDescription, setJobDescription] = useState(job.jobDescription ?? "");
-  const [customerComplaint, setCustomerComplaint] = useState(job.customerComplaint ?? "");
   const [internalRemarks, setInternalRemarks] = useState(job.internalRemarks ?? "");
   const [problemDescription, setProblemDescription] = useState(job.problemDescription);
   const [busy, setBusy] = useState(false);
@@ -73,8 +73,8 @@ export function ServiceJobEditForm({
     setExpectedCompletionAt(job.expectedCompletionAt?.slice(0, 10) ?? "");
     setSiteLocation(job.siteLocation ?? "");
     setResponsibleOfficerName(job.responsibleOfficerName ?? "");
+    setServiceRequirement(job.customerComplaint ?? job.problemDescription);
     setJobDescription(job.jobDescription ?? "");
-    setCustomerComplaint(job.customerComplaint ?? "");
     setInternalRemarks(job.internalRemarks ?? "");
     setProblemDescription(job.problemDescription);
   }, [job]);
@@ -95,6 +95,12 @@ export function ServiceJobEditForm({
       return;
     }
 
+    const requirement = serviceRequirement.trim();
+    if (!requirement) {
+      setError("Enter the customer requirement.");
+      return;
+    }
+
     setBusy(true);
     try {
       await apiPut(`service/jobs/${job.id}`, {
@@ -106,9 +112,9 @@ export function ServiceJobEditForm({
         siteLocation: siteLocation.trim() || null,
         responsibleOfficerName: responsibleOfficerName.trim() || null,
         jobDescription: jobDescription.trim() || null,
-        customerComplaint: customerComplaint.trim() || null,
+        customerComplaint: requirement,
         internalRemarks: internalRemarks.trim() || null,
-        problemDescription: problemDescription.trim(),
+        problemDescription: problemDescription.trim() || requirement,
       });
       router.refresh();
     } catch (err) {
@@ -138,9 +144,6 @@ export function ServiceJobEditForm({
             Open jobs can be edited. Customer defaults from the selected unit and entitlement is recalculated on save.
           </div>
         </div>
-      </div>
-
-      <div className="grid gap-3 sm:grid-cols-2">
         <div>
           <label className="mb-1 block text-sm font-medium">Job type</label>
           <Select value={kind} onChange={(event) => setKind(event.target.value)} required>
@@ -152,44 +155,48 @@ export function ServiceJobEditForm({
           </Select>
         </div>
         <div>
-          <label className="mb-1 block text-sm font-medium">Estimated start</label>
-          <Input type="date" value={estimatedStartAt} onChange={(event) => setEstimatedStartAt(event.target.value)} />
-        </div>
-        <div>
-          <label className="mb-1 block text-sm font-medium">Expected completion</label>
-          <Input type="date" value={expectedCompletionAt} onChange={(event) => setExpectedCompletionAt(event.target.value)} />
+          <label className="mb-1 block text-sm font-medium">Responsible officer / supervisor</label>
+          <Input value={responsibleOfficerName} onChange={(event) => setResponsibleOfficerName(event.target.value)} />
         </div>
       </div>
 
       <div>
-        <label className="mb-1 block text-sm font-medium">Responsible officer / supervisor</label>
-        <Input value={responsibleOfficerName} onChange={(event) => setResponsibleOfficerName(event.target.value)} />
+        <label className="mb-1 block text-sm font-medium">Customer requirement</label>
+        <Textarea value={serviceRequirement} onChange={(event) => setServiceRequirement(event.target.value)} required />
       </div>
 
-      <div>
-        <label className="mb-1 block text-sm font-medium">Site location</label>
-        <Input value={siteLocation} onChange={(event) => setSiteLocation(event.target.value)} />
-      </div>
+      <details className="rounded-md border border-[var(--card-border)] p-3">
+        <summary className="cursor-pointer text-sm font-medium">More intake details</summary>
+        <div className="mt-3 grid gap-3 sm:grid-cols-2">
+          <div>
+            <label className="mb-1 block text-sm font-medium">Site location</label>
+            <Input value={siteLocation} onChange={(event) => setSiteLocation(event.target.value)} />
+          </div>
+          <div>
+            <label className="mb-1 block text-sm font-medium">Estimated start</label>
+            <Input type="date" value={estimatedStartAt} onChange={(event) => setEstimatedStartAt(event.target.value)} />
+          </div>
+          <div>
+            <label className="mb-1 block text-sm font-medium">Expected completion</label>
+            <Input type="date" value={expectedCompletionAt} onChange={(event) => setExpectedCompletionAt(event.target.value)} />
+          </div>
+        </div>
 
-      <div>
-        <label className="mb-1 block text-sm font-medium">Job description</label>
-        <Textarea value={jobDescription} onChange={(event) => setJobDescription(event.target.value)} />
-      </div>
+        <div className="mt-3">
+          <label className="mb-1 block text-sm font-medium">Job description</label>
+          <Textarea value={jobDescription} onChange={(event) => setJobDescription(event.target.value)} />
+        </div>
 
-      <div>
-        <label className="mb-1 block text-sm font-medium">Customer complaint / service requirement</label>
-        <Textarea value={customerComplaint} onChange={(event) => setCustomerComplaint(event.target.value)} />
-      </div>
+        <div className="mt-3">
+          <label className="mb-1 block text-sm font-medium">Problem description / intake note</label>
+          <Textarea value={problemDescription} onChange={(event) => setProblemDescription(event.target.value)} />
+        </div>
 
-      <div>
-        <label className="mb-1 block text-sm font-medium">Problem description / intake note</label>
-        <Textarea value={problemDescription} onChange={(event) => setProblemDescription(event.target.value)} required />
-      </div>
-
-      <div>
-        <label className="mb-1 block text-sm font-medium">Internal remarks</label>
-        <Textarea value={internalRemarks} onChange={(event) => setInternalRemarks(event.target.value)} />
-      </div>
+        <div className="mt-3">
+          <label className="mb-1 block text-sm font-medium">Internal remarks</label>
+          <Textarea value={internalRemarks} onChange={(event) => setInternalRemarks(event.target.value)} />
+        </div>
+      </details>
 
       {error ? (
         <div className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-900 dark:border-red-900/40 dark:bg-red-950/40 dark:text-red-100">

@@ -43,10 +43,9 @@ export function ServiceJobCreateForm({
   const [expectedCompletionAt, setExpectedCompletionAt] = useState("");
   const [siteLocation, setSiteLocation] = useState("");
   const [responsibleOfficerName, setResponsibleOfficerName] = useState("");
+  const [serviceRequirement, setServiceRequirement] = useState("");
   const [jobDescription, setJobDescription] = useState("");
-  const [customerComplaint, setCustomerComplaint] = useState("");
   const [internalRemarks, setInternalRemarks] = useState("");
-  const [problemDescription, setProblemDescription] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -70,6 +69,12 @@ export function ServiceJobCreateForm({
       return;
     }
 
+    const requirement = serviceRequirement.trim();
+    if (!requirement) {
+      setError("Enter the customer requirement.");
+      return;
+    }
+
     setBusy(true);
     try {
       const job = await apiPost<ServiceJobDto>("service/jobs", {
@@ -81,9 +86,9 @@ export function ServiceJobCreateForm({
         siteLocation: siteLocation.trim() || null,
         responsibleOfficerName: responsibleOfficerName.trim() || null,
         jobDescription: jobDescription.trim() || null,
-        customerComplaint: customerComplaint.trim() || null,
+        customerComplaint: requirement,
         internalRemarks: internalRemarks.trim() || null,
-        problemDescription: problemDescription.trim(),
+        problemDescription: requirement,
       });
       router.push(`/service/jobs/${job.id}`);
     } catch (err) {
@@ -116,9 +121,6 @@ export function ServiceJobCreateForm({
             Customer defaults from the selected unit. Entitlement is evaluated automatically when the job is created.
           </div>
         </div>
-      </div>
-
-      <div className="grid gap-3 sm:grid-cols-2">
         <div>
           <label className="mb-1 block text-sm font-medium">Job type</label>
           <Select value={kind} onChange={(e) => setKind(e.target.value)} required>
@@ -130,44 +132,43 @@ export function ServiceJobCreateForm({
           </Select>
         </div>
         <div>
-          <label className="mb-1 block text-sm font-medium">Estimated start</label>
-          <Input type="date" value={estimatedStartAt} onChange={(e) => setEstimatedStartAt(e.target.value)} />
-        </div>
-        <div>
-          <label className="mb-1 block text-sm font-medium">Expected completion</label>
-          <Input type="date" value={expectedCompletionAt} onChange={(e) => setExpectedCompletionAt(e.target.value)} />
+          <label className="mb-1 block text-sm font-medium">Responsible officer / supervisor</label>
+          <Input value={responsibleOfficerName} onChange={(e) => setResponsibleOfficerName(e.target.value)} placeholder="Supervisor or service advisor" />
         </div>
       </div>
 
       <div>
-        <label className="mb-1 block text-sm font-medium">Responsible officer / supervisor</label>
-        <Input value={responsibleOfficerName} onChange={(e) => setResponsibleOfficerName(e.target.value)} placeholder="Supervisor or service advisor" />
+        <label className="mb-1 block text-sm font-medium">Customer requirement</label>
+        <Textarea value={serviceRequirement} onChange={(e) => setServiceRequirement(e.target.value)} required placeholder="Complaint, service request, inspection requirement, or PDI instruction" />
       </div>
 
-      <div>
-        <label className="mb-1 block text-sm font-medium">Site location</label>
-        <Input value={siteLocation} onChange={(e) => setSiteLocation(e.target.value)} placeholder="Workshop or customer site" />
-      </div>
+      <details className="rounded-md border border-[var(--card-border)] p-3">
+        <summary className="cursor-pointer text-sm font-medium">More intake details</summary>
+        <div className="mt-3 grid gap-3 sm:grid-cols-2">
+          <div>
+            <label className="mb-1 block text-sm font-medium">Site location</label>
+            <Input value={siteLocation} onChange={(e) => setSiteLocation(e.target.value)} placeholder="Workshop or customer site" />
+          </div>
+          <div>
+            <label className="mb-1 block text-sm font-medium">Estimated start</label>
+            <Input type="date" value={estimatedStartAt} onChange={(e) => setEstimatedStartAt(e.target.value)} />
+          </div>
+          <div>
+            <label className="mb-1 block text-sm font-medium">Expected completion</label>
+            <Input type="date" value={expectedCompletionAt} onChange={(e) => setExpectedCompletionAt(e.target.value)} />
+          </div>
+        </div>
 
-      <div>
-        <label className="mb-1 block text-sm font-medium">Job description</label>
-        <Textarea value={jobDescription} onChange={(e) => setJobDescription(e.target.value)} placeholder="Scope of work, PDI checklist summary, installation task, or service plan" />
-      </div>
+        <div className="mt-3">
+          <label className="mb-1 block text-sm font-medium">Job description</label>
+          <Textarea value={jobDescription} onChange={(e) => setJobDescription(e.target.value)} placeholder="Initial scope if already known. Detailed sub-parts and labor planning is handled after creating the job." />
+        </div>
 
-      <div>
-        <label className="mb-1 block text-sm font-medium">Customer complaint / service requirement</label>
-        <Textarea value={customerComplaint} onChange={(e) => setCustomerComplaint(e.target.value)} />
-      </div>
-
-      <div>
-        <label className="mb-1 block text-sm font-medium">Problem description / intake note</label>
-        <Textarea value={problemDescription} onChange={(e) => setProblemDescription(e.target.value)} required />
-      </div>
-
-      <div>
-        <label className="mb-1 block text-sm font-medium">Internal remarks</label>
-        <Textarea value={internalRemarks} onChange={(e) => setInternalRemarks(e.target.value)} />
-      </div>
+        <div className="mt-3">
+          <label className="mb-1 block text-sm font-medium">Internal remarks</label>
+          <Textarea value={internalRemarks} onChange={(e) => setInternalRemarks(e.target.value)} />
+        </div>
+      </details>
 
       {error ? (
         <div className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-900 dark:border-red-900/40 dark:bg-red-950/40 dark:text-red-100">
