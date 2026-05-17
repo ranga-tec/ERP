@@ -393,8 +393,36 @@ function CollapsibleCard({
   );
 }
 
-export default async function ServiceJobDetailPage({ params }: { params: Promise<{ id: string }> }) {
+type JobTabKey = "overview" | "plan" | "daily-work" | "materials" | "expenses" | "billing" | "costs" | "files";
+
+const jobTabs: { key: JobTabKey; label: string }[] = [
+  { key: "overview", label: "Overview" },
+  { key: "plan", label: "Plan" },
+  { key: "daily-work", label: "Daily Work" },
+  { key: "materials", label: "Materials" },
+  { key: "expenses", label: "Expenses" },
+  { key: "billing", label: "Billing" },
+  { key: "costs", label: "Costs" },
+  { key: "files", label: "Files & Notes" },
+];
+
+function resolveJobTab(value?: string): JobTabKey {
+  return jobTabs.some((tab) => tab.key === value) ? (value as JobTabKey) : "overview";
+}
+
+function tabHref(jobId: string, tab: JobTabKey) {
+  return tab === "overview" ? `/service/jobs/${jobId}` : `/service/jobs/${jobId}?tab=${tab}`;
+}
+
+export default async function ServiceJobDetailPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams?: Promise<{ tab?: string }>;
+}) {
   const { id } = await params;
+  const activeTab = resolveJobTab((await searchParams)?.tab);
 
   const [job, units, customers, costing, items, technicians, warehouses, dailySheets, assignments, progressUpdates, closeoutChecks, materialDispositions, operations] = await Promise.all([
     backendFetchJson<ServiceJobDto>(`/service/jobs/${id}`),
@@ -485,6 +513,30 @@ export default async function ServiceJobDetailPage({ params }: { params: Promise
         <ServiceJobActions jobId={job.id} canStart={canStart} canComplete={canComplete} canClose={canClose} canReopen={canReopen} />
       </Card>
 
+      <nav className="overflow-x-auto border-b border-[var(--card-border)]">
+        <div className="flex min-w-max gap-1">
+          {jobTabs.map((tab) => {
+            const active = tab.key === activeTab;
+            return (
+              <Link
+                key={tab.key}
+                href={tabHref(job.id, tab.key)}
+                className={[
+                  "border-b-2 px-3 py-2 text-sm font-medium transition-colors",
+                  active
+                    ? "border-[var(--link)] text-[var(--link)]"
+                    : "border-transparent text-zinc-500 hover:border-zinc-300 hover:text-[var(--foreground)]",
+                ].join(" ")}
+              >
+                {tab.label}
+              </Link>
+            );
+          })}
+        </div>
+      </nav>
+
+      {activeTab === "overview" ? (
+        <>
       {canEditHeader ? (
         <CollapsibleCard title="Edit Job" summary="Change intake header fields while the job is still editable.">
           <ServiceJobEditForm job={job} equipmentUnits={equipmentUnitOptions} customers={customers} />
@@ -567,6 +619,46 @@ export default async function ServiceJobDetailPage({ params }: { params: Promise
       </CollapsibleCard>
 
       <Card>
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <div className="text-sm font-semibold">Closeout Readiness</div>
+            <div className="mt-1 text-xs text-zinc-500">Clear these operational and financial items before closing the job.</div>
+          </div>
+          <div className="text-sm font-medium">
+            {closeoutChecks.every((check) => check.isClear) ? "Ready to close" : `${closeoutChecks.filter((check) => !check.isClear).length} pending`}
+          </div>
+        </div>
+        <div className="grid gap-2 md:grid-cols-2">
+          {closeoutChecks.map((check) => (
+            <div key={check.key} className="rounded-lg border border-[var(--card-border)] p-3">
+              <div className="flex items-center justify-between gap-3">
+                <div className="text-sm font-medium">{check.label}</div>
+                <div className={check.isClear ? "text-xs font-semibold text-emerald-700 dark:text-emerald-300" : "text-xs font-semibold text-amber-700 dark:text-amber-300"}>
+                  {check.isClear ? "Clear" : `${check.pendingCount} pending`}
+                </div>
+              </div>
+              <div className="mt-1 text-xs text-zinc-500">{check.detail}</div>
+            </div>
+          ))}
+        </div>
+      </Card>
+
+      <Card>
+        <div className="text-sm text-zinc-500">
+          Track the job flow via <Link className="underline" href="/service/estimates">Quotations</Link>,{" "}
+          <Link className="underline" href="/service/expense-claims">Petty Cash</Link>,{" "}
+          <Link className="underline" href="/service/work-orders">Job Detail / Job Sheet</Link>,{" "}
+          <Link className="underline" href="/service/material-requisitions">MRN</Link>,{" "}
+          <Link className="underline" href="/procurement/direct-purchases">Direct Purchases</Link>,{" "}
+          <Link className="underline" href="/service/quality-checks">Inspection / QC</Link>, and{" "}
+          <Link className="underline" href="/service/handovers">Service Taken / Delivery Confirmation</Link>.
+        </div>
+      </Card>
+        </>
+      ) : null}
+
+      {activeTab === "plan" ? (
+      <Card>
         <div className="mb-3">
           <div className="text-sm font-semibold">Job Operations / Sub-Parts Plan</div>
           <div className="mt-1 text-xs text-zinc-500">Plan complex repair stages, expected sub-parts, labor, and due dates before issuing actual MRNs or recording labor.</div>
@@ -637,7 +729,9 @@ export default async function ServiceJobDetailPage({ params }: { params: Promise
           </Table>
         </div>
       </Card>
+      ) : null}
 
+      {activeTab === "billing" ? (
       <Card>
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
           <div>
@@ -668,7 +762,10 @@ export default async function ServiceJobDetailPage({ params }: { params: Promise
           <ServiceJobFinalInvoiceActions jobId={job.id} disabled={job.status === 12 || job.finalInvoiceNotRequired} />
         </div>
       </Card>
+      ) : null}
 
+      {activeTab === "daily-work" ? (
+        <>
       <Card>
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
           <div>
@@ -824,10 +921,14 @@ export default async function ServiceJobDetailPage({ params }: { params: Promise
           ) : null}
         </div>
       </CollapsibleCard>
+        </>
+      ) : null}
 
+      {activeTab === "expenses" ? (
       <CollapsibleCard
-        title="Cash, Expenses, and Material Issue"
-        summary="Create IOUs, petty cash vouchers, reimbursement claims, and MRNs when they are needed for the job."
+        title="Cash and Expenses"
+        summary="Create IOUs, petty cash vouchers, and reimbursement claims when they are needed for the job."
+        defaultOpen
       >
         <div className="grid gap-4 xl:grid-cols-2">
         <div className="rounded-lg border border-[var(--card-border)] p-3">
@@ -867,24 +968,32 @@ export default async function ServiceJobDetailPage({ params }: { params: Promise
             disabled={!canAddJobActivity}
           />
         </div>
-
-        <div className="rounded-lg border border-[var(--card-border)] p-3">
-          <div className="mb-3">
-            <div className="text-sm font-semibold">Materials / Lubricants Issue</div>
-            <div className="mt-1 text-xs text-zinc-500">Create an MRN for spare parts, lubricants, consumables, or other issued materials needed on the job.</div>
-          </div>
-          <ServiceJobDailyMaterialRequisitionCreateForm serviceJobId={job.id} dailySheets={dailySheets} warehouses={warehouses} disabled={!canAddJobActivity} />
-        </div>
         </div>
       </CollapsibleCard>
+      ) : null}
+
+      {activeTab === "materials" ? (
+        <>
+      <Card>
+        <div className="mb-3">
+          <div className="text-sm font-semibold">Materials / Lubricants Issue</div>
+          <div className="mt-1 text-xs text-zinc-500">Create an MRN for spare parts, lubricants, consumables, or other issued materials needed on the job.</div>
+        </div>
+        <ServiceJobDailyMaterialRequisitionCreateForm serviceJobId={job.id} dailySheets={dailySheets} warehouses={warehouses} disabled={!canAddJobActivity} />
+      </Card>
 
       <CollapsibleCard
         title="Material Returns / Damage / Rejection"
         summary="Record used material, unused returns, damaged parts, rejected parts, and supplier-return responsibility."
+        defaultOpen
       >
         <ServiceJobMaterialDispositionAddForm serviceJobId={job.id} materialLines={costing.materialLines} dailySheets={dailySheets} disabled={!canAddJobActivity} />
       </CollapsibleCard>
+        </>
+      ) : null}
 
+      {activeTab === "costs" ? (
+        <>
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <Card>
           <div className="text-xs uppercase tracking-wide text-zinc-500">Actual Cost</div>
@@ -939,7 +1048,10 @@ export default async function ServiceJobDetailPage({ params }: { params: Promise
           </div>
         </div>
       </CollapsibleCard>
+        </>
+      ) : null}
 
+      {activeTab === "billing" ? (
       <CollapsibleCard
         title="Quotations & Final Invoices"
         summary="Linked service estimates and final sales invoices."
@@ -1013,7 +1125,9 @@ export default async function ServiceJobDetailPage({ params }: { params: Promise
           </div>
         </div>
       </CollapsibleCard>
+      ) : null}
 
+      {activeTab === "costs" ? (
       <CollapsibleCard title="Cost Sources" summary="Posted material, direct purchase, labor, and petty cash source lines.">
         <div className="space-y-4">
           <div className="overflow-auto">
@@ -1219,22 +1333,13 @@ export default async function ServiceJobDetailPage({ params }: { params: Promise
           </div>
         </div>
       </CollapsibleCard>
+      ) : null}
 
-      <Card>
-        <div className="text-sm text-zinc-500">
-          Track the job flow via <Link className="underline" href="/service/estimates">Quotations</Link>,{" "}
-          <Link className="underline" href="/service/expense-claims">Petty Cash</Link>,{" "}
-          <Link className="underline" href="/service/work-orders">Job Detail / Job Sheet</Link>,{" "}
-          <Link className="underline" href="/service/material-requisitions">MRN</Link>,{" "}
-          <Link className="underline" href="/procurement/direct-purchases">Direct Purchases</Link>,{" "}
-          <Link className="underline" href="/service/quality-checks">Inspection / QC</Link>, and{" "}
-          <Link className="underline" href="/service/handovers">Service Taken / Delivery Confirmation</Link>.
-        </div>
-      </Card>
-
+      {activeTab === "files" ? (
       <CollapsibleCard title="Comments & Attachments" summary="Notes, approvals, customer communication, and uploaded files.">
         <DocumentCollaborationPanel referenceType="SJ" referenceId={id} />
       </CollapsibleCard>
+      ) : null}
     </div>
   );
 }
