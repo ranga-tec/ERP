@@ -394,6 +394,7 @@ function CollapsibleCard({
 }
 
 type JobTabKey = "overview" | "plan" | "daily-work" | "materials" | "expenses" | "billing" | "costs" | "files";
+type DailyWorkViewKey = "sheets" | "labor" | "progress";
 
 const jobTabs: { key: JobTabKey; label: string }[] = [
   { key: "overview", label: "Overview" },
@@ -406,16 +407,44 @@ const jobTabs: { key: JobTabKey; label: string }[] = [
   { key: "files", label: "Files & Notes" },
 ];
 
+const dailyWorkViews: { key: DailyWorkViewKey; label: string }[] = [
+  { key: "sheets", label: "Daily Sheets" },
+  { key: "labor", label: "Staff / Labor" },
+  { key: "progress", label: "Progress" },
+];
+
 function resolveJobTab(value?: string): JobTabKey {
   return jobTabs.some((tab) => tab.key === value) ? (value as JobTabKey) : "overview";
+}
+
+function resolveDailyWorkView(value?: string): DailyWorkViewKey {
+  return dailyWorkViews.some((view) => view.key === value) ? (value as DailyWorkViewKey) : "sheets";
 }
 
 function tabHref(jobId: string, tab: JobTabKey) {
   return tab === "overview" ? `/service/jobs/${jobId}` : `/service/jobs/${jobId}?tab=${tab}`;
 }
 
-function dailyWorkHref(jobId: string, dailySheetId: string) {
-  return `/service/jobs/${jobId}?tab=daily-work&dailySheetId=${dailySheetId}`;
+function dailyWorkHref(jobId: string, view: DailyWorkViewKey = "sheets", dailySheetId?: string) {
+  return `/service/jobs/${jobId}?tab=daily-work&dailyView=${view}${dailySheetId ? `&dailySheetId=${dailySheetId}` : ""}`;
+}
+
+function closeoutCheckHref(jobId: string, key: string) {
+  const targets: Record<string, string> = {
+    "daily-field-sheets": dailyWorkHref(jobId, "sheets"),
+    "expense-claims": tabHref(jobId, "expenses"),
+    "petty-cash-ious": tabHref(jobId, "expenses"),
+    "direct-purchase-bills": "/procurement/direct-purchases",
+    "material-requisitions": tabHref(jobId, "materials"),
+    "job-assignments": dailyWorkHref(jobId, "labor"),
+    "labor-entries": "/service/work-orders",
+    "work-orders": "/service/work-orders",
+    "billable-labor": tabHref(jobId, "billing"),
+    "material-disposition": tabHref(jobId, "materials"),
+    "final-invoice": tabHref(jobId, "billing"),
+  };
+
+  return targets[key] ?? tabHref(jobId, "overview");
 }
 
 export default async function ServiceJobDetailPage({
@@ -423,11 +452,12 @@ export default async function ServiceJobDetailPage({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams?: Promise<{ tab?: string; dailySheetId?: string }>;
+  searchParams?: Promise<{ tab?: string; dailyView?: string; dailySheetId?: string }>;
 }) {
   const { id } = await params;
   const resolvedSearchParams = await searchParams;
   const activeTab = resolveJobTab(resolvedSearchParams?.tab);
+  const activeDailyWorkView = resolveDailyWorkView(resolvedSearchParams?.dailyView);
 
   const [job, units, customers, costing, items, technicians, warehouses, dailySheets, assignments, progressUpdates, closeoutChecks, materialDispositions, operations] = await Promise.all([
     backendFetchJson<ServiceJobDto>(`/service/jobs/${id}`),
@@ -643,7 +673,7 @@ export default async function ServiceJobDetailPage({
         </div>
         <div className="grid gap-2 md:grid-cols-2">
           {closeoutChecks.map((check) => (
-            <div key={check.key} className="rounded-lg border border-[var(--card-border)] p-3">
+            <Link key={check.key} href={closeoutCheckHref(job.id, check.key)} className="rounded-lg border border-[var(--card-border)] p-3 transition hover:border-[var(--link)] hover:bg-[var(--surface-soft)]">
               <div className="flex items-center justify-between gap-3">
                 <div className="text-sm font-medium">{check.label}</div>
                 <div className={check.isClear ? "text-xs font-semibold text-emerald-700 dark:text-emerald-300" : "text-xs font-semibold text-amber-700 dark:text-amber-300"}>
@@ -651,7 +681,8 @@ export default async function ServiceJobDetailPage({
                 </div>
               </div>
               <div className="mt-1 text-xs text-zinc-500">{check.detail}</div>
-            </div>
+              <div className="mt-2 text-xs font-semibold text-[var(--link)]">{check.isClear ? "Review" : "Open pending records"}</div>
+            </Link>
           ))}
         </div>
       </Card>
@@ -757,7 +788,7 @@ export default async function ServiceJobDetailPage({
         </div>
         <div className="grid gap-2 md:grid-cols-2">
           {closeoutChecks.map((check) => (
-            <div key={check.key} className="rounded-lg border border-[var(--card-border)] p-3">
+            <Link key={check.key} href={closeoutCheckHref(job.id, check.key)} className="rounded-lg border border-[var(--card-border)] p-3 transition hover:border-[var(--link)] hover:bg-[var(--surface-soft)]">
               <div className="flex items-center justify-between gap-3">
                 <div className="text-sm font-medium">{check.label}</div>
                 <div className={check.isClear ? "text-xs font-semibold text-emerald-700 dark:text-emerald-300" : "text-xs font-semibold text-amber-700 dark:text-amber-300"}>
@@ -765,7 +796,8 @@ export default async function ServiceJobDetailPage({
                 </div>
               </div>
               <div className="mt-1 text-xs text-zinc-500">{check.detail}</div>
-            </div>
+              <div className="mt-2 text-xs font-semibold text-[var(--link)]">{check.isClear ? "Review" : "Open pending records"}</div>
+            </Link>
           ))}
         </div>
         {job.finalInvoiceNotRequiredReason ? (
@@ -779,6 +811,29 @@ export default async function ServiceJobDetailPage({
 
       {activeTab === "daily-work" ? (
         <>
+      <nav className="overflow-x-auto border-b border-[var(--card-border)]">
+        <div className="flex min-w-max gap-1">
+          {dailyWorkViews.map((view) => {
+            const active = view.key === activeDailyWorkView;
+            return (
+              <Link
+                key={view.key}
+                href={dailyWorkHref(job.id, view.key, selectedDailySheet?.id)}
+                className={[
+                  "border-b-2 px-3 py-2 text-sm font-medium transition-colors",
+                  active
+                    ? "border-[var(--link)] text-[var(--link)]"
+                    : "border-transparent text-zinc-500 hover:border-zinc-300 hover:text-[var(--foreground)]",
+                ].join(" ")}
+              >
+                {view.label}
+              </Link>
+            );
+          })}
+        </div>
+      </nav>
+
+      {activeDailyWorkView === "sheets" ? (
       <Card>
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
           <div>
@@ -824,8 +879,11 @@ export default async function ServiceJobDetailPage({
                   <td className="py-2 pr-3">{dailySheetStatusLabel[sheet.status] ?? sheet.status}</td>
                   <td className="py-2 pr-3">
                     <div className="flex flex-wrap gap-3">
-                      <Link className="text-xs font-semibold text-[var(--link)] underline underline-offset-2" href={dailyWorkHref(job.id, sheet.id)}>
-                        Open
+                      <Link className="text-xs font-semibold text-[var(--link)] underline underline-offset-2" href={dailyWorkHref(job.id, "labor", sheet.id)}>
+                        Labor
+                      </Link>
+                      <Link className="text-xs font-semibold text-[var(--link)] underline underline-offset-2" href={dailyWorkHref(job.id, "progress", sheet.id)}>
+                        Progress
                       </Link>
                       <ServiceJobDailySheetActions serviceJobId={job.id} dailySheetId={sheet.id} status={sheet.status} />
                     </div>
@@ -841,32 +899,36 @@ export default async function ServiceJobDetailPage({
           </Table>
         </div>
       </Card>
+      ) : null}
 
-      {selectedDailySheet ? (
-        <Card>
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <div className="text-sm font-semibold">Selected Daily Sheet</div>
-              <div className="mt-1 text-xs text-zinc-500">
-                {selectedDailySheet.number} / {new Date(selectedDailySheet.sheetDate).toLocaleString()} / {dailySheetStatusLabel[selectedDailySheet.status] ?? selectedDailySheet.status}
+      {activeDailyWorkView !== "sheets" ? (
+        selectedDailySheet ? (
+          <Card>
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <div className="text-sm font-semibold">Selected Daily Sheet</div>
+                <div className="mt-1 text-xs text-zinc-500">
+                  {selectedDailySheet.number} / {new Date(selectedDailySheet.sheetDate).toLocaleString()} / {dailySheetStatusLabel[selectedDailySheet.status] ?? selectedDailySheet.status}
+                </div>
+              </div>
+              <div className="flex flex-wrap gap-2 text-xs text-zinc-500">
+                <span>Staff {selectedAssignments.length}</span>
+                <span>Progress {selectedProgressUpdates.length}</span>
+                <span>MRN {selectedDailySheet.materialRequisitionCount}</span>
+                <span>Returns {selectedDailySheet.materialDispositionCount}</span>
+                <span>Expenses {selectedDailySheet.expenseClaimCount}</span>
+                <span>IOU {selectedDailySheet.iouCount}</span>
               </div>
             </div>
-            <div className="flex flex-wrap gap-2 text-xs text-zinc-500">
-              <span>Staff {selectedAssignments.length}</span>
-              <span>Progress {selectedProgressUpdates.length}</span>
-              <span>MRN {selectedDailySheet.materialRequisitionCount}</span>
-              <span>Returns {selectedDailySheet.materialDispositionCount}</span>
-              <span>Expenses {selectedDailySheet.expenseClaimCount}</span>
-              <span>IOU {selectedDailySheet.iouCount}</span>
-            </div>
-          </div>
-        </Card>
-      ) : (
-        <Card>
-          <div className="text-sm text-zinc-500">Create a daily field sheet first. Staff/labor and progress are recorded against the selected daily sheet.</div>
-        </Card>
-      )}
+          </Card>
+        ) : (
+          <Card>
+            <div className="text-sm text-zinc-500">Create a daily field sheet first. Staff/labor and progress are recorded against the selected daily sheet.</div>
+          </Card>
+        )
+      ) : null}
 
+      {activeDailyWorkView === "labor" ? (
       <CollapsibleCard
         title="Daily Staff / Labor"
         summary={selectedDailySheet ? `Assign staff and labor for ${selectedDailySheet.number}.` : "Create a daily sheet before adding staff or labor."}
@@ -937,7 +999,9 @@ export default async function ServiceJobDetailPage({
           </Table>
         </div>
       </CollapsibleCard>
+      ) : null}
 
+      {activeDailyWorkView === "progress" ? (
       <CollapsibleCard
         title="Daily Progress"
         summary={selectedDailySheet ? `Record completed work, pending work, and issues for ${selectedDailySheet.number}.` : "Create a daily sheet before adding progress."}
@@ -977,6 +1041,7 @@ export default async function ServiceJobDetailPage({
           ) : null}
         </div>
       </CollapsibleCard>
+      ) : null}
         </>
       ) : null}
 

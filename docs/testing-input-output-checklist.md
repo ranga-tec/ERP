@@ -513,7 +513,7 @@ Open the job detail and verify each tab loads without leaving the job context:
 | --- | --- |
 | `Overview` | edit/intake summary, warranty/billing entitlement, closeout readiness, related workflow links |
 | `Plan` | `Job Operations / Sub-Parts Plan` |
-| `Daily Work` | daily field sheets, daily staff/labor, daily progress |
+| `Daily Work` | sub-tabs for `Daily Sheets`, `Staff / Labor`, and `Progress` |
 | `Materials` | materials/lubricants issue and material returns/damage/rejection |
 | `Expenses` | IOU / employee advance, petty cash expense, employee out-of-pocket claim |
 | `Billing` | closeout readiness, final invoice decision, quotations and final invoices |
@@ -528,6 +528,7 @@ Expected:
 | Active tab | tab bar | selected tab is visually highlighted |
 | Deep links | browser URL | non-overview tabs use `?tab=plan`, `?tab=daily-work`, `?tab=materials`, `?tab=expenses`, `?tab=billing`, `?tab=costs`, or `?tab=files` |
 | Invalid tab fallback | manually open `?tab=wrong` | page falls back to `Overview` |
+| Closeout tile links | `Overview` or `Billing` tab -> `Closeout Readiness` | pending tiles are clickable and open the relevant tab/sub-tab |
 
 ### 10.1.2 Plan Operations And Sub-Parts
 
@@ -566,7 +567,7 @@ Expected:
 
 Open the service job detail.
 
-Open the `Daily Work` tab. In `Daily Field Sheets`, expand `Create daily field sheet` and create:
+Open the `Daily Work` tab, then the `Daily Sheets` sub-tab. Expand `Create daily field sheet` and create:
 
 | Field | Input |
 | --- | --- |
@@ -587,6 +588,7 @@ Expected:
 | Daily sheet | Job detail, `Daily Work` tab -> `Daily Field Sheets` | new `JDS...` row appears with status `Draft` |
 | Counts | Daily sheet row | staff, progress, MRN, returns, expenses, and IOU counts start at `0` |
 | Running job tracking | Job detail | users can continue daily work, cash, expenses, materials, and returns from the system instead of paper notes |
+| Sheet action links | daily sheet row | `Labor` and `Progress` links open the selected sheet in the corresponding sub-tab |
 
 ### 10.2 MRN Available Stock Validation
 
@@ -695,7 +697,7 @@ Go to `Service -> Work Orders`.
 
 Create work order for the job.
 
-Go back to the job detail, open the `Daily Work` tab, and add technician assignment in `Daily Staff / Labor`:
+Go back to the job detail, open the `Daily Work` tab, click the `Labor` link on the `JDS...` daily sheet row or open the `Staff / Labor` sub-tab, and add technician assignment:
 
 | Field | Input |
 | --- | --- |
@@ -725,7 +727,7 @@ Expected:
 
 | Check | Where | Expected output |
 | --- | --- | --- |
-| Assignment | Job detail, `Daily Work` tab -> `Daily Staff / Labor` | assignment status is `Approved` |
+| Assignment | Job detail, `Daily Work` tab -> `Staff / Labor` sub-tab | assignment status is `Approved` |
 | Daily sheet count | Job detail, `Daily Work` tab -> `Daily Field Sheets` | staff count increases |
 | Work order | Work order detail | status moves `Open -> In Progress -> Done` |
 | Labor cost | Work order/job detail, `Costs` tab | `2 x 10 = 20` |
@@ -734,7 +736,7 @@ Expected:
 
 ### 11.1.1 Daily Job Progress
 
-Open the service job detail, open the `Daily Work` tab, and add progress update:
+Open the service job detail, open the `Daily Work` tab, click the `Progress` link on the `JDS...` daily sheet row or open the `Progress` sub-tab, and add progress update:
 
 | Field | Input |
 | --- | --- |
@@ -752,7 +754,7 @@ Expected:
 
 | Check | Where | Expected output |
 | --- | --- | --- |
-| Daily progress | Job detail, `Daily Work` tab -> `Daily Progress` | progress update appears with completed/pending/problem notes |
+| Daily progress | Job detail, `Daily Work` tab -> `Progress` sub-tab | progress update appears with completed/pending/problem notes |
 | Daily sheet count | Job detail, `Daily Work` tab -> `Daily Field Sheets` | progress count increases |
 
 Return to the `Plan` tab and complete the planned operation from section 10.1.2.
