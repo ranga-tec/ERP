@@ -449,7 +449,7 @@ public sealed class ServiceJobsController(
             .Select(g => new
             {
                 Hours = g.Sum(x => x.HoursWorked),
-                Cost = g.Sum(x => x.LaborCost)
+                Cost = g.Sum(x => x.HoursWorked * x.CostRate)
             })
             .FirstOrDefaultAsync(cancellationToken);
 
