@@ -2,30 +2,41 @@
 
 ## Current Status
 
-This handover covers the service/job module work completed up to local commit:
+This handover covers the service/job module work completed through:
 
-`cf69242 Add daily field sheets for service jobs`
+`2e29358 Link service job closeout checks to workflows`
 
 GitHub push status:
 
-- Not pushed to GitHub.
-- `origin/main` is still at `28db1b5 Add service job material disposition and invoice controls`.
-- Push is blocked because the active GitHub credential is `vespertecs`, and GitHub returns:
-  - `Permission to ranga-tec/ERP.git denied to vespertecs`
-  - HTTP `403`
+- Pushed to `origin/main`.
+- Recent service/job commits:
+  - `9788070 Add service job operations planning`
+  - `909f5b1 Fix service job operations actual labor query`
+  - `acc3298 Simplify service job detail workflow`
+  - `8af1961 Organize service job detail into workflow tabs`
+  - `debe9df Refine service job daily work flow`
+  - `2e29358 Link service job closeout checks to workflows`
 
 Railway status:
 
-- The local build from the daily field sheet work was deployed to Railway with `railway up --detach`.
-- Live `/login` returned HTTP `200` after deployment.
+- Latest deployed commit: `2e29358`.
+- Deploy command used from a clean detached worktree:
+  - `npx @railway/cli@latest up --service ERP --environment production --detach`
+- Railway service was verified `Online`.
+- Live verification passed:
+  - `/login` returned HTTP `200`
+  - job detail returned HTTP `200`
+  - `?tab=daily-work&dailyView=sheets` returned HTTP `200`
+  - `?tab=daily-work&dailyView=labor` returned HTTP `200`
+  - `?tab=daily-work&dailyView=progress` returned HTTP `200`
+  - daily sheet labor/progress deep links returned HTTP `200`
+  - `?tab=billing`, `?tab=materials`, and `?tab=expenses` returned HTTP `200`
 
 Unrelated local changes exist and must not be reverted or staged unless the user explicitly asks:
 
-- `Dockerfile`
 - `backend/src/ISS.Infrastructure/DependencyInjection.cs`
 - `backend/src/ISS.Infrastructure/Persistence/IssDbContextFactory.cs`
 - `backend/tests/ISS.UnitTests/ISS.UnitTests.csproj`
-- `docs/deployment.md`
 - `frontend/src/components/SearchableSelect.tsx`
 - untracked `Modification reqs/`
 - untracked `backend/src/ISS.Infrastructure/Persistence/DatabaseConnectionStringResolver.cs`
@@ -48,9 +59,21 @@ The required practical workflow is:
 
 The user also clarified after implementation:
 
-- IOU, petty cash, expenses, and material actions should not remain crowded together in one job-order section.
-- They should be split into clearer separate forms/sections.
-- The last two broader phases are still pending and need to be tracked for the next agent.
+- The job detail page must not show every service workflow form as one long page.
+- Service jobs now use top-level workflow tabs:
+  - `Overview`
+  - `Plan`
+  - `Daily Work`
+  - `Materials`
+  - `Expenses`
+  - `Billing`
+  - `Costs`
+  - `Files & Notes`
+- `Daily Work` now uses sub-tabs:
+  - `Daily Sheets`
+  - `Staff / Labor`
+  - `Progress`
+- Closeout readiness tiles are clickable and route users to the relevant tab/sub-tab or supporting module.
 
 ## Industry/Standard Pattern Used
 
@@ -69,6 +92,29 @@ References already documented in `docs/service-job-daily-field-operations-requir
 - Oracle field service parts returns: technicians return excess, unused, and defective parts to warehouse/return destinations.
 
 ## Completed Backend Work
+
+### Service Job Operations / Sub-Parts Plan
+
+Added:
+
+- `backend/src/ISS.Domain/Service/ServiceJobOperation.cs`
+- EF mapping and migration for service job operations
+- API endpoints under `ServiceJobsController`
+- service methods in `ServiceManagementService`
+
+Operation fields:
+
+- step number / sequence
+- work step / subassembly name
+- description
+- planned item/sub-part
+- planned quantity
+- estimated labor hours
+- required date
+- notes
+- status: planned, in progress, completed, skipped
+
+The operation plan is only a plan. Inventory is still consumed through MRN posting, and labor actuals still come from approved labor/time records.
 
 ### Daily Sheet Entity
 
@@ -169,7 +215,37 @@ Added migration:
 
 ## Completed Frontend Work
 
-On service job detail page:
+Service job detail is now organized as a workflow workspace instead of one long form.
+
+Top-level tabs:
+
+- `Overview`
+- `Plan`
+- `Daily Work`
+- `Materials`
+- `Expenses`
+- `Billing`
+- `Costs`
+- `Files & Notes`
+
+Overview:
+
+- concise job header remains visible above tabs
+- job actions remain visible above tabs
+- edit/intake and entitlement are collapsed
+- closeout readiness tiles are clickable
+- each closeout tile routes to the relevant workflow tab/sub-tab or supporting module
+
+Plan:
+
+- added `Job Operations / Sub-Parts Plan`
+- renamed labels to:
+  - `Step No.`
+  - `Work step / subassembly`
+- planned work steps can carry a planned part/sub-part, quantity, estimated labor hours, required date, description, and notes
+- operation actions allow start/complete/skip as applicable
+
+Daily Work:
 
 - added `Daily Field Sheets` section
 - added create form for daily sheets
@@ -181,6 +257,13 @@ On service job detail page:
   - returns/dispositions
   - expenses
   - IOUs
+- split daily work into sub-tabs:
+  - `Daily Sheets`
+  - `Staff / Labor`
+  - `Progress`
+- daily sheet rows now have direct `Labor` and `Progress` links
+- staff/labor and progress forms are driven by the selected daily sheet
+- staff/labor and progress tables show records for the selected sheet instead of mixing the whole job together
 
 Added forms:
 
@@ -196,11 +279,13 @@ Updated forms to select a daily sheet:
 - `ServiceJobProgressUpdateAddForm.tsx`
 - `ServiceJobMaterialDispositionAddForm.tsx`
 
-Important current UI limitation:
+Other sections:
 
-- The job detail page now has one grouped section named `Daily Cash, Expense, And Material Actions`.
-- The user wants these split into clearer separate forms/sections.
-- Treat this as pending UI refinement, not completed.
+- `Materials` tab owns MRN creation and material disposition/return/damage/rejection
+- `Expenses` tab owns IOU/employee advance, petty cash expense, and employee reimbursement claim
+- `Billing` tab owns closeout readiness, final invoice/not-billable decision, estimates, and invoices
+- `Costs` tab owns cost cards, profitability, and source lines
+- `Files & Notes` tab owns comments and attachments
 
 ## Completed Documentation
 
@@ -214,6 +299,9 @@ Updated/added:
 
 The testing checklist now includes:
 
+- service job tab navigation
+- clickable closeout tile routing
+- service job operation/sub-part plan
 - daily sheet creation
 - MRN linked to daily sheet
 - material disposition/return linked to daily sheet
@@ -227,76 +315,19 @@ The testing checklist now includes:
 
 Passed:
 
-- `dotnet build ISS.slnx /p:UseSharedCompilation=false`
-- `npm run build`
-- `dotnet test backend/tests/ISS.UnitTests/ISS.UnitTests.csproj /p:UseSharedCompilation=false --no-build`
-  - 43 tests passed
+- `dotnet test backend\tests\ISS.UnitTests\ISS.UnitTests.csproj`
+  - 45 tests passed during service operation backend work
+- `dotnet build backend\src\ISS.Api\ISS.Api.csproj`
+- `npx tsc --noEmit`
+- targeted `npx eslint` for changed service-job frontend files
 - `git diff --check`
 
 Deployment:
 
-- Railway deployment from local code completed.
-- Live `/login` returned HTTP `200`.
-
-## Pending Work: UI Split Requested By User
-
-The user wants the job order/detail page to be less crowded.
-
-Current grouped section:
-
-- `Daily Cash, Expense, And Material Actions`
-  - IOU / petty cash advance
-  - service expense voucher
-  - material requisition
-
-Required split:
-
-1. Daily Staff / Labor section
-   - technician assignment
-   - work times
-   - daily labor descriptions
-   - supervisor approval
-
-2. Daily Progress section
-   - work completed
-   - work pending
-   - problems found
-   - customer instructions
-   - technician/supervisor notes
-
-3. IOU / Employee Advance section
-   - issue advance to employee
-   - submit/approve/release/settle status visibility
-   - outstanding balance visible on the job
-
-4. Petty Cash Expense section
-   - expenses paid from company petty cash
-   - link to petty cash fund
-   - receipt/reference/bill upload later
-
-5. Employee Out-of-Pocket Claim section
-   - reimbursement claims
-   - approval/settlement flow
-   - payable to employee
-
-6. Materials / Lubricants Issue section
-   - MRN creation
-   - line entry should ideally be possible inline later
-   - stock availability/serial/batch validation remains mandatory
-
-7. Material Returns / Damage / Rejection section
-   - used
-   - unused returned
-   - incorrect returned
-   - damaged
-   - rejected/supplier return
-
-Implementation guidance:
-
-- Keep the backend model as-is; the daily sheet linking is already correct.
-- Refactor the frontend job detail page into smaller components and sections.
-- Do not duplicate accounting or stock logic.
-- Keep IOU as finance IOU, expense claim as service expense claim, MRN as material requisition, and material return/damage as material disposition.
+- latest Railway deployment completed from clean worktree at `2e29358`
+- live `/login` returned HTTP `200`
+- live job tabs and daily-work sub-tabs returned HTTP `200`
+- daily sheet labor/progress deep links returned HTTP `200`
 
 ## Pending Phase 3: Accounting And Expense Refinement
 
@@ -337,15 +368,20 @@ Still pending:
 
 ## Recommended Next Agent Steps
 
-1. Confirm GitHub credentials are fixed before attempting push.
-2. Pull/inspect current local commit `cf69242`.
-3. Refactor job detail daily operations UI into separate sections/components listed above.
-4. Add daily sheet PDF or at least a printable view.
-5. Add reporting queries for IOU, expense, material return, and daily sheet approval status.
-6. Run:
-   - `dotnet build ISS.slnx /p:UseSharedCompilation=false`
-   - `dotnet test backend/tests/ISS.UnitTests/ISS.UnitTests.csproj /p:UseSharedCompilation=false --no-build`
-   - `npm run build`
-7. Commit only relevant files.
-8. Push after GitHub auth is corrected.
-9. Deploy to Railway and verify `/login`.
+1. Treat `origin/main` at `2e29358` or later as the baseline.
+2. Preserve unrelated local worktree changes unless the user explicitly asks to stage or revert them.
+3. Continue with remaining reporting/PDF/accounting refinements, especially:
+   - daily sheet PDF/service report
+   - pending closeout report
+   - IOU/employee advance report
+   - material issued/returned/damaged report
+   - direct line entry for MRN/expense from the daily job context
+4. Run targeted checks for service-job work:
+   - `dotnet test backend\tests\ISS.UnitTests\ISS.UnitTests.csproj`
+   - `dotnet build backend\src\ISS.Api\ISS.Api.csproj`
+   - `npx tsc --noEmit` from `frontend/`
+   - targeted `npx eslint` for changed frontend files
+5. Push with `GIT_TERMINAL_PROMPT=0` if the Windows Git credential manager hangs.
+6. Deploy to Railway from a clean detached worktree using:
+   - `npx @railway/cli@latest up --service ERP --environment production --detach`
+7. Verify `/login`, job detail tabs, and daily-work deep links after deploy.

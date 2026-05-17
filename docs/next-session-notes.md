@@ -4,8 +4,8 @@
 
 - Repo: `D:\VScode Projects\ISS`
 - Branch: `main`
-- Current purpose: resume from the deployed ERP-density, searchable-dropdown, finance account-mapping, chart-of-accounts workspace, reusable line-grid rollout, and direct-edit workflow checkpoints
-- Current tracked code state: no pending tracked code WIP
+- Current purpose: resume from the deployed service-job workflow tabs, clickable closeout readiness, daily-sheet-driven staff/progress flow, ERP-density, searchable-dropdown, finance account-mapping, chart-of-accounts workspace, reusable line-grid rollout, and direct-edit workflow checkpoints
+- Current tracked code state: latest pushed/deployed service-job workflow baseline is `2e29358`
 - Current local artifacts:
   - untracked `.playwright-cli/`
   - untracked `images/`
@@ -14,6 +14,15 @@
 
 Most relevant recent commits on `main`:
 
+- `11752e7` `Show stock ledger document numbers`
+- `9788070` `Add service job operations planning`
+- `3b41460` `Normalize Railway start script line endings`
+- `909f5b1` `Fix service job operations actual labor query`
+- `acc3298` `Simplify service job detail workflow`
+- `8af1961` `Organize service job detail into workflow tabs`
+- `93432b9` `Revise service job testing checklist for tabs`
+- `debe9df` `Refine service job daily work flow`
+- `2e29358` `Link service job closeout checks to workflows`
 - `20225c0` `Tighten ERP UI density and shared grid styling`
 - `a1d7ed2` `Make app dropdowns searchable`
 - `fd7426a` `Add category default account mappings`
@@ -26,10 +35,24 @@ Most relevant recent commits on `main`:
 
 ## Current Production Deployment State
 
-- production now uses a single Ubuntu VPS running Docker Compose
-- current provider: Contabo
-- current public server IP: `178.238.230.31`
-- current live raw-IP URL: `http://178.238.230.31`
+- current active production target for the latest service-job work is Railway
+- latest deployed commit: `2e29358`
+- live Railway URL: `https://erp-production-e16a.up.railway.app`
+- deploy command:
+  - `npx @railway/cli@latest up --service ERP --environment production --detach`
+- deploy from a clean detached worktree to avoid uploading unrelated local changes
+- verified after latest deployment:
+  - `/login` returned `200`
+  - job detail returned `200`
+  - daily-work sub-tabs returned `200`
+  - daily sheet labor/progress deep links returned `200`
+
+Historical VPS deployment notes remain below for reference:
+
+- prior production approach used a single Ubuntu VPS running Docker Compose
+- provider: Contabo
+- public server IP: `178.238.230.31`
+- raw-IP URL: `http://178.238.230.31`
 - tracked deploy assets:
   - `deploy/docker-compose.vps.yml`
   - `deploy/.env.example`

@@ -6,6 +6,9 @@ This document captures the current state of the AI assistant work, the GRN parti
 
 Important status note:
 
+- latest service-job workflow changes are live on Railway through commit `2e29358`
+- service job detail now uses workflow tabs and daily-work sub-tabs
+- closeout readiness tiles now link to relevant workflow areas
 - the older assistant / GRN sections later in this file are historical checkpoint notes and should be treated as design context, not a description of the current worktree
 - the reusable frontend data-grid framework is now live through three rollout waves
 - shared searchable dropdown behavior and compact ERP-style density are live
@@ -14,6 +17,56 @@ Important status note:
 - draft service handovers now have a real edit workflow
 - material requisitions now have explicit `View` / `Edit` actions with draft direct-edit entry
 - current non-doc local artifacts are untracked `.playwright-cli/` and `images/`
+
+## Service Job Workflow Checkpoint
+
+Current service-job UX baseline:
+
+- `Overview`
+  - job intake, entitlement, clickable closeout readiness
+- `Plan`
+  - work step / subassembly operations
+  - planned parts/sub-parts
+  - estimated labor
+  - operation start/complete actions
+- `Daily Work`
+  - `Daily Sheets`
+  - `Staff / Labor`
+  - `Progress`
+- `Materials`
+  - MRN creation
+  - material return/damage/rejection disposition
+- `Expenses`
+  - IOU / employee advance
+  - petty cash expense
+  - employee out-of-pocket claim
+- `Billing`
+  - closeout readiness
+  - final invoice/not-billable decision
+  - estimates and invoices
+- `Costs`
+  - actual cost summary
+  - profitability report
+  - source lines
+- `Files & Notes`
+  - comments and attachments
+
+Recent service-job commits:
+
+- `9788070` `Add service job operations planning`
+- `909f5b1` `Fix service job operations actual labor query`
+- `acc3298` `Simplify service job detail workflow`
+- `8af1961` `Organize service job detail into workflow tabs`
+- `93432b9` `Revise service job testing checklist for tabs`
+- `debe9df` `Refine service job daily work flow`
+- `2e29358` `Link service job closeout checks to workflows`
+
+Verification completed for latest service-job work:
+
+- frontend TypeScript passed with `npx tsc --noEmit`
+- targeted ESLint passed for changed service-job frontend files
+- Railway service verified online
+- live `/login`, job tabs, daily-work sub-tabs, and daily sheet deep links returned HTTP `200`
 
 ## Frontend Data-Grid Framework Checkpoint
 

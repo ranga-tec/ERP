@@ -39,6 +39,61 @@ Reference points used:
 
 ## Implemented Workflow
 
+### Job Detail Workflow Tabs
+
+The service job detail page is organized as a workflow workspace:
+
+- `Overview`
+  - job intake
+  - entitlement
+  - clickable closeout readiness tiles
+- `Plan`
+  - planned work steps / subassemblies
+  - planned parts/sub-parts
+  - estimated labor
+  - operation start/complete actions
+- `Daily Work`
+  - `Daily Sheets`
+  - `Staff / Labor`
+  - `Progress`
+- `Materials`
+  - material/lubricant issue through MRN
+  - material return/damage/rejection disposition
+- `Expenses`
+  - IOU / employee advance
+  - petty cash expense
+  - employee out-of-pocket claim
+- `Billing`
+  - closeout readiness
+  - final invoice/not-billable decision
+  - estimates and invoices
+- `Costs`
+  - actual cost cards
+  - profitability report
+  - cost source lines
+- `Files & Notes`
+  - comments
+  - attachments
+
+Closeout readiness tiles route to the related workflow area. For example, pending daily sheets open the daily sheet table, pending technician assignments open staff/labor, pending material disposition opens materials, and pending final invoice decision opens billing.
+
+### Operations / Sub-Parts Plan
+
+Complex repair jobs can be planned before actual material issue or labor posting.
+
+Each operation records:
+
+- step number
+- work step / subassembly
+- planned part/sub-part
+- planned quantity
+- estimated labor hours
+- required date
+- description and notes
+- status
+
+The operation plan is not an inventory transaction. Actual stock movement still happens through MRN posting, direct purchases, and material disposition/return. Actual labor still comes from approved labor/time records.
+
 ### Daily Field Sheet
 
 A daily sheet records:
@@ -92,15 +147,9 @@ The daily sheet does not bypass accounting or inventory controls.
 
 This version gives the practical daily operating structure. Later refinements can add:
 
-- complex job structure for assemblies and sub-parts:
-  - define job operations/tasks under the service job, such as inspect, dismantle, repair, assemble, test, and handover
-  - allow each operation to carry its own planned parts, service tasks, labor/resource requirements, and required date
-  - support reusable job templates by job type/incident type so common repairs can preload tasks, parts, labor estimates, and technician skill requirements
-  - support asset/activity BOM selection so a known equipment model or activity can copy expected components into the job's material requirements
-  - treat the copied BOM as a plan only; actual stock movement must still happen through MRN issue, direct purchase, and material disposition/return
-  - capture subassemblies as either child job operations for service/repair work or child jobs only when they need separate scheduling, responsibility, costing, or customer sign-off
-  - keep a planned-vs-actual view for each operation and for the whole job: planned parts/labor, issued parts, returned/damaged/rejected parts, approved labor, expenses, estimate, invoice, and margin
-- split the current job detail daily action area into separate sections for staff/labor, progress, IOU advances, petty-cash expenses, employee out-of-pocket claims, material/lubricant issues, and material returns/damage/rejection
+- reusable job templates by job type/incident type so common repairs can preload tasks, parts, labor estimates, and technician skill requirements
+- asset/activity BOM selection so a known equipment model or activity can copy expected components into the job's material requirements
+- child jobs only when subassemblies need separate scheduling, responsibility, costing, or customer sign-off
 - photo capture directly per daily sheet section
 - mobile/offline technician screen
 - daily sheet PDF
