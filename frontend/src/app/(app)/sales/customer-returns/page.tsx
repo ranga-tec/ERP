@@ -108,6 +108,8 @@ export default async function CustomerReturnsPage() {
                     <ListViewEditActions
                       viewHref={`/sales/customer-returns/${r.id}`}
                       canEdit={r.status === 0}
+                      auditTableName="CustomerReturns"
+                      auditRecordId={r.id}
                     />
                   </td>
                 </tr>

@@ -196,10 +196,10 @@ function AuditChangeDetails({
   );
 }
 
-export function AuditLogTable({ logs }: { logs: AuditLogDto[] }) {
+export function AuditLogTable({ logs, initialSearch = "" }: { logs: AuditLogDto[]; initialSearch?: string }) {
   const [showTechnical, setShowTechnical] = useState(false);
   const [showSystemFields, setShowSystemFields] = useState(false);
-  const [search, setSearch] = useState("");
+  const [search, setSearch] = useState(initialSearch);
 
   const normalizedSearch = search.trim().toLowerCase();
   const visibleLogs = logs.filter((log) => {

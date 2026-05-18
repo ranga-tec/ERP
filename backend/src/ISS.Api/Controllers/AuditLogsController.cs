@@ -38,11 +38,27 @@ public sealed class AuditLogsController(
         string ChangesJson);
 
     [HttpGet]
-    public async Task<ActionResult<IReadOnlyList<AuditLogDto>>> List([FromQuery] int take = 100, CancellationToken cancellationToken = default)
+    public async Task<ActionResult<IReadOnlyList<AuditLogDto>>> List(
+        [FromQuery] int take = 100,
+        [FromQuery] string? tableName = null,
+        [FromQuery] string? key = null,
+        CancellationToken cancellationToken = default)
     {
         take = Math.Clamp(take, 1, 500);
 
-        var rawLogs = await dbContext.AuditLogs.AsNoTracking()
+        var query = dbContext.AuditLogs.AsNoTracking();
+
+        if (!string.IsNullOrWhiteSpace(tableName))
+        {
+            query = query.Where(x => x.TableName == tableName.Trim());
+        }
+
+        if (!string.IsNullOrWhiteSpace(key))
+        {
+            query = query.Where(x => x.Key == key.Trim());
+        }
+
+        var rawLogs = await query
             .OrderByDescending(x => x.OccurredAt)
             .Take(take)
             .Select(x => new { x.Id, x.OccurredAt, x.UserId, x.TableName, x.Action, x.Key, x.ChangesJson })

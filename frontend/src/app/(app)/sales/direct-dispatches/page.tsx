@@ -89,6 +89,8 @@ export default async function DirectDispatchesPage() {
                     <ListViewEditActions
                       viewHref={`/sales/direct-dispatches/${r.id}`}
                       canEdit={r.status === 0}
+                      auditTableName="DirectDispatches"
+                      auditRecordId={r.id}
                     />
                   </td>
                 </tr>

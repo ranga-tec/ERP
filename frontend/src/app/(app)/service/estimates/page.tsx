@@ -111,7 +111,12 @@ export default async function ServiceEstimatesPage() {
                     </td>
                     <td className="py-2 pr-3">{e.total.toFixed(2)}</td>
                     <td className="py-2 pr-3">
-                      <ListViewEditActions viewHref={`/service/estimates/${e.id}`} canEdit={e.status === 0} />
+                      <ListViewEditActions
+                        viewHref={`/service/estimates/${e.id}`}
+                        canEdit={e.status === 0}
+                        auditTableName="ServiceEstimates"
+                        auditRecordId={e.id}
+                      />
                     </td>
                   </tr>
                 );

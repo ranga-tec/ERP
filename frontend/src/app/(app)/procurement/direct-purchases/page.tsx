@@ -99,6 +99,8 @@ export default async function DirectPurchasesPage() {
                     <ListViewEditActions
                       viewHref={`/procurement/direct-purchases/${r.id}`}
                       canEdit={r.status === 0}
+                      auditTableName="DirectPurchases"
+                      auditRecordId={r.id}
                     />
                   </td>
                 </tr>

@@ -77,6 +77,8 @@ export default async function SupplierReturnsPage() {
                     <ListViewEditActions
                       viewHref={`/procurement/supplier-returns/${r.id}`}
                       canEdit={r.status === 0}
+                      auditTableName="SupplierReturns"
+                      auditRecordId={r.id}
                     />
                   </td>
                 </tr>

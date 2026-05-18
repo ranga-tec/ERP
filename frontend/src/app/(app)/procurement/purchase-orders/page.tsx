@@ -79,6 +79,8 @@ export default async function PurchaseOrdersPage() {
                     <ListViewEditActions
                       viewHref={`/procurement/purchase-orders/${p.id}`}
                       canEdit={p.status === 0}
+                      auditTableName="PurchaseOrders"
+                      auditRecordId={p.id}
                     />
                   </td>
                 </tr>

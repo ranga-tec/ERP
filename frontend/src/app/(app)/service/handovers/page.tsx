@@ -91,6 +91,8 @@ export default async function ServiceHandoversPage() {
                       <ListViewEditActions
                         viewHref={`/service/handovers/${r.id}`}
                         canEdit={r.status === 0}
+                        auditTableName="ServiceHandovers"
+                        auditRecordId={r.id}
                       />
                     </td>
                   </tr>

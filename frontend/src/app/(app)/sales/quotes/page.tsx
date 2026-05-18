@@ -78,6 +78,8 @@ export default async function QuotesPage() {
                     <ListViewEditActions
                       viewHref={`/sales/quotes/${q.id}`}
                       canEdit={q.status === 0}
+                      auditTableName="SalesQuotes"
+                      auditRecordId={q.id}
                     />
                   </td>
                 </tr>

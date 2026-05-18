@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { backendFetchJson } from "@/lib/backend.server";
+import { AuditTrailButton } from "@/components/AuditTrailButton";
 import { TransactionLink } from "@/components/TransactionLink";
 import { Card, Table } from "@/components/ui";
 import { WorkOrderCreateForm } from "./WorkOrderCreateForm";
@@ -56,6 +57,7 @@ export default async function WorkOrdersPage() {
                 <th className="py-2 pr-3">Description</th>
                 <th className="py-2 pr-3">Approved Hrs</th>
                 <th className="py-2 pr-3">Approved Cost</th>
+                <th className="py-2 pr-3">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -75,11 +77,14 @@ export default async function WorkOrdersPage() {
                   <td className="py-2 pr-3 text-zinc-500">{w.description}</td>
                   <td className="py-2 pr-3">{w.approvedHours.toFixed(2)}</td>
                   <td className="py-2 pr-3">{w.approvedLaborCost.toFixed(2)}</td>
+                  <td className="py-2 pr-3">
+                    <AuditTrailButton tableName="WorkOrders" recordId={w.id} />
+                  </td>
                 </tr>
               ))}
               {workOrders.length === 0 ? (
                 <tr>
-                  <td className="py-6 text-sm text-zinc-500" colSpan={6}>
+                  <td className="py-6 text-sm text-zinc-500" colSpan={7}>
                     No work orders yet.
                   </td>
                 </tr>

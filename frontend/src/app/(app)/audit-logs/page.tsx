@@ -1,7 +1,12 @@
 import { backendFetchJson } from "@/lib/backend.server";
 import { AuditLogTable, type AuditLogDto } from "./AuditLogTable";
 
-export default async function AuditLogsPage() {
+export default async function AuditLogsPage({
+  searchParams,
+}: {
+  searchParams?: Promise<{ search?: string }>;
+}) {
+  const resolvedSearchParams = await searchParams;
   const logs = await backendFetchJson<AuditLogDto[]>("/audit-logs?take=200");
 
   return (
@@ -13,7 +18,7 @@ export default async function AuditLogsPage() {
         </p>
       </div>
 
-      <AuditLogTable logs={logs} />
+      <AuditLogTable logs={logs} initialSearch={resolvedSearchParams?.search ?? ""} />
     </div>
   );
 }

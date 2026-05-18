@@ -87,6 +87,8 @@ export default async function InvoicesPage() {
                     <ListViewEditActions
                       viewHref={`/sales/invoices/${i.id}`}
                       canEdit={canManageInvoices && i.status === 0}
+                      auditTableName="SalesInvoices"
+                      auditRecordId={i.id}
                     />
                   </td>
                 </tr>

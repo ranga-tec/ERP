@@ -72,6 +72,8 @@ export default async function SalesOrdersPage() {
                     <ListViewEditActions
                       viewHref={`/sales/orders/${o.id}`}
                       canEdit={o.status === 0}
+                      auditTableName="SalesOrders"
+                      auditRecordId={o.id}
                     />
                   </td>
                 </tr>

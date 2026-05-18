@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { apiDeleteNoContent, apiPut } from "@/lib/api-client";
+import { AuditTrailButton } from "@/components/AuditTrailButton";
 import { Button, Input, SecondaryButton, Select } from "@/components/ui";
 
 type SupplierDto = {
@@ -147,6 +148,7 @@ export function SupplierRow({ supplier }: { supplier: SupplierDto }) {
           <SecondaryButton type="button" className={actionButtonClass} onClick={deleteRow} disabled={busy}>
             Delete
           </SecondaryButton>
+          <AuditTrailButton tableName="Suppliers" recordId={supplier.id} />
         </div>
         {error ? <div className="mt-2 text-xs text-red-700 dark:text-red-300">{error}</div> : null}
       </td>

@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { backendFetchJson } from "@/lib/backend.server";
+import { AuditTrailButton } from "@/components/AuditTrailButton";
 import { TransactionLink } from "@/components/TransactionLink";
 import { Card, Table } from "@/components/ui";
 import { ServiceExpenseClaimCreateForm } from "./ServiceExpenseClaimCreateForm";
@@ -91,10 +92,11 @@ export default async function ServiceExpenseClaimsPage() {
                   <td className="py-2 pr-3">{statusLabel[claim.status] ?? claim.status}</td>
                   <td className="py-2 pr-3">{claim.total.toFixed(2)}</td>
                   <td className="py-2 pr-3">
-                    <div className="flex flex-wrap gap-3 text-xs">
+                    <div className="flex flex-wrap items-center gap-3 text-xs">
                       <Link className="font-semibold text-[var(--link)] underline underline-offset-2" href={`/service/expense-claims/${claim.id}`}>
                         View
                       </Link>
+                      <AuditTrailButton tableName="ServiceExpenseClaims" recordId={claim.id} />
                     </div>
                   </td>
                 </tr>

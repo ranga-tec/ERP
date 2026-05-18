@@ -82,6 +82,8 @@ export default async function MaterialRequisitionsPage() {
                     <ListViewEditActions
                       viewHref={`/service/material-requisitions/${m.id}`}
                       canEdit={m.status === 0}
+                      auditTableName="MaterialRequisitions"
+                      auditRecordId={m.id}
                     />
                   </td>
                 </tr>

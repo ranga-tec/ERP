@@ -82,6 +82,8 @@ export default async function DispatchesPage() {
                     <ListViewEditActions
                       viewHref={`/sales/dispatches/${d.id}`}
                       canEdit={d.status === 0}
+                      auditTableName="Dispatches"
+                      auditRecordId={d.id}
                     />
                   </td>
                 </tr>

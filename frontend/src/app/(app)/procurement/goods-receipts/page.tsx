@@ -79,6 +79,8 @@ export default async function GoodsReceiptsPage() {
                     <ListViewEditActions
                       viewHref={`/procurement/goods-receipts/${g.id}`}
                       canEdit={g.status === 0}
+                      auditTableName="GoodsReceipts"
+                      auditRecordId={g.id}
                     />
                   </td>
                 </tr>

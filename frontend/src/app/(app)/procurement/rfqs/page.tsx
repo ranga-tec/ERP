@@ -75,6 +75,8 @@ export default async function RfqsPage() {
                     <ListViewEditActions
                       viewHref={`/procurement/rfqs/${r.id}`}
                       canEdit={r.status === 0}
+                      auditTableName="Rfqs"
+                      auditRecordId={r.id}
                     />
                   </td>
                 </tr>

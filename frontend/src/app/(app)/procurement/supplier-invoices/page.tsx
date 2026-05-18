@@ -131,6 +131,8 @@ export default async function SupplierInvoicesPage() {
                     <ListViewEditActions
                       viewHref={`/procurement/supplier-invoices/${i.id}`}
                       canEdit={i.status === 0}
+                      auditTableName="SupplierInvoices"
+                      auditRecordId={i.id}
                     />
                   </td>
                 </tr>
