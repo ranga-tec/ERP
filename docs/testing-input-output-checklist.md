@@ -455,9 +455,28 @@ Expected:
 | Posted stock | `Inventory -> On Hand`, `MAIN` + `SKU-CORE` | `9` |
 | Stock ledger | `Reporting -> Stock Ledger`, item `SKU-CORE` | Adjustment movement `+1` |
 
-## 10. Material Requisition For Service Job
+## 10. Service Job / Servicing Full Workflow
 
 Start this section after completing the partial GRN tests in sections 3.2 and 3.3. At that point stock should already contain `SKU-CORE = 20`, `SKU-BATCH = 10` in batch `LOT-A`, and serials `SER-001` / `SER-002` in `MAIN`. If you also completed sections 5 through 9, use the lower balances shown there.
+
+This section is the full service-job test. It must prove that the job can be opened, planned, started, executed through daily work records, issued with materials, updated by technicians/supervisors, costed, billed or marked not billable, closed, and audited afterward.
+
+Use this interpretation while testing:
+
+| Job area | Meaning | Who normally owns it |
+| --- | --- | --- |
+| `Overview` | Job header, intake, customer/equipment, entitlement, closeout readiness links | service supervisor / service coordinator |
+| `Plan` | Intended work stages before or during repair. `Sequence` means execution order, such as `10`, `20`, `30`. `Operation / subassembly` means the work step or equipment area, such as `Diagnose starting system` or `Fuel pump assembly`. Planned parts here are only expected parts; they do not reduce stock. | service supervisor / workshop lead |
+| `Daily Work -> Daily Sheets` | The daily job card. Planned work is what the team expects to do that day; completed/pending/problems are the daily field record. | supervisor / job card preparer |
+| `Daily Work -> Staff / Labor` | People assigned to the job for that day. Link to a daily sheet when the work belongs to a specific day. | supervisor / timekeeper |
+| `Daily Work -> Progress` | Actual progress notes from technicians or supervisors: work done, pending work, problems, customer instructions, and site issues. | technician / supervisor |
+| `Materials` | MRN creation, material issue, and used/unused/damaged/rejected material disposition. | stores / service supervisor |
+| `Expenses` | IOUs, petty-cash spending, and out-of-pocket claims linked to the job and optionally to a daily sheet. | technician / finance / supervisor |
+| `Billing` | Estimate/invoice trail, closeout readiness, and final invoice decision. | service coordinator / finance |
+| `Costs` | Actual cost, quoted revenue, invoice revenue, margin view, and source tables. | supervisor / finance |
+| `Files & Notes` | Comments, attachments, and supporting evidence. | all authorized job users |
+
+Professional service systems normally avoid one long job form. In ISS, testers should confirm the job detail behaves as a workspace with tabs and sub-tabs, and that pending closeout tiles open the related data list or workflow area instead of leaving the user to search manually.
 
 ### 10.1 Create Equipment And Job
 
@@ -530,6 +549,20 @@ Expected:
 | Invalid tab fallback | manually open `?tab=wrong` | page falls back to `Overview` |
 | Closeout tile links | `Overview` or `Billing` tab -> `Closeout Readiness` | pending tiles are clickable and open the relevant tab/sub-tab |
 
+Closeout readiness click-through test:
+
+| Tile | Expected navigation or focus |
+| --- | --- |
+| `Daily field sheets` | opens `Daily Work` with the daily sheet list visible |
+| `Expense claims` | opens `Expenses` or the related expense claim workflow/list |
+| `Petty cash IOUs` | opens `Expenses` or the related IOU workflow/list |
+| `Draft material requisitions` | opens `Materials` or the related MRN list |
+| `Technician assignments` | opens `Daily Work -> Staff / Labor` |
+| `Labor entries` | opens the labor/work-order area where pending labor can be submitted or approved |
+| `Job detail work orders` | opens the related work order list/detail, not a useless link back to the same job page |
+| `Material disposition` | opens `Materials` with disposition/returns visible |
+| `Final invoice decision` | opens `Billing` with invoice trail and `Mark Not Billable` visible |
+
 ### 10.1.2 Plan Operations And Sub-Parts
 
 Open the job detail, then open the `Plan` tab.
@@ -589,6 +622,16 @@ Expected:
 | Counts | Daily sheet row | staff, progress, MRN, returns, expenses, and IOU counts start at `0` |
 | Running job tracking | Job detail | users can continue daily work, cash, expenses, materials, and returns from the system instead of paper notes |
 | Sheet action links | daily sheet row | `Labor` and `Progress` links open the selected sheet in the corresponding sub-tab |
+
+Daily sheet relationship test:
+
+| Action | Expected output |
+| --- | --- |
+| Open `Daily Work -> Staff / Labor` without selecting a sheet | form still allows unlinked job assignment if the business allows it |
+| Select the `JDS...` daily sheet in staff/labor | assignment is counted on that sheet row |
+| Open `Daily Work -> Progress` without selecting a sheet | form still allows unlinked progress if the update is general job progress |
+| Select the `JDS...` daily sheet in progress | progress is counted on that sheet row |
+| Submit the daily sheet before all daily entries are ready | system should either allow supervisor submission or show clear validation; record the observed behavior |
 
 ### 10.2 MRN Available Stock Validation
 
@@ -680,6 +723,8 @@ Expected:
 
 ## 11. Service Estimate, Work Order, Expense, Handover
 
+This section completes the same job from section 10. Do not create a second job unless you are testing parallel service scenarios.
+
 ### 11.1 Technician Assignment And Work Order
 
 Go to `Service -> Technicians`.
@@ -756,6 +801,7 @@ Expected:
 | --- | --- | --- |
 | Daily progress | Job detail, `Daily Work` tab -> `Progress` sub-tab | progress update appears with completed/pending/problem notes |
 | Daily sheet count | Job detail, `Daily Work` tab -> `Daily Field Sheets` | progress count increases |
+| Closeout link | `Overview` or `Billing` -> `Closeout Readiness`, click `Daily field sheets` if pending | navigates back to the daily sheet list that contains the draft/pending `JDS...` |
 
 Return to the `Plan` tab and complete the planned operation from section 10.1.2.
 
@@ -893,6 +939,21 @@ Expected before closing:
 | Labor entries | Job detail, `Overview` or `Billing` tab -> `Closeout Readiness` | `Clear` |
 | Final invoice decision | Job detail, `Overview` or `Billing` tab -> `Closeout Readiness` | `Clear` because invoice was generated |
 
+Click every closeout readiness tile once more after clearing the work:
+
+| Tile | Expected output |
+| --- | --- |
+| Daily field sheets | shows approved daily sheet rows, no unexplained pending count |
+| Expense claims | all job-linked claims are settled, rejected, or cancelled |
+| Petty cash IOUs | all job-linked IOUs are settled, rejected, or cancelled |
+| Direct purchase supplier bills | no pending supplier bill blocks the job |
+| Draft material requisitions | no draft MRN blocks the job |
+| Technician assignments | no unapproved assignment blocks the job |
+| Labor entries | no submitted/pending labor entry blocks the job |
+| Job detail work orders | related work orders are done or cancelled |
+| Material disposition | every posted MRN line has full disposition |
+| Final invoice decision | invoice exists, or job is explicitly marked not billable with a reason |
+
 If this is a no-charge/warranty-only job and no invoice should be generated, open the `Billing` tab, click `Mark Not Billable`, and enter:
 
 | Field | Input |
@@ -917,6 +978,8 @@ Expected:
 | Locked expenses | Job detail, `Expenses` tab | adding IOU or expense claim is blocked with closed-job validation |
 | Locked labor | Job detail, `Daily Work` tab | adding assignment or progress is blocked with closed-job validation |
 | Locked planning | Job detail, `Plan` tab | starting/completing operations is disabled or blocked after close |
+| Reopen | Job detail actions | `Reopen` returns the job to an editable active state only for authorized users |
+| Re-close | Job detail actions | closeout readiness is re-evaluated before the job can be closed again |
 
 ### 11.5 Files, Notes, And Job PDF
 
@@ -942,6 +1005,25 @@ Expected:
 | Comment | Job detail, `Files & Notes` tab | new comment appears without leaving the job |
 | Attachment | Job detail, `Files & Notes` tab | file row appears with type, notes, created time, and action link |
 | Job PDF | Job detail -> `Download PDF` | PDF opens and uses the same job number shown in the header |
+
+### 11.6 Final Service Job Audit Trail
+
+After the job is closed, review the same job from each tab and confirm no data was lost during the workflow.
+
+| Area | Where | Expected output |
+| --- | --- | --- |
+| Header | job detail header | status is `Closed`, equipment/customer/job type remain correct |
+| Overview | `Overview` tab | intake, entitlement, and closeout readiness remain visible |
+| Plan | `Plan` tab | operation is completed with actuals visible |
+| Daily sheet | `Daily Work -> Daily Sheets` | `JDS...` is approved and shows staff/progress/MRN/return/expense/IOU counts |
+| Staff/labor | `Daily Work -> Staff / Labor` | assignment and approved labor remain linked to the job or daily sheet |
+| Progress | `Daily Work -> Progress` | technician/supervisor notes remain visible |
+| Materials | `Materials` tab | posted MRN and material dispositions are traceable |
+| Expenses | `Expenses` tab | settled IOU and expense claim are traceable |
+| Billing | `Billing` tab | estimate and final invoice or not-billable reason are visible |
+| Costs | `Costs` tab | material, labor, expense, invoice, and margin values match the source documents |
+| Files & Notes | `Files & Notes` tab | comment and attachment remain visible |
+| Reporting | `Reporting -> Service KPIs` | service job activity is included in KPI totals |
 
 ## 12. Finance Payment Checks
 
