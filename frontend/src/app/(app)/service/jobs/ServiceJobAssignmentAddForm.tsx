@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { apiPost } from "@/lib/api-client";
 import { Button, Input, Select, Textarea } from "@/components/ui";
@@ -50,6 +50,17 @@ export function ServiceJobAssignmentAddForm({
   const [dailyWorkDescription, setDailyWorkDescription] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const selectedDailySheet = useMemo(
+    () =>
+      dailySheets.find((sheet) => sheet.id === dailySheetId) ??
+      dailySheets.find((sheet) => sheet.id === defaultDailySheetId) ??
+      null,
+    [dailySheets, dailySheetId, defaultDailySheetId],
+  );
+
+  useEffect(() => {
+    setDailySheetId(defaultDailySheetId);
+  }, [defaultDailySheetId]);
 
   async function onSubmit(event: React.FormEvent) {
     event.preventDefault();
@@ -117,10 +128,23 @@ export function ServiceJobAssignmentAddForm({
       <div className="grid gap-3 lg:grid-cols-2 xl:grid-cols-5">
         <div>
           <label className="mb-1 block text-sm font-medium">Daily sheet</label>
-          <Select value={dailySheetId} onChange={(event) => setDailySheetId(event.target.value)} disabled={disabled || busy}>
-            {requireDailySheet ? null : <option value="">Unlinked</option>}
-            {dailySheets.filter((sheet) => sheet.status !== 2).map((sheet) => <option key={sheet.id} value={sheet.id}>{sheet.number}</option>)}
-          </Select>
+          {requireDailySheet ? (
+            <div className="min-h-10 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-900 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100">
+              <div className="font-medium">{selectedDailySheet?.number ?? "No daily sheet selected"}</div>
+              {selectedDailySheet ? <div className="text-xs text-slate-500 dark:text-slate-400">Selected daily sheet</div> : null}
+            </div>
+          ) : (
+            <Select value={dailySheetId} onChange={(event) => setDailySheetId(event.target.value)} disabled={disabled || busy}>
+              <option value="">Unlinked</option>
+              {dailySheets
+                .filter((sheet) => sheet.status !== 2)
+                .map((sheet) => (
+                  <option key={sheet.id} value={sheet.id}>
+                    {sheet.number}
+                  </option>
+                ))}
+            </Select>
+          )}
         </div>
         <div>
           <label className="mb-1 block text-sm font-medium">Technician</label>
