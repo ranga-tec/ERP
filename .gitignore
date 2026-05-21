@@ -41,6 +41,9 @@ build/
 
 # Local artifacts
 .playwright-cli/
+.local-pgdata/
+.local-pgpass
+.seed-uat-last.log
 backup/
 image/
 images/

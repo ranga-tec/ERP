@@ -16,10 +16,10 @@ public static class DependencyInjection
 {
     public static IServiceCollection AddIssInfrastructure(this IServiceCollection services, IConfiguration configuration)
     {
-        var connectionString = configuration.GetConnectionString("Default");
+        var connectionString = DatabaseConnectionStringResolver.Resolve(configuration);
         if (string.IsNullOrWhiteSpace(connectionString))
         {
-            throw new InvalidOperationException("Missing connection string: ConnectionStrings:Default");
+            throw new InvalidOperationException("Missing connection string. Set ConnectionStrings:Default or DATABASE_URL.");
         }
 
         var enableRetryOnFailure = configuration.GetValue("Database:EnableRetryOnFailure", true);

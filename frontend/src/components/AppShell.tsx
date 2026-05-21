@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { LogoutButton } from "@/components/LogoutButton";
 import { Sidebar } from "@/components/Sidebar";
@@ -22,8 +22,16 @@ function readCollapsedPreference(): boolean {
 export function AppShell({ children, email, roles }: AppShellProps) {
   const router = useRouter();
   const pathname = usePathname();
-  const [sidebarCollapsed, setSidebarCollapsed] = useState<boolean>(() => readCollapsedPreference());
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+
+  useEffect(() => {
+    const handle = window.setTimeout(() => {
+      setSidebarCollapsed(readCollapsedPreference());
+    }, 0);
+
+    return () => window.clearTimeout(handle);
+  }, []);
 
   function toggleDesktopSidebar() {
     setSidebarCollapsed((prev) => {

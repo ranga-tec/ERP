@@ -66,6 +66,7 @@ export default async function WorkOrderDetailPage({ params }: { params: Promise<
   ]);
 
   const jobById = new Map(jobs.map((j) => [j.id, j]));
+  const jobNumber = jobById.get(wo.serviceJobId)?.number;
   const canAddLabor = wo.status !== 3;
   const canStart = wo.status === 0;
   const canMarkDone = wo.status === 1;
@@ -78,14 +79,14 @@ export default async function WorkOrderDetailPage({ params }: { params: Promise<
           <Link href="/service/work-orders" className="hover:underline">
             Job Detail / Job Sheet
           </Link>{" "}
-          / <span className="font-mono text-xs">{wo.id.slice(0, 8)}</span>
+          / <span>{jobNumber ? `Job Sheet for ${jobNumber}` : "Job Sheet"}</span>
         </div>
-        <h1 className="mt-1 text-2xl font-semibold">Job Detail {wo.id.slice(0, 8)}</h1>
+        <h1 className="mt-1 text-2xl font-semibold">{jobNumber ? `Job Sheet for ${jobNumber}` : "Job Sheet"}</h1>
         <div className="mt-2 flex flex-wrap gap-3 text-sm text-zinc-600 dark:text-zinc-400">
           <div>
             Job:{" "}
             <TransactionLink referenceType="SJ" referenceId={wo.serviceJobId} monospace>
-              {jobById.get(wo.serviceJobId)?.number ?? wo.serviceJobId}
+              {jobNumber ?? "Open job"}
             </TransactionLink>
           </div>
           <div>Status: {statusLabel[wo.status] ?? wo.status}</div>

@@ -218,7 +218,7 @@ export function Select({
   }, [query, selectableOptions]);
 
   const clampedActiveIndex = filteredOptions.length === 0 ? 0 : Math.min(activeIndex, filteredOptions.length - 1);
-  const inputValue = open ? (query || selectedLabel) : selectedLabel;
+  const inputValue = open ? query : selectedLabel;
   const placeholder = placeholderOption?.label ?? "Select...";
 
   function commitValue(nextValue: string) {

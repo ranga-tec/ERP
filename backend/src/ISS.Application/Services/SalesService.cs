@@ -521,6 +521,117 @@ public sealed class SalesService(
         return invoice.Id;
     }
 
+    public async Task<Guid> CreateInvoiceFromDispatchAsync(Guid dispatchId, DateTimeOffset? dueDate, CancellationToken cancellationToken = default)
+    {
+        var dispatch = await dbContext.DispatchNotes
+            .Include(x => x.Lines)
+            .FirstOrDefaultAsync(x => x.Id == dispatchId, cancellationToken)
+            ?? throw new NotFoundException("Dispatch note not found.");
+
+        if (dispatch.Status != DispatchStatus.Posted)
+        {
+            throw new DomainValidationException("Only posted dispatch notes can be invoiced.");
+        }
+
+        if (dispatch.Lines.Count == 0)
+        {
+            throw new DomainValidationException("Dispatch note does not have lines to invoice.");
+        }
+
+        var order = await dbContext.SalesOrders
+            .Include(x => x.Lines)
+            .FirstOrDefaultAsync(x => x.Id == dispatch.SalesOrderId, cancellationToken)
+            ?? throw new NotFoundException("Sales order linked to dispatch note not found.");
+
+        var number = await documentNumberService.NextAsync(ReferenceTypes.SalesInvoice, "INV", cancellationToken);
+        var invoice = new SalesInvoice(number, order.CustomerId, clock.UtcNow, dueDate);
+        await dbContext.SalesInvoices.AddAsync(invoice, cancellationToken);
+
+        var revenueAccountsByItemId = await documentAccountMappingService.ResolveForItemsAsync(
+            dispatch.Lines.Select(line => line.ItemId),
+            cancellationToken);
+
+        foreach (var dispatchLine in dispatch.Lines)
+        {
+            var orderLine = order.Lines.FirstOrDefault(line => line.ItemId == dispatchLine.ItemId);
+            var unitPrice = orderLine?.UnitPrice ?? 0m;
+            var revenueAccountId = revenueAccountsByItemId.TryGetValue(dispatchLine.ItemId, out var mapping)
+                ? mapping.RevenueAccountId
+                : null;
+
+            var invoiceLine = invoice.AddLine(
+                dispatchLine.ItemId,
+                dispatchLine.Quantity,
+                unitPrice,
+                discountPercent: 0m,
+                taxPercent: 0m,
+                revenueAccountId);
+
+            dbContext.DbContext.Add(invoiceLine);
+        }
+
+        await dbContext.SaveChangesAsync(cancellationToken);
+        return invoice.Id;
+    }
+
+    public async Task<Guid> CreateInvoiceFromDirectDispatchAsync(Guid directDispatchId, DateTimeOffset? dueDate, CancellationToken cancellationToken = default)
+    {
+        var dispatch = await dbContext.DirectDispatches
+            .Include(x => x.Lines)
+            .FirstOrDefaultAsync(x => x.Id == directDispatchId, cancellationToken)
+            ?? throw new NotFoundException("Direct dispatch not found.");
+
+        if (dispatch.Status != DirectDispatchStatus.Posted)
+        {
+            throw new DomainValidationException("Only posted direct dispatches can be invoiced.");
+        }
+
+        if (dispatch.CustomerId is null)
+        {
+            throw new DomainValidationException("Direct dispatch must have a customer before it can be invoiced.");
+        }
+
+        if (dispatch.Lines.Count == 0)
+        {
+            throw new DomainValidationException("Direct dispatch does not have lines to invoice.");
+        }
+
+        var itemIds = dispatch.Lines.Select(line => line.ItemId).Distinct().ToList();
+        var itemById = await dbContext.Items
+            .Where(item => itemIds.Contains(item.Id))
+            .ToDictionaryAsync(item => item.Id, cancellationToken);
+        var revenueAccountsByItemId = await documentAccountMappingService.ResolveForItemsAsync(itemIds, cancellationToken);
+
+        var number = await documentNumberService.NextAsync(ReferenceTypes.SalesInvoice, "INV", cancellationToken);
+        var invoice = new SalesInvoice(number, dispatch.CustomerId.Value, clock.UtcNow, dueDate);
+        await dbContext.SalesInvoices.AddAsync(invoice, cancellationToken);
+
+        foreach (var dispatchLine in dispatch.Lines)
+        {
+            if (!itemById.TryGetValue(dispatchLine.ItemId, out var item))
+            {
+                throw new DomainValidationException("Invalid item on direct dispatch.");
+            }
+
+            var revenueAccountId = revenueAccountsByItemId.TryGetValue(dispatchLine.ItemId, out var mapping)
+                ? mapping.RevenueAccountId
+                : null;
+
+            var invoiceLine = invoice.AddLine(
+                dispatchLine.ItemId,
+                dispatchLine.Quantity,
+                item.DefaultUnitCost,
+                discountPercent: 0m,
+                taxPercent: 0m,
+                revenueAccountId);
+
+            dbContext.DbContext.Add(invoiceLine);
+        }
+
+        await dbContext.SaveChangesAsync(cancellationToken);
+        return invoice.Id;
+    }
+
     public async Task AddInvoiceLineAsync(
         Guid invoiceId,
         Guid itemId,
@@ -652,12 +763,22 @@ public sealed class SalesService(
             {
                 throw new DomainValidationException("Sales invoice customer does not match customer return.");
             }
+
+            if (invoice.Status is not (SalesInvoiceStatus.Posted or SalesInvoiceStatus.Paid))
+            {
+                throw new DomainValidationException("Customer returns can only reference posted or paid sales invoices.");
+            }
         }
 
         if (dispatchNoteId is { } dnId)
         {
             var dispatch = await dbContext.DispatchNotes.AsNoTracking().FirstOrDefaultAsync(x => x.Id == dnId, cancellationToken)
                            ?? throw new NotFoundException("Dispatch note not found.");
+            if (dispatch.Status != DispatchStatus.Posted)
+            {
+                throw new DomainValidationException("Customer returns can only reference posted dispatch notes.");
+            }
+
             var order = await dbContext.SalesOrders.AsNoTracking().FirstOrDefaultAsync(x => x.Id == dispatch.SalesOrderId, cancellationToken)
                         ?? throw new NotFoundException("Sales order linked to dispatch note not found.");
             if (order.CustomerId != customerId)
@@ -685,6 +806,8 @@ public sealed class SalesService(
         var cr = await dbContext.CustomerReturns.Include(x => x.Lines).ThenInclude(l => l.Serials)
                      .FirstOrDefaultAsync(x => x.Id == customerReturnId, cancellationToken)
                  ?? throw new NotFoundException("Customer return not found.");
+
+        await EnsureCustomerReturnItemAllowedAsync(cr.SalesInvoiceId, itemId, cancellationToken);
 
         var line = cr.AddLine(itemId, quantity, unitPrice, batchNumber);
         if (serialNumbers is { Count: > 0 })
@@ -717,8 +840,28 @@ public sealed class SalesService(
             throw new NotFoundException("Customer return line not found.");
         }
 
+        var existingLine = cr.Lines.First(x => x.Id == lineId);
+        await EnsureCustomerReturnItemAllowedAsync(cr.SalesInvoiceId, existingLine.ItemId, cancellationToken);
+
         cr.UpdateLine(lineId, quantity, unitPrice, batchNumber, serialNumbers);
         await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    private async Task EnsureCustomerReturnItemAllowedAsync(Guid? salesInvoiceId, Guid itemId, CancellationToken cancellationToken)
+    {
+        if (salesInvoiceId is null)
+        {
+            return;
+        }
+
+        var existsOnInvoice = await dbContext.DbContext.Set<SalesInvoiceLine>()
+            .AsNoTracking()
+            .AnyAsync(line => line.SalesInvoiceId == salesInvoiceId.Value && line.ItemId == itemId, cancellationToken);
+
+        if (!existsOnInvoice)
+        {
+            throw new DomainValidationException("Customer return item must exist on the referenced sales invoice.");
+        }
     }
 
     public async Task RemoveCustomerReturnLineAsync(Guid customerReturnId, Guid lineId, CancellationToken cancellationToken = default)

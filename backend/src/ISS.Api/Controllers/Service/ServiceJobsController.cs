@@ -216,6 +216,11 @@ public sealed class ServiceJobsController(
         Guid? SupplierReturnId,
         string? ResponsiblePerson,
         IReadOnlyList<string> Serials,
+        ServiceJobMaterialDispositionStatus Status,
+        DateTimeOffset? PostedAt,
+        bool IsVoided,
+        DateTimeOffset? VoidedAt,
+        string? VoidReason,
         DateTimeOffset CreatedAt);
     public sealed record AddServiceJobMaterialDispositionRequest(
         Guid MaterialRequisitionLineId,
@@ -228,6 +233,13 @@ public sealed class ServiceJobsController(
         string? ResponsiblePerson,
         IReadOnlyList<string>? Serials,
         Guid? ServiceJobDailySheetId);
+    public sealed record UpdateServiceJobMaterialDispositionRequest(
+        string? Condition,
+        string Reason,
+        ServiceJobMaterialChargeTo ChargeTo,
+        Guid? SupplierReturnId,
+        string? ResponsiblePerson);
+    public sealed record VoidServiceJobMaterialDispositionRequest(string? Reason);
 
     [HttpGet]
     public async Task<ActionResult<IReadOnlyList<ServiceJobDto>>> List([FromQuery] int skip = 0, [FromQuery] int take = 100, CancellationToken cancellationToken = default)
@@ -610,7 +622,7 @@ public sealed class ServiceJobsController(
                 dbContext.ServiceJobAssignments.Count(a => a.ServiceJobDailySheetId == x.Id),
                 dbContext.ServiceJobProgressUpdates.Count(p => p.ServiceJobDailySheetId == x.Id),
                 dbContext.MaterialRequisitions.Count(m => m.ServiceJobDailySheetId == x.Id),
-                dbContext.ServiceJobMaterialDispositions.Count(d => d.ServiceJobDailySheetId == x.Id),
+                dbContext.ServiceJobMaterialDispositions.Count(d => d.ServiceJobDailySheetId == x.Id && !d.IsVoided),
                 dbContext.ServiceExpenseClaims.Count(c => c.ServiceJobDailySheetId == x.Id),
                 dbContext.PettyCashIous.Count(i => i.ServiceJobDailySheetId == x.Id)))
             .ToListAsync(cancellationToken);
@@ -720,6 +732,11 @@ public sealed class ServiceJobsController(
                 x.SupplierReturnId,
                 x.ResponsiblePerson,
                 x.Serials.Select(s => s.SerialNumber).ToList(),
+                x.Status,
+                x.PostedAt,
+                x.IsVoided,
+                x.VoidedAt,
+                x.VoidReason,
                 x.CreatedAt))
             .ToListAsync(cancellationToken);
 
@@ -768,10 +785,62 @@ public sealed class ServiceJobsController(
                 x.SupplierReturnId,
                 x.ResponsiblePerson,
                 x.Serials.Select(s => s.SerialNumber).ToList(),
+                x.Status,
+                x.PostedAt,
+                x.IsVoided,
+                x.VoidedAt,
+                x.VoidReason,
                 x.CreatedAt))
             .FirstOrDefaultAsync(cancellationToken);
 
         return disposition is null ? NotFound() : Ok(disposition);
+    }
+
+    [HttpPost("{id:guid}/material-dispositions/{dispositionId:guid}/post")]
+    [Authorize(Roles = $"{Roles.Admin},{Roles.Service},{Roles.Inventory}")]
+    public async Task<ActionResult> PostMaterialDisposition(
+        Guid id,
+        Guid dispositionId,
+        CancellationToken cancellationToken)
+    {
+        await serviceManagementService.PostServiceJobMaterialDispositionAsync(id, dispositionId, cancellationToken);
+        return NoContent();
+    }
+
+    [HttpPut("{id:guid}/material-dispositions/{dispositionId:guid}")]
+    [Authorize(Roles = $"{Roles.Admin},{Roles.Service},{Roles.Inventory}")]
+    public async Task<ActionResult> UpdateMaterialDisposition(
+        Guid id,
+        Guid dispositionId,
+        UpdateServiceJobMaterialDispositionRequest request,
+        CancellationToken cancellationToken)
+    {
+        await serviceManagementService.UpdateServiceJobMaterialDispositionAsync(
+            id,
+            dispositionId,
+            request.Condition,
+            request.Reason,
+            request.ChargeTo,
+            request.SupplierReturnId,
+            request.ResponsiblePerson,
+            cancellationToken);
+        return NoContent();
+    }
+
+    [HttpPost("{id:guid}/material-dispositions/{dispositionId:guid}/void")]
+    [Authorize(Roles = $"{Roles.Admin},{Roles.Service},{Roles.Inventory}")]
+    public async Task<ActionResult> VoidMaterialDisposition(
+        Guid id,
+        Guid dispositionId,
+        VoidServiceJobMaterialDispositionRequest? request,
+        CancellationToken cancellationToken)
+    {
+        await serviceManagementService.VoidServiceJobMaterialDispositionAsync(
+            id,
+            dispositionId,
+            request?.Reason,
+            cancellationToken);
+        return NoContent();
     }
 
     [HttpGet("{id:guid}/assignments")]

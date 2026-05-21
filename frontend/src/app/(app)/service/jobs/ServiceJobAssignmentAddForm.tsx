@@ -38,6 +38,10 @@ export function ServiceJobAssignmentAddForm({
     [technicians],
   );
   const [technicianId, setTechnicianId] = useState("");
+  const selectedTechnician = useMemo(
+    () => activeTechnicians.find((technician) => technician.id === technicianId) ?? null,
+    [activeTechnicians, technicianId],
+  );
   const [dailySheetId, setDailySheetId] = useState(defaultDailySheetId);
   const [employeeName, setEmployeeName] = useState("");
   const [role, setRole] = useState("Technician");
@@ -61,6 +65,13 @@ export function ServiceJobAssignmentAddForm({
   useEffect(() => {
     setDailySheetId(defaultDailySheetId);
   }, [defaultDailySheetId]);
+
+  function onTechnicianChange(value: string) {
+    setTechnicianId(value);
+    if (value) {
+      setEmployeeName("");
+    }
+  }
 
   async function onSubmit(event: React.FormEvent) {
     event.preventDefault();
@@ -148,7 +159,7 @@ export function ServiceJobAssignmentAddForm({
         </div>
         <div>
           <label className="mb-1 block text-sm font-medium">Technician</label>
-          <Select value={technicianId} onChange={(event) => setTechnicianId(event.target.value)} disabled={disabled || busy}>
+          <Select value={technicianId} onChange={(event) => onTechnicianChange(event.target.value)} disabled={disabled || busy}>
             <option value="">Manual employee</option>
             {activeTechnicians.map((technician) => (
               <option key={technician.id} value={technician.id}>
@@ -158,8 +169,20 @@ export function ServiceJobAssignmentAddForm({
           </Select>
         </div>
         <div>
-          <label className="mb-1 block text-sm font-medium">Employee name</label>
-          <Input value={employeeName} onChange={(event) => setEmployeeName(event.target.value)} disabled={disabled || busy || Boolean(technicianId)} />
+          <label className="mb-1 block text-sm font-medium">Manual employee name</label>
+          {selectedTechnician ? (
+            <div className="min-h-10 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-900 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100">
+              <div className="font-medium">{selectedTechnician.name}</div>
+              <div className="text-xs text-slate-500 dark:text-slate-400">From Technician Master</div>
+            </div>
+          ) : (
+            <Input
+              value={employeeName}
+              onChange={(event) => setEmployeeName(event.target.value)}
+              disabled={disabled || busy}
+              placeholder="Type name only for manual employee"
+            />
+          )}
         </div>
         <div>
           <label className="mb-1 block text-sm font-medium">Role</label>

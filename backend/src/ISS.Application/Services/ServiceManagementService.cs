@@ -1789,6 +1789,7 @@ public sealed class ServiceManagementService(
 
         var alreadyDisposed = await dbContext.ServiceJobMaterialDispositions.AsNoTracking()
             .Where(x => x.MaterialRequisitionLineId == materialRequisitionLineId)
+            .Where(x => !x.IsVoided)
             .SumAsync(x => (decimal?)x.Quantity, cancellationToken) ?? 0m;
         if (alreadyDisposed + quantity > line.Quantity)
         {
@@ -1843,24 +1844,128 @@ public sealed class ServiceManagementService(
 
         await dbContext.ServiceJobMaterialDispositions.AddAsync(disposition, cancellationToken);
 
-        if (kind is ServiceJobMaterialDispositionKind.UnusedReturned or ServiceJobMaterialDispositionKind.IncorrectReturned)
+        await dbContext.SaveChangesAsync(cancellationToken);
+        return disposition.Id;
+    }
+
+    public async Task PostServiceJobMaterialDispositionAsync(
+        Guid serviceJobId,
+        Guid dispositionId,
+        CancellationToken cancellationToken = default)
+    {
+        await EnsureServiceJobAcceptsNewCostsAsync(serviceJobId, cancellationToken);
+
+        var disposition = await dbContext.ServiceJobMaterialDispositions
+            .Include(x => x.Serials)
+            .FirstOrDefaultAsync(x => x.ServiceJobId == serviceJobId && x.Id == dispositionId, cancellationToken)
+            ?? throw new NotFoundException("Material disposition not found.");
+
+        if (disposition.IsPosted)
         {
+            throw new DomainValidationException("Material disposition is already posted.");
+        }
+
+        if (disposition.Kind is ServiceJobMaterialDispositionKind.UnusedReturned
+            or ServiceJobMaterialDispositionKind.IncorrectReturned
+            or ServiceJobMaterialDispositionKind.RejectedSupplierReturn)
+        {
+            var item = await dbContext.Items.AsNoTracking().FirstOrDefaultAsync(x => x.Id == disposition.ItemId, cancellationToken)
+                ?? throw new DomainValidationException("Invalid item on material disposition.");
+
             await inventoryService.RecordReceiptAsync(
                 clock.UtcNow,
-                mr.WarehouseId,
+                disposition.WarehouseId,
                 item,
-                quantity,
-                item.DefaultUnitCost,
+                disposition.Quantity,
+                disposition.UnitCost,
                 ReferenceTypes.ServiceJobMaterialDisposition,
                 disposition.Id,
                 disposition.Id,
-                line.BatchNumber,
-                serialNumbers,
+                disposition.BatchNumber,
+                disposition.Serials.Select(x => x.SerialNumber).ToList(),
                 cancellationToken);
         }
 
+        disposition.Post(clock.UtcNow);
         await dbContext.SaveChangesAsync(cancellationToken);
-        return disposition.Id;
+    }
+
+    public async Task UpdateServiceJobMaterialDispositionAsync(
+        Guid serviceJobId,
+        Guid dispositionId,
+        string? condition,
+        string reason,
+        ServiceJobMaterialChargeTo chargeTo,
+        Guid? supplierReturnId,
+        string? responsiblePerson,
+        CancellationToken cancellationToken = default)
+    {
+        await EnsureServiceJobAcceptsNewCostsAsync(serviceJobId, cancellationToken);
+
+        var disposition = await dbContext.ServiceJobMaterialDispositions
+            .FirstOrDefaultAsync(x => x.ServiceJobId == serviceJobId && x.Id == dispositionId, cancellationToken)
+            ?? throw new NotFoundException("Material disposition not found.");
+
+        if (disposition.Kind == ServiceJobMaterialDispositionKind.RejectedSupplierReturn && supplierReturnId is not null)
+        {
+            var supplierReturnExists = await dbContext.SupplierReturns.AsNoTracking().AnyAsync(x => x.Id == supplierReturnId.Value, cancellationToken);
+            if (!supplierReturnExists)
+            {
+                throw new NotFoundException("Supplier return not found.");
+            }
+        }
+
+        disposition.UpdateDetails(
+            condition ?? disposition.Kind.ToString(),
+            reason,
+            chargeTo,
+            supplierReturnId,
+            responsiblePerson);
+
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task VoidServiceJobMaterialDispositionAsync(
+        Guid serviceJobId,
+        Guid dispositionId,
+        string? reason,
+        CancellationToken cancellationToken = default)
+    {
+        await EnsureServiceJobAcceptsNewCostsAsync(serviceJobId, cancellationToken);
+
+        var disposition = await dbContext.ServiceJobMaterialDispositions
+            .Include(x => x.Serials)
+            .FirstOrDefaultAsync(x => x.ServiceJobId == serviceJobId && x.Id == dispositionId, cancellationToken)
+            ?? throw new NotFoundException("Material disposition not found.");
+
+        if (disposition.IsVoided)
+        {
+            throw new DomainValidationException("Material disposition is already voided.");
+        }
+
+        if (disposition.IsPosted && disposition.Kind is ServiceJobMaterialDispositionKind.UnusedReturned
+            or ServiceJobMaterialDispositionKind.IncorrectReturned
+            or ServiceJobMaterialDispositionKind.RejectedSupplierReturn)
+        {
+            var item = await dbContext.Items.AsNoTracking().FirstOrDefaultAsync(x => x.Id == disposition.ItemId, cancellationToken)
+                ?? throw new DomainValidationException("Invalid item on material disposition.");
+
+            await inventoryService.RecordIssueAsync(
+                clock.UtcNow,
+                disposition.WarehouseId,
+                item,
+                disposition.Quantity,
+                disposition.UnitCost,
+                ReferenceTypes.ServiceJobMaterialDisposition,
+                disposition.Id,
+                disposition.Id,
+                disposition.BatchNumber,
+                disposition.Serials.Select(x => x.SerialNumber).ToList(),
+                cancellationToken);
+        }
+
+        disposition.Void(clock.UtcNow, reason);
+        await dbContext.SaveChangesAsync(cancellationToken);
     }
 
     private async Task<ServiceEntitlementSnapshot> EvaluateServiceEntitlementAsync(
@@ -2058,6 +2163,7 @@ public sealed class ServiceManagementService(
             ? []
             : await dbContext.ServiceJobMaterialDispositions.AsNoTracking()
                 .Where(x => lineIds.Contains(x.MaterialRequisitionLineId))
+                .Where(x => !x.IsVoided)
                 .GroupBy(x => x.MaterialRequisitionLineId)
                 .Select(x => new { LineId = x.Key, Quantity = x.Sum(d => d.Quantity) })
                 .ToListAsync(cancellationToken);

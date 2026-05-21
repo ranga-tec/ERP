@@ -63,10 +63,13 @@ export default async function WorkOrdersPage() {
             <tbody>
               {workOrders.map((w) => (
                 <tr key={w.id} className="border-b border-zinc-100 dark:border-zinc-900">
-                  <td className="py-2 pr-3 font-mono text-xs">
+                  <td className="py-2 pr-3">
                     <Link className="hover:underline" href={`/service/work-orders/${w.id}`}>
-                      {w.id.slice(0, 8)}
+                      Job Sheet
                     </Link>
+                    <div className="mt-1 text-xs text-zinc-500">
+                      {jobById.get(w.serviceJobId)?.number ?? "Job not found"}
+                    </div>
                   </td>
                   <td className="py-2 pr-3 font-mono text-xs text-zinc-600 dark:text-zinc-400">
                     <TransactionLink referenceType="SJ" referenceId={w.serviceJobId} monospace>

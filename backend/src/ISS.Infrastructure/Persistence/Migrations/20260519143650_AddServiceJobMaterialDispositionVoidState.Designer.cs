@@ -3,6 +3,7 @@ using System;
 using ISS.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace ISS.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(IssDbContext))]
-    partial class IssDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260519143650_AddServiceJobMaterialDispositionVoidState")]
+    partial class AddServiceJobMaterialDispositionVoidState
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -4267,9 +4270,6 @@ namespace ISS.Infrastructure.Persistence.Migrations
 
                     b.Property<Guid>("MaterialRequisitionLineId")
                         .HasColumnType("uuid");
-
-                    b.Property<DateTimeOffset?>("PostedAt")
-                        .HasColumnType("timestamp with time zone");
 
                     b.Property<decimal>("Quantity")
                         .HasPrecision(18, 4)

@@ -92,7 +92,8 @@ const sections: NavSection[] = [
       { href: "/finance/payments", label: "Payment Receipts" },
       { href: "/finance/petty-cash", label: "Petty Cash" },
       { href: "/finance/petty-cash-ious", label: "Petty Cash IOUs" },
-      { href: "/finance/credit-notes", label: "Credit Notes" },
+      { href: "/finance/ar-credit-notes", label: "A/R Credit Notes" },
+      { href: "/finance/ap-credit-notes", label: "A/P Credit Notes" },
       { href: "/finance/debit-notes", label: "Debit Notes" },
     ],
   },
@@ -161,30 +162,6 @@ function activeSectionTitle(pathname: string): string | null {
   return sections.find((section) => sectionIsActive(pathname, section))?.title ?? null;
 }
 
-function readExpandedSectionPreference(fallback: string | null): string | null {
-  if (typeof window === "undefined") return fallback;
-
-  try {
-    const raw = window.localStorage.getItem(SIDEBAR_SECTION_STORAGE_KEY);
-    if (!raw) return fallback;
-
-    const allowed = new Set(sections.map((section) => section.title));
-    const parsed = JSON.parse(raw);
-
-    if (typeof parsed === "string" && allowed.has(parsed)) {
-      return parsed;
-    }
-
-    if (Array.isArray(parsed)) {
-      return parsed.find((value): value is string => typeof value === "string" && allowed.has(value)) ?? fallback;
-    }
-
-    return fallback;
-  } catch {
-    return fallback;
-  }
-}
-
 function PinIcon({ pinned }: { pinned: boolean }) {
   return (
     <svg
@@ -233,7 +210,7 @@ export function Sidebar({ roles, collapsed = false, onNavigate, onToggleCollapse
   const pathname = usePathname();
   const canToggle = typeof onToggleCollapse === "function";
   const pinned = !collapsed;
-  const [expandedSection, setExpandedSection] = useState<string | null>(() => readExpandedSectionPreference(activeSectionTitle(pathname)));
+  const [expandedSection, setExpandedSection] = useState<string | null>(() => activeSectionTitle(pathname));
   const [search, setSearch] = useState("");
 
   useEffect(() => {

@@ -88,17 +88,20 @@ export default async function CreditNoteDetailPage({ params }: { params: Promise
     note.counterpartyType === 1
       ? customerById.get(note.counterpartyId)?.code ?? note.counterpartyId
       : supplierById.get(note.counterpartyId)?.code ?? note.counterpartyId;
+  const listHref = note.counterpartyType === 1 ? "/finance/ar-credit-notes" : "/finance/ap-credit-notes";
+  const listLabel = note.counterpartyType === 1 ? "A/R Credit Notes" : "A/P Credit Notes";
+  const heading = note.counterpartyType === 1 ? "A/R Credit Note" : "A/P Credit Note";
 
   return (
     <div className="space-y-6">
       <div>
         <div className="text-sm text-zinc-500">
-          <Link href="/finance/credit-notes" className="hover:underline">
-            Credit Notes
+          <Link href={listHref} className="hover:underline">
+            {listLabel}
           </Link>{" "}
           / <span className="font-mono text-xs">{note.referenceNumber}</span>
         </div>
-        <h1 className="mt-1 text-2xl font-semibold">Credit Note {note.referenceNumber}</h1>
+        <h1 className="mt-1 text-2xl font-semibold">{heading} {note.referenceNumber}</h1>
         <div className="mt-2 flex flex-wrap gap-3 text-sm text-zinc-600 dark:text-zinc-400">
           <div>
             Counterparty:{" "}

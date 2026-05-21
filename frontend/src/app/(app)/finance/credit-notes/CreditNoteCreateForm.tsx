@@ -14,9 +14,13 @@ const counterpartyLabel: Record<string, string> = { "1": "Customer", "2": "Suppl
 export function CreditNoteCreateForm({
   customers,
   suppliers,
+  fixedCounterpartyType,
+  submitLabel = "Create Credit Note",
 }: {
   customers: CustomerRef[];
   suppliers: SupplierRef[];
+  fixedCounterpartyType?: "1" | "2";
+  submitLabel?: string;
 }) {
   const router = useRouter();
 
@@ -29,7 +33,7 @@ export function CreditNoteCreateForm({
     [suppliers],
   );
 
-  const [counterpartyType, setCounterpartyType] = useState("1");
+  const [counterpartyType, setCounterpartyType] = useState(fixedCounterpartyType ?? "1");
   const [counterpartyId, setCounterpartyId] = useState("");
   const [amount, setAmount] = useState("0");
   const [notes, setNotes] = useState("");
@@ -66,20 +70,27 @@ export function CreditNoteCreateForm({
   return (
     <form onSubmit={onSubmit} className="space-y-3">
       <div className="grid gap-3 sm:grid-cols-3">
-        <div>
-          <label className="mb-1 block text-sm font-medium">Counterparty type</label>
-          <Select
-            value={counterpartyType}
-            onChange={(e) => {
-              setCounterpartyType(e.target.value);
-              setCounterpartyId("");
-            }}
-            required
-          >
-            <option value="1">{counterpartyLabel["1"]}</option>
-            <option value="2">{counterpartyLabel["2"]}</option>
-          </Select>
-        </div>
+        {fixedCounterpartyType ? (
+          <div>
+            <label className="mb-1 block text-sm font-medium">Counterparty type</label>
+            <Input value={counterpartyLabel[fixedCounterpartyType]} readOnly />
+          </div>
+        ) : (
+          <div>
+            <label className="mb-1 block text-sm font-medium">Counterparty type</label>
+            <Select
+              value={counterpartyType}
+              onChange={(e) => {
+                setCounterpartyType(e.target.value);
+                setCounterpartyId("");
+              }}
+              required
+            >
+              <option value="1">{counterpartyLabel["1"]}</option>
+              <option value="2">{counterpartyLabel["2"]}</option>
+            </Select>
+          </div>
+        )}
         <div className="sm:col-span-2">
           <label className="mb-1 block text-sm font-medium">Counterparty</label>
           <Select value={counterpartyId} onChange={(e) => setCounterpartyId(e.target.value)} required>
@@ -113,9 +124,8 @@ export function CreditNoteCreateForm({
       ) : null}
 
       <Button type="submit" disabled={busy}>
-        {busy ? "Creating..." : "Create Credit Note"}
+        {busy ? "Creating..." : submitLabel}
       </Button>
     </form>
   );
 }
-

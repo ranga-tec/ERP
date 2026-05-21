@@ -22,11 +22,13 @@ export function CustomerReturnLineAddForm({
   items,
   warehouses,
   warehouseId,
+  restrictedToInvoice = false,
 }: {
   customerReturnId: string;
   items: ItemRef[];
   warehouses: WarehouseRef[];
   warehouseId: string;
+  restrictedToInvoice?: boolean;
 }) {
   const router = useRouter();
   const [itemId, setItemId] = useState("");
@@ -87,6 +89,11 @@ export function CustomerReturnLineAddForm({
         <div className="sm:col-span-2">
           <label className="mb-1 block text-sm font-medium">Item</label>
           <ItemLookupField items={items} value={itemId} onChange={setItemId} />
+          {restrictedToInvoice ? (
+            <div className="mt-1 text-xs text-zinc-500">
+              Only items from the referenced invoice are available.
+            </div>
+          ) : null}
         </div>
         <div>
           <label className="mb-1 block text-sm font-medium">Qty</label>

@@ -726,6 +726,7 @@ public sealed class IssDbContext(
             entity.Property(x => x.Condition).HasMaxLength(128);
             entity.Property(x => x.Reason).HasMaxLength(1000);
             entity.Property(x => x.ResponsiblePerson).HasMaxLength(256);
+            entity.Property(x => x.VoidReason).HasMaxLength(512);
             entity.HasOne<ServiceJob>().WithMany().HasForeignKey(x => x.ServiceJobId).OnDelete(DeleteBehavior.Cascade);
             entity.HasOne<ServiceJobDailySheet>().WithMany().HasForeignKey(x => x.ServiceJobDailySheetId).OnDelete(DeleteBehavior.SetNull);
             entity.HasOne<MaterialRequisition>().WithMany().HasForeignKey(x => x.MaterialRequisitionId).OnDelete(DeleteBehavior.Cascade);

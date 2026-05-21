@@ -14,6 +14,7 @@ import { ServiceJobDailySheetActions } from "../ServiceJobDailySheetActions";
 import { ServiceJobDailySheetCreateForm } from "../ServiceJobDailySheetCreateForm";
 import { ServiceJobFinalInvoiceActions } from "../ServiceJobFinalInvoiceActions";
 import { ServiceJobMaterialDispositionAddForm } from "../ServiceJobMaterialDispositionAddForm";
+import { ServiceJobMaterialDispositionActions } from "../ServiceJobMaterialDispositionActions";
 import { ServiceJobOperationActions } from "../ServiceJobOperationActions";
 import { ServiceJobOperationAddForm } from "../ServiceJobOperationAddForm";
 import { ServiceJobProgressUpdateAddForm } from "../ServiceJobProgressUpdateAddForm";
@@ -243,6 +244,11 @@ type ServiceJobMaterialDispositionDto = {
   supplierReturnId?: string | null;
   responsiblePerson?: string | null;
   serials: string[];
+  status: number;
+  postedAt?: string | null;
+  isVoided: boolean;
+  voidedAt?: string | null;
+  voidReason?: string | null;
   createdAt: string;
 };
 
@@ -322,8 +328,8 @@ const laborStatusLabel: Record<number, string> = {
 };
 const materialDispositionLabel: Record<number, string> = {
   0: "Used",
-  1: "Unused returned",
-  2: "Incorrect returned",
+  1: "Not needed returned",
+  2: "Wrongly issued returned",
   3: "Damaged",
   4: "Rejected / supplier return",
 };
@@ -333,6 +339,13 @@ const materialChargeToLabel: Record<number, string> = {
   2: "Supplier",
   3: "Employee",
   4: "Warranty",
+};
+const materialStockEffectLabel: Record<number, string> = {
+  0: "Consumed / not returned",
+  1: "Returned to stock",
+  2: "Returned to stock",
+  3: "Damaged / not available",
+  4: "Returned to stock for supplier return",
 };
 
 const assignmentStatusLabel: Record<number, string> = {
@@ -510,6 +523,15 @@ export default async function ServiceJobDetailPage({
   const selectedProgressUpdates = selectedDailySheet
     ? progressUpdates.filter((update) => update.serviceJobDailySheetId === selectedDailySheet.id)
     : [];
+  const selectedDailySheetLocked = selectedDailySheet?.status === 2;
+  const dailySheetCreateDisabledReason = !canAddJobActivity
+    ? "Daily sheets cannot be added after the job is closed or cancelled. Reopen the job before recording another day."
+    : undefined;
+  const selectedDailySheetLockReason = selectedDailySheetLocked
+    ? `${selectedDailySheet.number} is approved. Create or select another daily sheet before recording new labor or progress.`
+    : undefined;
+  const dailySheetNumberById = new Map(dailySheets.map((sheet) => [sheet.id, sheet.number]));
+  const materialLineById = new Map(costing.materialLines.map((line) => [line.materialRequisitionLineId, line]));
 
   return (
     <div className="space-y-6">
@@ -842,9 +864,9 @@ export default async function ServiceJobDetailPage({
           </div>
         </div>
         <details className="rounded-md border border-[var(--card-border)] p-3">
-          <summary className="cursor-pointer text-sm font-medium">Create daily field sheet</summary>
+          <summary className="cursor-pointer text-sm font-medium">Create daily field sheet for another day</summary>
           <div className="mt-3">
-            <ServiceJobDailySheetCreateForm serviceJobId={job.id} disabled={!canAddJobActivity} />
+            <ServiceJobDailySheetCreateForm serviceJobId={job.id} disabled={!canAddJobActivity} disabledReason={dailySheetCreateDisabledReason} />
           </div>
         </details>
         <div className="mt-4 overflow-auto">
@@ -910,6 +932,9 @@ export default async function ServiceJobDetailPage({
                 <div className="mt-1 text-xs text-zinc-500">
                   {selectedDailySheet.number} / {new Date(selectedDailySheet.sheetDate).toLocaleString()} / {dailySheetStatusLabel[selectedDailySheet.status] ?? selectedDailySheet.status}
                 </div>
+                {selectedDailySheetLockReason ? (
+                  <div className="mt-2 text-xs text-amber-700 dark:text-amber-300">{selectedDailySheetLockReason}</div>
+                ) : null}
               </div>
               <div className="flex flex-wrap gap-2 text-xs text-zinc-500">
                 <span>Staff {selectedAssignments.length}</span>
@@ -918,6 +943,31 @@ export default async function ServiceJobDetailPage({
                 <span>Returns {selectedDailySheet.materialDispositionCount}</span>
                 <span>Expenses {selectedDailySheet.expenseClaimCount}</span>
                 <span>IOU {selectedDailySheet.iouCount}</span>
+              </div>
+            </div>
+            <div className="mt-4 border-t border-[var(--card-border)] pt-3">
+              <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-zinc-500">Select Daily Sheet</div>
+              <div className="flex flex-wrap gap-2">
+                {dailySheets.map((sheet) => {
+                  const active = sheet.id === selectedDailySheet.id;
+                  return (
+                    <Link
+                      key={sheet.id}
+                      href={dailyWorkHref(job.id, activeDailyWorkView, sheet.id)}
+                      className={[
+                        "rounded-md border px-3 py-2 text-left text-xs transition-colors",
+                        active
+                          ? "border-[var(--link)] bg-blue-50 text-[var(--link)] dark:bg-blue-950/30"
+                          : "border-[var(--card-border)] text-zinc-600 hover:border-zinc-400 dark:text-zinc-300",
+                      ].join(" ")}
+                    >
+                      <span className="block font-mono font-semibold">{sheet.number}</span>
+                      <span className="mt-1 block text-zinc-500">
+                        {new Date(sheet.sheetDate).toLocaleDateString()} / {dailySheetStatusLabel[sheet.status] ?? sheet.status}
+                      </span>
+                    </Link>
+                  );
+                })}
               </div>
             </div>
           </Card>
@@ -940,13 +990,21 @@ export default async function ServiceJobDetailPage({
           </Link>
         </div>
         <div className="mb-4">
+          {selectedDailySheetLockReason ? (
+            <div className="mb-3 rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-900/40 dark:bg-amber-950/30 dark:text-amber-100">
+              {selectedDailySheetLockReason}{" "}
+              <Link className="font-semibold underline underline-offset-2" href={dailyWorkHref(job.id, "sheets")}>
+                Open daily sheets
+              </Link>
+            </div>
+          ) : null}
           <ServiceJobAssignmentAddForm
             serviceJobId={job.id}
             technicians={technicians}
             dailySheets={selectedDailySheets}
             defaultDailySheetId={selectedDailySheet?.id ?? ""}
             requireDailySheet
-            disabled={!canAddJobActivity || !selectedDailySheet}
+            disabled={!canAddJobActivity || !selectedDailySheet || selectedDailySheetLocked}
           />
         </div>
         <div className="overflow-auto">
@@ -1008,12 +1066,20 @@ export default async function ServiceJobDetailPage({
         meta={selectedDailySheet ? `${selectedProgressUpdates.length} updates` : "No sheet selected"}
       >
         <div className="mb-4">
+          {selectedDailySheetLockReason ? (
+            <div className="mb-3 rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-900/40 dark:bg-amber-950/30 dark:text-amber-100">
+              {selectedDailySheetLockReason}{" "}
+              <Link className="font-semibold underline underline-offset-2" href={dailyWorkHref(job.id, "sheets")}>
+                Open daily sheets
+              </Link>
+            </div>
+          ) : null}
           <ServiceJobProgressUpdateAddForm
             serviceJobId={job.id}
             dailySheets={selectedDailySheets}
             defaultDailySheetId={selectedDailySheet?.id ?? ""}
             requireDailySheet
-            disabled={!canAddJobActivity || !selectedDailySheet}
+            disabled={!canAddJobActivity || !selectedDailySheet || selectedDailySheetLocked}
           />
         </div>
         <div className="space-y-3">
@@ -1105,10 +1171,97 @@ export default async function ServiceJobDetailPage({
 
       <CollapsibleCard
         title="Material Returns / Damage / Rejection"
-        summary="Record used material, unused returns, damaged parts, rejected parts, and supplier-return responsibility."
+        summary="Draft material returns first, then post them to update inventory."
         defaultOpen
       >
         <ServiceJobMaterialDispositionAddForm serviceJobId={job.id} materialLines={costing.materialLines} dailySheets={dailySheets} disabled={!canAddJobActivity} />
+        <div className="mt-5 overflow-auto">
+          <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+            <div className="text-sm font-medium">Material Return Drafts / Posted</div>
+            <div className="text-xs text-zinc-500">{materialDispositions.filter((disposition) => !disposition.isVoided).length} active / {materialDispositions.length} total</div>
+          </div>
+          <Table>
+            <thead>
+              <tr className="border-b border-zinc-200 text-left text-xs uppercase tracking-wide text-zinc-500 dark:border-zinc-800">
+                <th className="py-2 pr-3">Date</th>
+                <th className="py-2 pr-3">Daily Sheet</th>
+                <th className="py-2 pr-3">MRN Line</th>
+                <th className="py-2 pr-3">Disposition</th>
+                <th className="py-2 pr-3">Status</th>
+                <th className="py-2 pr-3">Qty</th>
+                <th className="py-2 pr-3">Stock Effect</th>
+                <th className="py-2 pr-3">Charge To</th>
+                <th className="py-2 pr-3">Condition / Reason</th>
+                <th className="py-2 pr-3">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {materialDispositions.map((disposition) => {
+                const line = materialLineById.get(disposition.materialRequisitionLineId);
+                return (
+                  <tr key={disposition.id} className={`border-b border-zinc-100 align-top dark:border-zinc-900 ${disposition.isVoided ? "opacity-60" : ""}`}>
+                    <td className="py-2 pr-3 whitespace-nowrap">{new Date(disposition.createdAt).toLocaleString()}</td>
+                    <td className="py-2 pr-3 font-mono text-xs">
+                      {disposition.serviceJobDailySheetId ? dailySheetNumberById.get(disposition.serviceJobDailySheetId) ?? "Linked" : "Unlinked"}
+                    </td>
+                    <td className="py-2 pr-3">
+                      {line ? (
+                        <div>
+                          <TransactionLink referenceType="MR" referenceId={line.materialRequisitionId} monospace>
+                            {line.materialRequisitionNumber}
+                          </TransactionLink>
+                          <div className="text-xs text-zinc-500">
+                            <ItemInlineLink itemId={line.itemId}>{line.itemSku} - {line.itemName}</ItemInlineLink>
+                          </div>
+                        </div>
+                      ) : (
+                        <span className="font-mono text-xs">{disposition.materialRequisitionLineId.slice(0, 8)}</span>
+                      )}
+                    </td>
+                    <td className="py-2 pr-3">
+                      {materialDispositionLabel[disposition.kind] ?? disposition.kind}
+                      {disposition.isVoided ? <div className="mt-1 text-xs font-medium text-red-600 dark:text-red-300">Voided</div> : null}
+                    </td>
+                    <td className="py-2 pr-3">
+                      {disposition.status === 0 ? "Draft" : disposition.status === 1 ? "Posted" : "Voided"}
+                      {disposition.postedAt ? <div className="mt-1 text-xs text-zinc-500">{new Date(disposition.postedAt).toLocaleString()}</div> : null}
+                    </td>
+                    <td className="py-2 pr-3">{disposition.quantity}</td>
+                    <td className="py-2 pr-3">{materialStockEffectLabel[disposition.kind] ?? "-"}</td>
+                    <td className="py-2 pr-3">{materialChargeToLabel[disposition.chargeTo] ?? disposition.chargeTo}</td>
+                    <td className="py-2 pr-3 text-xs text-zinc-500">
+                      <div>{maybeText(disposition.condition)}</div>
+                      <div className="mt-1 whitespace-pre-wrap">{disposition.reason}</div>
+                      {disposition.supplierReturnId ? <div className="mt-1">Supplier return: {disposition.supplierReturnId}</div> : null}
+                      {disposition.responsiblePerson ? <div className="mt-1">Responsible: {disposition.responsiblePerson}</div> : null}
+                      {disposition.serials.length > 0 ? <div className="mt-1">Serials: {disposition.serials.join(", ")}</div> : null}
+                      {disposition.isVoided ? (
+                        <div className="mt-1 text-red-600 dark:text-red-300">
+                          Voided {disposition.voidedAt ? new Date(disposition.voidedAt).toLocaleString() : ""}: {maybeText(disposition.voidReason)}
+                        </div>
+                      ) : null}
+                    </td>
+                    <td className="py-2 pr-3">
+                      <ServiceJobMaterialDispositionActions
+                        serviceJobId={job.id}
+                        dispositionId={disposition.id}
+                        disposition={disposition}
+                        disabled={!canAddJobActivity}
+                      />
+                    </td>
+                  </tr>
+                );
+              })}
+              {materialDispositions.length === 0 ? (
+                <tr>
+                  <td className="py-6 text-sm text-zinc-500" colSpan={10}>
+                    No material return drafts yet.
+                  </td>
+                </tr>
+              ) : null}
+            </tbody>
+          </Table>
+        </div>
       </CollapsibleCard>
         </>
       ) : null}
@@ -1266,7 +1419,7 @@ export default async function ServiceJobDetailPage({
               </thead>
               <tbody>
                 {costing.materialLines.map((line) => {
-                  const dispositionsForLine = materialDispositions.filter((disposition) => disposition.materialRequisitionLineId === line.materialRequisitionLineId);
+                  const dispositionsForLine = materialDispositions.filter((disposition) => disposition.materialRequisitionLineId === line.materialRequisitionLineId && !disposition.isVoided);
                   return (
                   <tr key={`${line.materialRequisitionId}-${line.materialRequisitionLineId}-${line.itemId}-${line.quantity}`} className="border-b border-zinc-100 align-top dark:border-zinc-900">
                     <td className="py-2 pr-3">
@@ -1362,8 +1515,8 @@ export default async function ServiceJobDetailPage({
                   <tr key={line.timeEntryId} className="border-b border-zinc-100 dark:border-zinc-900">
                     <td className="py-2 pr-3">{new Date(line.workDate).toLocaleDateString()}</td>
                     <td className="py-2 pr-3">
-                      <TransactionLink referenceType="WO" referenceId={line.workOrderId} monospace>
-                        {line.workOrderId.slice(0, 8)}
+                      <TransactionLink referenceType="WO" referenceId={line.workOrderId}>
+                        Job Sheet
                       </TransactionLink>
                     </td>
                     <td className="py-2 pr-3">{line.technicianName}</td>

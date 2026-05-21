@@ -7,7 +7,6 @@ import { CustomerReturnActions } from "../CustomerReturnActions";
 import { CustomerReturnLineAddForm } from "../CustomerReturnLineAddForm";
 import { CustomerReturnLinesEditor } from "../CustomerReturnLinesEditor";
 import { DocumentCollaborationPanel } from "@/components/DocumentCollaborationPanel";
-import { StockAvailabilityExplorer } from "@/components/StockAvailabilityExplorer";
 import { DocumentDirectEditNotice } from "@/components/DocumentDirectEditNotice";
 
 type CustomerReturnDto = {
@@ -27,6 +26,10 @@ type CustomerDto = { id: string; code: string; name: string };
 type WarehouseDto = { id: string; code: string; name: string };
 type ItemDto = { id: string; sku: string; name: string; trackingType: number; defaultUnitCost: number };
 type InvoiceSummaryDto = { id: string; number: string; customerId: string; total: number; status: number };
+type InvoiceDto = {
+  id: string;
+  lines: { itemId: string }[];
+};
 type DispatchSummaryDto = { id: string; number: string; salesOrderId: string; status: number };
 
 const statusLabel: Record<number, string> = { 0: "Draft", 1: "Posted", 2: "Voided" };
@@ -51,10 +54,20 @@ export default async function CustomerReturnDetailPage({
     backendFetchJson<DispatchSummaryDto[]>("/sales/dispatches?take=200"),
   ]);
 
+  const referencedInvoice = customerReturn.salesInvoiceId
+    ? await backendFetchJson<InvoiceDto>(`/sales/invoices/${customerReturn.salesInvoiceId}`)
+    : null;
+
   const customerById = new Map(customers.map((customer) => [customer.id, customer]));
   const warehouseById = new Map(warehouses.map((warehouse) => [warehouse.id, warehouse]));
   const invoiceById = new Map(invoices.map((invoice) => [invoice.id, invoice]));
   const dispatchById = new Map(dispatches.map((dispatch) => [dispatch.id, dispatch]));
+  const allowedInvoiceItemIds = referencedInvoice
+    ? new Set(referencedInvoice.lines.map((line) => line.itemId))
+    : null;
+  const addLineItems = allowedInvoiceItemIds
+    ? items.filter((item) => allowedInvoiceItemIds.has(item.id))
+    : items;
   const isDraft = customerReturn.status === 0;
 
   return (
@@ -117,17 +130,14 @@ export default async function CustomerReturnDetailPage({
               <div className="mb-3 text-sm font-semibold">Add line</div>
               <CustomerReturnLineAddForm
                 customerReturnId={customerReturn.id}
-                items={items}
+                items={addLineItems}
                 warehouses={warehouses}
                 warehouseId={customerReturn.warehouseId}
+                restrictedToInvoice={Boolean(allowedInvoiceItemIds)}
               />
             </Card>
           )}
 
-          <Card>
-            <div className="mb-3 text-sm font-semibold">Stock visibility</div>
-            <StockAvailabilityExplorer warehouses={warehouses} items={items} initialWarehouseId={customerReturn.warehouseId} />
-          </Card>
         </>
       ) : null}
 

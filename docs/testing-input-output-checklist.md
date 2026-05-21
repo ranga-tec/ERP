@@ -39,6 +39,75 @@ Do not use cleanup buttons on real production data.
 
 Create these values before transaction testing.
 
+### Finance And Reference Master Data
+
+Most fresh local/demo databases already seed these records. Open each page and confirm the values exist. If a value is missing, create it before continuing.
+
+| Page | Record | Field | Input |
+| --- | --- | --- | --- |
+| `Master Data -> Currencies` | Base currency | Code | `LKR` |
+| `Master Data -> Currencies` | Base currency | Name | `Sri Lankan Rupee` |
+| `Master Data -> Currencies` | Base currency | Symbol | `Rs` |
+| `Master Data -> Currency Rates` | USD to LKR | From | `USD` |
+| `Master Data -> Currency Rates` | USD to LKR | To | `LKR` |
+| `Master Data -> Currency Rates` | USD to LKR | Rate | `300` |
+| `Master Data -> Payment Types` | Cash | Code | `CASH` |
+| `Master Data -> Payment Types` | Cash | Name | `Cash` |
+| `Master Data -> Payment Types` | Bank transfer | Code | `BANK` |
+| `Master Data -> Payment Types` | Bank transfer | Name | `Bank Transfer` |
+| `Master Data -> Tax Codes` | Standard VAT | Code | `VAT18` |
+| `Master Data -> Tax Codes` | Standard VAT | Name | `VAT 18%` |
+| `Master Data -> Tax Codes` | Standard VAT | Rate % | `18` |
+| `Master Data -> Tax Codes` | Zero-rated | Code | `ZERO` |
+| `Master Data -> Tax Codes` | Zero-rated | Name | `Zero Rated` |
+| `Master Data -> Tax Codes` | Zero-rated | Rate % | `0` |
+| `Master Data -> Tax Conversions` | VAT conversion | Source tax | `VAT18` |
+| `Master Data -> Tax Conversions` | VAT conversion | Target tax | `ZERO` |
+| `Master Data -> Reference Forms` | Customer PO | Code | `CPO` |
+| `Master Data -> Reference Forms` | Customer PO | Name | `Customer Purchase Order` |
+| `Master Data -> Reference Forms` | Delivery note | Code | `DN` |
+| `Master Data -> Reference Forms` | Delivery note | Name | `Delivery Note` |
+
+Expected:
+
+| Check | Where | Expected output |
+| --- | --- | --- |
+| Finance setup | Currency, payment, and tax master pages | `LKR`, `CASH`, `BANK`, `VAT18`, and `ZERO` are active |
+| Reference setup | `Master Data -> Reference Forms` | `CPO` and `DN` are selectable on transaction forms that ask for references |
+
+### Item Supporting Master Data
+
+Create these records before creating items.
+
+| Page | Record | Field | Input |
+| --- | --- | --- | --- |
+| `Master Data -> Brands` | Test brand | Code | `BR-TEST` |
+| `Master Data -> Brands` | Test brand | Name | `Test Brand` |
+| `Master Data -> UoMs` | Pieces | Code | `PCS` |
+| `Master Data -> UoMs` | Pieces | Name | `Pieces` |
+| `Master Data -> UoMs` | Hours | Code | `HOUR` |
+| `Master Data -> UoMs` | Hours | Name | `Hour` |
+| `Master Data -> UoM Conversions` | Box to pieces | From UoM | `BOX` |
+| `Master Data -> UoM Conversions` | Box to pieces | To UoM | `PCS` |
+| `Master Data -> UoM Conversions` | Box to pieces | Factor | `12` |
+| `Master Data -> Item Categories` | Spare parts | Code | `SPARES` |
+| `Master Data -> Item Categories` | Spare parts | Name | `Spare Parts` |
+| `Master Data -> Item Categories` | Equipment | Code | `EQUIP` |
+| `Master Data -> Item Categories` | Equipment | Name | `Equipment` |
+| `Master Data -> Item Subcategories` | Filters | Category | `SPARES` |
+| `Master Data -> Item Subcategories` | Filters | Code | `FILTERS` |
+| `Master Data -> Item Subcategories` | Filters | Name | `Filters` |
+| `Master Data -> Item Subcategories` | Control boards | Category | `SPARES` |
+| `Master Data -> Item Subcategories` | Control boards | Code | `BOARDS` |
+| `Master Data -> Item Subcategories` | Control boards | Name | `Control Boards` |
+
+Expected:
+
+| Check | Where | Expected output |
+| --- | --- | --- |
+| Item setup lists | Brand, UoM, category, and subcategory pages | Codes above are visible and active |
+| Item create dropdowns | `Master Data -> Items -> Create` | `BR-TEST`, `PCS`, `HOUR`, `SPARES`, `EQUIP`, `FILTERS`, and `BOARDS` are selectable |
+
 ### Warehouses And Bins
 
 Go to `Master Data -> Warehouses`.
@@ -93,24 +162,34 @@ Go to `Master Data -> Items`.
 | Normal stock item | SKU | `SKU-CORE` |
 | Normal stock item | Name | `Hydraulic Filter` |
 | Normal stock item | Type | `Spare Part` |
+| Normal stock item | Brand | `BR-TEST` |
+| Normal stock item | Category | `SPARES` |
+| Normal stock item | Subcategory | `FILTERS` |
 | Normal stock item | Tracking | `None` |
 | Normal stock item | UoM | `PCS` |
 | Normal stock item | Default Unit Cost | `5` |
 | Batch item | SKU | `SKU-BATCH` |
 | Batch item | Name | `Engine Oil Lot Item` |
 | Batch item | Type | `Spare Part` |
+| Batch item | Brand | `BR-TEST` |
+| Batch item | Category | `SPARES` |
 | Batch item | Tracking | `Batch` |
 | Batch item | UoM | `PCS` |
 | Batch item | Default Unit Cost | `8` |
 | Serial item | SKU | `SKU-SERIAL` |
 | Serial item | Name | `Control Board Serialized` |
 | Serial item | Type | `Spare Part` |
+| Serial item | Brand | `BR-TEST` |
+| Serial item | Category | `SPARES` |
+| Serial item | Subcategory | `BOARDS` |
 | Serial item | Tracking | `Serial` |
 | Serial item | UoM | `PCS` |
 | Serial item | Default Unit Cost | `25` |
 | Equipment item | SKU | `EQP-GEN` |
 | Equipment item | Name | `Generator Model A` |
 | Equipment item | Type | `Equipment` |
+| Equipment item | Brand | `BR-TEST` |
+| Equipment item | Category | `EQUIP` |
 | Equipment item | Tracking | `Serial` |
 | Equipment item | UoM | `PCS` |
 | Equipment item | Default Unit Cost | `100` |
@@ -127,6 +206,24 @@ Expected:
 | --- | --- | --- |
 | Item search | `Master Data -> Items` | All SKUs can be searched and opened |
 | Tracking setup | Item detail/edit page | `SKU-BATCH` is batch tracked; `SKU-SERIAL` and `EQP-GEN` are serial tracked |
+| Classification setup | Item detail/edit page | Item brand/category/subcategory values match the supporting master data |
+
+### Reorder Settings
+
+Go to `Master Data -> Reorder Settings`.
+
+| Item | Warehouse | Reorder Level | Reorder Quantity |
+| --- | --- | ---: | ---: |
+| `SKU-CORE` | `MAIN` | `5` | `20` |
+| `SKU-BATCH` | `MAIN` | `3` | `10` |
+| `SKU-SERIAL` | `MAIN` | `1` | `2` |
+
+Expected:
+
+| Check | Where | Expected output |
+| --- | --- | --- |
+| Reorder settings list | `Master Data -> Reorder Settings` | Rows exist for the three stock items in `MAIN` |
+| Reorder alert readiness | `Inventory -> Reorder Alerts` | Items can appear when on-hand stock falls below the configured level |
 
 ## 3. Procurement: PO And Partial GRNs
 
@@ -1183,3 +1280,40 @@ After all sections above:
 | Service estimate billing differs from raw total | Check warranty/contract entitlement on the job; covered labor/parts can bill at zero |
 | Job cannot close | Open job detail `Overview` or `Billing` tab -> `Closeout Readiness`; clear the listed pending item such as material disposition, IOU, expense claim, work order, labor entry, or final invoice decision |
 | Returned service material not back in stock | Confirm disposition type is `Unused returned` or `Incorrect returned`; `Used`, `Damaged`, and `Rejected / supplier return` do not add warehouse stock |
+## Recent Workflow Updates
+
+### Service Material Returns
+
+- Job material issue/MRN continues to consume inventory when the MRN is posted.
+- Material return/disposition is now for exceptions only: not needed returns, wrongly issued returns, damaged material, and rejected/supplier-return material.
+- Creating a material return/disposition line saves a draft only. Drafts can be edited or voided without touching stock.
+- Posting a material return/disposition updates inventory only for returnable outcomes:
+  - Not needed returned: receipt back to the job warehouse.
+  - Wrongly issued returned: receipt back to the job warehouse.
+  - Rejected/supplier return: receipt back to the job warehouse so a supplier return can issue it out through procurement.
+  - Damaged: no usable-stock receipt.
+- Existing active material disposition records from the old immediate-post workflow are migrated as posted records.
+
+### Equipment Warranty Entry
+
+- Equipment creation and edit forms now allow selecting warranty coverage without the control appearing locked.
+- Warranty coverage and warranty end date must be provided together.
+- Entering a warranty end date auto-selects the standard labor-and-parts coverage when coverage is still set to no warranty.
+
+### Finance Credit Notes
+
+- Credit notes are split in the UI into A/R Credit Notes for customer-side credits and A/P Credit Notes for supplier-side credits.
+- The backend still stores both in the shared credit note model, but user navigation follows standard ERP terminology.
+- Customer returns create customer-side A/R credit notes. Supplier returns create supplier-side A/P credit notes.
+
+### Sales Invoice Source Creation
+
+- Sales invoice creation can now start from a posted AOD/dispatch or direct dispatch.
+- Invoice lines are copied from the selected source document instead of being re-entered manually.
+
+### Customer Returns
+
+- Customer return invoice selection excludes draft invoices.
+- When a customer return references an invoice, return line item selection is restricted to items on that invoice.
+- Returns without an invoice can still select any item.
+- The standalone stock visibility selector was removed from customer return detail to avoid a duplicate item-entry UI; stock context remains inside the add-line workflow.

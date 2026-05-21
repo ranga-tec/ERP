@@ -48,11 +48,19 @@ export function EquipmentUnitEditForm({
     setBusy(true);
 
     try {
+      if (warrantyCoverage !== "0" && !warrantyUntil) {
+        throw new Error("Warranty end date is required when warranty coverage is selected.");
+      }
+
+      if (warrantyUntil && warrantyCoverage === "0") {
+        throw new Error("Select warranty coverage when a warranty end date is provided.");
+      }
+
       await apiPut(`service/equipment-units/${unit.id}`, {
         customerId,
         purchasedAt: purchasedAt ? new Date(purchasedAt).toISOString() : null,
         warrantyUntil: warrantyUntil ? new Date(warrantyUntil).toISOString() : null,
-        warrantyCoverage: warrantyUntil ? Number(warrantyCoverage) : 0,
+        warrantyCoverage: Number(warrantyCoverage),
       });
       router.refresh();
     } catch (err) {
@@ -81,18 +89,23 @@ export function EquipmentUnitEditForm({
         </div>
         <div>
           <label className="mb-1 block text-sm font-medium">Warranty until</label>
-          <Input type="date" value={warrantyUntil} onChange={(event) => setWarrantyUntil(event.target.value)} />
+          <Input
+            type="date"
+            value={warrantyUntil}
+            onChange={(event) => {
+              setWarrantyUntil(event.target.value);
+              if (event.target.value && warrantyCoverage === "0") {
+                setWarrantyCoverage("4");
+              }
+            }}
+          />
         </div>
       </div>
 
       <div className="grid gap-3 sm:grid-cols-2">
         <div>
           <label className="mb-1 block text-sm font-medium">Warranty coverage</label>
-          <Select
-            value={warrantyUntil ? warrantyCoverage : "0"}
-            onChange={(event) => setWarrantyCoverage(event.target.value)}
-            disabled={!warrantyUntil}
-          >
+          <Select value={warrantyCoverage} onChange={(event) => setWarrantyCoverage(event.target.value)}>
             {warrantyCoverageOptions.map((option) => (
               <option key={option.value} value={option.value}>
                 {option.label}

@@ -8,6 +8,28 @@ import { Card, Table } from "@/components/ui";
 import { InvoiceCreateForm } from "./InvoiceCreateForm";
 
 type CustomerDto = { id: string; code: string; name: string };
+type SalesOrderSummaryDto = {
+  id: string;
+  number: string;
+  customerId: string;
+};
+type DispatchSummaryDto = {
+  id: string;
+  number: string;
+  salesOrderId: string;
+  dispatchedAt: string;
+  status: number;
+  lineCount: number;
+};
+type DirectDispatchSummaryDto = {
+  id: string;
+  number: string;
+  customerId?: string | null;
+  serviceJobId?: string | null;
+  dispatchedAt: string;
+  status: number;
+  lineCount: number;
+};
 type InvoiceSummaryDto = {
   id: string;
   number: string;
@@ -32,12 +54,37 @@ export default async function InvoicesPage() {
   const roles = new Set(session?.roles ?? []);
   const canManageInvoices = roles.has("Admin") || roles.has("Sales") || roles.has("Finance");
 
-  const [invoices, customers] = await Promise.all([
+  const [invoices, customers, orders, dispatches, directDispatches] = await Promise.all([
     backendFetchJson<InvoiceSummaryDto[]>("/sales/invoices?take=100"),
     backendFetchJson<CustomerDto[]>("/customers"),
+    backendFetchJson<SalesOrderSummaryDto[]>("/sales/orders?take=500"),
+    backendFetchJson<DispatchSummaryDto[]>("/sales/dispatches?take=500"),
+    backendFetchJson<DirectDispatchSummaryDto[]>("/sales/direct-dispatches?take=500").catch(
+      () => [] as DirectDispatchSummaryDto[],
+    ),
   ]);
 
   const customerById = new Map(customers.map((c) => [c.id, c]));
+  const orderById = new Map(orders.map((o) => [o.id, o]));
+  const postedDispatches = dispatches
+    .filter((dispatch) => dispatch.status === 1 && dispatch.lineCount > 0)
+    .map((dispatch) => ({
+      id: dispatch.id,
+      number: dispatch.number,
+      customerId: orderById.get(dispatch.salesOrderId)?.customerId ?? "",
+      dispatchedAt: dispatch.dispatchedAt,
+      lineCount: dispatch.lineCount,
+    }))
+    .filter((dispatch) => dispatch.customerId);
+  const postedDirectDispatches = directDispatches
+    .filter((dispatch) => dispatch.status === 1 && dispatch.lineCount > 0 && dispatch.customerId)
+    .map((dispatch) => ({
+      id: dispatch.id,
+      number: dispatch.number,
+      customerId: dispatch.customerId ?? "",
+      dispatchedAt: dispatch.dispatchedAt,
+      lineCount: dispatch.lineCount,
+    }));
 
   return (
     <div className="space-y-6">
@@ -49,7 +96,11 @@ export default async function InvoicesPage() {
       {canManageInvoices ? (
         <Card>
           <div className="mb-3 text-sm font-semibold">Create</div>
-          <InvoiceCreateForm customers={customers} />
+          <InvoiceCreateForm
+            customers={customers}
+            dispatches={postedDispatches}
+            directDispatches={postedDirectDispatches}
+          />
         </Card>
       ) : null}
 

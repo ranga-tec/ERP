@@ -39,6 +39,8 @@ export default async function CustomerReturnsPage() {
   const warehouseById = new Map(warehouses.map((w) => [w.id, w]));
   const invoiceById = new Map(invoices.map((i) => [i.id, i]));
   const dispatchById = new Map(dispatches.map((d) => [d.id, d]));
+  const returnableInvoices = invoices.filter((invoice) => invoice.status === 1 || invoice.status === 2);
+  const returnableDispatches = dispatches.filter((dispatch) => dispatch.status === 1);
 
   return (
     <div className="space-y-6">
@@ -49,13 +51,13 @@ export default async function CustomerReturnsPage() {
 
       <Card>
         <div className="mb-3 text-sm font-semibold">Create</div>
-        <CustomerReturnCreateForm
-          customers={customers}
-          warehouses={warehouses}
-          invoices={invoices}
-          dispatches={dispatches}
-          salesOrders={orders}
-        />
+          <CustomerReturnCreateForm
+            customers={customers}
+            warehouses={warehouses}
+            invoices={returnableInvoices}
+            dispatches={returnableDispatches}
+            salesOrders={orders}
+          />
       </Card>
 
       <Card>

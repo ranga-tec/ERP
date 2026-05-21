@@ -20,6 +20,13 @@ public enum ServiceJobMaterialChargeTo
     Warranty = 4
 }
 
+public enum ServiceJobMaterialDispositionStatus
+{
+    Draft = 0,
+    Posted = 1,
+    Voided = 2
+}
+
 public sealed class ServiceJobMaterialDisposition : AuditableEntity
 {
     private ServiceJobMaterialDisposition() { }
@@ -73,11 +80,82 @@ public sealed class ServiceJobMaterialDisposition : AuditableEntity
     public ServiceJobMaterialChargeTo ChargeTo { get; private set; }
     public Guid? SupplierReturnId { get; private set; }
     public string? ResponsiblePerson { get; private set; }
+    public bool IsVoided { get; private set; }
+    public DateTimeOffset? PostedAt { get; private set; }
+    public DateTimeOffset? VoidedAt { get; private set; }
+    public string? VoidReason { get; private set; }
     public List<ServiceJobMaterialDispositionSerial> Serials { get; private set; } = new();
     public decimal CostImpact => Quantity * UnitCost;
+    public bool IsPosted => PostedAt is not null && !IsVoided;
+    public ServiceJobMaterialDispositionStatus Status => IsVoided
+        ? ServiceJobMaterialDispositionStatus.Voided
+        : PostedAt is null
+            ? ServiceJobMaterialDispositionStatus.Draft
+            : ServiceJobMaterialDispositionStatus.Posted;
+
+    public void UpdateDetails(
+        string condition,
+        string reason,
+        ServiceJobMaterialChargeTo chargeTo,
+        Guid? supplierReturnId,
+        string? responsiblePerson)
+    {
+        if (IsVoided)
+        {
+            throw new DomainValidationException("Voided material disposition cannot be edited.");
+        }
+
+        if (IsPosted)
+        {
+            throw new DomainValidationException("Posted material disposition cannot be edited.");
+        }
+
+        Condition = Guard.NotNullOrWhiteSpace(condition, nameof(condition), 128);
+        Reason = Guard.NotNullOrWhiteSpace(reason, nameof(reason), 1000);
+        ChargeTo = chargeTo;
+        SupplierReturnId = supplierReturnId;
+        ResponsiblePerson = string.IsNullOrWhiteSpace(responsiblePerson) ? null : Guard.NotNullOrWhiteSpace(responsiblePerson, nameof(responsiblePerson), 256);
+    }
+
+    public void Void(DateTimeOffset voidedAt, string? reason)
+    {
+        if (IsVoided)
+        {
+            throw new DomainValidationException("Material disposition is already voided.");
+        }
+
+        IsVoided = true;
+        VoidedAt = voidedAt;
+        VoidReason = string.IsNullOrWhiteSpace(reason) ? null : Guard.NotNullOrWhiteSpace(reason, nameof(reason), 512);
+    }
+
+    public void Post(DateTimeOffset postedAt)
+    {
+        if (IsVoided)
+        {
+            throw new DomainValidationException("Voided material disposition cannot be posted.");
+        }
+
+        if (IsPosted)
+        {
+            throw new DomainValidationException("Material disposition is already posted.");
+        }
+
+        PostedAt = postedAt;
+    }
 
     public void ReplaceSerials(IReadOnlyCollection<string>? serialNumbers)
     {
+        if (IsVoided)
+        {
+            throw new DomainValidationException("Voided material disposition cannot be edited.");
+        }
+
+        if (IsPosted)
+        {
+            throw new DomainValidationException("Posted material disposition cannot be edited.");
+        }
+
         var normalizedSerials = serialNumbers?
             .Select(serial => Guard.NotNullOrWhiteSpace(serial, nameof(serial), 128))
             .Distinct(StringComparer.OrdinalIgnoreCase)

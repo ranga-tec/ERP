@@ -38,7 +38,7 @@ export function ServiceJobMaterialDispositionAddForm({
   }, [materialLines]);
   const [dailySheetId, setDailySheetId] = useState("");
   const [lineId, setLineId] = useState("");
-  const [kind, setKind] = useState("0");
+  const [kind, setKind] = useState("1");
   const [quantity, setQuantity] = useState("1");
   const [condition, setCondition] = useState("");
   const [reason, setReason] = useState("");
@@ -74,7 +74,7 @@ export function ServiceJobMaterialDispositionAddForm({
 
       setDailySheetId("");
       setLineId("");
-      setKind("0");
+      setKind("1");
       setQuantity("1");
       setCondition("");
       setReason("");
@@ -114,11 +114,10 @@ export function ServiceJobMaterialDispositionAddForm({
         <div>
           <label className="mb-1 block text-sm font-medium">Disposition</label>
           <Select value={kind} onChange={(event) => setKind(event.target.value)} disabled={disabled || busy}>
-            <option value="0">Used</option>
-            <option value="1">Unused returned</option>
-            <option value="2">Incorrect returned</option>
-            <option value="3">Damaged</option>
-            <option value="4">Rejected / supplier return</option>
+            <option value="1">Not needed - return to stock</option>
+            <option value="2">Wrongly issued - return to stock</option>
+            <option value="3">Damaged - do not return to usable stock</option>
+            <option value="4">Rejected / supplier return - return to stock</option>
           </Select>
         </div>
         <div>
@@ -161,7 +160,9 @@ export function ServiceJobMaterialDispositionAddForm({
       {error ? (
         <div className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-900 dark:border-red-900/40 dark:bg-red-950/40 dark:text-red-100">{error}</div>
       ) : null}
-      <Button type="submit" disabled={disabled || busy || uniqueLines.length === 0}>{busy ? "Saving..." : "Add Material Disposition"}</Button>
+      <Button type="submit" disabled={disabled || busy || uniqueLines.length === 0}>
+        {busy ? "Saving..." : "Save Material Return Draft"}
+      </Button>
     </form>
   );
 }

@@ -7,7 +7,15 @@ import { Button, Input, Textarea } from "@/components/ui";
 
 type DailySheetDto = { id: string };
 
-export function ServiceJobDailySheetCreateForm({ serviceJobId, disabled }: { serviceJobId: string; disabled?: boolean }) {
+export function ServiceJobDailySheetCreateForm({
+  serviceJobId,
+  disabled,
+  disabledReason,
+}: {
+  serviceJobId: string;
+  disabled?: boolean;
+  disabledReason?: string;
+}) {
   const router = useRouter();
   const [sheetDate, setSheetDate] = useState("");
   const [preparedByName, setPreparedByName] = useState("");
@@ -101,6 +109,7 @@ export function ServiceJobDailySheetCreateForm({ serviceJobId, disabled }: { ser
         </div>
       </div>
       {error ? <div className="text-sm text-red-700 dark:text-red-300">{error}</div> : null}
+      {disabled && disabledReason ? <div className="text-sm text-zinc-500">{disabledReason}</div> : null}
       <Button type="submit" disabled={disabled || busy}>{busy ? "Creating..." : "Create Daily Sheet"}</Button>
     </form>
   );

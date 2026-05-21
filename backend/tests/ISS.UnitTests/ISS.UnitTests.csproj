@@ -21,6 +21,7 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\ISS.Domain\ISS.Domain.csproj" />
     <ProjectReference Include="..\..\src\ISS.Application\ISS.Application.csproj" />
+    <ProjectReference Include="..\..\src\ISS.Infrastructure\ISS.Infrastructure.csproj" />
   </ItemGroup>
 
 </Project>

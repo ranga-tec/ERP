@@ -12,12 +12,12 @@ public sealed class IssDbContextFactory : IDesignTimeDbContextFactory<IssDbConte
         var configuration = BuildConfiguration();
         var connectionString =
             Environment.GetEnvironmentVariable("ISS_EF_CONNECTION")
-            ?? configuration.GetConnectionString("Default");
+            ?? DatabaseConnectionStringResolver.Resolve(configuration);
 
         if (string.IsNullOrWhiteSpace(connectionString))
         {
             throw new InvalidOperationException(
-                "Unable to resolve a connection string for EF design-time operations. Set ISS_EF_CONNECTION or ConnectionStrings__Default.");
+                "Unable to resolve a connection string for EF design-time operations. Set ISS_EF_CONNECTION, ConnectionStrings__Default, or DATABASE_URL.");
         }
 
         var optionsBuilder = new DbContextOptionsBuilder<IssDbContext>();

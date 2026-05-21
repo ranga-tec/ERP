@@ -29,6 +29,8 @@ public sealed class InvoicesController(IIssDbContext dbContext, SalesService sal
         decimal LineTotal);
 
     public sealed record CreateInvoiceRequest(Guid CustomerId, DateTimeOffset? DueDate);
+    public sealed record CreateInvoiceFromDispatchRequest(Guid DispatchId, DateTimeOffset? DueDate);
+    public sealed record CreateInvoiceFromDirectDispatchRequest(Guid DirectDispatchId, DateTimeOffset? DueDate);
     public sealed record AddInvoiceLineRequest(Guid ItemId, decimal Quantity, decimal UnitPrice, decimal DiscountPercent, decimal TaxPercent);
     public sealed record UpdateInvoiceLineRequest(decimal Quantity, decimal UnitPrice, decimal DiscountPercent, decimal TaxPercent);
 
@@ -102,6 +104,22 @@ public sealed class InvoicesController(IIssDbContext dbContext, SalesService sal
     public async Task<ActionResult<InvoiceDto>> Create(CreateInvoiceRequest request, CancellationToken cancellationToken)
     {
         var id = await salesService.CreateInvoiceAsync(request.CustomerId, request.DueDate, cancellationToken);
+        return await Get(id, cancellationToken);
+    }
+
+    [HttpPost("from-dispatch")]
+    [Authorize(Roles = $"{Roles.Admin},{Roles.Sales},{Roles.Finance}")]
+    public async Task<ActionResult<InvoiceDto>> CreateFromDispatch(CreateInvoiceFromDispatchRequest request, CancellationToken cancellationToken)
+    {
+        var id = await salesService.CreateInvoiceFromDispatchAsync(request.DispatchId, request.DueDate, cancellationToken);
+        return await Get(id, cancellationToken);
+    }
+
+    [HttpPost("from-direct-dispatch")]
+    [Authorize(Roles = $"{Roles.Admin},{Roles.Sales},{Roles.Finance}")]
+    public async Task<ActionResult<InvoiceDto>> CreateFromDirectDispatch(CreateInvoiceFromDirectDispatchRequest request, CancellationToken cancellationToken)
+    {
+        var id = await salesService.CreateInvoiceFromDirectDispatchAsync(request.DirectDispatchId, request.DueDate, cancellationToken);
         return await Get(id, cancellationToken);
     }
 
