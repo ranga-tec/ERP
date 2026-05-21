@@ -172,9 +172,14 @@ type ServiceJobCostingDto = {
   estimates: { id: string; number: string; revisionNumber: number; status: number; total: number }[];
   invoices: { id: string; number: string; status: number; total: number }[];
   materialLines: {
+    occurredAt: string;
     materialRequisitionId: string;
     materialRequisitionLineId: string;
     materialRequisitionNumber: string;
+    serviceJobDailySheetId?: string | null;
+    serviceJobDailySheetNumber?: string | null;
+    warehouseId: string;
+    warehouseCode: string;
     itemId: string;
     itemSku: string;
     itemName: string;
@@ -408,6 +413,7 @@ function CollapsibleCard({
 
 type JobTabKey = "overview" | "plan" | "daily-work" | "materials" | "expenses" | "billing" | "costs" | "files";
 type DailyWorkViewKey = "sheets" | "labor" | "progress";
+type MaterialViewKey = "issues" | "returns" | "damage";
 
 const jobTabs: { key: JobTabKey; label: string }[] = [
   { key: "overview", label: "Overview" },
@@ -425,6 +431,11 @@ const dailyWorkViews: { key: DailyWorkViewKey; label: string }[] = [
   { key: "labor", label: "Staff / Labor" },
   { key: "progress", label: "Progress" },
 ];
+const materialViews: { key: MaterialViewKey; label: string }[] = [
+  { key: "issues", label: "Issued MRNs" },
+  { key: "returns", label: "Return Materials" },
+  { key: "damage", label: "Damage Material" },
+];
 
 function resolveJobTab(value?: string): JobTabKey {
   return jobTabs.some((tab) => tab.key === value) ? (value as JobTabKey) : "overview";
@@ -434,12 +445,20 @@ function resolveDailyWorkView(value?: string): DailyWorkViewKey {
   return dailyWorkViews.some((view) => view.key === value) ? (value as DailyWorkViewKey) : "sheets";
 }
 
+function resolveMaterialView(value?: string): MaterialViewKey {
+  return materialViews.some((view) => view.key === value) ? (value as MaterialViewKey) : "issues";
+}
+
 function tabHref(jobId: string, tab: JobTabKey) {
   return tab === "overview" ? `/service/jobs/${jobId}` : `/service/jobs/${jobId}?tab=${tab}`;
 }
 
 function dailyWorkHref(jobId: string, view: DailyWorkViewKey = "sheets", dailySheetId?: string) {
   return `/service/jobs/${jobId}?tab=daily-work&dailyView=${view}${dailySheetId ? `&dailySheetId=${dailySheetId}` : ""}`;
+}
+
+function materialHref(jobId: string, view: MaterialViewKey = "issues") {
+  return `/service/jobs/${jobId}?tab=materials&materialView=${view}`;
 }
 
 function closeoutCheckHref(jobId: string, key: string) {
@@ -465,12 +484,13 @@ export default async function ServiceJobDetailPage({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams?: Promise<{ tab?: string; dailyView?: string; dailySheetId?: string }>;
+  searchParams?: Promise<{ tab?: string; dailyView?: string; dailySheetId?: string; materialView?: string }>;
 }) {
   const { id } = await params;
   const resolvedSearchParams = await searchParams;
   const activeTab = resolveJobTab(resolvedSearchParams?.tab);
   const activeDailyWorkView = resolveDailyWorkView(resolvedSearchParams?.dailyView);
+  const activeMaterialView = resolveMaterialView(resolvedSearchParams?.materialView);
 
   const [job, units, customers, costing, items, technicians, warehouses, dailySheets, assignments, progressUpdates, closeoutChecks, materialDispositions, operations] = await Promise.all([
     backendFetchJson<ServiceJobDto>(`/service/jobs/${id}`),
@@ -532,6 +552,40 @@ export default async function ServiceJobDetailPage({
     : undefined;
   const dailySheetNumberById = new Map(dailySheets.map((sheet) => [sheet.id, sheet.number]));
   const materialLineById = new Map(costing.materialLines.map((line) => [line.materialRequisitionLineId, line]));
+  const issuedMaterialGroups = [...costing.materialLines.reduce((groups, line) => {
+    const existing = groups.get(line.materialRequisitionId);
+    if (existing) {
+      existing.lines.push(line);
+      existing.quantity += line.quantity;
+      existing.total += line.lineTotal;
+      return groups;
+    }
+
+    groups.set(line.materialRequisitionId, {
+      id: line.materialRequisitionId,
+      number: line.materialRequisitionNumber,
+      occurredAt: line.occurredAt,
+      dailySheetId: line.serviceJobDailySheetId,
+      dailySheetNumber: line.serviceJobDailySheetNumber,
+      warehouseCode: line.warehouseCode,
+      quantity: line.quantity,
+      total: line.lineTotal,
+      lines: [line],
+    });
+    return groups;
+  }, new Map<string, {
+    id: string;
+    number: string;
+    occurredAt: string;
+    dailySheetId?: string | null;
+    dailySheetNumber?: string | null;
+    warehouseCode: string;
+    quantity: number;
+    total: number;
+    lines: ServiceJobCostingDto["materialLines"];
+  }>()).values()];
+  const returnMaterialDispositions = materialDispositions.filter((disposition) => disposition.kind === 1 || disposition.kind === 2 || disposition.kind === 4);
+  const damageMaterialDispositions = materialDispositions.filter((disposition) => disposition.kind === 3);
 
   return (
     <div className="space-y-6">
@@ -1161,24 +1215,128 @@ export default async function ServiceJobDetailPage({
 
       {activeTab === "materials" ? (
         <>
-      <Card>
-        <div className="mb-3">
-          <div className="text-sm font-semibold">Materials / Lubricants Issue</div>
-          <div className="mt-1 text-xs text-zinc-500">Create an MRN for spare parts, lubricants, consumables, or other issued materials needed on the job.</div>
-        </div>
-        <ServiceJobDailyMaterialRequisitionCreateForm serviceJobId={job.id} dailySheets={dailySheets} warehouses={warehouses} disabled={!canAddJobActivity} />
-      </Card>
+      <div className="flex flex-wrap gap-2">
+        {materialViews.map((view) => (
+          <Link
+            key={view.key}
+            href={materialHref(job.id, view.key)}
+            className={[
+              "rounded-md border px-3 py-1.5 text-sm font-medium transition",
+              activeMaterialView === view.key
+                ? "border-[var(--link)] bg-[var(--surface-soft)] text-[var(--foreground)]"
+                : "border-[var(--card-border)] text-zinc-500 hover:border-[var(--link)] hover:text-[var(--foreground)]",
+            ].join(" ")}
+          >
+            {view.label}
+          </Link>
+        ))}
+      </div>
 
+      {activeMaterialView === "issues" ? (
+        <Card>
+          <div className="mb-3">
+            <div className="text-sm font-semibold">Issued MRNs</div>
+            <div className="mt-1 text-xs text-zinc-500">Posted material requisitions issued to this job. Expand an MRN to see the issued item lines.</div>
+          </div>
+          <div className="overflow-auto">
+            <Table>
+              <thead>
+                <tr className="border-b border-zinc-200 text-left text-xs uppercase tracking-wide text-zinc-500 dark:border-zinc-800">
+                  <th className="py-2 pr-3">MRN</th>
+                  <th className="py-2 pr-3">Daily Sheet</th>
+                  <th className="py-2 pr-3">Issued</th>
+                  <th className="py-2 pr-3">Warehouse</th>
+                  <th className="py-2 pr-3 text-right">Items</th>
+                  <th className="py-2 pr-3 text-right">Qty</th>
+                  <th className="py-2 pr-3 text-right">Cost</th>
+                </tr>
+              </thead>
+              <tbody>
+                {issuedMaterialGroups.map((group) => (
+                  <tr key={group.id} className="border-b border-zinc-100 align-top dark:border-zinc-900">
+                    <td className="py-2 pr-3" colSpan={7}>
+                      <details>
+                        <summary className="grid cursor-pointer list-none gap-3 rounded-md px-2 py-1 hover:bg-[var(--surface-soft)] md:grid-cols-[1.2fr_1fr_1fr_0.8fr_0.5fr_0.5fr_0.6fr]">
+                          <span className="font-mono text-xs">
+                            <TransactionLink referenceType="MR" referenceId={group.id} monospace>
+                              {group.number}
+                            </TransactionLink>
+                          </span>
+                          <span>{group.dailySheetNumber ?? (group.dailySheetId ? dailySheetNumberById.get(group.dailySheetId) : null) ?? "Unlinked"}</span>
+                          <span className="text-zinc-500">{new Date(group.occurredAt).toLocaleString()}</span>
+                          <span>{group.warehouseCode}</span>
+                          <span className="text-right">{group.lines.length}</span>
+                          <span className="text-right">{group.quantity}</span>
+                          <span className="text-right">{money(group.total)}</span>
+                        </summary>
+                        <div className="mt-2 overflow-auto rounded-md border border-[var(--card-border)]">
+                          <Table>
+                            <thead>
+                              <tr className="border-b border-zinc-200 text-left text-xs uppercase tracking-wide text-zinc-500 dark:border-zinc-800">
+                                <th className="py-2 pl-3 pr-3">Item</th>
+                                <th className="py-2 pr-3 text-right">Qty</th>
+                                <th className="py-2 pr-3 text-right">Unit Cost</th>
+                                <th className="py-2 pr-3 text-right">Line Total</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {group.lines.map((line) => (
+                                <tr key={line.materialRequisitionLineId} className="border-b border-zinc-100 dark:border-zinc-900">
+                                  <td className="py-2 pl-3 pr-3">
+                                    <ItemInlineLink itemId={line.itemId}>{line.itemSku} - {line.itemName}</ItemInlineLink>
+                                  </td>
+                                  <td className="py-2 pr-3 text-right">{line.quantity}</td>
+                                  <td className="py-2 pr-3 text-right">{money(line.unitCost)}</td>
+                                  <td className="py-2 pr-3 text-right">{money(line.lineTotal)}</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </Table>
+                        </div>
+                      </details>
+                    </td>
+                  </tr>
+                ))}
+                {issuedMaterialGroups.length === 0 ? (
+                  <tr>
+                    <td className="py-6 text-sm text-zinc-500" colSpan={7}>
+                      No posted MRNs issued to this job.
+                    </td>
+                  </tr>
+                ) : null}
+              </tbody>
+            </Table>
+          </div>
+        </Card>
+      ) : null}
+
+      {activeMaterialView === "issues" ? (
+        <CollapsibleCard
+          title="Create MRN"
+          summary="Create a draft material requisition, then add lines and post it from the MRN screen."
+        >
+          <ServiceJobDailyMaterialRequisitionCreateForm serviceJobId={job.id} dailySheets={dailySheets} warehouses={warehouses} disabled={!canAddJobActivity} />
+        </CollapsibleCard>
+      ) : null}
+
+      {activeMaterialView === "returns" ? (
       <CollapsibleCard
-        title="Material Returns / Damage / Rejection"
-        summary="Draft material returns first, then post them to update inventory."
+        title="Return Materials"
+        summary="Draft not-needed, wrongly-issued, or supplier-rejected returns first, then post to receive usable stock."
         defaultOpen
       >
-        <ServiceJobMaterialDispositionAddForm serviceJobId={job.id} materialLines={costing.materialLines} dailySheets={dailySheets} disabled={!canAddJobActivity} />
+        <ServiceJobMaterialDispositionAddForm
+          serviceJobId={job.id}
+          materialLines={costing.materialLines}
+          dailySheets={dailySheets}
+          allowedKinds={["1", "2", "4"]}
+          submitLabel="Save Material Return Draft"
+          disabled={!canAddJobActivity}
+        />
         <div className="mt-5 overflow-auto">
           <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-            <div className="text-sm font-medium">Material Return Drafts / Posted</div>
-            <div className="text-xs text-zinc-500">{materialDispositions.filter((disposition) => !disposition.isVoided).length} active / {materialDispositions.length} total</div>
+            <div className="text-sm font-medium">Return Material Drafts / Posted</div>
+            <div className="text-xs text-zinc-500">{returnMaterialDispositions.filter((disposition) => !disposition.isVoided).length} active / {returnMaterialDispositions.length} total</div>
           </div>
           <Table>
             <thead>
@@ -1196,7 +1354,98 @@ export default async function ServiceJobDetailPage({
               </tr>
             </thead>
             <tbody>
-              {materialDispositions.map((disposition) => {
+              {returnMaterialDispositions.map((disposition) => {
+                const line = materialLineById.get(disposition.materialRequisitionLineId);
+                return (
+                  <tr key={disposition.id} className={`border-b border-zinc-100 align-top dark:border-zinc-900 ${disposition.isVoided ? "opacity-60" : ""}`}>
+                    <td className="py-2 pr-3 whitespace-nowrap">{new Date(disposition.createdAt).toLocaleString()}</td>
+                    <td className="py-2 pr-3 font-mono text-xs">
+                      {disposition.serviceJobDailySheetId ? dailySheetNumberById.get(disposition.serviceJobDailySheetId) ?? "Linked" : "Unlinked"}
+                    </td>
+                    <td className="py-2 pr-3">
+                      {line ? (
+                        <div>
+                          <TransactionLink referenceType="MR" referenceId={line.materialRequisitionId} monospace>
+                            {line.materialRequisitionNumber}
+                          </TransactionLink>
+                          <div className="text-xs text-zinc-500">
+                            <ItemInlineLink itemId={line.itemId}>{line.itemSku} - {line.itemName}</ItemInlineLink>
+                          </div>
+                        </div>
+                      ) : (
+                        <span className="font-mono text-xs">{disposition.materialRequisitionLineId.slice(0, 8)}</span>
+                      )}
+                    </td>
+                    <td className="py-2 pr-3">{materialDispositionLabel[disposition.kind] ?? disposition.kind}</td>
+                    <td className="py-2 pr-3">
+                      {disposition.status === 0 ? "Draft" : disposition.status === 1 ? "Posted" : "Voided"}
+                      {disposition.postedAt ? <div className="mt-1 text-xs text-zinc-500">{new Date(disposition.postedAt).toLocaleString()}</div> : null}
+                    </td>
+                    <td className="py-2 pr-3">{disposition.quantity}</td>
+                    <td className="py-2 pr-3">{materialStockEffectLabel[disposition.kind] ?? "-"}</td>
+                    <td className="py-2 pr-3">{materialChargeToLabel[disposition.chargeTo] ?? disposition.chargeTo}</td>
+                    <td className="py-2 pr-3 text-xs text-zinc-500">
+                      <div>{maybeText(disposition.condition)}</div>
+                      <div className="mt-1 whitespace-pre-wrap">{disposition.reason}</div>
+                      {disposition.supplierReturnId ? <div className="mt-1">Supplier return: {disposition.supplierReturnId}</div> : null}
+                      {disposition.responsiblePerson ? <div className="mt-1">Responsible: {disposition.responsiblePerson}</div> : null}
+                      {disposition.serials.length > 0 ? <div className="mt-1">Serials: {disposition.serials.join(", ")}</div> : null}
+                    </td>
+                    <td className="py-2 pr-3">
+                      <ServiceJobMaterialDispositionActions serviceJobId={job.id} dispositionId={disposition.id} disposition={disposition} disabled={!canAddJobActivity} />
+                    </td>
+                  </tr>
+                );
+              })}
+              {returnMaterialDispositions.length === 0 ? (
+                <tr>
+                  <td className="py-6 text-sm text-zinc-500" colSpan={10}>
+                    No return material drafts yet.
+                  </td>
+                </tr>
+              ) : null}
+            </tbody>
+          </Table>
+        </div>
+      </CollapsibleCard>
+      ) : null}
+
+      {activeMaterialView === "damage" ? (
+      <CollapsibleCard
+        title="Damage Material"
+        summary="Record issued material that is damaged or unusable. Posting a damage draft does not receive usable stock."
+        defaultOpen
+      >
+        <ServiceJobMaterialDispositionAddForm
+          serviceJobId={job.id}
+          materialLines={costing.materialLines}
+          dailySheets={dailySheets}
+          allowedKinds={["3"]}
+          submitLabel="Save Damage Draft"
+          disabled={!canAddJobActivity}
+        />
+        <div className="mt-5 overflow-auto">
+          <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+            <div className="text-sm font-medium">Damage Drafts / Posted</div>
+            <div className="text-xs text-zinc-500">{damageMaterialDispositions.filter((disposition) => !disposition.isVoided).length} active / {damageMaterialDispositions.length} total</div>
+          </div>
+          <Table>
+            <thead>
+              <tr className="border-b border-zinc-200 text-left text-xs uppercase tracking-wide text-zinc-500 dark:border-zinc-800">
+                <th className="py-2 pr-3">Date</th>
+                <th className="py-2 pr-3">Daily Sheet</th>
+                <th className="py-2 pr-3">MRN Line</th>
+                <th className="py-2 pr-3">Disposition</th>
+                <th className="py-2 pr-3">Status</th>
+                <th className="py-2 pr-3">Qty</th>
+                <th className="py-2 pr-3">Stock Effect</th>
+                <th className="py-2 pr-3">Charge To</th>
+                <th className="py-2 pr-3">Condition / Reason</th>
+                <th className="py-2 pr-3">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {damageMaterialDispositions.map((disposition) => {
                 const line = materialLineById.get(disposition.materialRequisitionLineId);
                 return (
                   <tr key={disposition.id} className={`border-b border-zinc-100 align-top dark:border-zinc-900 ${disposition.isVoided ? "opacity-60" : ""}`}>
@@ -1252,10 +1501,10 @@ export default async function ServiceJobDetailPage({
                   </tr>
                 );
               })}
-              {materialDispositions.length === 0 ? (
+              {damageMaterialDispositions.length === 0 ? (
                 <tr>
                   <td className="py-6 text-sm text-zinc-500" colSpan={10}>
-                    No material return drafts yet.
+                    No damage material drafts yet.
                   </td>
                 </tr>
               ) : null}
@@ -1263,6 +1512,7 @@ export default async function ServiceJobDetailPage({
           </Table>
         </div>
       </CollapsibleCard>
+      ) : null}
         </>
       ) : null}
 

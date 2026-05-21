@@ -19,11 +19,15 @@ export function ServiceJobMaterialDispositionAddForm({
   serviceJobId,
   materialLines,
   dailySheets = [],
+  allowedKinds,
+  submitLabel = "Save Material Return Draft",
   disabled,
 }: {
   serviceJobId: string;
   materialLines: MaterialLineRef[];
   dailySheets?: DailySheetRef[];
+  allowedKinds?: string[];
+  submitLabel?: string;
   disabled?: boolean;
 }) {
   const router = useRouter();
@@ -36,9 +40,10 @@ export function ServiceJobMaterialDispositionAddForm({
     }
     return [...map.values()];
   }, [materialLines]);
+  const visibleKinds = allowedKinds ?? ["1", "2", "3", "4"];
   const [dailySheetId, setDailySheetId] = useState("");
   const [lineId, setLineId] = useState("");
-  const [kind, setKind] = useState("1");
+  const [kind, setKind] = useState(visibleKinds[0] ?? "1");
   const [quantity, setQuantity] = useState("1");
   const [condition, setCondition] = useState("");
   const [reason, setReason] = useState("");
@@ -74,7 +79,7 @@ export function ServiceJobMaterialDispositionAddForm({
 
       setDailySheetId("");
       setLineId("");
-      setKind("1");
+      setKind(visibleKinds[0] ?? "1");
       setQuantity("1");
       setCondition("");
       setReason("");
@@ -114,10 +119,10 @@ export function ServiceJobMaterialDispositionAddForm({
         <div>
           <label className="mb-1 block text-sm font-medium">Disposition</label>
           <Select value={kind} onChange={(event) => setKind(event.target.value)} disabled={disabled || busy}>
-            <option value="1">Not needed - return to stock</option>
-            <option value="2">Wrongly issued - return to stock</option>
-            <option value="3">Damaged - do not return to usable stock</option>
-            <option value="4">Rejected / supplier return - return to stock</option>
+            {visibleKinds.includes("1") ? <option value="1">Not needed - return to stock</option> : null}
+            {visibleKinds.includes("2") ? <option value="2">Wrongly issued - return to stock</option> : null}
+            {visibleKinds.includes("3") ? <option value="3">Damaged - do not return to usable stock</option> : null}
+            {visibleKinds.includes("4") ? <option value="4">Rejected / supplier return - return to stock</option> : null}
           </Select>
         </div>
         <div>
@@ -161,7 +166,7 @@ export function ServiceJobMaterialDispositionAddForm({
         <div className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-900 dark:border-red-900/40 dark:bg-red-950/40 dark:text-red-100">{error}</div>
       ) : null}
       <Button type="submit" disabled={disabled || busy || uniqueLines.length === 0}>
-        {busy ? "Saving..." : "Save Material Return Draft"}
+        {busy ? "Saving..." : submitLabel}
       </Button>
     </form>
   );

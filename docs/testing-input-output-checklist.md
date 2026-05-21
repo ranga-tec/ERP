@@ -4,6 +4,54 @@ This document gives testers exact values to enter, expected outputs, and where t
 
 Use it for manual UAT, demo database testing, and regression checks after deployments. Run the scenario as an `Admin` user first. Role-by-role testing can be done later using `docs/role-based-test-checklists.md`.
 
+## Recent Workflow Notes
+
+### Service Job Materials
+
+The service job `Materials` tab is now split into three working views:
+
+| View | Purpose | Expected behavior |
+| --- | --- | --- |
+| `Issued MRNs` | Show posted material issues for the job | MRNs are grouped by MRN number, show the daily sheet number when linked, and expand to show issued item lines |
+| `Return Materials` | Draft and post not-needed, wrongly-issued, or supplier-rejected returns | Drafts do not update stock; posting receives returnable stock back to the job warehouse |
+| `Damage Material` | Draft and post damaged/unusable material declarations | Posting records the damage disposition but does not receive usable stock |
+
+Important expected behavior:
+
+- Creating an MRN still opens the material requisition document where users add lines and post the issue.
+- Posted MRNs are the source of issued item visibility for the job.
+- Material returns and damage records are created as drafts first.
+- Draft material returns and damage rows can be edited or voided before posting.
+- Only posted material return rows affect inventory.
+- Damaged material does not increase usable stock.
+
+### Service Job Completion Safety
+
+The service job `Complete` action now requires typed confirmation.
+
+| Action | Expected safeguard |
+| --- | --- |
+| Click `Complete` on a service job | Dialog opens |
+| Type anything other than `COMPLETE` | `Complete Job` remains disabled |
+| Type `COMPLETE` | `Complete Job` becomes enabled |
+
+### Local Performance Smoke Test Baseline
+
+A local developer-machine smoke test was run on 2026-05-21 using the dev API and Next dev server. Treat these as rough diagnostics, not production capacity numbers.
+
+| Area | Result |
+| --- | --- |
+| API health | `200 Healthy` |
+| Slowest API average | Login around `796ms`; service job costing around `383ms` |
+| 20 parallel service costing requests | `20/20` succeeded |
+| Slowest frontend dev pages | Items, service job materials, service jobs, sales invoices |
+
+Recommended performance follow-up:
+
+- Measure again with `next build` and `next start`.
+- Consider a combined service-job detail API if job detail page latency becomes a production issue.
+- Watch `service/jobs/{id}/costing`, `items/options`, and report endpoints as data volume grows.
+
 ## 1. Reset Test Data
 
 Use this only on a test database.

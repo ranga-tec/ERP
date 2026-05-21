@@ -30,6 +30,8 @@ public sealed class ServiceCostingService(IIssDbContext dbContext)
         Guid MaterialRequisitionId,
         Guid MaterialRequisitionLineId,
         string MaterialRequisitionNumber,
+        Guid? ServiceJobDailySheetId,
+        string? ServiceJobDailySheetNumber,
         Guid WarehouseId,
         string WarehouseCode,
         Guid ItemId,
@@ -153,6 +155,8 @@ public sealed class ServiceCostingService(IIssDbContext dbContext)
         var materialLines = await (
             from movement in dbContext.InventoryMovements.AsNoTracking()
             join materialRequisition in dbContext.MaterialRequisitions.AsNoTracking() on movement.ReferenceId equals materialRequisition.Id
+            join dailySheet in dbContext.ServiceJobDailySheets.AsNoTracking() on materialRequisition.ServiceJobDailySheetId equals dailySheet.Id into dailySheets
+            from dailySheet in dailySheets.DefaultIfEmpty()
             join warehouse in dbContext.Warehouses.AsNoTracking() on movement.WarehouseId equals warehouse.Id
             join item in dbContext.Items.AsNoTracking() on movement.ItemId equals item.Id
             where movement.ReferenceType == ReferenceTypes.MaterialRequisition
@@ -165,6 +169,8 @@ public sealed class ServiceCostingService(IIssDbContext dbContext)
                 materialRequisition.Id,
                 movement.ReferenceLineId ?? Guid.Empty,
                 materialRequisition.Number,
+                materialRequisition.ServiceJobDailySheetId,
+                dailySheet == null ? null : dailySheet.Number,
                 warehouse.Id,
                 warehouse.Code,
                 item.Id,
