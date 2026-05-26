@@ -13,6 +13,16 @@ Implemented on 2026-05-26:
 - Daily sheet rows now expose direct quick links for labour, progress, material issue, IOU request, and expense entry.
 - Production frontend build passed after the Phase 1 changes.
 
+## Phase 2 Implementation Status
+
+Implemented on 2026-05-26:
+
+- Job detail now includes a `Job Cockpit` section above the old tab navigation.
+- Cockpit metrics show last progress, staff today, pending cash/expenses, uninvoiced labour, material disposition, service taken, invoice state, and job cost.
+- A process timeline now shows Intake, Plan, Daily Work, Materials, Expenses, Quote, Service Taken, Invoice, and Close with status badges.
+- A next-actions panel suggests job actions from current blockers and workflow state, such as creating a daily sheet, adding progress, clearing material disposition, reviewing IOUs/claims, creating service taken, or creating the final invoice.
+- Production frontend build passed after the Phase 2 changes.
+
 ## Problem Summary
 
 The service module has the right operational data model, but the current job-detail experience is too document-centric and too scroll-heavy for daily users.
@@ -226,15 +236,15 @@ This is the highest-value quick win.
 
 ### Phase 2: Job Cockpit Summary
 
-- Add top summary cards for:
+- Completed: add top summary cards for:
   - last progress update
   - assigned staff today
   - pending IOUs/claims
   - uninvoiced labour
   - pending material disposition
   - invoice/service taken status
-- Add process timeline below the header.
-- Add next-action panel based on closeout checks and current job status.
+- Completed: add process timeline below the header.
+- Completed: add next-action panel based on closeout checks and current job status.
 
 ### Phase 3: Daily Sheet Card Workspace
 

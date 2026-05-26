@@ -20,6 +20,10 @@ The following local scope was implemented after the previous documentation snaps
   - IOU creation shows a confirmation with the generated IOU number
   - progress history is displayed above the add-progress form
   - daily sheet rows include quick action links for labour, progress, material issue, IOU request, and expense entry
+- Service job Phase 2 cockpit:
+  - job detail now has a cockpit summary above the tabbed workflow
+  - process timeline stages link to the relevant job sections
+  - next-action suggestions are derived from job status, closeout blockers, finance queues, service taken, and invoice state
 
 ## 0. Implementation Update (2026-03-20)
 
@@ -497,6 +501,7 @@ Key behavior:
 - Service Jobs expose `start`, `complete`, `close` actions
 - Service Job detail now keeps job-linked IOUs and expense claims visible in the job context after creation
 - Service Job daily sheet rows include quick action links for common daily work entries
+- Service Job detail now includes a cockpit, process timeline, and next-action panel before the detailed tabs
 - Work Orders are currently create + view (no frontend status mutation UI)
 - Material Requisitions are document workflows with tracked line inputs and post action
 - Quality Checks are simple QA result records (`passed` + notes)

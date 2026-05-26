@@ -173,6 +173,9 @@ Note:
   - daily sheet rows include direct links to add labour, add progress, issue materials, request an IOU, or add an expense without hunting through the full job page
   - daily job detail sections keep the running work separated into `Daily Staff / Labor`, `Daily Progress`, `IOU / Employee Advance`, `Petty Cash Expense`, `Employee Out-of-Pocket Claim`, `Materials / Lubricants Issue`, and `Material Returns / Damage / Rejection`
   - the progress view shows existing progress updates first, then the add-progress form, so users can review the latest work status before entering another update
+  - the job detail cockpit summarizes last progress, staff today, pending finance items, uninvoiced labour, material disposition, service taken, invoice state, and job cost before users enter the detailed tabs
+  - the process timeline shows the current stage from intake through closeout and links each stage back to the relevant job section
+  - the next-actions panel suggests practical follow-up work based on pending records and closeout blockers
   - closing a job is blocked while daily sheets are still draft or submitted; approve or reject every sheet before closeout
 - Technicians:
   - maintain technician code, name, default cost rate, default billing rate, phone, notes, and active status

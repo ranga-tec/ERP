@@ -22,6 +22,7 @@ Local update on 2026-05-26:
 - IOU creation confirms the generated IOU number and pending finance approval state.
 - Daily progress history appears before the add-progress form.
 - Daily sheet rows expose quick links for labour, progress, material issue, IOU request, and expense entry.
+- Phase 2 cockpit work is also implemented: job detail now shows summary metrics, a process timeline, and next-action suggestions above the tab navigation.
 
 GitHub push status:
 

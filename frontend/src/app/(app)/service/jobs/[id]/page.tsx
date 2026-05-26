@@ -294,6 +294,16 @@ type ServiceExpenseClaimSummaryDto = {
   billableUnconvertedLineCount: number;
   settledAt?: string | null;
 };
+type ServiceHandoverDto = {
+  id: string;
+  number: string;
+  serviceJobId: string;
+  handoverDate: string;
+  status: number;
+  salesInvoiceId?: string | null;
+  salesInvoiceNumber?: string | null;
+  convertedToInvoiceAt?: string | null;
+};
 
 const statusLabel: Record<number, string> = {
   0: "Draft",
@@ -374,6 +384,11 @@ const fundingSourceLabel: Record<number, string> = {
   1: "Out of Pocket",
   2: "Petty Cash",
 };
+const handoverStatusLabel: Record<number, string> = {
+  0: "Draft",
+  1: "Completed",
+  2: "Cancelled",
+};
 
 const laborStatusLabel: Record<number, string> = {
   0: "Draft",
@@ -428,6 +443,66 @@ function money(value?: number | null) {
 
 function maybeText(value?: string | null) {
   return value && value.trim().length > 0 ? value : "-";
+}
+
+function sameLocalDate(left?: string | null, right = new Date()) {
+  if (!left) return false;
+  return new Date(left).toLocaleDateString() === right.toLocaleDateString();
+}
+
+function ProcessStatusBadge({ status }: { status: "complete" | "current" | "blocked" | "pending" }) {
+  const label = {
+    complete: "Done",
+    current: "Active",
+    blocked: "Blocked",
+    pending: "Pending",
+  }[status];
+  const className = {
+    complete: "border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-900/40 dark:bg-emerald-950/30 dark:text-emerald-200",
+    current: "border-blue-200 bg-blue-50 text-blue-800 dark:border-blue-900/40 dark:bg-blue-950/30 dark:text-blue-200",
+    blocked: "border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-900/40 dark:bg-amber-950/30 dark:text-amber-200",
+    pending: "border-zinc-200 bg-zinc-50 text-zinc-600 dark:border-zinc-800 dark:bg-zinc-900/40 dark:text-zinc-300",
+  }[status];
+
+  return <span className={`rounded-full border px-2 py-0.5 text-[11px] font-semibold ${className}`}>{label}</span>;
+}
+
+function CockpitMetric({
+  label,
+  value,
+  detail,
+  href,
+  tone = "neutral",
+}: {
+  label: string;
+  value: string;
+  detail: string;
+  href?: string;
+  tone?: "neutral" | "good" | "warn";
+}) {
+  const toneClass =
+    tone === "good"
+      ? "border-emerald-200 bg-emerald-50/70 dark:border-emerald-900/40 dark:bg-emerald-950/20"
+      : tone === "warn"
+        ? "border-amber-200 bg-amber-50/70 dark:border-amber-900/40 dark:bg-amber-950/20"
+        : "border-[var(--card-border)] bg-[var(--card-bg)]";
+  const content = (
+    <>
+      <div className="text-xs uppercase tracking-wide text-zinc-500">{label}</div>
+      <div className="mt-2 text-xl font-semibold">{value}</div>
+      <div className="mt-1 text-xs text-zinc-500">{detail}</div>
+    </>
+  );
+
+  if (href) {
+    return (
+      <Link href={href} className={`rounded-lg border p-3 transition hover:border-[var(--link)] hover:bg-[var(--surface-soft)] ${toneClass}`}>
+        {content}
+      </Link>
+    );
+  }
+
+  return <div className={`rounded-lg border p-3 ${toneClass}`}>{content}</div>;
 }
 
 function CollapsibleCard({
@@ -649,6 +724,7 @@ export default async function ServiceJobDetailPage({
     operations,
     pettyCashIous,
     expenseClaims,
+    handovers,
   ] = await Promise.all([
     backendFetchJson<ServiceJobDto>(`/service/jobs/${id}`),
     backendFetchJson<EquipmentUnitDto[]>("/service/equipment-units?take=2000"),
@@ -665,6 +741,7 @@ export default async function ServiceJobDetailPage({
     backendFetchJson<ServiceJobOperationDto[]>(`/service/jobs/${id}/operations`),
     backendFetchJson<PettyCashIouDto[]>(`/finance/petty-cash-ious?serviceJobId=${id}&take=100`),
     backendFetchJson<ServiceExpenseClaimSummaryDto[]>(`/service/expense-claims?serviceJobId=${id}&take=100`),
+    backendFetchJson<ServiceHandoverDto[]>("/service/handovers?take=500"),
   ]);
 
   const selectedUnit =
@@ -745,6 +822,100 @@ export default async function ServiceJobDetailPage({
   }>()).values()];
   const returnMaterialDispositions = materialDispositions.filter((disposition) => disposition.kind === 1 || disposition.kind === 2 || disposition.kind === 4);
   const damageMaterialDispositions = materialDispositions.filter((disposition) => disposition.kind === 3);
+  const jobHandovers = handovers.filter((handover) => handover.serviceJobId === job.id);
+  const latestHandover = jobHandovers[0] ?? null;
+  const latestProgress = [...progressUpdates].sort((a, b) => new Date(b.progressDate).getTime() - new Date(a.progressDate).getTime())[0] ?? null;
+  const todayAssignments = assignments.filter((assignment) => sameLocalDate(assignment.assignedDate));
+  const pendingIous = pettyCashIous.filter((iou) => ![4, 5, 6].includes(iou.status));
+  const pendingClaims = expenseClaims.filter((claim) => ![3, 4].includes(claim.status));
+  const pendingCloseoutCount = closeoutChecks.reduce((total, check) => total + (check.isClear ? 0 : check.pendingCount), 0);
+  const pendingMaterialDisposition = closeoutChecks.find((check) => check.key === "material-disposition")?.pendingCount ?? 0;
+  const hasApprovedEstimate = costing.estimates.some((estimate) => estimate.status === 1);
+  const hasDraftEstimate = costing.estimates.some((estimate) => estimate.status === 0);
+  const hasPostedInvoice = costing.invoices.some((invoice) => invoice.status === 1 || invoice.status === 2);
+  const hasDraftInvoice = costing.invoices.some((invoice) => invoice.status === 0);
+  const processSteps: { label: string; detail: string; href: string; status: "complete" | "current" | "blocked" | "pending" }[] = [
+    {
+      label: "Intake",
+      detail: statusLabel[job.status] ?? String(job.status),
+      href: tabHref(job.id, "overview"),
+      status: job.openedAt ? "complete" : "current",
+    },
+    {
+      label: "Plan",
+      detail: operations.length === 0 ? "No operations planned" : `${operations.filter((operation) => operation.status === 2).length}/${operations.length} completed`,
+      href: tabHref(job.id, "plan"),
+      status: operations.length === 0 ? "pending" : operations.every((operation) => operation.status === 2 || operation.status === 3) ? "complete" : "current",
+    },
+    {
+      label: "Daily Work",
+      detail: dailySheets.length === 0 ? "No daily sheets" : `${dailySheets.filter((sheet) => sheet.status === 2).length}/${dailySheets.length} approved`,
+      href: dailyWorkHref(job.id, "sheets"),
+      status: dailySheets.length === 0 ? "pending" : dailySheets.every((sheet) => sheet.status === 2) ? "complete" : "current",
+    },
+    {
+      label: "Materials",
+      detail: pendingMaterialDisposition > 0 ? `${pendingMaterialDisposition} pending disposition` : `${costing.materialLines.length} issued lines`,
+      href: tabHref(job.id, "materials"),
+      status: pendingMaterialDisposition > 0 ? "blocked" : costing.materialLines.length > 0 ? "complete" : "pending",
+    },
+    {
+      label: "Expenses",
+      detail: pendingIous.length + pendingClaims.length > 0 ? `${pendingIous.length + pendingClaims.length} pending finance items` : `${pettyCashIous.length + expenseClaims.length} tracked`,
+      href: expenseHref(job.id, pendingIous.length > 0 ? "ious" : "petty-cash"),
+      status: pendingIous.length + pendingClaims.length > 0 ? "blocked" : pettyCashIous.length + expenseClaims.length > 0 ? "complete" : "pending",
+    },
+    {
+      label: "Quote",
+      detail: hasApprovedEstimate ? "Approved quotation exists" : hasDraftEstimate ? "Draft quotation exists" : "No quotation",
+      href: tabHref(job.id, "billing"),
+      status: hasApprovedEstimate ? "complete" : hasDraftEstimate ? "current" : "pending",
+    },
+    {
+      label: "Service Taken",
+      detail: latestHandover ? `${latestHandover.number} / ${handoverStatusLabel[latestHandover.status] ?? latestHandover.status}` : "Not created",
+      href: "/service/handovers",
+      status: latestHandover?.status === 1 ? "complete" : latestHandover ? "current" : "pending",
+    },
+    {
+      label: "Invoice",
+      detail: hasPostedInvoice ? "Posted invoice exists" : hasDraftInvoice ? "Draft invoice exists" : job.finalInvoiceNotRequired ? "Not billable" : "Not invoiced",
+      href: tabHref(job.id, "billing"),
+      status: hasPostedInvoice || job.finalInvoiceNotRequired ? "complete" : hasDraftInvoice ? "current" : "pending",
+    },
+    {
+      label: "Close",
+      detail: pendingCloseoutCount === 0 ? "Ready when status allows" : `${pendingCloseoutCount} blocker${pendingCloseoutCount === 1 ? "" : "s"}`,
+      href: tabHref(job.id, "overview"),
+      status: job.status === 12 ? "complete" : pendingCloseoutCount > 0 ? "blocked" : "current",
+    },
+  ];
+  const nextActions = [
+    dailySheets.length === 0 && canAddJobActivity
+      ? { label: "Create daily sheet", detail: "Start the first daily field record for this job.", href: dailyWorkHref(job.id, "sheets") }
+      : null,
+    dailySheets.length > 0 && canAddJobActivity
+      ? { label: "Add progress", detail: latestProgress ? `Last update ${new Date(latestProgress.progressDate).toLocaleString()}` : "Record completed and pending work.", href: dailyWorkHref(job.id, "progress", selectedDailySheet?.id) }
+      : null,
+    pendingMaterialDisposition > 0
+      ? { label: "Clear material disposition", detail: `${pendingMaterialDisposition} issued material item${pendingMaterialDisposition === 1 ? "" : "s"} need return/damage/use decision.`, href: materialHref(job.id, "returns") }
+      : null,
+    pendingIous.length > 0
+      ? { label: "Review IOU advances", detail: `${pendingIous.length} IOU advance${pendingIous.length === 1 ? "" : "s"} still pending finance closeout.`, href: expenseHref(job.id, "ious") }
+      : null,
+    pendingClaims.length > 0
+      ? { label: "Review expense claims", detail: `${pendingClaims.length} claim${pendingClaims.length === 1 ? "" : "s"} still pending approval or settlement.`, href: expenseHref(job.id, "petty-cash") }
+      : null,
+    costing.uninvoicedBillableLaborRevenue > 0
+      ? { label: "Invoice billable labour", detail: `${money(costing.uninvoicedBillableLaborRevenue)} approved labour is not invoiced.`, href: tabHref(job.id, "billing") }
+      : null,
+    !latestHandover && canAddJobActivity
+      ? { label: "Create service taken", detail: "Capture delivery confirmation before final invoicing.", href: "/service/handovers" }
+      : null,
+    latestHandover?.status === 1 && !hasDraftInvoice && !hasPostedInvoice && !job.finalInvoiceNotRequired
+      ? { label: "Create final invoice", detail: "Completed service taken is ready for invoice conversion.", href: `/service/handovers/${latestHandover.id}` }
+      : null,
+  ].filter((action): action is { label: string; detail: string; href: string } => action !== null);
   const actualCostBreakdown = [
     {
       label: "Materials",
@@ -815,6 +986,115 @@ export default async function ServiceJobDetailPage({
           </SecondaryLink>
         </div>
         <ServiceJobActions jobId={job.id} canStart={canStart} canComplete={canComplete} canClose={canClose} canReopen={canReopen} />
+      </Card>
+
+      <Card>
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <div className="text-sm font-semibold">Job Cockpit</div>
+            <div className="mt-1 text-xs text-zinc-500">Current job state, blockers, and next operational actions.</div>
+          </div>
+          <div className={pendingCloseoutCount > 0 ? "text-sm font-semibold text-amber-700 dark:text-amber-300" : "text-sm font-semibold text-emerald-700 dark:text-emerald-300"}>
+            {pendingCloseoutCount > 0 ? `${pendingCloseoutCount} pending closeout blocker${pendingCloseoutCount === 1 ? "" : "s"}` : "No closeout blockers"}
+          </div>
+        </div>
+
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <CockpitMetric
+            label="Last Progress"
+            value={latestProgress ? new Date(latestProgress.progressDate).toLocaleDateString() : "None"}
+            detail={latestProgress ? maybeText(latestProgress.workCompleted) : "No progress update recorded yet"}
+            href={dailyWorkHref(job.id, "progress", selectedDailySheet?.id)}
+            tone={latestProgress ? "good" : "warn"}
+          />
+          <CockpitMetric
+            label="Staff Today"
+            value={String(todayAssignments.length)}
+            detail={todayAssignments.length > 0 ? todayAssignments.map((assignment) => assignment.employeeName).slice(0, 2).join(", ") : "No staff assigned today"}
+            href={dailyWorkHref(job.id, "labor", selectedDailySheet?.id)}
+            tone={todayAssignments.length > 0 ? "good" : "neutral"}
+          />
+          <CockpitMetric
+            label="Cash / Expenses"
+            value={String(pendingIous.length + pendingClaims.length)}
+            detail={pendingIous.length + pendingClaims.length > 0 ? "Pending approval, release, settlement, or rejection" : "No pending finance items"}
+            href={expenseHref(job.id, pendingIous.length > 0 ? "ious" : "petty-cash")}
+            tone={pendingIous.length + pendingClaims.length > 0 ? "warn" : "good"}
+          />
+          <CockpitMetric
+            label="Uninvoiced Labour"
+            value={money(costing.uninvoicedBillableLaborRevenue)}
+            detail="Approved billable labour not yet in a final invoice"
+            href={tabHref(job.id, "billing")}
+            tone={costing.uninvoicedBillableLaborRevenue > 0 ? "warn" : "good"}
+          />
+          <CockpitMetric
+            label="Material Disposition"
+            value={String(pendingMaterialDisposition)}
+            detail={pendingMaterialDisposition > 0 ? "Issued materials still need final disposition" : "No pending material disposition"}
+            href={materialHref(job.id, "returns")}
+            tone={pendingMaterialDisposition > 0 ? "warn" : "good"}
+          />
+          <CockpitMetric
+            label="Service Taken"
+            value={latestHandover ? latestHandover.number : "Not created"}
+            detail={latestHandover ? handoverStatusLabel[latestHandover.status] ?? String(latestHandover.status) : "Create when repair/service is handed over"}
+            href={latestHandover ? `/service/handovers/${latestHandover.id}` : "/service/handovers"}
+            tone={latestHandover?.status === 1 ? "good" : "neutral"}
+          />
+          <CockpitMetric
+            label="Invoice"
+            value={hasPostedInvoice ? "Posted" : hasDraftInvoice ? "Draft" : job.finalInvoiceNotRequired ? "Not billable" : "Pending"}
+            detail={costing.invoices[0]?.number ?? "No linked invoice yet"}
+            href={tabHref(job.id, "billing")}
+            tone={hasPostedInvoice || job.finalInvoiceNotRequired ? "good" : hasDraftInvoice ? "neutral" : "warn"}
+          />
+          <CockpitMetric
+            label="Job Cost"
+            value={money(costing.totalActualCost)}
+            detail={`Posted revenue ${money(costing.postedInvoiceTotal)}`}
+            href={tabHref(job.id, "costs")}
+          />
+        </div>
+      </Card>
+
+      <Card>
+        <div className="mb-4 text-sm font-semibold">Process Timeline</div>
+        <div className="grid gap-2 md:grid-cols-3 xl:grid-cols-9">
+          {processSteps.map((step) => (
+            <Link key={step.label} href={step.href} className="rounded-lg border border-[var(--card-border)] p-3 transition hover:border-[var(--link)] hover:bg-[var(--surface-soft)]">
+              <div className="flex items-center justify-between gap-2">
+                <div className="text-sm font-medium">{step.label}</div>
+                <ProcessStatusBadge status={step.status} />
+              </div>
+              <div className="mt-2 text-xs text-zinc-500">{step.detail}</div>
+            </Link>
+          ))}
+        </div>
+      </Card>
+
+      <Card>
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <div className="text-sm font-semibold">Next Actions</div>
+            <div className="mt-1 text-xs text-zinc-500">Suggested actions based on the current job records and blockers.</div>
+          </div>
+          <div className="text-xs font-medium text-zinc-500">{nextActions.length} action{nextActions.length === 1 ? "" : "s"}</div>
+        </div>
+        {nextActions.length > 0 ? (
+          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+            {nextActions.map((action) => (
+              <Link key={action.label} href={action.href} className="rounded-lg border border-[var(--card-border)] p-3 transition hover:border-[var(--link)] hover:bg-[var(--surface-soft)]">
+                <div className="text-sm font-semibold text-[var(--link)]">{action.label}</div>
+                <div className="mt-1 text-xs text-zinc-500">{action.detail}</div>
+              </Link>
+            ))}
+          </div>
+        ) : (
+          <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-900 dark:border-emerald-900/40 dark:bg-emerald-950/30 dark:text-emerald-100">
+            No immediate operational action is suggested from the current job records.
+          </div>
+        )}
       </Card>
 
       <nav className="overflow-x-auto border-b border-[var(--card-border)]">
