@@ -142,6 +142,8 @@ Create these records before creating items.
 | `Master Data -> Item Categories` | Spare parts | Name | `Spare Parts` |
 | `Master Data -> Item Categories` | Equipment | Code | `EQUIP` |
 | `Master Data -> Item Categories` | Equipment | Name | `Equipment` |
+| `Master Data -> Item Categories` | Sundries / lubricants | Code | `SUNDRIES` |
+| `Master Data -> Item Categories` | Sundries / lubricants | Name | `Sundries / Grease / Lubricants` |
 | `Master Data -> Item Subcategories` | Filters | Category | `SPARES` |
 | `Master Data -> Item Subcategories` | Filters | Code | `FILTERS` |
 | `Master Data -> Item Subcategories` | Filters | Name | `Filters` |
@@ -154,7 +156,7 @@ Expected:
 | Check | Where | Expected output |
 | --- | --- | --- |
 | Item setup lists | Brand, UoM, category, and subcategory pages | Codes above are visible and active |
-| Item create dropdowns | `Master Data -> Items -> Create` | `BR-TEST`, `PCS`, `HOUR`, `SPARES`, `EQUIP`, `FILTERS`, and `BOARDS` are selectable |
+| Item create dropdowns | `Master Data -> Items -> Create` | `BR-TEST`, `PCS`, `HOUR`, `SPARES`, `EQUIP`, `SUNDRIES`, `FILTERS`, and `BOARDS` are selectable |
 
 ### Warehouses And Bins
 
@@ -166,6 +168,11 @@ Go to `Master Data -> Warehouses`.
 | Warehouse 1 | Name | `Main Warehouse` |
 | Warehouse 2 | Code | `SEC` |
 | Warehouse 2 | Name | `Secondary Warehouse` |
+
+Then go to `Master Data -> Warehouse Bins`.
+
+| Record | Field | Input |
+| --- | --- | --- |
 | MAIN bin 1 | Bin Code | `A1-R1-S1` |
 | MAIN bin 1 | Name | `Aisle 1 Rack 1 Shelf 1` |
 | MAIN bin 1 | Zone | `A1` |
@@ -182,7 +189,7 @@ Expected:
 | Check | Where | Expected output |
 | --- | --- | --- |
 | Warehouse list | `Master Data -> Warehouses` | `MAIN` and `SEC` appear |
-| Bin list | `Bins / Racks` section | `A1-R1-S1` under `MAIN`, `B1-R1-S1` under `SEC` |
+| Bin list | `Master Data -> Warehouse Bins` | `A1-R1-S1` under `MAIN`, `B1-R1-S1` under `SEC` |
 
 ### Supplier And Customer
 
@@ -617,7 +624,7 @@ Use this interpretation while testing:
 | `Daily Work -> Progress` | Actual progress notes from technicians or supervisors: work done, pending work, problems, customer instructions, and site issues. | technician / supervisor |
 | `Materials` | MRN creation, material issue, and used/unused/damaged/rejected material disposition. | stores / service supervisor |
 | `Expenses` | IOUs, petty-cash spending, and out-of-pocket claims linked to the job and optionally to a daily sheet. | technician / finance / supervisor |
-| `Billing` | Estimate/invoice trail, closeout readiness, and final invoice decision. | service coordinator / finance |
+| `Billing` | quotation/invoice trail, closeout readiness, and final invoice decision. | service coordinator / finance |
 | `Costs` | Actual cost, quoted revenue, invoice revenue, margin view, and source tables. | supervisor / finance |
 | `Files & Notes` | Comments, attachments, and supporting evidence. | all authorized job users |
 
@@ -704,7 +711,7 @@ Closeout readiness click-through test:
 | `Draft material requisitions` | opens `Materials` or the related MRN list |
 | `Technician assignments` | opens `Daily Work -> Staff / Labor` |
 | `Labor entries` | opens the labor/work-order area where pending labor can be submitted or approved |
-| `Job detail work orders` | opens the related work order list/detail, not a useless link back to the same job page |
+| `Job detail work orders` | opens the related job sheet / work order list/detail, not a useless link back to the same job page |
 | `Material disposition` | opens `Materials` with disposition/returns visible |
 | `Final invoice decision` | opens `Billing` with invoice trail and `Mark Not Billable` visible |
 
@@ -767,6 +774,7 @@ Expected:
 | Counts | Daily sheet row | staff, progress, MRN, returns, expenses, and IOU counts start at `0` |
 | Running job tracking | Job detail | users can continue daily work, cash, expenses, materials, and returns from the system instead of paper notes |
 | Sheet action links | daily sheet row | `Labor` and `Progress` links open the selected sheet in the corresponding sub-tab |
+| Daily quick actions | daily sheet row | quick links are visible for `Labor`, `Progress`, `Issue material`, `Request IOU`, and `Add expense` |
 
 Daily sheet relationship test:
 
@@ -844,33 +852,67 @@ Expected after posting:
 | Serial `SER-002` | `Inventory -> Inventory Availability`, search `SER-002` | still available with on hand `1` |
 | Job costing | Service job detail, `Costs` tab | Material cost includes `2 x 5 + 1 x 25 = 35` |
 
-### 10.4 Job Material Disposition And Return
+### 10.4 Job Material Return And Damage Disposition
 
 Open the service job detail and open the `Materials` tab.
 
-In `Material Returns / Damage / Rejection`, add material dispositions for the posted MRN lines:
+Use `Issued MRNs` first to confirm the posted MRN is visible. Expand the MRN row and confirm the issued item lines are shown with daily sheet number when linked.
 
-| MRN Line | Disposition | Qty | Condition | Charge To | Reason | Serials |
-| --- | --- | ---: | --- | --- | --- | --- |
-| `SKU-CORE` line | `Used` | `1` | `Installed` | `Customer` | `Installed filter during repair` | blank |
-| `SKU-CORE` line | `Unused returned` | `1` | `Good` | `Company` | `Extra filter not used` | blank |
-| `SKU-SERIAL` line | `Used` | `1` | `Installed` | `Warranty` | `Installed replacement board` | `SER-001` |
+Open `Return Materials` and create a return draft for the posted `SKU-CORE` MRN line:
+
+| Field | Input |
+| --- | --- |
+| Daily sheet | `JDS...` from section 10.1.3 |
+| Issued material line | `SKU-CORE` line from the posted MRN |
+| Disposition | `Not needed - return to stock` |
+| Quantity | `1` |
+| Charge to | `Company` |
+| Condition | `Good` |
+| Reason | `Extra filter not used` |
+
+Expected before posting:
+
+| Check | Where | Expected output |
+| --- | --- | --- |
+| Draft row | Job detail, `Materials` tab -> `Return Materials` | row appears with status `Draft` |
+| Inventory | `Inventory -> On Hand`, `MAIN` + `SKU-CORE` | no stock increase yet because the return is not posted |
+| Edit draft | return row actions | draft can be edited or voided before posting |
+
+Post the return draft.
+
+Open `Damage Material` and create a damage draft for the posted `SKU-SERIAL` MRN line:
+
+| Field | Input |
+| --- | --- |
+| Daily sheet | `JDS...` from section 10.1.3 |
+| Issued material line | `SKU-SERIAL` line from the posted MRN |
+| Disposition | `Damaged - do not return to usable stock` |
+| Quantity | `1` |
+| Charge to | `Warranty` |
+| Condition | `Damaged` |
+| Reason | `Installed replacement board failed during test` |
+| Serials | `SER-001` |
+
+Post the damage draft.
 
 Expected:
 
 | Check | Where | Expected output |
 | --- | --- | --- |
-| Disposition rows | Job detail, `Costs` tab -> `Cost Sources` | each MRN line shows disposition instead of `Pending` |
-| Returned stock | `Inventory -> On Hand`, `MAIN` + `SKU-CORE` | increases by `1` because one unused filter was returned |
-| Job closeout readiness | Job detail, `Overview` or `Billing` tab -> `Closeout Readiness` | `Material disposition` is clear after every posted MRN line quantity is fully disposed |
-| Job costing | Job detail, `Costs` tab | material consumed cost still shows the original MRN issue cost; returned/used/damaged status is shown in disposition trail |
+| Issued MRNs | Job detail, `Materials` tab -> `Issued MRNs` | posted MRN is grouped by MRN; expanding it shows item lines |
+| Return row | Job detail, `Materials` tab -> `Return Materials` | return row status becomes `Posted` |
+| Damage row | Job detail, `Materials` tab -> `Damage Material` | damage row status becomes `Posted` |
+| Returned stock | `Inventory -> On Hand`, `MAIN` + `SKU-CORE` | increases by `1` only after the return draft is posted |
+| Damaged stock | `Inventory -> On Hand`, `MAIN` + `SKU-SERIAL` | no usable stock increase from the damage posting |
+| Job closeout readiness | Job detail, `Overview` or `Billing` tab -> `Closeout Readiness` | `Material disposition` is clear after every posted MRN line quantity is returned, damaged, supplier-returned, or otherwise disposed |
+| Job costing | Job detail, `Costs` tab | material issue cost remains traceable; return/damage status is shown in the disposition trail |
 | Daily sheet | Job detail, `Daily Work` tab -> `Daily Field Sheets` | MRN and return counts increase for the selected `JDS...` |
 
-## 11. Service Estimate, Work Order, Expense, Handover
+## 11. Service Quotation, Job Sheet / Work Order, Petty Cash, Service Taken
 
 This section completes the same job from section 10. Do not create a second job unless you are testing parallel service scenarios.
 
-### 11.1 Technician Assignment And Work Order
+### 11.1 Technician Assignment And Job Sheet / Work Order
 
 Go to `Service -> Technicians`.
 
@@ -883,25 +925,31 @@ Create:
 | Default Cost Rate | `10` |
 | Default Billing Rate | `25` |
 
-Go to `Service -> Work Orders`.
+Go to `Service -> Job Sheets / Work Orders`.
 
-Create work order for the job.
+Create a job sheet / work order for the job. The create form is at the top of the `Job Sheets / Work Orders` page.
 
-Go back to the job detail, open the `Daily Work` tab, click the `Labor` link on the `JDS...` daily sheet row or open the `Staff / Labor` sub-tab, and add technician assignment:
+Go back to the job detail, open the `Daily Work` tab, click the `Labor` link on the `JDS...` daily sheet row or open the `Staff / Labor` sub-tab, and add the daily technician assignment.
+
+This daily assignment records who was assigned to the daily sheet and what work they did. It is separate from the job sheet / work order labor entry used for costing and billable labor.
 
 | Field | Input |
 | --- | --- |
 | Daily sheet | `JDS...` from section 10.1.3 |
 | Technician | `TECH1` |
+| Manual employee name | blank when `TECH1` is selected; use only when the worker is not in Technician Master |
 | Role | `Technician` |
+| Assigned date | optional; leave blank to use system time, or enter the assignment date/time |
 | Assigned task | `Diagnose starting system and replace required parts` |
+| Work start | optional start date/time |
+| Work end | optional end date/time |
 | Normal hours | `2` |
 | Overtime hours | `0` |
 | Daily work description | `Diagnosis and replacement completed` |
 
-Approve the assignment.
+Approve the assignment from the assignment row below the form. This approves the daily technician assignment only; it is not the same as starting the job sheet / work order.
 
-Add time entry:
+Open the created job sheet / work order detail. Start the job sheet / work order, then add the labor time entry used for costing/billing:
 
 | Field | Input |
 | --- | --- |
@@ -911,18 +959,18 @@ Add time entry:
 | Billing rate | `25` |
 | Billable | `Yes` |
 
-Start the work order, submit and approve the time entry, then mark the work order done.
+After adding the labor entry, scroll to the `Labor Entries` table. The new entry is saved as `Draft`. In that row, click `Submit`; after the page refreshes and the status becomes `Submitted`, click `Approve`. Then mark the job sheet / work order done.
 
 Expected:
 
 | Check | Where | Expected output |
 | --- | --- | --- |
 | Assignment | Job detail, `Daily Work` tab -> `Staff / Labor` sub-tab | assignment status is `Approved` |
-| Daily sheet count | Job detail, `Daily Work` tab -> `Daily Field Sheets` | staff count increases |
-| Work order | Work order detail | status moves `Open -> In Progress -> Done` |
-| Labor cost | Work order/job detail, `Costs` tab | `2 x 10 = 20` |
-| Billable labor before entitlement | Work order | `2 x 25 = 50` |
-| If warranty/contract covers labor | Estimate/invoice conversion | effective customer billing can be `0` for covered labor |
+| Daily sheet staff count | Job detail, `Daily Work` tab -> `Daily Field Sheets` | staff count increases only when the daily assignment is linked to that daily sheet; job sheet / work order labor entries do not increase this count |
+| Job sheet / work order | job sheet / work order detail | status moves `Open -> In Progress -> Done` |
+| Labor cost | job sheet / work order and job detail, `Costs` tab | `2 x 10 = 20` |
+| Billable labor before entitlement | job sheet / work order | `2 x 25 = 50` |
+| If warranty/contract covers labor | quotation/invoice conversion | effective customer billing can be `0` for covered labor |
 
 ### 11.1.1 Daily Job Progress
 
@@ -938,13 +986,14 @@ Open the service job detail, open the `Daily Work` tab, click the `Progress` lin
 | Additional labor required | `None` |
 | Customer instructions | `Call before delivery` |
 | Technician notes | `Test run completed` |
-| Supervisor notes | `Ready for handover after invoice review` |
+| Supervisor notes | `Ready for service taken / invoice review` |
 
 Expected:
 
 | Check | Where | Expected output |
 | --- | --- | --- |
-| Daily progress | Job detail, `Daily Work` tab -> `Progress` sub-tab | progress update appears with completed/pending/problem notes |
+| Daily progress | Job detail, `Daily Work` tab -> `Progress` sub-tab | existing progress updates appear before the add-progress form |
+| Daily progress update | Job detail, `Daily Work` tab -> `Progress` sub-tab | the new progress update appears with completed/pending/problem notes |
 | Daily sheet count | Job detail, `Daily Work` tab -> `Daily Field Sheets` | progress count increases |
 | Closeout link | `Overview` or `Billing` -> `Closeout Readiness`, click `Daily field sheets` if pending | navigates back to the daily sheet list that contains the draft/pending `JDS...` |
 
@@ -957,11 +1006,11 @@ Expected:
 | Operation status | Job detail, `Plan` tab | operation status becomes `Completed` |
 | Actuals shown | Job detail, `Plan` tab | actual material quantity/cost and approved labor hours/cost reflect posted MRN and approved labor where linked by job |
 
-### 11.2 Estimate
+### 11.2 Quotation / Estimate
 
-Go to `Service -> Estimates`.
+Go to `Service -> Quotations`.
 
-Create estimate for the job.
+Create a quotation / estimate for the job.
 
 Add lines:
 
@@ -975,21 +1024,21 @@ Expected:
 
 | Check | Where | Expected output |
 | --- | --- | --- |
-| Description display | Estimate detail | Descriptions show in expandable detail rows, not squeezed into the main grid |
-| Estimate total before entitlement | Estimate detail | `14 + 50 + 15 = 79` |
-| Covered lines | Estimate detail | Covered parts/labor may show unit price `0` depending on job entitlement |
+| Description display | quotation detail | descriptions show in expandable detail rows, not squeezed into the main grid |
+| Quotation total before entitlement | quotation detail | `14 + 50 + 15 = 79` |
+| Covered lines | quotation detail | covered parts/labor may show unit price `0` depending on job entitlement |
 
-Send estimate, mark customer approved.
+Send the quotation, then mark customer approved.
 
 Expected:
 
 | Check | Where | Expected output |
 | --- | --- | --- |
-| Approval state | Estimate detail | `Customer Approval = Approved` |
-| Change order | Approved estimate detail | `Create Change Order` creates a new draft revision |
-| Estimate link | Job detail, `Billing` tab -> `Quotations & Final Invoices` | approved estimate appears in the estimate table |
+| Approval state | quotation detail | `Customer Approval = Approved` |
+| Change order | approved quotation detail | `Create Change Order` creates a new draft revision |
+| Quotation link | Job detail, `Billing` tab -> `Quotations & Final Invoices` | approved quotation appears in the quotation table |
 
-### 11.3 Expense Claim
+### 11.3 Petty Cash And Expense Claim
 
 Before the expense claim, create an IOU advance to test petty-cash advance handling while the job is still running.
 
@@ -1006,17 +1055,27 @@ Create IOU:
 | Amount | `20` |
 | Purpose | `Travel and parking advance for generator repair` |
 
-Submit, approve, release from petty cash fund, then settle the IOU.
+Click `Create IOU Advance`. The job-page IOU form creates the IOU and submits it automatically.
+
+Expected immediately after creation:
+
+| Check | Where | Expected output |
+| --- | --- | --- |
+| IOU confirmation | Job detail, `Expenses -> IOU Advances` | success message shows the generated IOU number and says it is waiting for finance approval |
+| Job IOU register | Job detail, `Expenses -> IOU Advances` | created IOU remains visible with daily sheet, requester, amount, status, timeline, and purpose |
+
+Go to `Finance -> Petty Cash IOUs`, find the new IOU, then approve, release from a petty cash fund, and settle it from the row actions.
 
 Expected:
 
 | Check | Where | Expected output |
 | --- | --- | --- |
 | IOU status | `Finance -> Petty Cash IOUs` | status reaches `Settled` |
+| Job IOU register | Job detail, `Expenses -> IOU Advances` | the same IOU remains visible and shows the latest finance status/timeline |
 | Daily sheet count | Job detail, `Daily Work` tab -> `Daily Field Sheets` | IOU count increases |
 | Job closeout readiness | Job detail, `Overview` or `Billing` tab -> `Closeout Readiness` | `Petty cash IOUs` is clear only after settlement/rejection/cancellation |
 
-Create the employee expense voucher from the job detail `Expenses` tab using `Employee Out-of-Pocket Claim`. To test company-funded cash spending separately, use `Petty Cash Expense`.
+Create the employee expense voucher from the job detail `Expenses` tab using `Employee Out-of-Pocket Claim`. To test company-funded cash spending separately, use `Petty Cash Expense`. The service menu page for these vouchers is `Service -> Petty Cash`.
 
 Create claim:
 
@@ -1024,6 +1083,7 @@ Create claim:
 | --- | --- |
 | Daily sheet | `JDS...` from section 10.1.3 |
 | Funding Source | `Out of Pocket` |
+| Claimed by | `TECH1` |
 | Merchant | `Test Vendor` |
 
 Add line:
@@ -1032,41 +1092,64 @@ Add line:
 | --- | ---: | ---: | --- |
 | `Parking fee` | `1` | `5` | `Yes` |
 
-Submit, approve, and settle.
+After creating the voucher, the system opens the claim detail page. Add the line while the claim is still `Draft`, then use the `Actions` card on the claim detail page to submit, approve, and settle.
+
+If testing `Petty Cash Expense`, choose an active petty cash fund during settlement. If testing `Employee Out-of-Pocket Claim`, choose the payment method or settlement reference as needed.
 
 Expected:
 
 | Check | Where | Expected output |
 | --- | --- | --- |
 | Claim status | Claim detail | `Settled` |
+| Job expense register | Job detail, `Expenses -> Petty Cash Expenses` or `Expenses -> Out-of-Pocket Claims` | the claim remains visible with number, daily sheet, funding source, status, total, line count, and billable-unconverted count |
 | Job costing | Job detail, `Costs` tab | Expense claim cost includes `5` |
-| Convert to estimate | Claim detail | Billable line can be converted into draft estimate/change order |
+| Convert to quotation | Claim detail | Billable line can be converted into draft quotation/change order |
 | Daily sheet count | Job detail, `Daily Work` tab -> `Daily Field Sheets` | expense count increases |
 | Job closeout readiness | Job detail, `Overview` or `Billing` tab -> `Closeout Readiness` | `Expense claims` is clear after claim is settled or rejected |
 
-### 11.4 Handover, Final Invoice, And Closeout
+### 11.4 Service Taken, Final Invoice, And Closeout
 
-Go to `Service -> Handovers`.
+Go to `Service -> Service Taken`.
 
-Create handover for the job.
+Create service taken / delivery confirmation for the job.
 
 | Field | Input |
 | --- | --- |
 | Items returned | `Generator returned after repair` |
 | Customer acknowledgement | `Customer accepted` |
-| Notes | `Test handover` |
+| Notes | `Test service taken` |
 
-Complete handover and convert to invoice.
+Complete service taken and convert it to invoice.
+
+Manual invoice path, without requiring an approved estimate:
+
+| Line type | Item | Qty | Unit Price | Discount % | Tax |
+| --- | --- | ---: | ---: | ---: | --- |
+| Labour | `LAB-SVC` | `2` | `25` | `0` | `ZERO` |
+| Item | `SKU-CORE` | `1` | `7` | `0` | `ZERO` |
+| Sundries | item in `SUNDRIES` category | `1` | `3` | `0` | `ZERO` |
 
 Expected:
 
 | Check | Where | Expected output |
 | --- | --- | --- |
-| Handover status | Handover detail | `Completed` |
-| Sales invoice | Handover detail / `Sales -> Invoices` | Invoice created and linked |
+| Estimate requirement | service taken detail | manual invoice conversion succeeds even when no approved estimate is selected |
+| Manual invoice lines | created sales invoice detail | labour, item, and sundries lines appear with the entered quantities, prices, discount, and tax |
+| Sundries classification | `Master Data -> Items` / invoice line item | grease/lubricant/consumable item uses category `SUNDRIES` |
+
+Estimate-based invoice path:
+
+If this test run includes an approved quotation from section 11.2, switch the conversion mode to estimate-based conversion and confirm that the approved quotation can still drive the invoice.
+
+Expected:
+
+| Check | Where | Expected output |
+| --- | --- | --- |
+| Service taken status | service taken detail | `Completed` |
+| Sales invoice | service taken detail / `Sales -> Invoices` | invoice created and linked |
 | Job costing | Job detail, `Costs` tab | Invoice value appears in costing summary |
 | Invoice trail | Job detail, `Billing` tab -> `Quotations & Final Invoices` | linked invoice appears in the invoice table |
-| Job status | Job detail | status becomes `Invoiced` after handover conversion |
+| Job status | Job detail | status becomes `Invoiced` after service taken conversion |
 
 Open the service job detail and review `Closeout Readiness` in either the `Overview` tab or the `Billing` tab.
 
@@ -1080,8 +1163,9 @@ Expected before closing:
 | Material disposition | Job detail, `Overview` or `Billing` tab -> `Closeout Readiness` | `Clear` |
 | Expense claims | Job detail, `Overview` or `Billing` tab -> `Closeout Readiness` | `Clear` |
 | Petty cash IOUs | Job detail, `Overview` or `Billing` tab -> `Closeout Readiness` | `Clear` |
-| Work orders | Job detail, `Overview` or `Billing` tab -> `Closeout Readiness` | `Clear` |
+| Job sheets / work orders | Job detail, `Overview` or `Billing` tab -> `Closeout Readiness` | `Clear` |
 | Labor entries | Job detail, `Overview` or `Billing` tab -> `Closeout Readiness` | `Clear` |
+| Uninvoiced billable labor | Job detail, `Overview` or `Billing` tab -> `Closeout Readiness` | `Clear` after billable labor is included in final invoice or resolved as not billable |
 | Final invoice decision | Job detail, `Overview` or `Billing` tab -> `Closeout Readiness` | `Clear` because invoice was generated |
 
 Click every closeout readiness tile once more after clearing the work:
@@ -1095,8 +1179,9 @@ Click every closeout readiness tile once more after clearing the work:
 | Draft material requisitions | no draft MRN blocks the job |
 | Technician assignments | no unapproved assignment blocks the job |
 | Labor entries | no submitted/pending labor entry blocks the job |
-| Job detail work orders | related work orders are done or cancelled |
-| Material disposition | every posted MRN line has full disposition |
+| Job detail work orders | related job sheets / work orders are done or cancelled |
+| Uninvoiced billable labor | approved billable labor is invoiced or resolved as not billable |
+| Material disposition | every posted MRN line has full posted/voided return or damage disposition as applicable |
 | Final invoice decision | invoice exists, or job is explicitly marked not billable with a reason |
 
 If this is a no-charge/warranty-only job and no invoice should be generated, open the `Billing` tab, click `Mark Not Billable`, and enter:
@@ -1112,7 +1197,7 @@ Expected:
 | Final invoice decision | Job detail, `Billing` tab -> `Closeout Readiness` | `Clear` |
 | Job header | Job detail | `Invoice required: No` and reason is visible |
 
-Complete the job and close it.
+Complete the job and close it. When clicking `Complete`, type `COMPLETE` in the confirmation dialog before the system marks the job complete.
 
 Expected:
 
@@ -1163,9 +1248,9 @@ After the job is closed, review the same job from each tab and confirm no data w
 | Daily sheet | `Daily Work -> Daily Sheets` | `JDS...` is approved and shows staff/progress/MRN/return/expense/IOU counts |
 | Staff/labor | `Daily Work -> Staff / Labor` | assignment and approved labor remain linked to the job or daily sheet |
 | Progress | `Daily Work -> Progress` | technician/supervisor notes remain visible |
-| Materials | `Materials` tab | posted MRN and material dispositions are traceable |
+| Materials | `Materials` tab | posted MRN is visible under `Issued MRNs`; returned and damaged material are traceable in their separate tabs |
 | Expenses | `Expenses` tab | settled IOU and expense claim are traceable |
-| Billing | `Billing` tab | estimate and final invoice or not-billable reason are visible |
+| Billing | `Billing` tab | quotation and final invoice or not-billable reason are visible |
 | Costs | `Costs` tab | material, labor, expense, invoice, and margin values match the source documents |
 | Files & Notes | `Files & Notes` tab | comment and attachment remain visible |
 | Reporting | `Reporting -> Service KPIs` | service job activity is included in KPI totals |
@@ -1285,10 +1370,10 @@ Open PDF/download links for at least:
 | Procurement | GRN 2 |
 | Sales | Invoice |
 | Inventory | Stock adjustment |
-| Service | Estimate |
+| Service | Quotation |
 | Service | Job Order PDF |
 | Service | MRN |
-| Service | Handover |
+| Service | Service Taken |
 
 Expected:
 
@@ -1326,8 +1411,8 @@ After all sections above:
 | Stock value does not match | Check `Reporting -> Stock Ledger` movement quantities and unit costs |
 | AP/AR does not clear | Confirm payment allocation is saved against the correct outstanding entry |
 | Service estimate billing differs from raw total | Check warranty/contract entitlement on the job; covered labor/parts can bill at zero |
-| Job cannot close | Open job detail `Overview` or `Billing` tab -> `Closeout Readiness`; clear the listed pending item such as material disposition, IOU, expense claim, work order, labor entry, or final invoice decision |
-| Returned service material not back in stock | Confirm disposition type is `Unused returned` or `Incorrect returned`; `Used`, `Damaged`, and `Rejected / supplier return` do not add warehouse stock |
+| Job cannot close | Open job detail `Overview` or `Billing` tab -> `Closeout Readiness`; clear the listed pending item such as material disposition, IOU, expense claim, job sheet / work order, labor entry, or final invoice decision |
+| Returned service material not back in stock | Confirm the return draft was posted from `Materials -> Return Materials`; `Damaged - do not return to usable stock` does not add warehouse stock |
 ## Recent Workflow Updates
 
 ### Service Material Returns

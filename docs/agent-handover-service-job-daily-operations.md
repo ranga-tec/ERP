@@ -6,6 +6,23 @@ This handover covers the service/job module work completed through:
 
 `2e29358 Link service job closeout checks to workflows`
 
+Local update on 2026-05-25:
+
+- service handover invoice conversion now supports manual invoice lines without requiring an approved estimate
+- manual conversion covers labour/work done, additional items, sundries/grease/lubricants, discount percent, and tax selection
+- estimate-based conversion remains available when an approved service estimate should drive the invoice
+- item category `SUNDRIES` is used for grease, lubricants, consumables, and similar service-repair charges
+- warehouse bins/racks moved out of the warehouse master page into `Master Data -> Warehouse Bins`
+
+Local update on 2026-05-26:
+
+- Phase 1 of the service UX revision is implemented.
+- Job `Expenses` now separates IOU advances, petty-cash expenses, and out-of-pocket claims.
+- Job-linked IOUs and claims remain visible on the job page after creation.
+- IOU creation confirms the generated IOU number and pending finance approval state.
+- Daily progress history appears before the add-progress form.
+- Daily sheet rows expose quick links for labour, progress, material issue, IOU request, and expense entry.
+
 GitHub push status:
 
 - Pushed to `origin/main`.

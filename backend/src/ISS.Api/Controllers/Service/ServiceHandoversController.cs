@@ -47,7 +47,14 @@ public sealed class ServiceHandoversController(
         Guid? LaborItemId,
         Guid? ExpenseItemId,
         ServiceLaborBillingSource? LaborBillingSource,
-        DateTimeOffset? DueDate);
+        DateTimeOffset? DueDate,
+        IReadOnlyList<ConvertToSalesInvoiceLineRequest>? ManualLines);
+    public sealed record ConvertToSalesInvoiceLineRequest(
+        Guid ItemId,
+        decimal Quantity,
+        decimal UnitPrice,
+        decimal DiscountPercent,
+        decimal TaxPercent);
     public sealed record ConvertToSalesInvoiceResponse(Guid SalesInvoiceId);
 
     [HttpGet]
@@ -174,6 +181,14 @@ public sealed class ServiceHandoversController(
             request.ExpenseItemId,
             request.LaborBillingSource ?? ServiceLaborBillingSource.Auto,
             request.DueDate,
+            request.ManualLines?
+                .Select(line => new ServiceManagementService.ServiceInvoiceManualLineInput(
+                    line.ItemId,
+                    line.Quantity,
+                    line.UnitPrice,
+                    line.DiscountPercent,
+                    line.TaxPercent))
+                .ToList(),
             cancellationToken);
 
         return Ok(new ConvertToSalesInvoiceResponse(salesInvoiceId));

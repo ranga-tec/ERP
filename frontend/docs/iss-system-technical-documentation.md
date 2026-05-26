@@ -2,6 +2,25 @@
 
 Generated from code inspection on 2026-03-20.
 
+## 0. Implementation Update (2026-05-25)
+
+The following local scope was implemented after the previous documentation snapshot:
+
+- Master-data navigation:
+  - warehouse/bin/rack maintenance now has its own page at `/master-data/warehouse-bins`
+  - `/master-data/warehouses` remains focused on warehouse records
+- Service handover invoice conversion:
+  - completed service handovers can create a draft sales invoice from manual invoice lines without requiring an approved service estimate
+  - manual conversion lines support labour/work done, additional items, sundries, discount percent, and tax percent
+  - estimate-based conversion remains available and still uses approved estimate lines when selected
+  - `SUNDRIES` is the intended item category for grease, lubricants, consumables, and similar service-repair charges
+- Service job Phase 1 UX revision:
+  - job `Expenses` now has separated IOU, petty-cash expense, and out-of-pocket claim views
+  - job-linked IOUs and expense claims are fetched back into the job page using existing filtered endpoints
+  - IOU creation shows a confirmation with the generated IOU number
+  - progress history is displayed above the add-progress form
+  - daily sheet rows include quick action links for labour, progress, material issue, IOU request, and expense entry
+
 ## 0. Implementation Update (2026-03-20)
 
 The following scope was implemented after the previous documentation snapshot:
@@ -370,6 +389,7 @@ Routes:
 - `/master-data/customers`
 - `/master-data/suppliers`
 - `/master-data/warehouses`
+- `/master-data/warehouse-bins`
 - `/master-data/reorder-settings`
 
 Representative files:
@@ -379,6 +399,7 @@ Representative files:
 - `frontend/src/app/(app)/master-data/customers/page.tsx`
 - `frontend/src/app/(app)/master-data/suppliers/page.tsx`
 - `frontend/src/app/(app)/master-data/warehouses/page.tsx`
+- `frontend/src/app/(app)/master-data/warehouse-bins/page.tsx`
 - `frontend/src/app/(app)/master-data/reorder-settings/page.tsx`
 
 Notable behavior:
@@ -474,9 +495,12 @@ Key behavior:
 
 - Equipment Units are linked to equipment Items and Customers
 - Service Jobs expose `start`, `complete`, `close` actions
+- Service Job detail now keeps job-linked IOUs and expense claims visible in the job context after creation
+- Service Job daily sheet rows include quick action links for common daily work entries
 - Work Orders are currently create + view (no frontend status mutation UI)
 - Material Requisitions are document workflows with tracked line inputs and post action
 - Quality Checks are simple QA result records (`passed` + notes)
+- Service Handovers can convert a completed handover to a draft sales invoice either from an approved estimate or from manual labour/item/sundries lines when no estimate exists
 
 ### 4.8.5 Inventory
 
@@ -820,6 +844,9 @@ Responsibilities:
 - material requisition create/add-line/post
   - posting records inventory consumption
 - quality check creation
+- service handover conversion to sales invoice
+  - approved estimates are optional when manual invoice lines are supplied
+  - manual lines are mapped to sales invoice lines with item, quantity, unit price, discount percent, tax percent, and revenue account resolution
 
 ### 5.8.7 FinanceService
 

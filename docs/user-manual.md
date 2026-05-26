@@ -80,7 +80,7 @@ Note:
 ## Inventory workflows
 
 - Warehouse bins/racks:
-  - maintain under `Master Data -> Warehouses` in the `Bins / Racks` section
+  - maintain under `Master Data -> Warehouse Bins`
   - create bin codes under each warehouse, with optional zone, rack, and shelf values
   - use this structure to represent physical picking/storage locations inside the warehouse
 - Inventory availability:
@@ -170,7 +170,9 @@ Note:
   - use `Refresh Entitlement` on the job if warranty/contract data is added after the job was already opened
   - recommended operating flow is: receive equipment -> open the job immediately -> create a daily field sheet for each working day -> capture labor, progress, IOUs, expenses, materials, returns, damages, and notes from that sheet -> approve the sheet -> finish invoicing/closeout
   - `Daily Field Sheets` on the job detail page replace manual daily job cards; each sheet has planned/completed/pending work, site condition, staff/progress/material/return/expense/IOU counts, and approval status
+  - daily sheet rows include direct links to add labour, add progress, issue materials, request an IOU, or add an expense without hunting through the full job page
   - daily job detail sections keep the running work separated into `Daily Staff / Labor`, `Daily Progress`, `IOU / Employee Advance`, `Petty Cash Expense`, `Employee Out-of-Pocket Claim`, `Materials / Lubricants Issue`, and `Material Returns / Damage / Rejection`
+  - the progress view shows existing progress updates first, then the add-progress form, so users can review the latest work status before entering another update
   - closing a job is blocked while daily sheets are still draft or submitted; approve or reject every sheet before closeout
 - Technicians:
   - maintain technician code, name, default cost rate, default billing rate, phone, notes, and active status
@@ -216,6 +218,10 @@ Note:
   - the list page now exposes explicit `View` and `Edit`; `Edit` is available while the handover is still `Draft`
   - complete handover and optionally convert to invoice
   - while the handover is still `Draft`, you can edit the returned-items text, post-service warranty months, customer acknowledgement, and notes from the detail page
+  - final invoice conversion supports `Manual invoice` mode, so an approved estimate is not required when the service team needs to bill directly from actual work
+  - in manual mode, add labour/work-done lines, additional item lines, sundries/grease/lubricant lines, discount percent, and tax before creating the linked draft sales invoice
+  - use item category `SUNDRIES` for grease, lubricants, consumables, and similar service-repair charges that should be billed as items
+  - estimate-based conversion remains available when a customer-approved service estimate should drive the invoice
   - invoice conversion can map expense estimate lines by using the line item when present or a selected fallback expense/service item
   - labor billing can come from estimate labor lines or from approved work-order timesheets when actual labor should drive the invoice
   - warranty/contract coverage still applies during invoice conversion, so covered labor or parts can invoice at zero
@@ -244,6 +250,8 @@ Note:
   - create fund -> optionally seed opening balance
   - post top-ups and manual adjustments
   - create and track IOUs for job-linked cash advances when money is issued before the final expense claim is settled
+  - job-linked IOUs remain visible on the service job `Expenses -> IOU Advances` view after creation, with status and finance timeline
+  - job-linked petty-cash and out-of-pocket claims remain visible on the service job `Expenses` views after creation
   - settle approved service expense claims against a petty cash fund when workshop cash was used
   - petty-cash-funded service claims require a petty cash fund at settlement; out-of-pocket claims can still be settled with payment type/reference only
 - Credit notes:

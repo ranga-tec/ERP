@@ -256,6 +256,44 @@ type ServiceJobMaterialDispositionDto = {
   voidReason?: string | null;
   createdAt: string;
 };
+type PettyCashIouDto = {
+  id: string;
+  number: string;
+  serviceJobId: string;
+  serviceJobNumber?: string | null;
+  serviceJobDailySheetId?: string | null;
+  requestedByName: string;
+  amount: number;
+  purpose: string;
+  requestedAt: string;
+  expectedSettlementAt?: string | null;
+  status: number;
+  submittedAt?: string | null;
+  approvedAt?: string | null;
+  pettyCashFundId?: string | null;
+  releasedAt?: string | null;
+  releaseReference?: string | null;
+  settledAt?: string | null;
+  settledAmount?: number | null;
+  settlementReference?: string | null;
+  rejectionReason?: string | null;
+};
+type ServiceExpenseClaimSummaryDto = {
+  id: string;
+  number: string;
+  serviceJobId: string;
+  serviceJobDailySheetId?: string | null;
+  claimedByUserId?: string | null;
+  claimedByName: string;
+  fundingSource: number;
+  expenseDate: string;
+  merchantName?: string | null;
+  status: number;
+  total: number;
+  lineCount: number;
+  billableUnconvertedLineCount: number;
+  settledAt?: string | null;
+};
 
 const statusLabel: Record<number, string> = {
   0: "Draft",
@@ -322,6 +360,19 @@ const claimStatusLabel: Record<number, string> = {
   2: "Approved",
   3: "Rejected",
   4: "Settled",
+};
+const pettyCashIouStatusLabel: Record<number, string> = {
+  0: "Draft",
+  1: "Submitted",
+  2: "Approved",
+  3: "Cash Released",
+  4: "Settled / Accounted",
+  5: "Rejected",
+  6: "Cancelled",
+};
+const fundingSourceLabel: Record<number, string> = {
+  1: "Out of Pocket",
+  2: "Petty Cash",
 };
 
 const laborStatusLabel: Record<number, string> = {
@@ -411,9 +462,85 @@ function CollapsibleCard({
   );
 }
 
+function ServiceJobExpenseClaimRegister({
+  claims,
+  dailySheetNumberById,
+  emptyMessage,
+}: {
+  claims: ServiceExpenseClaimSummaryDto[];
+  dailySheetNumberById: Map<string, string>;
+  emptyMessage: string;
+}) {
+  return (
+    <div className="mt-5 border-t border-[var(--card-border)] pt-4">
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+        <div>
+          <div className="text-sm font-semibold">Job Expense Register</div>
+          <div className="mt-1 text-xs text-zinc-500">Expense vouchers created from this job stay visible here with their approval and settlement status.</div>
+        </div>
+        <Link className="text-xs font-semibold text-[var(--link)] underline underline-offset-2" href="/service/expense-claims">
+          Open all claims
+        </Link>
+      </div>
+      <div className="overflow-auto">
+        <Table>
+          <thead>
+            <tr className="border-b border-zinc-200 text-left text-xs uppercase tracking-wide text-zinc-500 dark:border-zinc-800">
+              <th className="py-2 pr-3">Claim</th>
+              <th className="py-2 pr-3">Daily Sheet</th>
+              <th className="py-2 pr-3">Claimed By</th>
+              <th className="py-2 pr-3">Funding</th>
+              <th className="py-2 pr-3">Date</th>
+              <th className="py-2 pr-3">Status</th>
+              <th className="py-2 pr-3 text-right">Total</th>
+              <th className="py-2 pr-3">Lines</th>
+            </tr>
+          </thead>
+          <tbody>
+            {claims.map((claim) => (
+              <tr key={claim.id} className="border-b border-zinc-100 align-top dark:border-zinc-900">
+                <td className="py-2 pr-3 font-mono text-xs">
+                  <Link className="hover:underline" href={`/service/expense-claims/${claim.id}`}>
+                    {claim.number}
+                  </Link>
+                </td>
+                <td className="py-2 pr-3 font-mono text-xs">
+                  {claim.serviceJobDailySheetId ? dailySheetNumberById.get(claim.serviceJobDailySheetId) ?? "Linked" : "Unlinked"}
+                </td>
+                <td className="py-2 pr-3">{claim.claimedByName}</td>
+                <td className="py-2 pr-3">{fundingSourceLabel[claim.fundingSource] ?? claim.fundingSource}</td>
+                <td className="py-2 pr-3 text-zinc-500">{new Date(claim.expenseDate).toLocaleString()}</td>
+                <td className="py-2 pr-3">
+                  {claimStatusLabel[claim.status] ?? claim.status}
+                  {claim.settledAt ? <div className="mt-1 text-xs text-zinc-500">Settled {new Date(claim.settledAt).toLocaleDateString()}</div> : null}
+                </td>
+                <td className="py-2 pr-3 text-right">{money(claim.total)}</td>
+                <td className="py-2 pr-3 text-xs text-zinc-500">
+                  <div>{claim.lineCount} line{claim.lineCount === 1 ? "" : "s"}</div>
+                  {claim.billableUnconvertedLineCount > 0 ? (
+                    <div className="text-amber-700 dark:text-amber-300">{claim.billableUnconvertedLineCount} billable not converted</div>
+                  ) : null}
+                </td>
+              </tr>
+            ))}
+            {claims.length === 0 ? (
+              <tr>
+                <td className="py-6 text-sm text-zinc-500" colSpan={8}>
+                  {emptyMessage}
+                </td>
+              </tr>
+            ) : null}
+          </tbody>
+        </Table>
+      </div>
+    </div>
+  );
+}
+
 type JobTabKey = "overview" | "plan" | "daily-work" | "materials" | "expenses" | "billing" | "costs" | "files";
 type DailyWorkViewKey = "sheets" | "labor" | "progress";
 type MaterialViewKey = "issues" | "returns" | "damage";
+type ExpenseViewKey = "ious" | "petty-cash" | "reimbursements";
 
 const jobTabs: { key: JobTabKey; label: string }[] = [
   { key: "overview", label: "Overview" },
@@ -436,6 +563,11 @@ const materialViews: { key: MaterialViewKey; label: string }[] = [
   { key: "returns", label: "Return Materials" },
   { key: "damage", label: "Damage Material" },
 ];
+const expenseViews: { key: ExpenseViewKey; label: string }[] = [
+  { key: "ious", label: "IOU Advances" },
+  { key: "petty-cash", label: "Petty Cash Expenses" },
+  { key: "reimbursements", label: "Out-of-Pocket Claims" },
+];
 
 function resolveJobTab(value?: string): JobTabKey {
   return jobTabs.some((tab) => tab.key === value) ? (value as JobTabKey) : "overview";
@@ -447,6 +579,10 @@ function resolveDailyWorkView(value?: string): DailyWorkViewKey {
 
 function resolveMaterialView(value?: string): MaterialViewKey {
   return materialViews.some((view) => view.key === value) ? (value as MaterialViewKey) : "issues";
+}
+
+function resolveExpenseView(value?: string): ExpenseViewKey {
+  return expenseViews.some((view) => view.key === value) ? (value as ExpenseViewKey) : "ious";
 }
 
 function tabHref(jobId: string, tab: JobTabKey) {
@@ -461,11 +597,15 @@ function materialHref(jobId: string, view: MaterialViewKey = "issues") {
   return `/service/jobs/${jobId}?tab=materials&materialView=${view}`;
 }
 
+function expenseHref(jobId: string, view: ExpenseViewKey = "ious") {
+  return `/service/jobs/${jobId}?tab=expenses&expenseView=${view}`;
+}
+
 function closeoutCheckHref(jobId: string, key: string) {
   const targets: Record<string, string> = {
     "daily-field-sheets": dailyWorkHref(jobId, "sheets"),
-    "expense-claims": tabHref(jobId, "expenses"),
-    "petty-cash-ious": tabHref(jobId, "expenses"),
+    "expense-claims": expenseHref(jobId, "petty-cash"),
+    "petty-cash-ious": expenseHref(jobId, "ious"),
     "direct-purchase-bills": "/procurement/direct-purchases",
     "material-requisitions": tabHref(jobId, "materials"),
     "job-assignments": dailyWorkHref(jobId, "labor"),
@@ -484,15 +624,32 @@ export default async function ServiceJobDetailPage({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams?: Promise<{ tab?: string; dailyView?: string; dailySheetId?: string; materialView?: string }>;
+  searchParams?: Promise<{ tab?: string; dailyView?: string; dailySheetId?: string; materialView?: string; expenseView?: string }>;
 }) {
   const { id } = await params;
   const resolvedSearchParams = await searchParams;
   const activeTab = resolveJobTab(resolvedSearchParams?.tab);
   const activeDailyWorkView = resolveDailyWorkView(resolvedSearchParams?.dailyView);
   const activeMaterialView = resolveMaterialView(resolvedSearchParams?.materialView);
+  const activeExpenseView = resolveExpenseView(resolvedSearchParams?.expenseView);
 
-  const [job, units, customers, costing, items, technicians, warehouses, dailySheets, assignments, progressUpdates, closeoutChecks, materialDispositions, operations] = await Promise.all([
+  const [
+    job,
+    units,
+    customers,
+    costing,
+    items,
+    technicians,
+    warehouses,
+    dailySheets,
+    assignments,
+    progressUpdates,
+    closeoutChecks,
+    materialDispositions,
+    operations,
+    pettyCashIous,
+    expenseClaims,
+  ] = await Promise.all([
     backendFetchJson<ServiceJobDto>(`/service/jobs/${id}`),
     backendFetchJson<EquipmentUnitDto[]>("/service/equipment-units?take=2000"),
     backendFetchJson<CustomerDto[]>("/customers"),
@@ -506,6 +663,8 @@ export default async function ServiceJobDetailPage({
     backendFetchJson<ServiceJobCloseoutCheckDto[]>(`/service/jobs/${id}/closeout-checks`),
     backendFetchJson<ServiceJobMaterialDispositionDto[]>(`/service/jobs/${id}/material-dispositions`),
     backendFetchJson<ServiceJobOperationDto[]>(`/service/jobs/${id}/operations`),
+    backendFetchJson<PettyCashIouDto[]>(`/finance/petty-cash-ious?serviceJobId=${id}&take=100`),
+    backendFetchJson<ServiceExpenseClaimSummaryDto[]>(`/service/expense-claims?serviceJobId=${id}&take=100`),
   ]);
 
   const selectedUnit =
@@ -586,6 +745,32 @@ export default async function ServiceJobDetailPage({
   }>()).values()];
   const returnMaterialDispositions = materialDispositions.filter((disposition) => disposition.kind === 1 || disposition.kind === 2 || disposition.kind === 4);
   const damageMaterialDispositions = materialDispositions.filter((disposition) => disposition.kind === 3);
+  const actualCostBreakdown = [
+    {
+      label: "Materials",
+      amount: costing.materialConsumedCost,
+      detail: `${costing.materialLines.length} posted MRN line${costing.materialLines.length === 1 ? "" : "s"}`,
+      href: "#job-cost-materials",
+    },
+    {
+      label: "Direct purchases",
+      amount: costing.directPurchaseCost,
+      detail: `${costing.directPurchaseLines.length} posted direct purchase line${costing.directPurchaseLines.length === 1 ? "" : "s"}`,
+      href: "#job-cost-direct-purchases",
+    },
+    {
+      label: "Approved labor",
+      amount: costing.approvedLaborCost,
+      detail: `${costing.laborLines.filter((line) => line.status === 2 || line.status === 4).length} approved/invoiced work-order labor entr${costing.laborLines.filter((line) => line.status === 2 || line.status === 4).length === 1 ? "y" : "ies"}`,
+      href: "#job-cost-labor",
+    },
+    {
+      label: "Approved claims",
+      amount: costing.approvedExpenseClaimCost,
+      detail: `${costing.expenseClaimLines.filter((line) => line.status === 2 || line.status === 3).length} approved/settled petty cash line${costing.expenseClaimLines.filter((line) => line.status === 2 || line.status === 3).length === 1 ? "" : "s"}`,
+      href: "#job-cost-petty-cash",
+    },
+  ];
 
   return (
     <div className="space-y-6">
@@ -961,6 +1146,15 @@ export default async function ServiceJobDetailPage({
                       <Link className="text-xs font-semibold text-[var(--link)] underline underline-offset-2" href={dailyWorkHref(job.id, "progress", sheet.id)}>
                         Progress
                       </Link>
+                      <Link className="text-xs font-semibold text-[var(--link)] underline underline-offset-2" href={materialHref(job.id, "issues")}>
+                        Issue material
+                      </Link>
+                      <Link className="text-xs font-semibold text-[var(--link)] underline underline-offset-2" href={expenseHref(job.id, "ious")}>
+                        Request IOU
+                      </Link>
+                      <Link className="text-xs font-semibold text-[var(--link)] underline underline-offset-2" href={expenseHref(job.id, "reimbursements")}>
+                        Add expense
+                      </Link>
                       <ServiceJobDailySheetActions serviceJobId={job.id} dailySheetId={sheet.id} status={sheet.status} />
                     </div>
                   </td>
@@ -1119,23 +1313,6 @@ export default async function ServiceJobDetailPage({
         summary={selectedDailySheet ? `Record completed work, pending work, and issues for ${selectedDailySheet.number}.` : "Create a daily sheet before adding progress."}
         meta={selectedDailySheet ? `${selectedProgressUpdates.length} updates` : "No sheet selected"}
       >
-        <div className="mb-4">
-          {selectedDailySheetLockReason ? (
-            <div className="mb-3 rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-900/40 dark:bg-amber-950/30 dark:text-amber-100">
-              {selectedDailySheetLockReason}{" "}
-              <Link className="font-semibold underline underline-offset-2" href={dailyWorkHref(job.id, "sheets")}>
-                Open daily sheets
-              </Link>
-            </div>
-          ) : null}
-          <ServiceJobProgressUpdateAddForm
-            serviceJobId={job.id}
-            dailySheets={selectedDailySheets}
-            defaultDailySheetId={selectedDailySheet?.id ?? ""}
-            requireDailySheet
-            disabled={!canAddJobActivity || !selectedDailySheet || selectedDailySheetLocked}
-          />
-        </div>
         <div className="space-y-3">
           {selectedProgressUpdates.map((update) => (
             <div key={update.id} className="rounded-lg border border-[var(--card-border)] p-3">
@@ -1160,6 +1337,26 @@ export default async function ServiceJobDetailPage({
             <div className="text-sm text-zinc-500">No progress updates recorded for the selected daily sheet yet.</div>
           ) : null}
         </div>
+        <details className="mt-4 rounded-md border border-[var(--card-border)] p-3" open={selectedProgressUpdates.length === 0}>
+          <summary className="cursor-pointer text-sm font-medium">Add progress update</summary>
+          <div className="mt-3">
+            {selectedDailySheetLockReason ? (
+              <div className="mb-3 rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-900/40 dark:bg-amber-950/30 dark:text-amber-100">
+                {selectedDailySheetLockReason}{" "}
+                <Link className="font-semibold underline underline-offset-2" href={dailyWorkHref(job.id, "sheets")}>
+                  Open daily sheets
+                </Link>
+              </div>
+            ) : null}
+            <ServiceJobProgressUpdateAddForm
+              serviceJobId={job.id}
+              dailySheets={selectedDailySheets}
+              defaultDailySheetId={selectedDailySheet?.id ?? ""}
+              requireDailySheet
+              disabled={!canAddJobActivity || !selectedDailySheet || selectedDailySheetLocked}
+            />
+          </div>
+        </details>
       </CollapsibleCard>
       ) : null}
         </>
@@ -1168,22 +1365,102 @@ export default async function ServiceJobDetailPage({
       {activeTab === "expenses" ? (
       <CollapsibleCard
         title="Cash and Expenses"
-        summary="Create IOUs, petty cash vouchers, and reimbursement claims when they are needed for the job."
+        summary="Track advances, company-paid petty cash, and employee reimbursements separately."
         defaultOpen
       >
-        <div className="grid gap-4 xl:grid-cols-2">
+        <div className="mb-4 flex flex-wrap gap-2">
+          {expenseViews.map((view) => (
+            <Link
+              key={view.key}
+              href={expenseHref(job.id, view.key)}
+              className={[
+                "rounded-md border px-3 py-1.5 text-sm font-medium transition",
+                activeExpenseView === view.key
+                  ? "border-[var(--link)] bg-[var(--surface-soft)] text-[var(--foreground)]"
+                  : "border-[var(--card-border)] text-zinc-500 hover:border-[var(--link)] hover:text-[var(--foreground)]",
+              ].join(" ")}
+            >
+              {view.label}
+            </Link>
+          ))}
+        </div>
+
+        {activeExpenseView === "ious" ? (
         <div className="rounded-lg border border-[var(--card-border)] p-3">
           <div className="mb-3">
             <div className="text-sm font-semibold">IOU / Employee Advance</div>
-            <div className="mt-1 text-xs text-zinc-500">Issue an advance against this job and daily sheet for later approval, release, and settlement tracking.</div>
+            <div className="mt-1 text-xs text-zinc-500">
+              Issue an advance against this job and daily sheet. Creation submits the IOU; finance then approves it, releases cash, and settles the advance after receipts are accounted.
+            </div>
           </div>
           <ServiceJobDailyIouCreateForm serviceJobId={job.id} dailySheets={dailySheets} disabled={!canAddJobActivity} />
+          <div className="mt-5 border-t border-[var(--card-border)] pt-4">
+            <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+              <div>
+                <div className="text-sm font-semibold">Job IOU Register</div>
+                <div className="mt-1 text-xs text-zinc-500">Cash advances requested against this job remain visible here after submission.</div>
+              </div>
+              <Link className="text-xs font-semibold text-[var(--link)] underline underline-offset-2" href="/finance/petty-cash-ious">
+                Open finance IOUs
+              </Link>
+            </div>
+            <div className="overflow-auto">
+              <Table>
+                <thead>
+                  <tr className="border-b border-zinc-200 text-left text-xs uppercase tracking-wide text-zinc-500 dark:border-zinc-800">
+                    <th className="py-2 pr-3">IOU</th>
+                    <th className="py-2 pr-3">Daily Sheet</th>
+                    <th className="py-2 pr-3">Requester</th>
+                    <th className="py-2 pr-3 text-right">Amount</th>
+                    <th className="py-2 pr-3">Status</th>
+                    <th className="py-2 pr-3">Timeline</th>
+                    <th className="py-2 pr-3">Purpose</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {pettyCashIous.map((iou) => (
+                    <tr key={iou.id} className="border-b border-zinc-100 align-top dark:border-zinc-900">
+                      <td className="py-2 pr-3 font-mono text-xs">{iou.number}</td>
+                      <td className="py-2 pr-3 font-mono text-xs">
+                        {iou.serviceJobDailySheetId ? dailySheetNumberById.get(iou.serviceJobDailySheetId) ?? "Linked" : "Unlinked"}
+                      </td>
+                      <td className="py-2 pr-3">{iou.requestedByName}</td>
+                      <td className="py-2 pr-3 text-right">{money(iou.amount)}</td>
+                      <td className="py-2 pr-3">
+                        {pettyCashIouStatusLabel[iou.status] ?? iou.status}
+                        {iou.rejectionReason ? <div className="mt-1 text-xs text-red-600 dark:text-red-300">{iou.rejectionReason}</div> : null}
+                      </td>
+                      <td className="py-2 pr-3 text-xs text-zinc-500">
+                        <div>Requested {new Date(iou.requestedAt).toLocaleDateString()}</div>
+                        {iou.submittedAt ? <div>Submitted {new Date(iou.submittedAt).toLocaleDateString()}</div> : null}
+                        {iou.approvedAt ? <div>Approved {new Date(iou.approvedAt).toLocaleDateString()}</div> : null}
+                        {iou.releasedAt ? <div>Released {new Date(iou.releasedAt).toLocaleDateString()}</div> : null}
+                        {iou.settledAt ? <div>Settled {new Date(iou.settledAt).toLocaleDateString()}</div> : null}
+                      </td>
+                      <td className="max-w-sm py-2 pr-3 text-zinc-500">{iou.purpose}</td>
+                    </tr>
+                  ))}
+                  {pettyCashIous.length === 0 ? (
+                    <tr>
+                      <td className="py-6 text-sm text-zinc-500" colSpan={7}>
+                        No IOU advances requested for this job yet.
+                      </td>
+                    </tr>
+                  ) : null}
+                </tbody>
+              </Table>
+            </div>
+          </div>
         </div>
+        ) : null}
 
+        {activeExpenseView === "petty-cash" ? (
         <div className="rounded-lg border border-[var(--card-border)] p-3">
           <div className="mb-3">
             <div className="text-sm font-semibold">Petty Cash Expense</div>
-            <div className="mt-1 text-xs text-zinc-500">Record expenses paid from company petty cash and link the voucher back to the daily field sheet.</div>
+            <div className="mt-1 text-xs text-zinc-500">
+              Record expenses already paid from company petty cash. Create the voucher, add lines on the voucher detail page, then submit, approve, and settle against the petty cash fund.
+            </div>
           </div>
           <ServiceJobDailyExpenseClaimCreateForm
             serviceJobId={job.id}
@@ -1193,12 +1470,21 @@ export default async function ServiceJobDetailPage({
             submitLabel="Create Petty Cash Voucher"
             disabled={!canAddJobActivity}
           />
+          <ServiceJobExpenseClaimRegister
+            claims={expenseClaims.filter((claim) => claim.fundingSource === 2)}
+            dailySheetNumberById={dailySheetNumberById}
+            emptyMessage="No petty-cash expense vouchers created for this job yet."
+          />
         </div>
+        ) : null}
 
+        {activeExpenseView === "reimbursements" ? (
         <div className="rounded-lg border border-[var(--card-border)] p-3">
           <div className="mb-3">
             <div className="text-sm font-semibold">Employee Out-of-Pocket Claim</div>
-            <div className="mt-1 text-xs text-zinc-500">Capture reimbursement claims paid personally by staff before finance approval and settlement.</div>
+            <div className="mt-1 text-xs text-zinc-500">
+              Capture expenses paid personally by staff. Create the claim, add lines on the claim detail page, then submit, approve, and settle when reimbursement is paid.
+            </div>
           </div>
           <ServiceJobDailyExpenseClaimCreateForm
             serviceJobId={job.id}
@@ -1208,8 +1494,13 @@ export default async function ServiceJobDetailPage({
             submitLabel="Create Reimbursement Claim"
             disabled={!canAddJobActivity}
           />
+          <ServiceJobExpenseClaimRegister
+            claims={expenseClaims.filter((claim) => claim.fundingSource === 1)}
+            dailySheetNumberById={dailySheetNumberById}
+            emptyMessage="No out-of-pocket reimbursement claims created for this job yet."
+          />
         </div>
-        </div>
+        ) : null}
       </CollapsibleCard>
       ) : null}
 
@@ -1543,6 +1834,32 @@ export default async function ServiceJobDetailPage({
         </Card>
       </div>
 
+      <Card>
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <div className="text-sm font-semibold">Actual Cost Breakdown</div>
+            <div className="mt-1 text-xs text-zinc-500">Only posted/approved actuals are included in the actual cost total.</div>
+          </div>
+          <div className="text-right">
+            <div className="text-xs uppercase tracking-wide text-zinc-500">Total</div>
+            <div className="text-lg font-semibold">{money(costing.totalActualCost)}</div>
+          </div>
+        </div>
+        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+          {actualCostBreakdown.map((line) => (
+            <a
+              key={line.label}
+              href={line.href}
+              className="rounded-md border border-[var(--card-border)] p-3 transition hover:border-[var(--link)] hover:bg-[var(--surface-soft)]"
+            >
+              <div className="text-xs uppercase tracking-wide text-zinc-500">{line.label}</div>
+              <div className="mt-2 text-xl font-semibold">{money(line.amount)}</div>
+              <div className="mt-1 text-xs text-zinc-500">{line.detail}</div>
+            </a>
+          ))}
+        </div>
+      </Card>
+
       <CollapsibleCard title="Profitability Report" summary="Detailed cost, margin, estimate, and invoice totals.">
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3 text-sm">
           <div className="rounded-xl border border-[var(--card-border)] p-3">
@@ -1655,7 +1972,7 @@ export default async function ServiceJobDetailPage({
       <CollapsibleCard title="Cost Sources" summary="Posted material, direct purchase, labor, and petty cash source lines.">
         <div className="space-y-4">
           <div className="overflow-auto">
-            <div className="mb-2 text-sm font-medium">Material Consumption</div>
+            <div id="job-cost-materials" className="mb-2 scroll-mt-24 text-sm font-medium">Material Consumption</div>
             <Table>
               <thead>
                 <tr className="border-b border-zinc-200 text-left text-xs uppercase tracking-wide text-zinc-500 dark:border-zinc-800">
@@ -1706,7 +2023,7 @@ export default async function ServiceJobDetailPage({
           </div>
 
           <div className="overflow-auto">
-            <div className="mb-2 text-sm font-medium">Direct Purchases</div>
+            <div id="job-cost-direct-purchases" className="mb-2 scroll-mt-24 text-sm font-medium">Direct Purchases</div>
             <Table>
               <thead>
                 <tr className="border-b border-zinc-200 text-left text-xs uppercase tracking-wide text-zinc-500 dark:border-zinc-800">
@@ -1745,7 +2062,7 @@ export default async function ServiceJobDetailPage({
           </div>
 
           <div className="overflow-auto">
-            <div className="mb-2 text-sm font-medium">Work-Order Labor Entries</div>
+            <div id="job-cost-labor" className="mb-2 scroll-mt-24 text-sm font-medium">Work-Order Labor Entries</div>
             <Table>
               <thead>
                 <tr className="border-b border-zinc-200 text-left text-xs uppercase tracking-wide text-zinc-500 dark:border-zinc-800">
@@ -1803,7 +2120,7 @@ export default async function ServiceJobDetailPage({
           </div>
 
           <div className="overflow-auto">
-            <div className="mb-2 text-sm font-medium">Petty Cash</div>
+            <div id="job-cost-petty-cash" className="mb-2 scroll-mt-24 text-sm font-medium">Petty Cash</div>
             <Table>
               <thead>
                 <tr className="border-b border-zinc-200 text-left text-xs uppercase tracking-wide text-zinc-500 dark:border-zinc-800">

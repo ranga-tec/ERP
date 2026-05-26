@@ -39,7 +39,8 @@ type ServiceEstimateSummaryDto = {
   total: number;
   lineCount: number;
 };
-type ItemDto = { id: string; sku: string; name: string };
+type ItemDto = { id: string; sku: string; name: string; defaultUnitCost: number };
+type TaxDto = { id: string; code: string; name: string; ratePercent: number; isActive: boolean };
 
 const statusLabel: Record<number, string> = {
   0: "Draft",
@@ -63,12 +64,13 @@ export default async function ServiceHandoverDetailPage({
   const roles = new Set(session?.roles ?? []);
   const canOpenSalesInvoice = roles.has("Admin") || roles.has("Sales") || roles.has("Finance");
 
-  const [handover, jobs, customers, estimates, items] = await Promise.all([
+  const [handover, jobs, customers, estimates, items, taxes] = await Promise.all([
     backendFetchJson<ServiceHandoverDto>(`/service/handovers/${id}`),
     backendFetchJson<ServiceJobDto[]>("/service/jobs?take=500"),
     backendFetchJson<CustomerDto[]>("/customers"),
     backendFetchJson<ServiceEstimateSummaryDto[]>("/service/estimates?take=500"),
     backendFetchJson<ItemDto[]>("/items/options"),
+    backendFetchJson<TaxDto[]>("/taxes"),
   ]);
 
   const jobById = new Map(jobs.map((j) => [j.id, j]));
@@ -142,6 +144,7 @@ export default async function ServiceHandoverDetailPage({
             handoverId={handover.id}
             estimates={handoverJobEstimates}
             items={items}
+            taxes={taxes}
             disabled={!isCompleted}
             existingSalesInvoiceId={handover.salesInvoiceId}
             redirectToSalesInvoice={canOpenSalesInvoice}

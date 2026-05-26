@@ -26,6 +26,7 @@ const sections: NavSection[] = [
       { href: "/master-data/customers", label: "Customers" },
       { href: "/master-data/suppliers", label: "Suppliers" },
       { href: "/master-data/warehouses", label: "Warehouses" },
+      { href: "/master-data/warehouse-bins", label: "Warehouse Bins" },
       { href: "/master-data/reorder-settings", label: "Reorder Settings" },
       { href: "/master-data/payment-types", label: "Payment Types" },
       { href: "/master-data/taxes", label: "Tax Codes" },

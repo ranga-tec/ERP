@@ -6,7 +6,7 @@ import { apiPost, apiPostNoContent } from "@/lib/api-client";
 import { Button, Input, Select, Textarea } from "@/components/ui";
 
 type DailySheetRef = { id: string; number: string; status: number };
-type PettyCashIouDto = { id: string };
+type PettyCashIouDto = { id: string; number: string; status: number };
 
 export function ServiceJobDailyIouCreateForm({
   serviceJobId,
@@ -25,10 +25,12 @@ export function ServiceJobDailyIouCreateForm({
   const [purpose, setPurpose] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
 
   async function onSubmit(event: React.FormEvent) {
     event.preventDefault();
     setError(null);
+    setSuccess(null);
     setBusy(true);
     try {
       const iou = await apiPost<PettyCashIouDto>("finance/petty-cash-ious", {
@@ -40,6 +42,7 @@ export function ServiceJobDailyIouCreateForm({
         expectedSettlementAt: expectedSettlementAt || null,
       });
       await apiPostNoContent(`finance/petty-cash-ious/${iou.id}/submit`, {});
+      setSuccess(`${iou.number} submitted and waiting for finance approval.`);
       setDailySheetId("");
       setRequestedByName("");
       setAmount("");
@@ -81,6 +84,7 @@ export function ServiceJobDailyIouCreateForm({
         <Textarea value={purpose} onChange={(event) => setPurpose(event.target.value)} disabled={disabled || busy} required />
       </div>
       {error ? <div className="text-sm text-red-700 dark:text-red-300">{error}</div> : null}
+      {success ? <div className="rounded-md border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-900 dark:border-emerald-900/40 dark:bg-emerald-950/30 dark:text-emerald-100">{success}</div> : null}
       <Button type="submit" disabled={disabled || busy}>{busy ? "Creating..." : "Create IOU Advance"}</Button>
     </form>
   );

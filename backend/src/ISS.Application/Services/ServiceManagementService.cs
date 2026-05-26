@@ -20,6 +20,12 @@ public sealed class ServiceManagementService(
     DocumentAccountMappingService documentAccountMappingService)
 {
     public sealed record ServiceJobCloseoutCheck(string Key, string Label, bool IsClear, int PendingCount, string Detail);
+    public sealed record ServiceInvoiceManualLineInput(
+        Guid ItemId,
+        decimal Quantity,
+        decimal UnitPrice,
+        decimal DiscountPercent,
+        decimal TaxPercent);
 
     private sealed record ServiceEntitlementSnapshot(
         Guid? ServiceContractId,
@@ -1005,6 +1011,7 @@ public sealed class ServiceManagementService(
         Guid? expenseItemId,
         ServiceLaborBillingSource laborBillingSource,
         DateTimeOffset? dueDate,
+        IReadOnlyCollection<ServiceInvoiceManualLineInput>? manualLines = null,
         CancellationToken cancellationToken = default)
     {
         var handover = await dbContext.ServiceHandovers.FirstOrDefaultAsync(x => x.Id == serviceHandoverId, cancellationToken)
@@ -1023,25 +1030,9 @@ public sealed class ServiceManagementService(
         var job = await dbContext.ServiceJobs.AsNoTracking().FirstOrDefaultAsync(x => x.Id == handover.ServiceJobId, cancellationToken)
                   ?? throw new NotFoundException("Service job not found.");
 
-        IQueryable<ServiceEstimate> estimateQuery = dbContext.ServiceEstimates.AsNoTracking()
-            .Include(x => x.Lines)
-            .Where(x => x.ServiceJobId == job.Id && x.Status == ServiceEstimateStatus.Approved);
-
-        if (serviceEstimateId is { } estimateId)
-        {
-            estimateQuery = estimateQuery.Where(x => x.Id == estimateId);
-        }
-
-        var estimate = await estimateQuery
-            .OrderByDescending(x => x.IssuedAt)
-            .ThenByDescending(x => x.CreatedAt)
-            .FirstOrDefaultAsync(cancellationToken)
-            ?? throw new DomainValidationException("No approved service estimate found for handover conversion.");
-
-        if (estimate.Lines.Count == 0)
-        {
-            throw new DomainValidationException("Approved estimate has no lines.");
-        }
+        var directLines = (manualLines ?? Array.Empty<ServiceInvoiceManualLineInput>())
+            .Where(line => line.ItemId != Guid.Empty)
+            .ToList();
 
         var approvedBillableTimeEntries = await dbContext.WorkOrderTimeEntries
             .Where(x => x.ServiceJobId == job.Id
@@ -1065,7 +1056,35 @@ public sealed class ServiceManagementService(
             throw new DomainValidationException("No approved uninvoiced labor entries are available for billing.");
         }
 
-        var hasEstimateLabor = estimate.Lines.Any(x => x.Kind == ServiceEstimateLineKind.Labor);
+        ServiceEstimate? estimate = null;
+        if (directLines.Count == 0 || serviceEstimateId is not null)
+        {
+            IQueryable<ServiceEstimate> estimateQuery = dbContext.ServiceEstimates.AsNoTracking()
+                .Include(x => x.Lines)
+                .Where(x => x.ServiceJobId == job.Id && x.Status == ServiceEstimateStatus.Approved);
+
+            if (serviceEstimateId is { } estimateId)
+            {
+                estimateQuery = estimateQuery.Where(x => x.Id == estimateId);
+            }
+
+            estimate = await estimateQuery
+                .OrderByDescending(x => x.IssuedAt)
+                .ThenByDescending(x => x.CreatedAt)
+                .FirstOrDefaultAsync(cancellationToken);
+
+            if (estimate is null && directLines.Count == 0 && !useApprovedTimeEntriesForLabor)
+            {
+                throw new DomainValidationException("No approved service estimate or manual invoice lines found for handover conversion.");
+            }
+
+            if (estimate is not null && estimate.Lines.Count == 0)
+            {
+                throw new DomainValidationException("Approved estimate has no lines.");
+            }
+        }
+
+        var hasEstimateLabor = estimate?.Lines.Any(x => x.Kind == ServiceEstimateLineKind.Labor) == true;
         if ((hasEstimateLabor || useApprovedTimeEntriesForLabor) && laborItemId is null)
         {
             throw new DomainValidationException(
@@ -1074,7 +1093,7 @@ public sealed class ServiceManagementService(
                     : "Labor item is required to convert labor estimate lines into sales invoice lines.");
         }
 
-        var hasExpenseWithoutItem = estimate.Lines.Any(x => x.Kind == ServiceEstimateLineKind.Expense && x.ItemId is null);
+        var hasExpenseWithoutItem = estimate?.Lines.Any(x => x.Kind == ServiceEstimateLineKind.Expense && x.ItemId is null) == true;
         if (hasExpenseWithoutItem && expenseItemId is null)
         {
             throw new DomainValidationException("Expense item is required to convert expense estimate lines without an item into sales invoice lines.");
@@ -1102,7 +1121,20 @@ public sealed class ServiceManagementService(
         var invoice = new SalesInvoice(number, job.CustomerId, clock.UtcNow, dueDate);
         await dbContext.SalesInvoices.AddAsync(invoice, cancellationToken);
 
-        foreach (var line in estimate.Lines)
+        foreach (var line in directLines)
+        {
+            var revenueAccountId = await documentAccountMappingService.ResolveRevenueAccountIdAsync(line.ItemId, cancellationToken);
+            var invoiceLine = invoice.AddLine(
+                line.ItemId,
+                line.Quantity,
+                line.UnitPrice,
+                line.DiscountPercent,
+                line.TaxPercent,
+                revenueAccountId);
+            dbContext.DbContext.Add(invoiceLine);
+        }
+
+        foreach (var line in estimate?.Lines ?? [])
         {
             if (line.Kind == ServiceEstimateLineKind.Labor && useApprovedTimeEntriesForLabor)
             {
