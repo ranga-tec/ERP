@@ -170,7 +170,8 @@ Note:
   - use `Refresh Entitlement` on the job if warranty/contract data is added after the job was already opened
   - recommended operating flow is: receive equipment -> open the job immediately -> create a daily field sheet for each working day -> capture labor, progress, IOUs, expenses, materials, returns, damages, and notes from that sheet -> approve the sheet -> finish invoicing/closeout
   - `Daily Field Sheets` on the job detail page replace manual daily job cards; each sheet has planned/completed/pending work, site condition, staff/progress/material/return/expense/IOU counts, and approval status
-  - daily sheet rows include direct links to add labour, add progress, issue materials, request an IOU, or add an expense without hunting through the full job page
+  - the daily sheet list is presented as daily cards so supervisors can see planned work, completed work, pending/issues, latest progress, staff preview, materials, returns, IOUs, and expenses in one place
+  - daily sheet cards include direct links to add labour, add progress, issue materials, request an IOU, or add an expense without hunting through the full job page
   - daily job detail sections keep the running work separated into `Daily Staff / Labor`, `Daily Progress`, `IOU / Employee Advance`, `Petty Cash Expense`, `Employee Out-of-Pocket Claim`, `Materials / Lubricants Issue`, and `Material Returns / Damage / Rejection`
   - the progress view shows existing progress updates first, then the add-progress form, so users can review the latest work status before entering another update
   - the job detail cockpit summarizes last progress, staff today, pending finance items, uninvoiced labour, material disposition, service taken, invoice state, and job cost before users enter the detailed tabs

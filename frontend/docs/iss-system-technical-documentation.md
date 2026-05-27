@@ -24,6 +24,9 @@ The following local scope was implemented after the previous documentation snaps
   - job detail now has a cockpit summary above the tabbed workflow
   - process timeline stages link to the relevant job sections
   - next-action suggestions are derived from job status, closeout blockers, finance queues, service taken, and invoice state
+- Service job Phase 3 daily workspace:
+  - `Daily Work -> Daily Sheets` now renders daily cards with planned/done/pending work, latest progress, staff preview, and counts for staff, progress, MRNs, returns, expenses, and IOUs
+  - daily cards link directly to focused labour, progress, material issue, IOU, and expense workflows while preserving the existing detailed sub-tabs
 
 ## 0. Implementation Update (2026-03-20)
 
@@ -500,7 +503,7 @@ Key behavior:
 - Equipment Units are linked to equipment Items and Customers
 - Service Jobs expose `start`, `complete`, `close` actions
 - Service Job detail now keeps job-linked IOUs and expense claims visible in the job context after creation
-- Service Job daily sheet rows include quick action links for common daily work entries
+- Service Job daily sheets are presented as daily cards with quick action links for common daily work entries
 - Service Job detail now includes a cockpit, process timeline, and next-action panel before the detailed tabs
 - Work Orders are currently create + view (no frontend status mutation UI)
 - Material Requisitions are document workflows with tracked line inputs and post action

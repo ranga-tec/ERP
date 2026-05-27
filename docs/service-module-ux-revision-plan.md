@@ -23,6 +23,15 @@ Implemented on 2026-05-26:
 - A next-actions panel suggests job actions from current blockers and workflow state, such as creating a daily sheet, adding progress, clearing material disposition, reviewing IOUs/claims, creating service taken, or creating the final invoice.
 - Production frontend build passed after the Phase 2 changes.
 
+## Phase 3 Implementation Status
+
+Implemented on 2026-05-27:
+
+- `Daily Work -> Daily Sheets` now uses daily cards instead of a plain row/table-first view.
+- Each daily card shows planned, done, pending/issues, staff count, progress count, MRN count, return count, expense count, IOU count, latest progress, and staff preview.
+- Daily cards keep direct links into the focused staff/labour, progress, material, IOU, and expense workflows.
+- The selected daily sheet still drives the existing sub-tabs for detailed entry and review.
+
 ## Problem Summary
 
 The service module has the right operational data model, but the current job-detail experience is too document-centric and too scroll-heavy for daily users.
@@ -248,9 +257,10 @@ This is the highest-value quick win.
 
 ### Phase 3: Daily Sheet Card Workspace
 
-- Replace the daily-work sub-tab-first experience with expandable daily cards.
-- Each daily card shows staff, progress, materials, expenses, and IOUs together.
-- Forms open inline inside the selected daily card or in drawers.
+- Completed: replace the daily sheet list/table-first experience with daily summary cards.
+- Completed: each daily card shows staff, progress, materials, expenses, IOUs, planned work, completed work, pending work, latest activity, and staff preview together.
+- Completed: daily cards link directly to the focused entry screens for staff/labour, progress, materials, IOUs, and expenses.
+- Deferred: inline drawer forms inside each daily card. Existing focused sub-tabs remain the safer entry surface until the job page is split into smaller components.
 
 ### Phase 4: Service Command Center
 

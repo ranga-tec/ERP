@@ -770,11 +770,12 @@ Expected:
 
 | Check | Where | Expected output |
 | --- | --- | --- |
-| Daily sheet | Job detail, `Daily Work` tab -> `Daily Field Sheets` | new `JDS...` row appears with status `Draft` |
-| Counts | Daily sheet row | staff, progress, MRN, returns, expenses, and IOU counts start at `0` |
+| Daily sheet | Job detail, `Daily Work` tab -> `Daily Field Sheets` | new `JDS...` daily card appears with status `Draft` |
+| Counts | Daily sheet card | staff, progress, MRN, returns, expenses, and IOU counts start at `0` |
+| Daily work summary | Daily sheet card | planned, done, pending/issues, latest activity, and staff preview are visible without opening another form |
 | Running job tracking | Job detail | users can continue daily work, cash, expenses, materials, and returns from the system instead of paper notes |
-| Sheet action links | daily sheet row | `Labor` and `Progress` links open the selected sheet in the corresponding sub-tab |
-| Daily quick actions | daily sheet row | quick links are visible for `Labor`, `Progress`, `Issue material`, `Request IOU`, and `Add expense` |
+| Sheet action links | daily sheet card | `Staff / labour` and `Progress` links open the selected sheet in the corresponding sub-tab |
+| Daily quick actions | daily sheet card | quick links are visible for `Staff / labour`, `Progress`, `Materials`, `Request IOU`, and `Add expense` |
 
 Daily sheet relationship test:
 

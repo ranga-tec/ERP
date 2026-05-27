@@ -24,6 +24,13 @@ Local update on 2026-05-26:
 - Daily sheet rows expose quick links for labour, progress, material issue, IOU request, and expense entry.
 - Phase 2 cockpit work is also implemented: job detail now shows summary metrics, a process timeline, and next-action suggestions above the tab navigation.
 
+Local update on 2026-05-27:
+
+- Phase 3 of the service UX revision is implemented.
+- `Daily Work -> Daily Sheets` now shows daily cards instead of a plain row/table-first view.
+- Each daily card shows planned work, completed work, pending/issues, latest progress, staff preview, and counts for staff, progress, MRNs, returns, expenses, and IOUs.
+- Daily cards link directly to staff/labour, progress, materials, IOU request, and expense entry while the focused sub-tabs remain the detailed entry surfaces.
+
 GitHub push status:
 
 - Pushed to `origin/main`.
@@ -347,7 +354,7 @@ Deployment:
 - live job tabs and daily-work sub-tabs returned HTTP `200`
 - daily sheet labor/progress deep links returned HTTP `200`
 
-## Pending Phase 3: Accounting And Expense Refinement
+## Pending Finance Refinement
 
 Still pending:
 

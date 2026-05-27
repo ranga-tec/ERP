@@ -942,6 +942,32 @@ export default async function ServiceJobDetailPage({
       href: "#job-cost-petty-cash",
     },
   ];
+  const dailySheetSummaries = dailySheets.map((sheet) => {
+    const sheetAssignments = assignments.filter((assignment) => assignment.serviceJobDailySheetId === sheet.id);
+    const sheetProgress = progressUpdates.filter((update) => update.serviceJobDailySheetId === sheet.id);
+    const latestSheetProgress = sheetProgress.reduce<ServiceJobProgressUpdateDto | null>((latest, update) => {
+      if (!latest) return update;
+      return new Date(update.progressDate).getTime() > new Date(latest.progressDate).getTime() ? update : latest;
+    }, null);
+    const materialLineCount = costing.materialLines.filter((line) => line.serviceJobDailySheetId === sheet.id).length;
+    const materialDispositionCount = materialDispositions.filter((disposition) => disposition.serviceJobDailySheetId === sheet.id).length;
+    const iouCount = pettyCashIous.filter((iou) => iou.serviceJobDailySheetId === sheet.id).length;
+    const claimCount = expenseClaims.filter((claim) => claim.serviceJobDailySheetId === sheet.id).length;
+    const staffPreview = sheetAssignments.slice(0, 3).map((assignment) => assignment.employeeName).join(", ");
+
+    return {
+      sheet,
+      assignmentCount: sheetAssignments.length,
+      progressCount: sheetProgress.length,
+      materialLineCount,
+      materialDispositionCount,
+      iouCount,
+      claimCount,
+      staffPreview: staffPreview || "No staff recorded",
+      latestProgressDate: latestSheetProgress ? new Date(latestSheetProgress.progressDate).toLocaleString() : null,
+      latestProgressDetail: latestSheetProgress ? maybeText(latestSheetProgress.workCompleted) : "No progress update yet",
+    };
+  });
 
   return (
     <div className="space-y-6">
@@ -1388,65 +1414,90 @@ export default async function ServiceJobDetailPage({
             <ServiceJobDailySheetCreateForm serviceJobId={job.id} disabled={!canAddJobActivity} disabledReason={dailySheetCreateDisabledReason} />
           </div>
         </details>
-        <div className="mt-4 overflow-auto">
-          <Table>
-            <thead>
-              <tr className="border-b border-zinc-200 text-left text-xs uppercase tracking-wide text-zinc-500 dark:border-zinc-800">
-                <th className="py-2 pr-3">Sheet</th>
-                <th className="py-2 pr-3">Date</th>
-                <th className="py-2 pr-3">Prepared By</th>
-                <th className="py-2 pr-3">Work</th>
-                <th className="py-2 pr-3">Entries</th>
-                <th className="py-2 pr-3">Status</th>
-                <th className="py-2 pr-3">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {dailySheets.map((sheet) => (
-                <tr key={sheet.id} className="border-b border-zinc-100 align-top dark:border-zinc-900">
-                  <td className="py-2 pr-3 font-mono text-xs">{sheet.number}</td>
-                  <td className="py-2 pr-3 text-zinc-500">{new Date(sheet.sheetDate).toLocaleString()}</td>
-                  <td className="py-2 pr-3">{sheet.preparedByName}</td>
-                  <td className="py-2 pr-3">
-                    <div>{sheet.workPlanned}</div>
-                    {sheet.workCompleted ? <div className="mt-1 text-xs text-zinc-500">Done: {sheet.workCompleted}</div> : null}
-                    {sheet.workPending ? <div className="mt-1 text-xs text-zinc-500">Pending: {sheet.workPending}</div> : null}
-                  </td>
-                  <td className="py-2 pr-3 text-xs text-zinc-500">
-                    <div>Staff {sheet.assignmentCount} / Progress {sheet.progressCount}</div>
-                    <div>MRN {sheet.materialRequisitionCount} / Returns {sheet.materialDispositionCount}</div>
-                    <div>Expenses {sheet.expenseClaimCount} / IOU {sheet.iouCount}</div>
-                  </td>
-                  <td className="py-2 pr-3">{dailySheetStatusLabel[sheet.status] ?? sheet.status}</td>
-                  <td className="py-2 pr-3">
-                    <div className="flex flex-wrap gap-3">
-                      <Link className="text-xs font-semibold text-[var(--link)] underline underline-offset-2" href={dailyWorkHref(job.id, "labor", sheet.id)}>
-                        Labor
-                      </Link>
-                      <Link className="text-xs font-semibold text-[var(--link)] underline underline-offset-2" href={dailyWorkHref(job.id, "progress", sheet.id)}>
-                        Progress
-                      </Link>
-                      <Link className="text-xs font-semibold text-[var(--link)] underline underline-offset-2" href={materialHref(job.id, "issues")}>
-                        Issue material
-                      </Link>
-                      <Link className="text-xs font-semibold text-[var(--link)] underline underline-offset-2" href={expenseHref(job.id, "ious")}>
-                        Request IOU
-                      </Link>
-                      <Link className="text-xs font-semibold text-[var(--link)] underline underline-offset-2" href={expenseHref(job.id, "reimbursements")}>
-                        Add expense
-                      </Link>
-                      <ServiceJobDailySheetActions serviceJobId={job.id} dailySheetId={sheet.id} status={sheet.status} />
+        <div className="mt-4 space-y-3">
+          {dailySheetSummaries.map((summary) => {
+            const { sheet } = summary;
+            return (
+              <div key={sheet.id} className="rounded-lg border border-[var(--card-border)] bg-[var(--card-bg)] p-4 shadow-[var(--shadow-soft)]">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="font-mono text-sm font-semibold">{sheet.number}</span>
+                      <span className="rounded-full border border-[var(--card-border)] px-2 py-0.5 text-[11px] font-medium text-zinc-500">
+                        {dailySheetStatusLabel[sheet.status] ?? sheet.status}
+                      </span>
                     </div>
-                  </td>
-                </tr>
-              ))}
-              {dailySheets.length === 0 ? (
-                <tr>
-                  <td className="py-6 text-sm text-zinc-500" colSpan={7}>No daily field sheets recorded yet.</td>
-                </tr>
-              ) : null}
-            </tbody>
-          </Table>
+                    <div className="mt-1 text-xs text-zinc-500">
+                      {new Date(sheet.sheetDate).toLocaleString()} / Prepared by {sheet.preparedByName}
+                    </div>
+                  </div>
+                  <div className="flex flex-wrap gap-2 text-[11px] text-zinc-500">
+                    <span className="rounded-full border border-[var(--card-border)] px-2 py-0.5">Staff {summary.assignmentCount}</span>
+                    <span className="rounded-full border border-[var(--card-border)] px-2 py-0.5">Progress {summary.progressCount}</span>
+                    <span className="rounded-full border border-[var(--card-border)] px-2 py-0.5">MRN {summary.materialLineCount}</span>
+                    <span className="rounded-full border border-[var(--card-border)] px-2 py-0.5">Returns {summary.materialDispositionCount}</span>
+                    <span className="rounded-full border border-[var(--card-border)] px-2 py-0.5">Expenses {summary.claimCount}</span>
+                    <span className="rounded-full border border-[var(--card-border)] px-2 py-0.5">IOU {summary.iouCount}</span>
+                  </div>
+                </div>
+
+                <div className="mt-4 grid gap-3 lg:grid-cols-3">
+                  <div className="rounded-md border border-[var(--card-border)] p-3">
+                    <div className="text-xs font-semibold uppercase tracking-wide text-zinc-500">Planned</div>
+                    <div className="mt-2 line-clamp-4 whitespace-pre-wrap text-sm">{maybeText(sheet.workPlanned)}</div>
+                  </div>
+                  <div className="rounded-md border border-[var(--card-border)] p-3">
+                    <div className="text-xs font-semibold uppercase tracking-wide text-zinc-500">Done</div>
+                    <div className="mt-2 line-clamp-4 whitespace-pre-wrap text-sm">{maybeText(sheet.workCompleted)}</div>
+                  </div>
+                  <div className="rounded-md border border-[var(--card-border)] p-3">
+                    <div className="text-xs font-semibold uppercase tracking-wide text-zinc-500">Pending / Issues</div>
+                    <div className="mt-2 line-clamp-3 whitespace-pre-wrap text-sm">{maybeText(sheet.workPending)}</div>
+                    {sheet.problemsFound ? <div className="mt-2 line-clamp-2 whitespace-pre-wrap text-xs text-amber-700 dark:text-amber-300">{sheet.problemsFound}</div> : null}
+                  </div>
+                </div>
+
+                <div className="mt-4 grid gap-3 md:grid-cols-2">
+                  <div className="rounded-md bg-[var(--surface-soft)] p-3 text-sm">
+                    <div className="text-xs font-semibold uppercase tracking-wide text-zinc-500">Latest Activity</div>
+                    <div className="mt-2 font-medium">{summary.latestProgressDate ?? "No progress date"}</div>
+                    <div className="mt-1 line-clamp-2 text-xs text-zinc-500">{summary.latestProgressDetail}</div>
+                  </div>
+                  <div className="rounded-md bg-[var(--surface-soft)] p-3 text-sm">
+                    <div className="text-xs font-semibold uppercase tracking-wide text-zinc-500">Staff Preview</div>
+                    <div className="mt-2 line-clamp-2">{summary.staffPreview}</div>
+                    <div className="mt-1 text-xs text-zinc-500">
+                      Materials {summary.materialLineCount + summary.materialDispositionCount} / Cash {summary.iouCount + summary.claimCount}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="mt-4 flex flex-wrap items-center gap-3 text-xs">
+                  <Link className="font-semibold text-[var(--link)] underline underline-offset-2" href={dailyWorkHref(job.id, "labor", sheet.id)}>
+                    Staff / labour
+                  </Link>
+                  <Link className="font-semibold text-[var(--link)] underline underline-offset-2" href={dailyWorkHref(job.id, "progress", sheet.id)}>
+                    Progress
+                  </Link>
+                  <Link className="font-semibold text-[var(--link)] underline underline-offset-2" href={materialHref(job.id, "issues")}>
+                    Materials
+                  </Link>
+                  <Link className="font-semibold text-[var(--link)] underline underline-offset-2" href={expenseHref(job.id, "ious")}>
+                    Request IOU
+                  </Link>
+                  <Link className="font-semibold text-[var(--link)] underline underline-offset-2" href={expenseHref(job.id, "reimbursements")}>
+                    Add expense
+                  </Link>
+                  <ServiceJobDailySheetActions serviceJobId={job.id} dailySheetId={sheet.id} status={sheet.status} />
+                </div>
+              </div>
+            );
+          })}
+          {dailySheets.length === 0 ? (
+            <div className="rounded-md border border-[var(--card-border)] p-4 text-sm text-zinc-500">
+              No daily field sheets recorded yet.
+            </div>
+          ) : null}
         </div>
       </Card>
       ) : null}
