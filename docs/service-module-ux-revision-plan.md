@@ -32,6 +32,15 @@ Implemented on 2026-05-27:
 - Daily cards keep direct links into the focused staff/labour, progress, material, IOU, and expense workflows.
 - The selected daily sheet still drives the existing sub-tabs for detailed entry and review.
 
+## Phase 4 Implementation Status
+
+Implemented on 2026-05-27:
+
+- Added `GET /api/service/jobs/dashboard` for the service command center.
+- Added `Service -> Command Center` at `/service/command-center`.
+- The command center shows active jobs, overdue jobs, jobs without today's daily sheet, jobs without today's progress, pending daily sheets, pending IOUs, pending claims, and billing-ready service taken records.
+- Added stage/status bar views, active job cards, finance queue, and billing/closeout queue with direct next-action links.
+
 ## Problem Summary
 
 The service module has the right operational data model, but the current job-detail experience is too document-centric and too scroll-heavy for daily users.
@@ -264,11 +273,11 @@ This is the highest-value quick win.
 
 ### Phase 4: Service Command Center
 
-- New `/service/command-center` route.
-- Backend summary endpoint:
-  - `GET /api/service/dashboard`
-  - status counts, stage counts, blocker counts, overdue jobs, active job cards, financial queues, billing queues
-- Frontend dashboard with charts/cards and filtered job lists.
+- Completed: new `/service/command-center` route.
+- Completed: backend summary endpoint:
+  - `GET /api/service/jobs/dashboard`
+  - status counts, stage counts, blocker counts, overdue jobs, active job cards, finance queues, billing queues
+- Completed: frontend dashboard with metric cards, stage/status bars, active job cards, and filtered finance/billing queue tables.
 
 ### Phase 5: Dispatch And Technician View
 

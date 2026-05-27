@@ -27,6 +27,9 @@ The following local scope was implemented after the previous documentation snaps
 - Service job Phase 3 daily workspace:
   - `Daily Work -> Daily Sheets` now renders daily cards with planned/done/pending work, latest progress, staff preview, and counts for staff, progress, MRNs, returns, expenses, and IOUs
   - daily cards link directly to focused labour, progress, material issue, IOU, and expense workflows while preserving the existing detailed sub-tabs
+- Service job Phase 4 command center:
+  - backend exposes `GET /api/service/jobs/dashboard`
+  - frontend route `/service/command-center` summarizes active jobs, stages, overdue work, daily sheet/progress gaps, finance blockers, and billing queues
 
 ## 0. Implementation Update (2026-03-20)
 
@@ -487,6 +490,7 @@ Line form variants:
 Routes:
 
 - `/service/equipment-units` and detail
+- `/service/command-center`
 - `/service/jobs` and detail
 - `/service/work-orders` and detail
 - `/service/material-requisitions` and detail
@@ -501,6 +505,7 @@ Representative files:
 Key behavior:
 
 - Equipment Units are linked to equipment Items and Customers
+- Service Command Center exposes service workload metrics, stage/status bars, active job cards, finance queue, and billing/closeout queue
 - Service Jobs expose `start`, `complete`, `close` actions
 - Service Job detail now keeps job-linked IOUs and expense claims visible in the job context after creation
 - Service Job daily sheets are presented as daily cards with quick action links for common daily work entries

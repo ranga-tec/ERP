@@ -2,6 +2,7 @@ using ISS.Api.Security;
 using ISS.Application.Abstractions;
 using ISS.Application.Persistence;
 using ISS.Application.Services;
+using ISS.Domain.Finance;
 using ISS.Domain.Service;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -240,6 +241,49 @@ public sealed class ServiceJobsController(
         Guid? SupplierReturnId,
         string? ResponsiblePerson);
     public sealed record VoidServiceJobMaterialDispositionRequest(string? Reason);
+    public sealed record ServiceDashboardMetricDto(string Key, string Label, int Count);
+    public sealed record ServiceDashboardQueueDto(
+        int ActiveJobs,
+        int OverdueJobs,
+        int JobsWithoutDailySheetToday,
+        int JobsWithoutProgressToday,
+        int PendingDailySheets,
+        int PendingIous,
+        int PendingExpenseClaims,
+        int PendingMaterialRequests,
+        int PendingMaterialDispositions,
+        int CompletedAwaitingServiceTaken,
+        int ServiceTakenAwaitingInvoice);
+    public sealed record ServiceDashboardJobCardDto(
+        Guid Id,
+        string Number,
+        string CustomerCode,
+        string CustomerName,
+        string EquipmentSerialNumber,
+        ServiceJobKind Kind,
+        ServiceJobStatus Status,
+        DateTimeOffset OpenedAt,
+        DateTimeOffset? ExpectedCompletionAt,
+        string? ResponsibleOfficerName,
+        DateTimeOffset? LatestProgressAt,
+        int StaffToday,
+        int PendingDailySheets,
+        int PendingIous,
+        int PendingExpenseClaims,
+        int PendingMaterialRequests,
+        int PendingMaterialDispositions,
+        bool HasCompletedServiceTaken,
+        int PendingBlockers,
+        string NextAction,
+        string NextActionHref);
+    public sealed record ServiceDashboardDto(
+        DateTimeOffset GeneratedAt,
+        IReadOnlyList<ServiceDashboardMetricDto> StatusCounts,
+        IReadOnlyList<ServiceDashboardMetricDto> StageCounts,
+        ServiceDashboardQueueDto Queues,
+        IReadOnlyList<ServiceDashboardJobCardDto> ActiveJobs,
+        IReadOnlyList<ServiceDashboardJobCardDto> FinancialQueue,
+        IReadOnlyList<ServiceDashboardJobCardDto> BillingQueue);
 
     [HttpGet]
     public async Task<ActionResult<IReadOnlyList<ServiceJobDto>>> List([FromQuery] int skip = 0, [FromQuery] int take = 100, CancellationToken cancellationToken = default)
@@ -284,6 +328,175 @@ public sealed class ServiceJobsController(
             .ToListAsync(cancellationToken);
 
         return Ok(jobs);
+    }
+
+    [HttpGet("dashboard")]
+    public async Task<ActionResult<ServiceDashboardDto>> Dashboard(CancellationToken cancellationToken)
+    {
+        var now = DateTimeOffset.UtcNow;
+        var today = new DateTimeOffset(now.UtcDateTime.Date, TimeSpan.Zero);
+        var activeStatuses = new[]
+        {
+            ServiceJobStatus.Draft,
+            ServiceJobStatus.Open,
+            ServiceJobStatus.Assigned,
+            ServiceJobStatus.InProgress,
+            ServiceJobStatus.WaitingForParts,
+            ServiceJobStatus.WaitingForCustomerApproval,
+            ServiceJobStatus.WaitingForSupplier,
+            ServiceJobStatus.WorkCompleted,
+            ServiceJobStatus.PendingExpenseSettlement,
+            ServiceJobStatus.PendingMaterialReturn,
+            ServiceJobStatus.ReadyForInvoice,
+            ServiceJobStatus.Invoiced,
+            ServiceJobStatus.Reopened
+        };
+
+        var statusCounts = await dbContext.ServiceJobs.AsNoTracking()
+            .GroupBy(x => x.Status)
+            .Select(x => new { Status = x.Key, Count = x.Count() })
+            .ToListAsync(cancellationToken);
+
+        var stageCounts = statusCounts
+            .GroupBy(x => ServiceStageKey(x.Status))
+            .Select(x => new ServiceDashboardMetricDto(x.Key, ServiceStageLabel(x.Key), x.Sum(y => y.Count)))
+            .OrderBy(x => ServiceStageSort(x.Key))
+            .ToList();
+
+        var statusMetrics = statusCounts
+            .OrderBy(x => (int)x.Status)
+            .Select(x => new ServiceDashboardMetricDto(((int)x.Status).ToString(), ServiceJobStatusLabel(x.Status), x.Count))
+            .ToList();
+
+        var activeJobsRaw = await (
+            from job in dbContext.ServiceJobs.AsNoTracking()
+            join customer in dbContext.Customers.AsNoTracking() on job.CustomerId equals customer.Id
+            join unit in dbContext.EquipmentUnits.AsNoTracking() on job.EquipmentUnitId equals unit.Id
+            where activeStatuses.Contains(job.Status)
+            orderby job.ExpectedCompletionAt ?? job.OpenedAt, job.OpenedAt
+            select new
+            {
+                job.Id,
+                job.Number,
+                CustomerCode = customer.Code,
+                CustomerName = customer.Name,
+                EquipmentSerialNumber = unit.SerialNumber,
+                job.Kind,
+                job.Status,
+                job.OpenedAt,
+                job.ExpectedCompletionAt,
+                job.ResponsibleOfficerName,
+                job.FinalInvoiceNotRequired
+            })
+            .Take(200)
+            .ToListAsync(cancellationToken);
+
+        var activeJobIds = activeJobsRaw.Select(x => x.Id).ToList();
+        var pendingDailySheetCounts = await dbContext.ServiceJobDailySheets.AsNoTracking()
+            .Where(x => activeJobIds.Contains(x.ServiceJobId) && (x.Status == ServiceJobDailySheetStatus.Draft || x.Status == ServiceJobDailySheetStatus.Submitted))
+            .GroupBy(x => x.ServiceJobId)
+            .Select(x => new { ServiceJobId = x.Key, Count = x.Count() })
+            .ToDictionaryAsync(x => x.ServiceJobId, x => x.Count, cancellationToken);
+        var latestProgress = await dbContext.ServiceJobProgressUpdates.AsNoTracking()
+            .Where(x => activeJobIds.Contains(x.ServiceJobId))
+            .GroupBy(x => x.ServiceJobId)
+            .Select(x => new { ServiceJobId = x.Key, Latest = x.Max(y => y.ProgressDate) })
+            .ToDictionaryAsync(x => x.ServiceJobId, x => x.Latest, cancellationToken);
+        var staffTodayCounts = await dbContext.ServiceJobAssignments.AsNoTracking()
+            .Where(x => activeJobIds.Contains(x.ServiceJobId) && x.AssignedDate >= today)
+            .GroupBy(x => x.ServiceJobId)
+            .Select(x => new { ServiceJobId = x.Key, Count = x.Count() })
+            .ToDictionaryAsync(x => x.ServiceJobId, x => x.Count, cancellationToken);
+        var pendingIouCounts = await dbContext.PettyCashIous.AsNoTracking()
+            .Where(x => activeJobIds.Contains(x.ServiceJobId) && (x.Status == PettyCashIouStatus.Submitted || x.Status == PettyCashIouStatus.Approved || x.Status == PettyCashIouStatus.Released))
+            .GroupBy(x => x.ServiceJobId)
+            .Select(x => new { ServiceJobId = x.Key, Count = x.Count() })
+            .ToDictionaryAsync(x => x.ServiceJobId, x => x.Count, cancellationToken);
+        var pendingClaimCounts = await dbContext.ServiceExpenseClaims.AsNoTracking()
+            .Where(x => activeJobIds.Contains(x.ServiceJobId) && (x.Status == ServiceExpenseClaimStatus.Submitted || x.Status == ServiceExpenseClaimStatus.Approved))
+            .GroupBy(x => x.ServiceJobId)
+            .Select(x => new { ServiceJobId = x.Key, Count = x.Count() })
+            .ToDictionaryAsync(x => x.ServiceJobId, x => x.Count, cancellationToken);
+        var pendingMrnCounts = await dbContext.MaterialRequisitions.AsNoTracking()
+            .Where(x => activeJobIds.Contains(x.ServiceJobId) && x.Status == MaterialRequisitionStatus.Draft)
+            .GroupBy(x => x.ServiceJobId)
+            .Select(x => new { ServiceJobId = x.Key, Count = x.Count() })
+            .ToDictionaryAsync(x => x.ServiceJobId, x => x.Count, cancellationToken);
+        var pendingDispositionCounts = await dbContext.ServiceJobMaterialDispositions.AsNoTracking()
+            .Where(x => activeJobIds.Contains(x.ServiceJobId) && x.Status == ServiceJobMaterialDispositionStatus.Draft && !x.IsVoided)
+            .GroupBy(x => x.ServiceJobId)
+            .Select(x => new { ServiceJobId = x.Key, Count = x.Count() })
+            .ToDictionaryAsync(x => x.ServiceJobId, x => x.Count, cancellationToken);
+        var completedHandoverJobIds = await dbContext.ServiceHandovers.AsNoTracking()
+            .Where(x => activeJobIds.Contains(x.ServiceJobId) && x.Status == ServiceHandoverStatus.Completed)
+            .Select(x => x.ServiceJobId)
+            .Distinct()
+            .ToListAsync(cancellationToken);
+        var jobsWithDailySheetToday = await dbContext.ServiceJobDailySheets.AsNoTracking()
+            .Where(x => activeJobIds.Contains(x.ServiceJobId) && x.SheetDate >= today)
+            .Select(x => x.ServiceJobId)
+            .Distinct()
+            .ToListAsync(cancellationToken);
+
+        var completedHandoverSet = completedHandoverJobIds.ToHashSet();
+        var dailySheetTodaySet = jobsWithDailySheetToday.ToHashSet();
+        var cards = activeJobsRaw.Select(job =>
+        {
+            var pendingDailySheets = pendingDailySheetCounts.GetValueOrDefault(job.Id);
+            var pendingIous = pendingIouCounts.GetValueOrDefault(job.Id);
+            var pendingClaims = pendingClaimCounts.GetValueOrDefault(job.Id);
+            var pendingMrns = pendingMrnCounts.GetValueOrDefault(job.Id);
+            var pendingDispositions = pendingDispositionCounts.GetValueOrDefault(job.Id);
+            latestProgress.TryGetValue(job.Id, out var latestProgressAt);
+            var hasServiceTaken = completedHandoverSet.Contains(job.Id);
+            var pendingBlockers = pendingDailySheets + pendingIous + pendingClaims + pendingMrns + pendingDispositions;
+            var nextAction = ServiceDashboardNextAction(job.Id, job.Status, job.FinalInvoiceNotRequired, hasServiceTaken, pendingDailySheets, pendingIous, pendingClaims, pendingMrns, pendingDispositions);
+
+            return new ServiceDashboardJobCardDto(
+                job.Id,
+                job.Number,
+                job.CustomerCode,
+                job.CustomerName,
+                job.EquipmentSerialNumber,
+                job.Kind,
+                job.Status,
+                job.OpenedAt,
+                job.ExpectedCompletionAt,
+                job.ResponsibleOfficerName,
+                latestProgressAt == default ? null : latestProgressAt,
+                staffTodayCounts.GetValueOrDefault(job.Id),
+                pendingDailySheets,
+                pendingIous,
+                pendingClaims,
+                pendingMrns,
+                pendingDispositions,
+                hasServiceTaken,
+                pendingBlockers,
+                nextAction.Label,
+                nextAction.Href);
+        }).ToList();
+
+        var queues = new ServiceDashboardQueueDto(
+            cards.Count,
+            cards.Count(x => x.ExpectedCompletionAt.HasValue && x.ExpectedCompletionAt.Value < now && x.Status != ServiceJobStatus.Closed && x.Status != ServiceJobStatus.Cancelled),
+            cards.Count(x => !dailySheetTodaySet.Contains(x.Id) && x.Status is ServiceJobStatus.Open or ServiceJobStatus.Assigned or ServiceJobStatus.InProgress or ServiceJobStatus.Reopened),
+            cards.Count(x => x.LatestProgressAt is null || x.LatestProgressAt < today),
+            cards.Sum(x => x.PendingDailySheets),
+            cards.Sum(x => x.PendingIous),
+            cards.Sum(x => x.PendingExpenseClaims),
+            cards.Sum(x => x.PendingMaterialRequests),
+            cards.Sum(x => x.PendingMaterialDispositions),
+            cards.Count(x => x.Status == ServiceJobStatus.WorkCompleted && !x.HasCompletedServiceTaken),
+            cards.Count(x => x.HasCompletedServiceTaken && x.Status is ServiceJobStatus.WorkCompleted or ServiceJobStatus.ReadyForInvoice));
+
+        return Ok(new ServiceDashboardDto(
+            now,
+            statusMetrics,
+            stageCounts,
+            queues,
+            cards.Take(30).ToList(),
+            cards.Where(x => x.PendingIous + x.PendingExpenseClaims > 0).Take(20).ToList(),
+            cards.Where(x => x.Status is ServiceJobStatus.WorkCompleted or ServiceJobStatus.ReadyForInvoice || x.HasCompletedServiceTaken).Take(20).ToList()));
     }
 
     [HttpPost]
@@ -1007,5 +1220,115 @@ public sealed class ServiceJobsController(
             .FirstOrDefaultAsync(cancellationToken);
 
         return update is null ? NotFound() : Ok(update);
+    }
+
+    private static string ServiceJobStatusLabel(ServiceJobStatus status) => status switch
+    {
+        ServiceJobStatus.Draft => "Draft",
+        ServiceJobStatus.Open => "Open",
+        ServiceJobStatus.Assigned => "Assigned",
+        ServiceJobStatus.InProgress => "In Progress",
+        ServiceJobStatus.WaitingForParts => "Waiting for Parts",
+        ServiceJobStatus.WaitingForCustomerApproval => "Waiting for Customer Approval",
+        ServiceJobStatus.WaitingForSupplier => "Waiting for Supplier",
+        ServiceJobStatus.WorkCompleted => "Work Completed",
+        ServiceJobStatus.PendingExpenseSettlement => "Pending Expense Settlement",
+        ServiceJobStatus.PendingMaterialReturn => "Pending Material Return",
+        ServiceJobStatus.ReadyForInvoice => "Ready for Invoice",
+        ServiceJobStatus.Invoiced => "Invoiced",
+        ServiceJobStatus.Closed => "Closed",
+        ServiceJobStatus.Reopened => "Reopened",
+        ServiceJobStatus.Cancelled => "Cancelled",
+        _ => status.ToString()
+    };
+
+    private static string ServiceStageKey(ServiceJobStatus status) => status switch
+    {
+        ServiceJobStatus.Draft or ServiceJobStatus.Open or ServiceJobStatus.Reopened => "intake",
+        ServiceJobStatus.Assigned => "plan",
+        ServiceJobStatus.InProgress => "daily-work",
+        ServiceJobStatus.WaitingForParts or ServiceJobStatus.WaitingForCustomerApproval or ServiceJobStatus.WaitingForSupplier => "waiting",
+        ServiceJobStatus.WorkCompleted or ServiceJobStatus.PendingExpenseSettlement or ServiceJobStatus.PendingMaterialReturn or ServiceJobStatus.ReadyForInvoice => "closeout",
+        ServiceJobStatus.Invoiced => "invoiced",
+        ServiceJobStatus.Closed => "closed",
+        ServiceJobStatus.Cancelled => "cancelled",
+        _ => "other"
+    };
+
+    private static string ServiceStageLabel(string key) => key switch
+    {
+        "intake" => "Intake",
+        "plan" => "Plan",
+        "daily-work" => "Daily Work",
+        "waiting" => "Waiting",
+        "closeout" => "Closeout",
+        "invoiced" => "Invoiced",
+        "closed" => "Closed",
+        "cancelled" => "Cancelled",
+        _ => "Other"
+    };
+
+    private static int ServiceStageSort(string key) => key switch
+    {
+        "intake" => 0,
+        "plan" => 1,
+        "daily-work" => 2,
+        "waiting" => 3,
+        "closeout" => 4,
+        "invoiced" => 5,
+        "closed" => 6,
+        "cancelled" => 7,
+        _ => 99
+    };
+
+    private static (string Label, string Href) ServiceDashboardNextAction(
+        Guid serviceJobId,
+        ServiceJobStatus status,
+        bool finalInvoiceNotRequired,
+        bool hasCompletedServiceTaken,
+        int pendingDailySheets,
+        int pendingIous,
+        int pendingClaims,
+        int pendingMrns,
+        int pendingDispositions)
+    {
+        var jobHref = $"/service/jobs/{serviceJobId}";
+
+        if (status is ServiceJobStatus.Open or ServiceJobStatus.Assigned or ServiceJobStatus.Reopened)
+        {
+            return ("Start or update daily work", $"{jobHref}?tab=daily-work&dailyView=sheets");
+        }
+
+        if (pendingDailySheets > 0)
+        {
+            return ("Review daily sheets", $"{jobHref}?tab=daily-work&dailyView=sheets");
+        }
+
+        if (pendingMrns > 0 || pendingDispositions > 0)
+        {
+            return ("Clear material records", $"{jobHref}?tab=materials");
+        }
+
+        if (pendingIous > 0 || pendingClaims > 0)
+        {
+            return ("Review expenses", $"{jobHref}?tab=expenses");
+        }
+
+        if (status == ServiceJobStatus.WorkCompleted && !hasCompletedServiceTaken)
+        {
+            return ("Create service taken", "/service/handovers");
+        }
+
+        if ((status == ServiceJobStatus.WorkCompleted || status == ServiceJobStatus.ReadyForInvoice) && hasCompletedServiceTaken && !finalInvoiceNotRequired)
+        {
+            return ("Prepare invoice", $"{jobHref}?tab=billing");
+        }
+
+        if (status == ServiceJobStatus.Invoiced || finalInvoiceNotRequired)
+        {
+            return ("Close job", $"{jobHref}?tab=billing");
+        }
+
+        return ("Open job cockpit", jobHref);
     }
 }

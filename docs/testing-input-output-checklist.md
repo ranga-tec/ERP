@@ -701,6 +701,16 @@ Expected:
 | Invalid tab fallback | manually open `?tab=wrong` | page falls back to `Overview` |
 | Closeout tile links | `Overview` or `Billing` tab -> `Closeout Readiness` | pending tiles are clickable and open the relevant tab/sub-tab |
 
+Command Center smoke test:
+
+| Check | Where | Expected output |
+| --- | --- | --- |
+| Command Center | `Service -> Command Center` | active-job metrics, stage/status bars, active job cards, finance queue, and billing/closeout queue are visible |
+| Command Center next actions | active job cards | next-action links open the related job tab or workflow |
+| Daily work gaps | top metric cards | jobs without today's daily sheet or progress are counted separately |
+| Finance blockers | finance queue | jobs with pending IOUs or expense claims remain visible until resolved |
+| Billing blockers | billing/closeout queue | completed jobs and service-taken jobs waiting for invoice/closeout are visible |
+
 Closeout readiness click-through test:
 
 | Tile | Expected navigation or focus |

@@ -30,6 +30,8 @@ Local update on 2026-05-27:
 - `Daily Work -> Daily Sheets` now shows daily cards instead of a plain row/table-first view.
 - Each daily card shows planned work, completed work, pending/issues, latest progress, staff preview, and counts for staff, progress, MRNs, returns, expenses, and IOUs.
 - Daily cards link directly to staff/labour, progress, materials, IOU request, and expense entry while the focused sub-tabs remain the detailed entry surfaces.
+- Phase 4 command center is implemented at `Service -> Command Center`.
+- Backend endpoint `GET /api/service/jobs/dashboard` powers service workload metrics, stage/status bars, active job cards, finance queue, and billing/closeout queue.
 
 GitHub push status:
 

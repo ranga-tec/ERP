@@ -62,6 +62,7 @@ const sections: NavSection[] = [
   {
     title: "Service",
     items: [
+      { href: "/service/command-center", label: "Command Center" },
       { href: "/service/equipment-units", label: "Equipment Units" },
       { href: "/service/contracts", label: "Service Contracts" },
       { href: "/service/jobs", label: "Job Orders" },

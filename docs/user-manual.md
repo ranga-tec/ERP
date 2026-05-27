@@ -159,6 +159,8 @@ Note:
   - the list page exposes `View` and `Edit` actions explicitly; both open the contract detail page
   - contracts are edited from the contract detail page after creation
 - Service jobs:
+  - use `Service -> Command Center` as the supervisor/coordinator first screen for active jobs, overdue jobs, daily-work gaps, finance blockers, and billing readiness
+  - command-center job cards show customer, equipment, status, expected date, latest progress, staff today, daily/cash/material blocker counts, and the next recommended action
   - create -> start -> complete -> close
   - choose `Service`, `Repair`, `PDI`, `Warranty`, or `Inspection` when opening the job
   - select equipment using the searchable equipment-unit picker; it searches the linked item SKU/name, serial number, and customer code
