@@ -711,6 +711,16 @@ Command Center smoke test:
 | Finance blockers | finance queue | jobs with pending IOUs or expense claims remain visible until resolved |
 | Billing blockers | billing/closeout queue | completed jobs and service-taken jobs waiting for invoice/closeout are visible |
 
+Dispatch and technician workspace smoke test:
+
+| Check | Where | Expected output |
+| --- | --- | --- |
+| Dispatch Board | `Service -> Dispatch Board` | lanes appear for unassigned, assigned/active, waiting, and completed service jobs |
+| Dispatch job card | dispatch lane card | customer, equipment, status, expected date, assigned staff, daily sheet state, latest progress, and next action are visible |
+| Technician Workbench | `Service -> Technician Workbench` | today's assignments, open daily sheets, and active jobs are visible |
+| Technician quick actions | assignment or daily sheet row | links are visible for progress, material, IOU, and expense workflows |
+| Open daily sheet follow-up | technician workbench daily sheet card | daily sheet links open the selected job daily-work context |
+
 Closeout readiness click-through test:
 
 | Tile | Expected navigation or focus |

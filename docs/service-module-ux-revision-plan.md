@@ -41,6 +41,17 @@ Implemented on 2026-05-27:
 - The command center shows active jobs, overdue jobs, jobs without today's daily sheet, jobs without today's progress, pending daily sheets, pending IOUs, pending claims, and billing-ready service taken records.
 - Added stage/status bar views, active job cards, finance queue, and billing/closeout queue with direct next-action links.
 
+## Phase 5 Implementation Status
+
+Implemented on 2026-05-27:
+
+- Added `GET /api/service/jobs/dispatch-board` for service scheduling lanes.
+- Added `GET /api/service/jobs/technician-workbench` for technician-facing daily assignments and open daily sheets.
+- Added `Service -> Dispatch Board` at `/service/dispatch-board`.
+- Added `Service -> Technician Workbench` at `/service/technician-workbench`.
+- Dispatch Board shows unassigned, assigned/active, waiting, and completed service job lanes with assigned staff, daily-sheet state, latest progress, and next action links.
+- Technician Workbench shows today's assignments, open daily sheets, active jobs, and quick links to progress, material issue, IOU request, and expense entry.
+
 ## Problem Summary
 
 The service module has the right operational data model, but the current job-detail experience is too document-centric and too scroll-heavy for daily users.
@@ -281,19 +292,11 @@ This is the highest-value quick win.
 
 ### Phase 5: Dispatch And Technician View
 
-- Add a dispatch board if ISS needs field/service scheduling:
-  - unassigned jobs
-  - assigned technician/team
-  - planned date/time
-  - status
-  - simple calendar/list view first
-- Add technician-friendly job page:
-  - today jobs
-  - start work
-  - add progress
-  - request material
-  - request IOU/expense
-  - complete daily sheet
+- Completed: added a simple dispatch board with unassigned, assigned/active, waiting, and completed lanes.
+- Completed: dispatch cards show assigned staff/team, expected date, status, latest progress, daily-sheet state, and next action.
+- Completed: added a technician workbench for today's assignments, open daily sheets, and active jobs.
+- Completed: technician workbench links directly to add progress, request material, request IOU, and add expense.
+- Deferred: drag/drop scheduling, calendar capacity planning, technician mobile authentication scope, travel status, and map/Gantt views.
 
 ## Recommended First Build Scope
 

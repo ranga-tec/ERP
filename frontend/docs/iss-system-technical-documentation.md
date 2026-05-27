@@ -30,6 +30,9 @@ The following local scope was implemented after the previous documentation snaps
 - Service job Phase 4 command center:
   - backend exposes `GET /api/service/jobs/dashboard`
   - frontend route `/service/command-center` summarizes active jobs, stages, overdue work, daily sheet/progress gaps, finance blockers, and billing queues
+- Service job Phase 5 dispatch/technician workspace:
+  - backend exposes `GET /api/service/jobs/dispatch-board` and `GET /api/service/jobs/technician-workbench`
+  - frontend routes `/service/dispatch-board` and `/service/technician-workbench` provide service scheduling lanes and technician daily action lists
 
 ## 0. Implementation Update (2026-03-20)
 
@@ -491,6 +494,8 @@ Routes:
 
 - `/service/equipment-units` and detail
 - `/service/command-center`
+- `/service/dispatch-board`
+- `/service/technician-workbench`
 - `/service/jobs` and detail
 - `/service/work-orders` and detail
 - `/service/material-requisitions` and detail
@@ -506,6 +511,8 @@ Key behavior:
 
 - Equipment Units are linked to equipment Items and Customers
 - Service Command Center exposes service workload metrics, stage/status bars, active job cards, finance queue, and billing/closeout queue
+- Service Dispatch Board exposes unassigned, assigned/active, waiting, and completed service job lanes
+- Technician Workbench exposes today's assignments, open daily sheets, active jobs, and quick links into progress/material/IOU/expense workflows
 - Service Jobs expose `start`, `complete`, `close` actions
 - Service Job detail now keeps job-linked IOUs and expense claims visible in the job context after creation
 - Service Job daily sheets are presented as daily cards with quick action links for common daily work entries

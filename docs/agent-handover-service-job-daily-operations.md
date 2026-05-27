@@ -32,6 +32,10 @@ Local update on 2026-05-27:
 - Daily cards link directly to staff/labour, progress, materials, IOU request, and expense entry while the focused sub-tabs remain the detailed entry surfaces.
 - Phase 4 command center is implemented at `Service -> Command Center`.
 - Backend endpoint `GET /api/service/jobs/dashboard` powers service workload metrics, stage/status bars, active job cards, finance queue, and billing/closeout queue.
+- Phase 5 dispatch/technician workspace is implemented.
+- Backend endpoints `GET /api/service/jobs/dispatch-board` and `GET /api/service/jobs/technician-workbench` power `Service -> Dispatch Board` and `Service -> Technician Workbench`.
+- Dispatch Board shows unassigned, assigned/active, waiting, and completed job lanes.
+- Technician Workbench shows today's assignments, open daily sheets, active jobs, and quick links for progress, materials, IOUs, and expenses.
 
 GitHub push status:
 

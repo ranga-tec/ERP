@@ -284,6 +284,77 @@ public sealed class ServiceJobsController(
         IReadOnlyList<ServiceDashboardJobCardDto> ActiveJobs,
         IReadOnlyList<ServiceDashboardJobCardDto> FinancialQueue,
         IReadOnlyList<ServiceDashboardJobCardDto> BillingQueue);
+    public sealed record ServiceDispatchJobDto(
+        Guid Id,
+        string Number,
+        string CustomerCode,
+        string CustomerName,
+        string EquipmentSerialNumber,
+        ServiceJobKind Kind,
+        ServiceJobStatus Status,
+        DateTimeOffset OpenedAt,
+        DateTimeOffset? ExpectedCompletionAt,
+        string? ResponsibleOfficerName,
+        IReadOnlyList<string> AssignedStaff,
+        DateTimeOffset? LatestProgressAt,
+        bool HasDailySheetToday,
+        int PendingDailySheets,
+        string NextAction,
+        string NextActionHref);
+    public sealed record ServiceDispatchBoardDto(
+        DateTimeOffset GeneratedAt,
+        IReadOnlyList<ServiceDispatchJobDto> UnassignedJobs,
+        IReadOnlyList<ServiceDispatchJobDto> AssignedJobs,
+        IReadOnlyList<ServiceDispatchJobDto> WaitingJobs,
+        IReadOnlyList<ServiceDispatchJobDto> CompletedJobs);
+    public sealed record ServiceTechnicianAssignmentDto(
+        Guid AssignmentId,
+        Guid ServiceJobId,
+        string JobNumber,
+        string CustomerCode,
+        string EquipmentSerialNumber,
+        string EmployeeName,
+        string Role,
+        string AssignedTask,
+        DateTimeOffset AssignedDate,
+        DateTimeOffset? WorkStartAt,
+        DateTimeOffset? WorkEndAt,
+        decimal NormalHours,
+        decimal OvertimeHours,
+        ServiceJobAssignmentApprovalStatus ApprovalStatus,
+        Guid? DailySheetId,
+        string? DailySheetNumber,
+        ServiceJobDailySheetStatus? DailySheetStatus,
+        string JobHref,
+        string ProgressHref,
+        string MaterialHref,
+        string IouHref,
+        string ExpenseHref);
+    public sealed record ServiceTechnicianDailySheetDto(
+        Guid Id,
+        Guid ServiceJobId,
+        string Number,
+        string JobNumber,
+        string CustomerCode,
+        string EquipmentSerialNumber,
+        DateTimeOffset SheetDate,
+        string PreparedByName,
+        string WorkPlanned,
+        string? WorkCompleted,
+        string? WorkPending,
+        ServiceJobDailySheetStatus Status,
+        int AssignmentCount,
+        int ProgressCount,
+        string DailySheetHref,
+        string ProgressHref,
+        string MaterialHref,
+        string IouHref,
+        string ExpenseHref);
+    public sealed record ServiceTechnicianWorkbenchDto(
+        DateTimeOffset GeneratedAt,
+        IReadOnlyList<ServiceTechnicianAssignmentDto> TodayAssignments,
+        IReadOnlyList<ServiceTechnicianDailySheetDto> OpenDailySheets,
+        IReadOnlyList<ServiceDispatchJobDto> ActiveJobs);
 
     [HttpGet]
     public async Task<ActionResult<IReadOnlyList<ServiceJobDto>>> List([FromQuery] int skip = 0, [FromQuery] int take = 100, CancellationToken cancellationToken = default)
@@ -497,6 +568,117 @@ public sealed class ServiceJobsController(
             cards.Take(30).ToList(),
             cards.Where(x => x.PendingIous + x.PendingExpenseClaims > 0).Take(20).ToList(),
             cards.Where(x => x.Status is ServiceJobStatus.WorkCompleted or ServiceJobStatus.ReadyForInvoice || x.HasCompletedServiceTaken).Take(20).ToList()));
+    }
+
+    [HttpGet("dispatch-board")]
+    public async Task<ActionResult<ServiceDispatchBoardDto>> DispatchBoard(CancellationToken cancellationToken)
+    {
+        var now = DateTimeOffset.UtcNow;
+        var today = new DateTimeOffset(now.UtcDateTime.Date, TimeSpan.Zero);
+        var dispatchJobs = await BuildDispatchJobsAsync(today, 200, cancellationToken);
+
+        return Ok(new ServiceDispatchBoardDto(
+            now,
+            dispatchJobs
+                .Where(x => x.AssignedStaff.Count == 0 && x.Status is ServiceJobStatus.Open or ServiceJobStatus.Reopened)
+                .Take(40)
+                .ToList(),
+            dispatchJobs
+                .Where(x => x.AssignedStaff.Count > 0 && x.Status is ServiceJobStatus.Open or ServiceJobStatus.Assigned or ServiceJobStatus.InProgress or ServiceJobStatus.Reopened)
+                .Take(60)
+                .ToList(),
+            dispatchJobs
+                .Where(x => x.Status is ServiceJobStatus.WaitingForParts or ServiceJobStatus.WaitingForCustomerApproval or ServiceJobStatus.WaitingForSupplier or ServiceJobStatus.PendingExpenseSettlement or ServiceJobStatus.PendingMaterialReturn)
+                .Take(40)
+                .ToList(),
+            dispatchJobs
+                .Where(x => x.Status is ServiceJobStatus.WorkCompleted or ServiceJobStatus.ReadyForInvoice or ServiceJobStatus.Invoiced)
+                .Take(40)
+                .ToList()));
+    }
+
+    [HttpGet("technician-workbench")]
+    public async Task<ActionResult<ServiceTechnicianWorkbenchDto>> TechnicianWorkbench(CancellationToken cancellationToken)
+    {
+        var now = DateTimeOffset.UtcNow;
+        var today = new DateTimeOffset(now.UtcDateTime.Date, TimeSpan.Zero);
+        var tomorrow = today.AddDays(1);
+
+        var todayAssignments = await (
+            from assignment in dbContext.ServiceJobAssignments.AsNoTracking()
+            join job in dbContext.ServiceJobs.AsNoTracking() on assignment.ServiceJobId equals job.Id
+            join customer in dbContext.Customers.AsNoTracking() on job.CustomerId equals customer.Id
+            join unit in dbContext.EquipmentUnits.AsNoTracking() on job.EquipmentUnitId equals unit.Id
+            join sheet in dbContext.ServiceJobDailySheets.AsNoTracking() on assignment.ServiceJobDailySheetId equals sheet.Id into sheets
+            from dailySheet in sheets.DefaultIfEmpty()
+            where assignment.AssignedDate >= today && assignment.AssignedDate < tomorrow && job.Status != ServiceJobStatus.Closed && job.Status != ServiceJobStatus.Cancelled
+            orderby assignment.AssignedDate, assignment.EmployeeName
+            select new ServiceTechnicianAssignmentDto(
+                assignment.Id,
+                job.Id,
+                job.Number,
+                customer.Code,
+                unit.SerialNumber,
+                assignment.EmployeeName,
+                assignment.Role,
+                assignment.AssignedTask,
+                assignment.AssignedDate,
+                assignment.WorkStartAt,
+                assignment.WorkEndAt,
+                assignment.NormalHours,
+                assignment.OvertimeHours,
+                assignment.ApprovalStatus,
+                dailySheet == null ? null : dailySheet.Id,
+                dailySheet == null ? null : dailySheet.Number,
+                dailySheet == null ? null : dailySheet.Status,
+                $"/service/jobs/{job.Id}",
+                $"/service/jobs/{job.Id}?tab=daily-work&dailyView=progress{(dailySheet == null ? string.Empty : $"&dailySheetId={dailySheet.Id}")}",
+                $"/service/jobs/{job.Id}?tab=materials&materialView=issues",
+                $"/service/jobs/{job.Id}?tab=expenses&expenseView=ious",
+                $"/service/jobs/{job.Id}?tab=expenses&expenseView=reimbursements"))
+            .Take(100)
+            .ToListAsync(cancellationToken);
+
+        var openDailySheets = await (
+            from sheet in dbContext.ServiceJobDailySheets.AsNoTracking()
+            join job in dbContext.ServiceJobs.AsNoTracking() on sheet.ServiceJobId equals job.Id
+            join customer in dbContext.Customers.AsNoTracking() on job.CustomerId equals customer.Id
+            join unit in dbContext.EquipmentUnits.AsNoTracking() on job.EquipmentUnitId equals unit.Id
+            where sheet.Status != ServiceJobDailySheetStatus.Approved && job.Status != ServiceJobStatus.Closed && job.Status != ServiceJobStatus.Cancelled
+            orderby sheet.SheetDate descending
+            select new ServiceTechnicianDailySheetDto(
+                sheet.Id,
+                job.Id,
+                sheet.Number,
+                job.Number,
+                customer.Code,
+                unit.SerialNumber,
+                sheet.SheetDate,
+                sheet.PreparedByName,
+                sheet.WorkPlanned,
+                sheet.WorkCompleted,
+                sheet.WorkPending,
+                sheet.Status,
+                dbContext.ServiceJobAssignments.Count(x => x.ServiceJobDailySheetId == sheet.Id),
+                dbContext.ServiceJobProgressUpdates.Count(x => x.ServiceJobDailySheetId == sheet.Id),
+                $"/service/jobs/{job.Id}?tab=daily-work&dailyView=sheets&dailySheetId={sheet.Id}",
+                $"/service/jobs/{job.Id}?tab=daily-work&dailyView=progress&dailySheetId={sheet.Id}",
+                $"/service/jobs/{job.Id}?tab=materials&materialView=issues",
+                $"/service/jobs/{job.Id}?tab=expenses&expenseView=ious",
+                $"/service/jobs/{job.Id}?tab=expenses&expenseView=reimbursements"))
+            .Take(80)
+            .ToListAsync(cancellationToken);
+
+        var activeJobs = await BuildDispatchJobsAsync(today, 80, cancellationToken);
+
+        return Ok(new ServiceTechnicianWorkbenchDto(
+            now,
+            todayAssignments,
+            openDailySheets,
+            activeJobs
+                .Where(x => x.Status is ServiceJobStatus.Open or ServiceJobStatus.Assigned or ServiceJobStatus.InProgress or ServiceJobStatus.Reopened)
+                .Take(30)
+                .ToList()));
     }
 
     [HttpPost]
@@ -1280,6 +1462,131 @@ public sealed class ServiceJobsController(
         "cancelled" => 7,
         _ => 99
     };
+
+    private async Task<IReadOnlyList<ServiceDispatchJobDto>> BuildDispatchJobsAsync(DateTimeOffset today, int take, CancellationToken cancellationToken)
+    {
+        var activeStatuses = new[]
+        {
+            ServiceJobStatus.Open,
+            ServiceJobStatus.Assigned,
+            ServiceJobStatus.InProgress,
+            ServiceJobStatus.WaitingForParts,
+            ServiceJobStatus.WaitingForCustomerApproval,
+            ServiceJobStatus.WaitingForSupplier,
+            ServiceJobStatus.WorkCompleted,
+            ServiceJobStatus.PendingExpenseSettlement,
+            ServiceJobStatus.PendingMaterialReturn,
+            ServiceJobStatus.ReadyForInvoice,
+            ServiceJobStatus.Invoiced,
+            ServiceJobStatus.Reopened
+        };
+
+        var jobs = await (
+            from job in dbContext.ServiceJobs.AsNoTracking()
+            join customer in dbContext.Customers.AsNoTracking() on job.CustomerId equals customer.Id
+            join unit in dbContext.EquipmentUnits.AsNoTracking() on job.EquipmentUnitId equals unit.Id
+            where activeStatuses.Contains(job.Status)
+            orderby job.ExpectedCompletionAt ?? job.OpenedAt, job.OpenedAt
+            select new
+            {
+                job.Id,
+                job.Number,
+                CustomerCode = customer.Code,
+                CustomerName = customer.Name,
+                EquipmentSerialNumber = unit.SerialNumber,
+                job.Kind,
+                job.Status,
+                job.OpenedAt,
+                job.ExpectedCompletionAt,
+                job.ResponsibleOfficerName
+            })
+            .Take(take)
+            .ToListAsync(cancellationToken);
+
+        var jobIds = jobs.Select(x => x.Id).ToList();
+        var assignedStaff = await dbContext.ServiceJobAssignments.AsNoTracking()
+            .Where(x => jobIds.Contains(x.ServiceJobId) && x.ApprovalStatus != ServiceJobAssignmentApprovalStatus.Rejected)
+            .GroupBy(x => x.ServiceJobId)
+            .Select(x => new
+            {
+                ServiceJobId = x.Key,
+                Staff = x
+                    .OrderByDescending(y => y.AssignedDate)
+                    .Select(y => y.EmployeeName)
+                    .Distinct()
+                    .Take(4)
+                    .ToList()
+            })
+            .ToDictionaryAsync(x => x.ServiceJobId, x => (IReadOnlyList<string>)x.Staff, cancellationToken);
+        var latestProgress = await dbContext.ServiceJobProgressUpdates.AsNoTracking()
+            .Where(x => jobIds.Contains(x.ServiceJobId))
+            .GroupBy(x => x.ServiceJobId)
+            .Select(x => new { ServiceJobId = x.Key, Latest = x.Max(y => y.ProgressDate) })
+            .ToDictionaryAsync(x => x.ServiceJobId, x => x.Latest, cancellationToken);
+        var dailySheetToday = await dbContext.ServiceJobDailySheets.AsNoTracking()
+            .Where(x => jobIds.Contains(x.ServiceJobId) && x.SheetDate >= today)
+            .Select(x => x.ServiceJobId)
+            .Distinct()
+            .ToListAsync(cancellationToken);
+        var pendingDailySheets = await dbContext.ServiceJobDailySheets.AsNoTracking()
+            .Where(x => jobIds.Contains(x.ServiceJobId) && (x.Status == ServiceJobDailySheetStatus.Draft || x.Status == ServiceJobDailySheetStatus.Submitted))
+            .GroupBy(x => x.ServiceJobId)
+            .Select(x => new { ServiceJobId = x.Key, Count = x.Count() })
+            .ToDictionaryAsync(x => x.ServiceJobId, x => x.Count, cancellationToken);
+        var dailySheetTodaySet = dailySheetToday.ToHashSet();
+
+        return jobs.Select(job =>
+        {
+            assignedStaff.TryGetValue(job.Id, out var staff);
+            latestProgress.TryGetValue(job.Id, out var latestProgressAt);
+            var nextAction = ServiceDispatchNextAction(job.Id, job.Status, staff?.Count ?? 0, dailySheetTodaySet.Contains(job.Id), pendingDailySheets.GetValueOrDefault(job.Id));
+
+            return new ServiceDispatchJobDto(
+                job.Id,
+                job.Number,
+                job.CustomerCode,
+                job.CustomerName,
+                job.EquipmentSerialNumber,
+                job.Kind,
+                job.Status,
+                job.OpenedAt,
+                job.ExpectedCompletionAt,
+                job.ResponsibleOfficerName,
+                staff ?? Array.Empty<string>(),
+                latestProgressAt == default ? null : latestProgressAt,
+                dailySheetTodaySet.Contains(job.Id),
+                pendingDailySheets.GetValueOrDefault(job.Id),
+                nextAction.Label,
+                nextAction.Href);
+        }).ToList();
+    }
+
+    private static (string Label, string Href) ServiceDispatchNextAction(Guid serviceJobId, ServiceJobStatus status, int assignedStaffCount, bool hasDailySheetToday, int pendingDailySheets)
+    {
+        var jobHref = $"/service/jobs/{serviceJobId}";
+
+        if (assignedStaffCount == 0 && status is ServiceJobStatus.Open or ServiceJobStatus.Reopened)
+        {
+            return ("Assign staff", $"{jobHref}?tab=daily-work&dailyView=labor");
+        }
+
+        if (!hasDailySheetToday && status is ServiceJobStatus.Open or ServiceJobStatus.Assigned or ServiceJobStatus.InProgress or ServiceJobStatus.Reopened)
+        {
+            return ("Create daily sheet", $"{jobHref}?tab=daily-work&dailyView=sheets");
+        }
+
+        if (pendingDailySheets > 0)
+        {
+            return ("Review daily sheets", $"{jobHref}?tab=daily-work&dailyView=sheets");
+        }
+
+        if (status == ServiceJobStatus.WorkCompleted)
+        {
+            return ("Prepare closeout", $"{jobHref}?tab=billing");
+        }
+
+        return ("Open job", jobHref);
+    }
 
     private static (string Label, string Href) ServiceDashboardNextAction(
         Guid serviceJobId,

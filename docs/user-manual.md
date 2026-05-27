@@ -161,6 +161,8 @@ Note:
 - Service jobs:
   - use `Service -> Command Center` as the supervisor/coordinator first screen for active jobs, overdue jobs, daily-work gaps, finance blockers, and billing readiness
   - command-center job cards show customer, equipment, status, expected date, latest progress, staff today, daily/cash/material blocker counts, and the next recommended action
+  - use `Service -> Dispatch Board` to see unassigned jobs, assigned/active jobs, waiting jobs, and completed jobs in operational lanes
+  - use `Service -> Technician Workbench` for today's technician assignments, open daily sheets, and quick actions for progress, material request, IOU request, and expense entry
   - create -> start -> complete -> close
   - choose `Service`, `Repair`, `PDI`, `Warranty`, or `Inspection` when opening the job
   - select equipment using the searchable equipment-unit picker; it searches the linked item SKU/name, serial number, and customer code
