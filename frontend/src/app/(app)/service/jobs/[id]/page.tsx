@@ -518,21 +518,21 @@ function CockpitMetric({
         : "border-[var(--card-border)] bg-[var(--card-bg)]";
   const content = (
     <>
-      <div className="text-xs uppercase tracking-wide text-zinc-500">{label}</div>
-      <div className="mt-2 text-xl font-semibold">{value}</div>
+      <div className="text-[11px] uppercase tracking-wide text-zinc-500">{label}</div>
+      <div className="mt-0.5 text-base font-semibold">{value}</div>
       <div className="mt-1 text-xs text-zinc-500">{detail}</div>
     </>
   );
 
   if (href) {
     return (
-      <Link href={href} className={`rounded-lg border p-3 transition hover:border-[var(--link)] hover:bg-[var(--surface-soft)] ${toneClass}`}>
+      <Link href={href} className={`rounded-md border p-2 transition hover:border-[var(--link)] hover:bg-[var(--surface-soft)] ${toneClass}`}>
         {content}
       </Link>
     );
   }
 
-  return <div className={`rounded-lg border p-3 ${toneClass}`}>{content}</div>;
+  return <div className={`rounded-md border p-2 ${toneClass}`}>{content}</div>;
 }
 
 function CollapsibleCard({
@@ -1128,18 +1128,41 @@ export default async function ServiceJobDetailPage({
         </div>
       </div>
 
-      <Card>
-        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+      <nav className="overflow-x-auto border-b border-[var(--card-border)]">
+        <div className="flex min-w-max gap-1">
+          {jobTabs.map((tab) => {
+            const active = tab.key === activeTab;
+            return (
+              <Link
+                key={tab.key}
+                href={tabHref(job.id, tab.key)}
+                className={[
+                  "border-b-2 px-3 py-2 text-sm font-medium transition-colors",
+                  active
+                    ? "border-[var(--link)] text-[var(--link)]"
+                    : "border-transparent text-zinc-500 hover:border-zinc-300 hover:text-[var(--foreground)]",
+                ].join(" ")}
+              >
+                {tab.label}
+              </Link>
+            );
+          })}
+        </div>
+      </nav>
+
+      {activeTab === "overview" ? (
+        <>
+      <Card className="p-2">
+        <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
           <div>
             <div className="text-sm font-semibold">Job Cockpit</div>
-            <div className="mt-1 text-xs text-zinc-500">Current job state, blockers, and next operational actions.</div>
           </div>
-          <div className={pendingCloseoutCount > 0 ? "text-sm font-semibold text-amber-700 dark:text-amber-300" : "text-sm font-semibold text-emerald-700 dark:text-emerald-300"}>
+          <div className={pendingCloseoutCount > 0 ? "text-xs font-semibold text-amber-700 dark:text-amber-300" : "text-xs font-semibold text-emerald-700 dark:text-emerald-300"}>
             {pendingCloseoutCount > 0 ? `${pendingCloseoutCount} pending closeout blocker${pendingCloseoutCount === 1 ? "" : "s"}` : "No closeout blockers"}
           </div>
         </div>
 
-        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-8">
           <CockpitMetric
             label="Last Progress"
             value={latestProgress ? new Date(latestProgress.progressDate).toLocaleDateString() : "None"}
@@ -1208,13 +1231,13 @@ export default async function ServiceJobDetailPage({
         </div>
         <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-5">
           {processSteps.map((step) => (
-            <Link key={step.label} href={step.href} className="flex min-h-[136px] flex-col rounded-lg border border-[var(--card-border)] p-3 transition hover:border-[var(--link)] hover:bg-[var(--surface-soft)]">
+            <Link key={step.label} href={step.href} className="flex min-h-[108px] flex-col rounded-lg border border-[var(--card-border)] p-2.5 transition hover:border-[var(--link)] hover:bg-[var(--surface-soft)]">
               <div className="flex items-center justify-between gap-2">
                 <div className="text-sm font-medium">{step.label}</div>
                 <ProcessStatusBadge status={step.status} />
               </div>
-              <div className="mt-2 text-xs text-zinc-500">{step.detail}</div>
-              <div className="mt-3 flex flex-wrap gap-1.5">
+              <div className="mt-1 text-xs text-zinc-500">{step.detail}</div>
+              <div className="mt-2 flex flex-wrap gap-1.5">
                 {step.meta.map((meta) => (
                   <WorkflowMetaPill key={`${step.label}-${meta.label}`} meta={meta} />
                 ))}
@@ -1260,30 +1283,6 @@ export default async function ServiceJobDetailPage({
         )}
       </Card>
 
-      <nav className="overflow-x-auto border-b border-[var(--card-border)]">
-        <div className="flex min-w-max gap-1">
-          {jobTabs.map((tab) => {
-            const active = tab.key === activeTab;
-            return (
-              <Link
-                key={tab.key}
-                href={tabHref(job.id, tab.key)}
-                className={[
-                  "border-b-2 px-3 py-2 text-sm font-medium transition-colors",
-                  active
-                    ? "border-[var(--link)] text-[var(--link)]"
-                    : "border-transparent text-zinc-500 hover:border-zinc-300 hover:text-[var(--foreground)]",
-                ].join(" ")}
-              >
-                {tab.label}
-              </Link>
-            );
-          })}
-        </div>
-      </nav>
-
-      {activeTab === "overview" ? (
-        <>
       {canEditHeader ? (
         <CollapsibleCard title="Edit Job" summary="Change intake header fields while the job is still editable.">
           <ServiceJobEditForm job={job} equipmentUnits={equipmentUnitOptions} customers={customers} />
