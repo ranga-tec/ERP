@@ -494,7 +494,7 @@ public sealed class ServiceJobsController(
             .Select(x => new { ServiceJobId = x.Key, Count = x.Count() })
             .ToDictionaryAsync(x => x.ServiceJobId, x => x.Count, cancellationToken);
         var pendingDispositionCounts = await dbContext.ServiceJobMaterialDispositions.AsNoTracking()
-            .Where(x => activeJobIds.Contains(x.ServiceJobId) && x.Status == ServiceJobMaterialDispositionStatus.Draft && !x.IsVoided)
+            .Where(x => activeJobIds.Contains(x.ServiceJobId) && x.PostedAt == null && !x.IsVoided)
             .GroupBy(x => x.ServiceJobId)
             .Select(x => new { ServiceJobId = x.Key, Count = x.Count() })
             .ToDictionaryAsync(x => x.ServiceJobId, x => x.Count, cancellationToken);

@@ -13,12 +13,14 @@ export function ServiceJobActions({
   canComplete,
   canClose,
   canReopen,
+  compact = false,
 }: {
   jobId: string;
   canStart: boolean;
   canComplete: boolean;
   canClose: boolean;
   canReopen: boolean;
+  compact?: boolean;
 }) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
@@ -63,20 +65,20 @@ export function ServiceJobActions({
 
   return (
     <div className="space-y-2">
-      <div className="flex flex-wrap gap-2">
-        <SecondaryButton type="button" disabled={!canStart || busy} onClick={() => act("start")}>
+      <div className={compact ? "flex flex-wrap justify-end gap-1.5" : "flex flex-wrap gap-2"}>
+        <SecondaryButton className={compact ? "min-h-7 px-2 py-1 text-xs" : undefined} type="button" disabled={!canStart || busy} onClick={() => act("start")}>
           Start
         </SecondaryButton>
-        <SecondaryButton type="button" disabled={!canComplete || busy} onClick={() => setConfirmCompleteOpen(true)}>
+        <SecondaryButton className={compact ? "min-h-7 px-2 py-1 text-xs" : undefined} type="button" disabled={!canComplete || busy} onClick={() => setConfirmCompleteOpen(true)}>
           Complete
         </SecondaryButton>
-        <SecondaryButton type="button" disabled={!canClose || busy} onClick={() => act("close")}>
+        <SecondaryButton className={compact ? "min-h-7 px-2 py-1 text-xs" : undefined} type="button" disabled={!canClose || busy} onClick={() => act("close")}>
           Close
         </SecondaryButton>
-        <SecondaryButton type="button" disabled={!canReopen || busy} onClick={reopen}>
+        <SecondaryButton className={compact ? "min-h-7 px-2 py-1 text-xs" : undefined} type="button" disabled={!canReopen || busy} onClick={reopen}>
           Reopen
         </SecondaryButton>
-        <SecondaryButton type="button" disabled={busy} onClick={() => act("refresh-entitlement")}>
+        <SecondaryButton className={compact ? "min-h-7 px-2 py-1 text-xs" : undefined} type="button" disabled={busy} onClick={() => act("refresh-entitlement")}>
           Refresh Entitlement
         </SecondaryButton>
       </div>

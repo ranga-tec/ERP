@@ -467,6 +467,36 @@ function ProcessStatusBadge({ status }: { status: "complete" | "current" | "bloc
   return <span className={`rounded-full border px-2 py-0.5 text-[11px] font-semibold ${className}`}>{label}</span>;
 }
 
+type WorkflowTone = "neutral" | "good" | "warn" | "bad";
+type WorkflowMeta = { label: string; value: string | number; tone?: WorkflowTone };
+type WorkflowBar = { key: string; title: string; tone: WorkflowTone };
+
+function workflowToneClass(tone: WorkflowTone) {
+  return {
+    neutral: "border-zinc-200 bg-zinc-50 text-zinc-600 dark:border-zinc-800 dark:bg-zinc-900/40 dark:text-zinc-300",
+    good: "border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-900/40 dark:bg-emerald-950/30 dark:text-emerald-200",
+    warn: "border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-900/40 dark:bg-amber-950/30 dark:text-amber-200",
+    bad: "border-red-200 bg-red-50 text-red-800 dark:border-red-900/40 dark:bg-red-950/30 dark:text-red-200",
+  }[tone];
+}
+
+function workflowBarClass(tone: WorkflowTone) {
+  return {
+    neutral: "bg-zinc-300 dark:bg-zinc-700",
+    good: "bg-emerald-500",
+    warn: "bg-amber-500",
+    bad: "bg-red-500",
+  }[tone];
+}
+
+function WorkflowMetaPill({ meta }: { meta: WorkflowMeta }) {
+  return (
+    <span className={`rounded-full border px-2 py-0.5 text-[11px] font-semibold ${workflowToneClass(meta.tone ?? "neutral")}`}>
+      {meta.value} {meta.label}
+    </span>
+  );
+}
+
 function CockpitMetric({
   label,
   value,
@@ -834,60 +864,142 @@ export default async function ServiceJobDetailPage({
   const hasDraftEstimate = costing.estimates.some((estimate) => estimate.status === 0);
   const hasPostedInvoice = costing.invoices.some((invoice) => invoice.status === 1 || invoice.status === 2);
   const hasDraftInvoice = costing.invoices.some((invoice) => invoice.status === 0);
-  const processSteps: { label: string; detail: string; href: string; status: "complete" | "current" | "blocked" | "pending" }[] = [
+  const completedOperations = operations.filter((operation) => operation.status === 2).length;
+  const activeOperations = operations.filter((operation) => operation.status === 1).length;
+  const approvedDailySheets = dailySheets.filter((sheet) => sheet.status === 2).length;
+  const pendingDailySheets = dailySheets.filter((sheet) => sheet.status !== 2).length;
+  const approvedAssignments = assignments.filter((assignment) => assignment.approvalStatus === 1).length;
+  const pendingAssignments = assignments.filter((assignment) => assignment.approvalStatus === 0).length;
+  const latestProgressDate = latestProgress ? new Date(latestProgress.progressDate).toLocaleDateString() : "-";
+  const approvedEstimates = costing.estimates.filter((estimate) => estimate.status === 1).length;
+  const postedInvoices = costing.invoices.filter((invoice) => invoice.status === 1 || invoice.status === 2).length;
+  const dailySheetBars: WorkflowBar[] = dailySheets.slice(0, 12).map((sheet) => ({
+    key: sheet.id,
+    title: `${sheet.number} - ${dailySheetStatusLabel[sheet.status] ?? sheet.status}`,
+    tone: sheet.status === 2 ? "good" : sheet.status === 1 ? "warn" : sheet.status === 3 ? "bad" : "neutral",
+  }));
+  const processSteps: {
+    label: string;
+    detail: string;
+    href: string;
+    status: "complete" | "current" | "blocked" | "pending";
+    meta: WorkflowMeta[];
+    bars?: WorkflowBar[];
+  }[] = [
     {
       label: "Intake",
       detail: statusLabel[job.status] ?? String(job.status),
       href: tabHref(job.id, "overview"),
       status: job.openedAt ? "complete" : "current",
+      meta: [
+        { label: "status", value: statusLabel[job.status] ?? job.status, tone: job.status === 12 ? "good" : job.status === 14 ? "bad" : "neutral" },
+        { label: "opened", value: new Date(job.openedAt).toLocaleDateString() },
+      ],
     },
     {
       label: "Plan",
-      detail: operations.length === 0 ? "No operations planned" : `${operations.filter((operation) => operation.status === 2).length}/${operations.length} completed`,
+      detail: operations.length === 0 ? "No operations planned" : `${completedOperations}/${operations.length} completed`,
       href: tabHref(job.id, "plan"),
       status: operations.length === 0 ? "pending" : operations.every((operation) => operation.status === 2 || operation.status === 3) ? "complete" : "current",
+      meta: [
+        { label: "ops", value: operations.length },
+        { label: "active", value: activeOperations, tone: activeOperations > 0 ? "warn" : "neutral" },
+        { label: "done", value: completedOperations, tone: completedOperations > 0 ? "good" : "neutral" },
+      ],
     },
     {
-      label: "Daily Work",
-      detail: dailySheets.length === 0 ? "No daily sheets" : `${dailySheets.filter((sheet) => sheet.status === 2).length}/${dailySheets.length} approved`,
+      label: "Daily Sheets",
+      detail: dailySheets.length === 0 ? "No daily sheets" : `${approvedDailySheets}/${dailySheets.length} approved`,
       href: dailyWorkHref(job.id, "sheets"),
       status: dailySheets.length === 0 ? "pending" : dailySheets.every((sheet) => sheet.status === 2) ? "complete" : "current",
+      meta: [
+        { label: "sheets", value: dailySheets.length },
+        { label: "approved", value: approvedDailySheets, tone: approvedDailySheets > 0 ? "good" : "neutral" },
+        { label: "open", value: pendingDailySheets, tone: pendingDailySheets > 0 ? "warn" : "neutral" },
+      ],
+      bars: dailySheetBars,
+    },
+    {
+      label: "Labour",
+      detail: assignments.length === 0 ? "No labour entries" : `${approvedAssignments}/${assignments.length} approved`,
+      href: dailyWorkHref(job.id, "labor", selectedDailySheet?.id),
+      status: assignments.length === 0 ? "pending" : pendingAssignments > 0 ? "blocked" : "complete",
+      meta: [
+        { label: "entries", value: assignments.length },
+        { label: "approved", value: approvedAssignments, tone: approvedAssignments > 0 ? "good" : "neutral" },
+        { label: "pending", value: pendingAssignments, tone: pendingAssignments > 0 ? "warn" : "neutral" },
+      ],
+    },
+    {
+      label: "Progress",
+      detail: progressUpdates.length === 0 ? "No progress updates" : `Latest ${latestProgressDate}`,
+      href: dailyWorkHref(job.id, "progress", selectedDailySheet?.id),
+      status: progressUpdates.length === 0 ? "pending" : canAddJobActivity ? "current" : "complete",
+      meta: [
+        { label: "updates", value: progressUpdates.length, tone: progressUpdates.length > 0 ? "good" : "neutral" },
+        { label: "latest", value: latestProgressDate },
+      ],
     },
     {
       label: "Materials",
       detail: pendingMaterialDisposition > 0 ? `${pendingMaterialDisposition} pending disposition` : `${costing.materialLines.length} issued lines`,
-      href: tabHref(job.id, "materials"),
+      href: materialHref(job.id, pendingMaterialDisposition > 0 ? "returns" : "issues"),
       status: pendingMaterialDisposition > 0 ? "blocked" : costing.materialLines.length > 0 ? "complete" : "pending",
+      meta: [
+        { label: "issued", value: costing.materialLines.length },
+        { label: "pending", value: pendingMaterialDisposition, tone: pendingMaterialDisposition > 0 ? "warn" : "neutral" },
+      ],
     },
     {
       label: "Expenses",
       detail: pendingIous.length + pendingClaims.length > 0 ? `${pendingIous.length + pendingClaims.length} pending finance items` : `${pettyCashIous.length + expenseClaims.length} tracked`,
       href: expenseHref(job.id, pendingIous.length > 0 ? "ious" : "petty-cash"),
       status: pendingIous.length + pendingClaims.length > 0 ? "blocked" : pettyCashIous.length + expenseClaims.length > 0 ? "complete" : "pending",
+      meta: [
+        { label: "IOUs", value: pettyCashIous.length },
+        { label: "claims", value: expenseClaims.length },
+        { label: "pending", value: pendingIous.length + pendingClaims.length, tone: pendingIous.length + pendingClaims.length > 0 ? "warn" : "neutral" },
+      ],
     },
     {
       label: "Quote",
       detail: hasApprovedEstimate ? "Approved quotation exists" : hasDraftEstimate ? "Draft quotation exists" : "No quotation",
       href: tabHref(job.id, "billing"),
       status: hasApprovedEstimate ? "complete" : hasDraftEstimate ? "current" : "pending",
+      meta: [
+        { label: "quotes", value: costing.estimates.length },
+        { label: "approved", value: approvedEstimates, tone: approvedEstimates > 0 ? "good" : "neutral" },
+      ],
     },
     {
       label: "Service Taken",
       detail: latestHandover ? `${latestHandover.number} / ${handoverStatusLabel[latestHandover.status] ?? latestHandover.status}` : "Not created",
       href: "/service/handovers",
       status: latestHandover?.status === 1 ? "complete" : latestHandover ? "current" : "pending",
+      meta: [
+        { label: "records", value: jobHandovers.length },
+        { label: "latest", value: latestHandover ? (handoverStatusLabel[latestHandover.status] ?? latestHandover.status) : "-", tone: latestHandover?.status === 1 ? "good" : latestHandover ? "warn" : "neutral" },
+      ],
     },
     {
       label: "Invoice",
       detail: hasPostedInvoice ? "Posted invoice exists" : hasDraftInvoice ? "Draft invoice exists" : job.finalInvoiceNotRequired ? "Not billable" : "Not invoiced",
       href: tabHref(job.id, "billing"),
       status: hasPostedInvoice || job.finalInvoiceNotRequired ? "complete" : hasDraftInvoice ? "current" : "pending",
+      meta: [
+        { label: "invoices", value: costing.invoices.length },
+        { label: "posted", value: postedInvoices, tone: postedInvoices > 0 || job.finalInvoiceNotRequired ? "good" : "neutral" },
+        { label: "draft", value: costing.invoices.length - postedInvoices, tone: hasDraftInvoice ? "warn" : "neutral" },
+      ],
     },
     {
       label: "Close",
       detail: pendingCloseoutCount === 0 ? "Ready when status allows" : `${pendingCloseoutCount} blocker${pendingCloseoutCount === 1 ? "" : "s"}`,
       href: tabHref(job.id, "overview"),
       status: job.status === 12 ? "complete" : pendingCloseoutCount > 0 ? "blocked" : "current",
+      meta: [
+        { label: "blockers", value: pendingCloseoutCount, tone: pendingCloseoutCount > 0 ? "warn" : "good" },
+      ],
     },
   ];
   const nextActions = [
@@ -971,48 +1083,50 @@ export default async function ServiceJobDetailPage({
 
   return (
     <div className="space-y-6">
-      <div>
-        <div className="text-sm text-zinc-500">
-          <Link href="/service/jobs" className="hover:underline">
-            Job Orders
-          </Link>{" "}
-          / <span className="font-mono text-xs">{job.number}</span>
-        </div>
-        <h1 className="mt-1 text-2xl font-semibold">Job Order {job.number}</h1>
-        <div className="mt-2 flex flex-wrap gap-3 text-sm text-zinc-600 dark:text-zinc-400">
-          <div>
-            Equipment:{" "}
-            <TransactionLink referenceType="EUNIT" referenceId={job.equipmentUnitId} monospace>
-              {unitById.get(job.equipmentUnitId)?.serialNumber ?? job.equipmentUnitId}
-            </TransactionLink>
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div className="min-w-0 flex-1">
+          <div className="text-sm text-zinc-500">
+            <Link href="/service/jobs" className="hover:underline">
+              Job Orders
+            </Link>{" "}
+            / <span className="font-mono text-xs">{job.number}</span>
           </div>
-          <div>Customer: {customerById.get(job.customerId)?.code ?? job.customerId}</div>
-          <div>Type: {kindLabel[job.kind] ?? job.kind}</div>
-          <div>Status: {statusLabel[job.status] ?? job.status}</div>
-          <div>Opened: {new Date(job.openedAt).toLocaleString()}</div>
-          <div>Est. start: {job.estimatedStartAt ? new Date(job.estimatedStartAt).toLocaleDateString() : "-"}</div>
-          <div>Actual start: {job.actualStartAt ? new Date(job.actualStartAt).toLocaleString() : "-"}</div>
-          <div>Expected: {job.expectedCompletionAt ? new Date(job.expectedCompletionAt).toLocaleDateString() : "-"}</div>
-          <div>Completed: {job.completedAt ? new Date(job.completedAt).toLocaleString() : "-"}</div>
-          <div>Site: {job.siteLocation ?? "-"}</div>
-          <div>Responsible: {job.responsibleOfficerName ?? "-"}</div>
-          <div>Invoice required: {job.finalInvoiceNotRequired ? "No" : "Yes"}</div>
+          <h1 className="mt-1 text-2xl font-semibold">Job Order {job.number}</h1>
+          <div className="mt-2 flex flex-wrap gap-3 text-sm text-zinc-600 dark:text-zinc-400">
+            <div>
+              Equipment:{" "}
+              <TransactionLink referenceType="EUNIT" referenceId={job.equipmentUnitId} monospace>
+                {unitById.get(job.equipmentUnitId)?.serialNumber ?? job.equipmentUnitId}
+              </TransactionLink>
+            </div>
+            <div>Customer: {customerById.get(job.customerId)?.code ?? job.customerId}</div>
+            <div>Type: {kindLabel[job.kind] ?? job.kind}</div>
+            <div>Status: {statusLabel[job.status] ?? job.status}</div>
+            <div>Opened: {new Date(job.openedAt).toLocaleString()}</div>
+            <div>Est. start: {job.estimatedStartAt ? new Date(job.estimatedStartAt).toLocaleDateString() : "-"}</div>
+            <div>Actual start: {job.actualStartAt ? new Date(job.actualStartAt).toLocaleString() : "-"}</div>
+            <div>Expected: {job.expectedCompletionAt ? new Date(job.expectedCompletionAt).toLocaleDateString() : "-"}</div>
+            <div>Completed: {job.completedAt ? new Date(job.completedAt).toLocaleString() : "-"}</div>
+            <div>Site: {job.siteLocation ?? "-"}</div>
+            <div>Responsible: {job.responsibleOfficerName ?? "-"}</div>
+            <div>Invoice required: {job.finalInvoiceNotRequired ? "No" : "Yes"}</div>
+          </div>
+        </div>
+        <div className="w-full rounded-lg border border-[var(--card-border)] bg-[var(--card-bg)] p-2 shadow-[var(--shadow-card)] sm:w-auto sm:min-w-[360px] sm:max-w-[520px]">
+          <div className="mb-2 flex items-center justify-between gap-2">
+            <div className="text-xs font-semibold uppercase tracking-wide text-zinc-500">Actions</div>
+            <SecondaryLink
+              className="min-h-7 px-2 py-1 text-xs"
+              href={`/api/backend/service/jobs/${job.id}/pdf`}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Download PDF
+            </SecondaryLink>
+          </div>
+          <ServiceJobActions jobId={job.id} canStart={canStart} canComplete={canComplete} canClose={canClose} canReopen={canReopen} compact />
         </div>
       </div>
-
-      <Card>
-        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-          <div className="text-sm font-semibold">Actions</div>
-          <SecondaryLink
-            href={`/api/backend/service/jobs/${job.id}/pdf`}
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Download PDF
-          </SecondaryLink>
-        </div>
-        <ServiceJobActions jobId={job.id} canStart={canStart} canComplete={canComplete} canClose={canClose} canReopen={canReopen} />
-      </Card>
 
       <Card>
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
@@ -1085,15 +1199,38 @@ export default async function ServiceJobDetailPage({
       </Card>
 
       <Card>
-        <div className="mb-4 text-sm font-semibold">Process Timeline</div>
-        <div className="grid gap-2 md:grid-cols-3 xl:grid-cols-9">
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <div className="text-sm font-semibold">Process Timeline</div>
+            <div className="mt-1 text-xs text-zinc-500">Click a stage to work in that focused area without searching through the full page.</div>
+          </div>
+          <div className="text-xs font-medium text-zinc-500">{pendingCloseoutCount > 0 ? `${pendingCloseoutCount} closeout blocker${pendingCloseoutCount === 1 ? "" : "s"}` : "Closeout clear"}</div>
+        </div>
+        <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-5">
           {processSteps.map((step) => (
-            <Link key={step.label} href={step.href} className="rounded-lg border border-[var(--card-border)] p-3 transition hover:border-[var(--link)] hover:bg-[var(--surface-soft)]">
+            <Link key={step.label} href={step.href} className="flex min-h-[136px] flex-col rounded-lg border border-[var(--card-border)] p-3 transition hover:border-[var(--link)] hover:bg-[var(--surface-soft)]">
               <div className="flex items-center justify-between gap-2">
                 <div className="text-sm font-medium">{step.label}</div>
                 <ProcessStatusBadge status={step.status} />
               </div>
               <div className="mt-2 text-xs text-zinc-500">{step.detail}</div>
+              <div className="mt-3 flex flex-wrap gap-1.5">
+                {step.meta.map((meta) => (
+                  <WorkflowMetaPill key={`${step.label}-${meta.label}`} meta={meta} />
+                ))}
+              </div>
+              {step.bars && step.bars.length > 0 ? (
+                <div className="mt-auto pt-3">
+                  <div className="flex h-2 overflow-hidden rounded-full bg-zinc-100 dark:bg-zinc-900">
+                    {step.bars.map((bar) => (
+                      <span key={bar.key} title={bar.title} className={`min-w-2 flex-1 ${workflowBarClass(bar.tone)}`} />
+                    ))}
+                  </div>
+                  {dailySheets.length > step.bars.length ? (
+                    <div className="mt-1 text-[11px] text-zinc-500">Showing {step.bars.length} of {dailySheets.length}</div>
+                  ) : null}
+                </div>
+              ) : null}
             </Link>
           ))}
         </div>
