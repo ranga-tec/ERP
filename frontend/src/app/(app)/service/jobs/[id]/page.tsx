@@ -1002,32 +1002,6 @@ export default async function ServiceJobDetailPage({
       ],
     },
   ];
-  const nextActions = [
-    dailySheets.length === 0 && canAddJobActivity
-      ? { label: "Create daily sheet", detail: "Start the first daily field record for this job.", href: dailyWorkHref(job.id, "sheets") }
-      : null,
-    dailySheets.length > 0 && canAddJobActivity
-      ? { label: "Add progress", detail: latestProgress ? `Last update ${new Date(latestProgress.progressDate).toLocaleString()}` : "Record completed and pending work.", href: dailyWorkHref(job.id, "progress", selectedDailySheet?.id) }
-      : null,
-    pendingMaterialDisposition > 0
-      ? { label: "Clear material disposition", detail: `${pendingMaterialDisposition} issued material item${pendingMaterialDisposition === 1 ? "" : "s"} need return/damage/use decision.`, href: materialHref(job.id, "returns") }
-      : null,
-    pendingIous.length > 0
-      ? { label: "Review IOU advances", detail: `${pendingIous.length} IOU advance${pendingIous.length === 1 ? "" : "s"} still pending finance closeout.`, href: expenseHref(job.id, "ious") }
-      : null,
-    pendingClaims.length > 0
-      ? { label: "Review expense claims", detail: `${pendingClaims.length} claim${pendingClaims.length === 1 ? "" : "s"} still pending approval or settlement.`, href: expenseHref(job.id, "petty-cash") }
-      : null,
-    costing.uninvoicedBillableLaborRevenue > 0
-      ? { label: "Invoice billable labour", detail: `${money(costing.uninvoicedBillableLaborRevenue)} approved labour is not invoiced.`, href: tabHref(job.id, "billing") }
-      : null,
-    !latestHandover && canAddJobActivity
-      ? { label: "Create service taken", detail: "Capture delivery confirmation before final invoicing.", href: "/service/handovers" }
-      : null,
-    latestHandover?.status === 1 && !hasDraftInvoice && !hasPostedInvoice && !job.finalInvoiceNotRequired
-      ? { label: "Create final invoice", detail: "Completed service taken is ready for invoice conversion.", href: `/service/handovers/${latestHandover.id}` }
-      : null,
-  ].filter((action): action is { label: string; detail: string; href: string } => action !== null);
   const actualCostBreakdown = [
     {
       label: "Materials",
@@ -1257,30 +1231,6 @@ export default async function ServiceJobDetailPage({
             </Link>
           ))}
         </div>
-      </Card>
-
-      <Card>
-        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <div className="text-sm font-semibold">Next Actions</div>
-            <div className="mt-1 text-xs text-zinc-500">Suggested actions based on the current job records and blockers.</div>
-          </div>
-          <div className="text-xs font-medium text-zinc-500">{nextActions.length} action{nextActions.length === 1 ? "" : "s"}</div>
-        </div>
-        {nextActions.length > 0 ? (
-          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-            {nextActions.map((action) => (
-              <Link key={action.label} href={action.href} className="rounded-lg border border-[var(--card-border)] p-3 transition hover:border-[var(--link)] hover:bg-[var(--surface-soft)]">
-                <div className="text-sm font-semibold text-[var(--link)]">{action.label}</div>
-                <div className="mt-1 text-xs text-zinc-500">{action.detail}</div>
-              </Link>
-            ))}
-          </div>
-        ) : (
-          <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-900 dark:border-emerald-900/40 dark:bg-emerald-950/30 dark:text-emerald-100">
-            No immediate operational action is suggested from the current job records.
-          </div>
-        )}
       </Card>
 
       {canEditHeader ? (
