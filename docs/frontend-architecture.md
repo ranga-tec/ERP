@@ -283,6 +283,8 @@ Recent workflow-specific UI behavior:
 - service material requisition lines validate warehouse availability before saving; serial-tracked items use an available-serial picker, and stock visibility opens from a compact modal trigger
 - service handover invoice conversion supports fallback item mapping for expense lines and lets users choose estimate labor vs approved timesheet labor
 - service job detail pages render a costing summary with estimate, invoice, material, direct-purchase, labor, and expense-claim breakdowns, including entitlement-adjusted labor billing visibility
+- service job pages follow the current dense ERP layout rule: lists/status records appear before create forms, job tabs anchor to `#tab-content`, and add/create forms for jobs, daily sheets, operations, and MRNs are exposed through explicit on-demand controls
+- service job overview is intentionally short: compact header, cockpit, process timeline, collapsed edit/intake sections; billing entitlement and closeout readiness live in the `Billing` tab
 - finance chart-of-accounts pages now support account creation/edit/delete, parent account structure, and posting/group flags
 - finance petty cash pages provide fund creation, editing, top-up, adjustment, and settlement-ledger visibility
 - finance petty cash IOU pages track job-linked cash advances separately from final service expense-claim settlement

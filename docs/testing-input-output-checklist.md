@@ -682,12 +682,12 @@ Open the job detail and verify each tab loads without leaving the job context:
 
 | Tab | Expected content |
 | --- | --- |
-| `Overview` | edit/intake summary, warranty/billing entitlement, closeout readiness, related workflow links |
-| `Plan` | `Job Operations / Sub-Parts Plan` |
-| `Daily Work` | sub-tabs for `Daily Sheets`, `Staff / Labor`, and `Progress` |
-| `Materials` | materials/lubricants issue and material returns/damage/rejection |
+| `Overview` | compact cockpit, process timeline, collapsed edit job, collapsed job intake |
+| `Plan` | `Job Operations / Sub-Parts Plan`, operations table, and visible `+ Add Operation` expandable row |
+| `Daily Work` | sub-tabs for `Daily Sheets`, `Staff / Labor`, and `Progress`; daily sheets show first, create forms open on demand |
+| `Materials` | materials/lubricants issue, material returns/damage/rejection, and visible `+ New MRN` expandable row |
 | `Expenses` | IOU / employee advance, petty cash expense, employee out-of-pocket claim |
-| `Billing` | closeout readiness, final invoice decision, quotations and final invoices |
+| `Billing` | closeout readiness, warranty/billing entitlement, final invoice decision, quotations and final invoices |
 | `Costs` | actual cost cards, profitability report, cost sources |
 | `Files & Notes` | comments and attachments |
 
@@ -695,11 +695,13 @@ Expected:
 
 | Check | Where | Expected output |
 | --- | --- | --- |
-| Persistent header | every tab | job number, equipment, customer, type, status, and action buttons remain visible |
+| Compact header | every tab | job number, status/type badges, equipment, customer, site/responsible if present, PDF, and action buttons remain visible without taking most of the viewport |
+| Dates and secondary header data | job header | date-heavy details are hidden behind `Show dates & details` |
 | Active tab | tab bar | selected tab is visually highlighted |
-| Deep links | browser URL | non-overview tabs use `?tab=plan`, `?tab=daily-work`, `?tab=materials`, `?tab=expenses`, `?tab=billing`, `?tab=costs`, or `?tab=files` |
+| Deep links | browser URL | non-overview tabs use `?tab=plan`, `?tab=daily-work`, `?tab=materials`, `?tab=expenses`, `?tab=billing`, `?tab=costs`, or `?tab=files`, followed by `#tab-content` |
+| Tab focus | click any tab or process timeline card | browser scrolls directly to the tab bar/content area, not just the top of the job page |
 | Invalid tab fallback | manually open `?tab=wrong` | page falls back to `Overview` |
-| Closeout tile links | `Overview` or `Billing` tab -> `Closeout Readiness` | pending tiles are clickable and open the relevant tab/sub-tab |
+| Closeout tile links | `Billing` tab -> `Closeout Readiness` | pending tiles are clickable and open the relevant tab/sub-tab |
 
 Command Center smoke test:
 
@@ -772,7 +774,7 @@ Expected:
 
 Open the service job detail.
 
-Open the `Daily Work` tab, then the `Daily Sheets` sub-tab. Expand `Create daily field sheet` and create:
+Open the `Daily Work` tab, then the `Daily Sheets` sub-tab. If there are no daily sheets, use `+ Create First Daily Sheet`. If sheets already exist, use `+ Add Another Day`. Create:
 
 | Field | Input |
 | --- | --- |
@@ -801,9 +803,9 @@ Daily sheet relationship test:
 
 | Action | Expected output |
 | --- | --- |
-| Open `Daily Work -> Staff / Labor` without selecting a sheet | form still allows unlinked job assignment if the business allows it |
+| Open `Daily Work -> Staff / Labor` before any daily sheet exists | a clean `No daily sheet selected` card appears with a `Go to Daily Sheets` action; no disabled labor form is shown |
 | Select the `JDS...` daily sheet in staff/labor | assignment is counted on that sheet row |
-| Open `Daily Work -> Progress` without selecting a sheet | form still allows unlinked progress if the update is general job progress |
+| Open `Daily Work -> Progress` before any daily sheet exists | a clean `No daily sheet selected` card appears with a `Go to Daily Sheets` action; no disabled progress form is shown |
 | Select the `JDS...` daily sheet in progress | progress is counted on that sheet row |
 | Submit the daily sheet before all daily entries are ready | system should either allow supervisor submission or show clear validation; record the observed behavior |
 

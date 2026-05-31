@@ -691,19 +691,19 @@ function resolveExpenseView(value?: string): ExpenseViewKey {
 }
 
 function tabHref(jobId: string, tab: JobTabKey) {
-  return tab === "overview" ? `/service/jobs/${jobId}` : `/service/jobs/${jobId}?tab=${tab}`;
+  return tab === "overview" ? `/service/jobs/${jobId}#tab-content` : `/service/jobs/${jobId}?tab=${tab}#tab-content`;
 }
 
 function dailyWorkHref(jobId: string, view: DailyWorkViewKey = "sheets", dailySheetId?: string) {
-  return `/service/jobs/${jobId}?tab=daily-work&dailyView=${view}${dailySheetId ? `&dailySheetId=${dailySheetId}` : ""}`;
+  return `/service/jobs/${jobId}?tab=daily-work&dailyView=${view}${dailySheetId ? `&dailySheetId=${dailySheetId}` : ""}#tab-content`;
 }
 
 function materialHref(jobId: string, view: MaterialViewKey = "issues") {
-  return `/service/jobs/${jobId}?tab=materials&materialView=${view}`;
+  return `/service/jobs/${jobId}?tab=materials&materialView=${view}#tab-content`;
 }
 
 function expenseHref(jobId: string, view: ExpenseViewKey = "ious") {
-  return `/service/jobs/${jobId}?tab=expenses&expenseView=${view}`;
+  return `/service/jobs/${jobId}?tab=expenses&expenseView=${view}#tab-content`;
 }
 
 function closeoutCheckHref(jobId: string, key: string) {
@@ -1056,53 +1056,60 @@ export default async function ServiceJobDetailPage({
   });
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div className="min-w-0 flex-1">
-          <div className="text-sm text-zinc-500">
-            <Link href="/service/jobs" className="hover:underline">
-              Job Orders
-            </Link>{" "}
-            / <span className="font-mono text-xs">{job.number}</span>
-          </div>
-          <h1 className="mt-1 text-2xl font-semibold">Job Order {job.number}</h1>
-          <div className="mt-2 flex flex-wrap gap-3 text-sm text-zinc-600 dark:text-zinc-400">
-            <div>
-              Equipment:{" "}
-              <TransactionLink referenceType="EUNIT" referenceId={job.equipmentUnitId} monospace>
-                {unitById.get(job.equipmentUnitId)?.serialNumber ?? job.equipmentUnitId}
-              </TransactionLink>
-            </div>
-            <div>Customer: {customerById.get(job.customerId)?.code ?? job.customerId}</div>
-            <div>Type: {kindLabel[job.kind] ?? job.kind}</div>
-            <div>Status: {statusLabel[job.status] ?? job.status}</div>
-            <div>Opened: {new Date(job.openedAt).toLocaleString()}</div>
-            <div>Est. start: {job.estimatedStartAt ? new Date(job.estimatedStartAt).toLocaleDateString() : "-"}</div>
-            <div>Actual start: {job.actualStartAt ? new Date(job.actualStartAt).toLocaleString() : "-"}</div>
-            <div>Expected: {job.expectedCompletionAt ? new Date(job.expectedCompletionAt).toLocaleDateString() : "-"}</div>
-            <div>Completed: {job.completedAt ? new Date(job.completedAt).toLocaleString() : "-"}</div>
-            <div>Site: {job.siteLocation ?? "-"}</div>
-            <div>Responsible: {job.responsibleOfficerName ?? "-"}</div>
-            <div>Invoice required: {job.finalInvoiceNotRequired ? "No" : "Yes"}</div>
-          </div>
+    <div className="space-y-4">
+      <div>
+        <div className="text-xs text-zinc-500">
+          <Link href="/service/jobs" className="hover:underline">Job Orders</Link>{" "}
+          / <span className="font-mono">{job.number}</span>
         </div>
-        <div className="w-full rounded-lg border border-[var(--card-border)] bg-[var(--card-bg)] p-2 shadow-[var(--shadow-card)] sm:w-auto sm:min-w-[360px] sm:max-w-[520px]">
-          <div className="mb-2 flex items-center justify-between gap-2">
-            <div className="text-xs font-semibold uppercase tracking-wide text-zinc-500">Actions</div>
+        <div className="mt-1 flex flex-wrap items-start justify-between gap-3">
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-2">
+              <h1 className="text-xl font-semibold">Job Order {job.number}</h1>
+              <span className={[
+                "rounded-full border px-2 py-0.5 text-xs font-semibold",
+                job.status === 12 ? "border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-900/40 dark:bg-emerald-950/30 dark:text-emerald-200"
+                : job.status === 14 ? "border-red-200 bg-red-50 text-red-800 dark:border-red-900/40 dark:bg-red-950/30 dark:text-red-200"
+                : job.status === 3 || job.status === 2 || job.status === 1 ? "border-blue-200 bg-blue-50 text-blue-800 dark:border-blue-900/40 dark:bg-blue-950/30 dark:text-blue-200"
+                : "border-zinc-200 bg-zinc-50 text-zinc-600 dark:border-zinc-800 dark:bg-zinc-900/40 dark:text-zinc-300",
+              ].join(" ")}>
+                {statusLabel[job.status] ?? job.status}
+              </span>
+              <span className="rounded border border-[var(--card-border)] px-1.5 py-0.5 text-xs text-zinc-500">{kindLabel[job.kind] ?? job.kind}</span>
+            </div>
+            <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-zinc-500">
+              <span>Equipment: <TransactionLink referenceType="EUNIT" referenceId={job.equipmentUnitId} monospace>{unitById.get(job.equipmentUnitId)?.serialNumber ?? job.equipmentUnitId}</TransactionLink></span>
+              <span>Customer: {customerById.get(job.customerId)?.code ?? job.customerId}</span>
+              {job.siteLocation ? <span>Site: {job.siteLocation}</span> : null}
+              {job.responsibleOfficerName ? <span>Responsible: {job.responsibleOfficerName}</span> : null}
+            </div>
+            <details>
+              <summary className="mt-0.5 cursor-pointer list-none text-xs text-[var(--link)] hover:underline">Show dates &amp; details ▾</summary>
+              <div className="mt-1.5 flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-zinc-500">
+                <span>Opened: {new Date(job.openedAt).toLocaleString()}</span>
+                <span>Est. start: {job.estimatedStartAt ? new Date(job.estimatedStartAt).toLocaleDateString() : "-"}</span>
+                <span>Actual start: {job.actualStartAt ? new Date(job.actualStartAt).toLocaleString() : "-"}</span>
+                <span>Expected: {job.expectedCompletionAt ? new Date(job.expectedCompletionAt).toLocaleDateString() : "-"}</span>
+                <span>Completed: {job.completedAt ? new Date(job.completedAt).toLocaleString() : "-"}</span>
+                <span>Invoice required: {job.finalInvoiceNotRequired ? "No" : "Yes"}</span>
+              </div>
+            </details>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
             <SecondaryLink
               className="min-h-7 px-2 py-1 text-xs"
               href={`/api/backend/service/jobs/${job.id}/pdf`}
               target="_blank"
               rel="noopener noreferrer"
             >
-              Download PDF
+              PDF
             </SecondaryLink>
+            <ServiceJobActions jobId={job.id} canStart={canStart} canComplete={canComplete} canClose={canClose} canReopen={canReopen} compact />
           </div>
-          <ServiceJobActions jobId={job.id} canStart={canStart} canComplete={canComplete} canClose={canClose} canReopen={canReopen} compact />
         </div>
       </div>
 
-      <nav className="overflow-x-auto border-b border-[var(--card-border)]">
+      <nav id="tab-content" className="overflow-x-auto border-b border-[var(--card-border)]">
         <div className="flex min-w-max gap-1">
           {jobTabs.map((tab) => {
             const active = tab.key === activeTab;
@@ -1266,103 +1273,25 @@ export default async function ServiceJobDetailPage({
         </div>
       </CollapsibleCard>
 
-      <CollapsibleCard
-        title="Warranty / Billing Entitlement"
-        summary={job.entitlementSummary ?? "Coverage and billing treatment calculated when the job was opened."}
-        meta={billingTreatmentLabel[job.customerBillingTreatment] ?? String(job.customerBillingTreatment)}
-      >
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-          <div>
-            <div className="text-xs uppercase tracking-wide text-zinc-500">Entitlement Source</div>
-            <div className="mt-2 text-sm font-medium">
-              {job.serviceContractId && job.serviceContractNumber ? (
-                <Link className="hover:underline" href={`/service/contracts/${job.serviceContractId}`}>
-                  {job.serviceContractNumber}
-                </Link>
-              ) : (
-                entitlementSourceLabel[job.entitlementSource] ?? job.entitlementSource
-              )}
-            </div>
-            <div className="mt-1 text-xs text-zinc-500">
-              {job.entitlementEvaluatedAt ? `Evaluated ${new Date(job.entitlementEvaluatedAt).toLocaleString()}` : "Not evaluated yet"}
-            </div>
-          </div>
-          <div>
-            <div className="text-xs uppercase tracking-wide text-zinc-500">Coverage</div>
-            <div className="mt-2 text-sm font-medium">
-              {entitlementCoverageLabel[job.entitlementCoverage] ?? job.entitlementCoverage}
-            </div>
-          </div>
-          <div>
-            <div className="text-xs uppercase tracking-wide text-zinc-500">Billing Treatment</div>
-            <div className="mt-2 text-sm font-medium">
-              {billingTreatmentLabel[job.customerBillingTreatment] ?? job.customerBillingTreatment}
-            </div>
-          </div>
-          <div>
-            <div className="text-xs uppercase tracking-wide text-zinc-500">Contract Link</div>
-            <div className="mt-2 text-sm font-medium">
-              {job.serviceContractId && job.serviceContractNumber ? (
-                <Link className="hover:underline" href={`/service/contracts/${job.serviceContractId}`}>
-                  {job.serviceContractNumber}
-                </Link>
-              ) : (
-                "No linked contract"
-              )}
-            </div>
-          </div>
-        </div>
-      </CollapsibleCard>
-
-      <Card>
-        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-          <div>
-            <div className="text-sm font-semibold">Closeout Readiness</div>
-            <div className="mt-1 text-xs text-zinc-500">Clear these operational and financial items before closing the job.</div>
-          </div>
-          <div className="text-sm font-medium">
-            {closeoutChecks.every((check) => check.isClear) ? "Ready to close" : `${closeoutChecks.filter((check) => !check.isClear).length} pending`}
-          </div>
-        </div>
-        <div className="grid gap-2 md:grid-cols-2">
-          {closeoutChecks.map((check) => (
-            <Link key={check.key} href={closeoutCheckHref(job.id, check.key)} className="rounded-lg border border-[var(--card-border)] p-3 transition hover:border-[var(--link)] hover:bg-[var(--surface-soft)]">
-              <div className="flex items-center justify-between gap-3">
-                <div className="text-sm font-medium">{check.label}</div>
-                <div className={check.isClear ? "text-xs font-semibold text-emerald-700 dark:text-emerald-300" : "text-xs font-semibold text-amber-700 dark:text-amber-300"}>
-                  {check.isClear ? "Clear" : `${check.pendingCount} pending`}
-                </div>
-              </div>
-              <div className="mt-1 text-xs text-zinc-500">{check.detail}</div>
-              <div className="mt-2 text-xs font-semibold text-[var(--link)]">{check.isClear ? "Review" : "Open pending records"}</div>
-            </Link>
-          ))}
-        </div>
-      </Card>
-
-      <Card>
-        <div className="text-sm text-zinc-500">
-          Track the job flow via <Link className="underline" href="/service/estimates">Quotations</Link>,{" "}
-          <Link className="underline" href="/service/expense-claims">Petty Cash</Link>,{" "}
-          <Link className="underline" href="/service/work-orders">Job Detail / Job Sheet</Link>,{" "}
-          <Link className="underline" href="/service/material-requisitions">MRN</Link>,{" "}
-          <Link className="underline" href="/procurement/direct-purchases">Direct Purchases</Link>,{" "}
-          <Link className="underline" href="/service/quality-checks">Inspection / QC</Link>, and{" "}
-          <Link className="underline" href="/service/handovers">Service Taken / Delivery Confirmation</Link>.
-        </div>
-      </Card>
         </>
       ) : null}
 
       {activeTab === "plan" ? (
       <Card>
-        <div className="mb-3">
-          <div className="text-sm font-semibold">Job Operations / Sub-Parts Plan</div>
-          <div className="mt-1 text-xs text-zinc-500">Plan complex repair stages, expected sub-parts, labor, and due dates before issuing actual MRNs or recording labor.</div>
+        <div className="mb-3 flex flex-wrap items-start justify-between gap-2">
+          <div>
+            <div className="text-sm font-semibold">Job Operations / Sub-Parts Plan</div>
+            <div className="mt-1 text-xs text-zinc-500">Plan complex repair stages, expected sub-parts, labor, and due dates before issuing actual MRNs or recording labor.</div>
+          </div>
         </div>
-        <details className="rounded-md border border-[var(--card-border)] p-3">
-          <summary className="cursor-pointer text-sm font-medium">Add operation / sub-part</summary>
-          <div className="mt-3">
+        <details className="mb-4 rounded-md border border-[var(--card-border)]">
+          <summary className="cursor-pointer list-none p-3">
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-sm font-medium text-zinc-600 dark:text-zinc-400">Add operation / sub-part</span>
+              <span className="shrink-0 rounded border border-[var(--link)] px-2.5 py-1 text-xs font-medium text-[var(--link)]">+ Add Operation</span>
+            </div>
+          </summary>
+          <div className="border-t border-[var(--card-border)] p-3">
             <ServiceJobOperationAddForm serviceJobId={job.id} items={items} nextSequence={nextOperationSequence} disabled={!canAddJobActivity} />
           </div>
         </details>
@@ -1491,15 +1420,32 @@ export default async function ServiceJobDetailPage({
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
           <div>
             <div className="text-sm font-semibold">Daily Field Sheets</div>
-            <div className="mt-1 text-xs text-zinc-500">Capture each working day before replacing paper job sheets, cash notes, and material return notes.</div>
+            <div className="mt-1 text-xs text-zinc-500">Capture each working day — replaces paper job sheets, cash notes, and material return notes.</div>
           </div>
+          {dailySheets.length > 0 ? (
+            <details className="group">
+              <summary className="cursor-pointer list-none rounded-md border border-[var(--card-border)] px-3 py-1.5 text-sm font-medium text-zinc-600 hover:border-[var(--link)] hover:text-[var(--link)] dark:text-zinc-400">
+                + Add Another Day
+              </summary>
+              <div className="mt-3 rounded-md border border-[var(--card-border)] p-3">
+                <ServiceJobDailySheetCreateForm serviceJobId={job.id} disabled={!canAddJobActivity} disabledReason={dailySheetCreateDisabledReason} />
+              </div>
+            </details>
+          ) : null}
         </div>
-        <details className="rounded-md border border-[var(--card-border)] p-3">
-          <summary className="cursor-pointer text-sm font-medium">Create daily field sheet for another day</summary>
-          <div className="mt-3">
-            <ServiceJobDailySheetCreateForm serviceJobId={job.id} disabled={!canAddJobActivity} disabledReason={dailySheetCreateDisabledReason} />
-          </div>
-        </details>
+        {dailySheets.length === 0 ? (
+          <details className="rounded-lg border-2 border-dashed border-[var(--card-border)] p-6 text-center">
+            <summary className="cursor-pointer list-none">
+              <div className="mb-3 text-sm text-zinc-500">No daily field sheets recorded yet. Start by creating your first one.</div>
+              <div className="inline-flex items-center rounded-md border border-[var(--link)] bg-[var(--link)] px-4 py-2 text-sm font-medium text-white transition hover:opacity-90">
+                + Create First Daily Sheet
+              </div>
+            </summary>
+            <div className="mt-4 border-t border-[var(--card-border)] pt-4 text-left">
+              <ServiceJobDailySheetCreateForm serviceJobId={job.id} disabled={!canAddJobActivity} disabledReason={dailySheetCreateDisabledReason} />
+            </div>
+          </details>
+        ) : null}
         <div className="mt-4 space-y-3">
           {dailySheetSummaries.map((summary) => {
             const { sheet } = summary;
@@ -1579,11 +1525,6 @@ export default async function ServiceJobDetailPage({
               </div>
             );
           })}
-          {dailySheets.length === 0 ? (
-            <div className="rounded-md border border-[var(--card-border)] p-4 text-sm text-zinc-500">
-              No daily field sheets recorded yet.
-            </div>
-          ) : null}
         </div>
       </Card>
       ) : null}
@@ -1638,16 +1579,30 @@ export default async function ServiceJobDetailPage({
           </Card>
         ) : (
           <Card>
-            <div className="text-sm text-zinc-500">Create a daily field sheet first. Staff/labor and progress are recorded against the selected daily sheet.</div>
+            <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <div className="text-sm font-semibold text-zinc-700 dark:text-zinc-200">No daily sheet selected</div>
+                <div className="mt-1 text-xs text-zinc-500">
+                  {activeDailyWorkView === "labor" ? "Staff and labor entries are recorded against a daily field sheet." : "Progress updates are recorded against a daily field sheet."}
+                  {" "}Start by creating your first daily sheet for this job.
+                </div>
+              </div>
+              <Link
+                href={dailyWorkHref(job.id, "sheets")}
+                className="inline-flex items-center rounded-md border border-[var(--link)] bg-[var(--link)] px-3 py-1.5 text-sm font-medium text-white transition hover:opacity-90"
+              >
+                Go to Daily Sheets
+              </Link>
+            </div>
           </Card>
         )
       ) : null}
 
-      {activeDailyWorkView === "labor" ? (
+      {activeDailyWorkView === "labor" && selectedDailySheet ? (
       <CollapsibleCard
         title="Daily Staff / Labor"
-        summary={selectedDailySheet ? `Assign staff and labor for ${selectedDailySheet.number}.` : "Create a daily sheet before adding staff or labor."}
-        meta={selectedDailySheet ? `${selectedAssignments.length} assigned` : "No sheet selected"}
+        summary={`Assign staff and labor for ${selectedDailySheet.number}.`}
+        meta={`${selectedAssignments.length} assigned`}
       >
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
           <Link className="text-sm font-semibold text-[var(--link)] underline underline-offset-2" href="/service/technicians">
@@ -1724,11 +1679,11 @@ export default async function ServiceJobDetailPage({
       </CollapsibleCard>
       ) : null}
 
-      {activeDailyWorkView === "progress" ? (
+      {activeDailyWorkView === "progress" && selectedDailySheet ? (
       <CollapsibleCard
         title="Daily Progress"
-        summary={selectedDailySheet ? `Record completed work, pending work, and issues for ${selectedDailySheet.number}.` : "Create a daily sheet before adding progress."}
-        meta={selectedDailySheet ? `${selectedProgressUpdates.length} updates` : "No sheet selected"}
+        summary={`Record completed work, pending work, and issues for ${selectedDailySheet.number}.`}
+        meta={`${selectedProgressUpdates.length} updates`}
       >
         <div className="space-y-3">
           {selectedProgressUpdates.map((update) => (
@@ -2019,12 +1974,22 @@ export default async function ServiceJobDetailPage({
       ) : null}
 
       {activeMaterialView === "issues" ? (
-        <CollapsibleCard
-          title="Create MRN"
-          summary="Create a draft material requisition, then add lines and post it from the MRN screen."
-        >
-          <ServiceJobDailyMaterialRequisitionCreateForm serviceJobId={job.id} dailySheets={dailySheets} warehouses={warehouses} disabled={!canAddJobActivity} />
-        </CollapsibleCard>
+        <details className="rounded-lg border border-[var(--card-border)] bg-[var(--card-bg)] p-4 shadow-[var(--shadow-card)]">
+          <summary className="cursor-pointer list-none">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <div className="text-sm font-semibold">Create MRN</div>
+                <div className="mt-0.5 text-xs text-zinc-500">Create a draft material requisition, then add lines and post it from the MRN screen.</div>
+              </div>
+              <div className="shrink-0 rounded-md border border-[var(--link)] px-3 py-1.5 text-sm font-medium text-[var(--link)] transition hover:bg-[var(--surface-soft)]">
+                + New MRN
+              </div>
+            </div>
+          </summary>
+          <div className="mt-4 border-t border-[var(--card-border)] pt-4">
+            <ServiceJobDailyMaterialRequisitionCreateForm serviceJobId={job.id} dailySheets={dailySheets} warehouses={warehouses} disabled={!canAddJobActivity} />
+          </div>
+        </details>
       ) : null}
 
       {activeMaterialView === "returns" ? (
@@ -2307,6 +2272,52 @@ export default async function ServiceJobDetailPage({
         </div>
       </CollapsibleCard>
         </>
+      ) : null}
+
+      {activeTab === "billing" ? (
+      <CollapsibleCard
+        title="Warranty / Billing Entitlement"
+        summary={job.entitlementSummary ?? "Coverage and billing treatment calculated when the job was opened."}
+        meta={billingTreatmentLabel[job.customerBillingTreatment] ?? String(job.customerBillingTreatment)}
+      >
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <div>
+            <div className="text-xs uppercase tracking-wide text-zinc-500">Entitlement Source</div>
+            <div className="mt-2 text-sm font-medium">
+              {job.serviceContractId && job.serviceContractNumber ? (
+                <Link className="hover:underline" href={`/service/contracts/${job.serviceContractId}`}>
+                  {job.serviceContractNumber}
+                </Link>
+              ) : (
+                entitlementSourceLabel[job.entitlementSource] ?? job.entitlementSource
+              )}
+            </div>
+            <div className="mt-1 text-xs text-zinc-500">
+              {job.entitlementEvaluatedAt ? `Evaluated ${new Date(job.entitlementEvaluatedAt).toLocaleString()}` : "Not evaluated yet"}
+            </div>
+          </div>
+          <div>
+            <div className="text-xs uppercase tracking-wide text-zinc-500">Coverage</div>
+            <div className="mt-2 text-sm font-medium">{entitlementCoverageLabel[job.entitlementCoverage] ?? job.entitlementCoverage}</div>
+          </div>
+          <div>
+            <div className="text-xs uppercase tracking-wide text-zinc-500">Billing Treatment</div>
+            <div className="mt-2 text-sm font-medium">{billingTreatmentLabel[job.customerBillingTreatment] ?? job.customerBillingTreatment}</div>
+          </div>
+          <div>
+            <div className="text-xs uppercase tracking-wide text-zinc-500">Contract Link</div>
+            <div className="mt-2 text-sm font-medium">
+              {job.serviceContractId && job.serviceContractNumber ? (
+                <Link className="hover:underline" href={`/service/contracts/${job.serviceContractId}`}>
+                  {job.serviceContractNumber}
+                </Link>
+              ) : (
+                "No linked contract"
+              )}
+            </div>
+          </div>
+        </div>
+      </CollapsibleCard>
       ) : null}
 
       {activeTab === "billing" ? (

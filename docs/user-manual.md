@@ -163,24 +163,32 @@ Note:
   - command-center job cards show customer, equipment, status, expected date, latest progress, staff today, daily/cash/material blocker counts, and the next recommended action
   - use `Service -> Dispatch Board` to see unassigned jobs, assigned/active jobs, waiting jobs, and completed jobs in operational lanes
   - use `Service -> Technician Workbench` for today's technician assignments, open daily sheets, and quick actions for progress, material request, IOU request, and expense entry
+  - the `Service -> Jobs` list is the first thing users see; use `+ New Job Order` only when a new job must be created, then complete the create form at the bottom of the page
   - create -> start -> complete -> close
   - choose `Service`, `Repair`, `PDI`, `Warranty`, or `Inspection` when opening the job
   - select equipment using the searchable equipment-unit picker; it searches the linked item SKU/name, serial number, and customer code
   - after equipment is selected, the customer defaults from the equipment unit but can still be changed before saving if required
   - the list page exposes `View` and `Edit`; `Edit` is available while the job is still `Open`
-  - while status is still `Open`, you can edit the job header (unit, customer, type, problem) from the detail page
+  - the job detail header is compact: job number, status, type, equipment, customer, site, responsible officer, PDF, and workflow action buttons stay at the top without taking the full viewport
+  - less-used date fields are behind `Show dates & details`
+  - while status is still `Open`, you can edit the job header (unit, customer, type, problem) from the `Overview` tab
   - once the job is started, header editing is locked and execution should continue through work orders, estimates, material issues, and handover
   - entitlement is captured automatically when the job is created by checking active service contracts first, then manufacturer warranty on the equipment unit
   - use `Refresh Entitlement` on the job if warranty/contract data is added after the job was already opened
+  - job tabs and process-timeline links scroll directly to the tab content area, so users do not have to hunt below the page header
+  - `Overview` is kept short: compact cockpit, process timeline, collapsed edit job, and collapsed job intake
+  - billing entitlement and closeout readiness are handled from the `Billing` tab instead of duplicating long billing sections on `Overview`
   - recommended operating flow is: receive equipment -> open the job immediately -> create a daily field sheet for each working day -> capture labor, progress, IOUs, expenses, materials, returns, damages, and notes from that sheet -> approve the sheet -> finish invoicing/closeout
   - `Daily Field Sheets` on the job detail page replace manual daily job cards; each sheet has planned/completed/pending work, site condition, staff/progress/material/return/expense/IOU counts, and approval status
   - the daily sheet list is presented as daily cards so supervisors can see planned work, completed work, pending/issues, latest progress, staff preview, materials, returns, IOUs, and expenses in one place
+  - when no daily sheet exists, `Daily Work -> Daily Sheets` shows a clear empty state and `+ Create First Daily Sheet`; labour and progress views show a single `Go to Daily Sheets` call-to-action instead of disabled forms
   - daily sheet cards include direct links to add labour, add progress, issue materials, request an IOU, or add an expense without hunting through the full job page
   - daily job detail sections keep the running work separated into `Daily Staff / Labor`, `Daily Progress`, `IOU / Employee Advance`, `Petty Cash Expense`, `Employee Out-of-Pocket Claim`, `Materials / Lubricants Issue`, and `Material Returns / Damage / Rejection`
+  - `Plan` keeps the operations table visible first and exposes `+ Add Operation` as an on-demand form
+  - `Materials` keeps posted material context visible and exposes `+ New MRN` as an on-demand form
   - the progress view shows existing progress updates first, then the add-progress form, so users can review the latest work status before entering another update
   - the job detail cockpit summarizes last progress, staff today, pending finance items, uninvoiced labour, material disposition, service taken, invoice state, and job cost before users enter the detailed tabs
   - the process timeline shows the current stage from intake through closeout and links each stage back to the relevant job section
-  - the next-actions panel suggests practical follow-up work based on pending records and closeout blockers
   - closing a job is blocked while daily sheets are still draft or submitted; approve or reject every sheet before closeout
 - Technicians:
   - maintain technician code, name, default cost rate, default billing rate, phone, notes, and active status

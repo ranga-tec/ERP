@@ -97,19 +97,22 @@ export default async function ServiceJobsPage() {
   });
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold">Job Orders</h1>
-        <p className="mt-1 text-sm text-zinc-500">Open, assign, execute, complete, invoice, close, and reopen when authorized.</p>
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-semibold">Job Orders</h1>
+          <p className="mt-1 text-sm text-zinc-500">Open, assign, execute, complete, invoice, close, and reopen when authorized.</p>
+        </div>
+        <a
+          href="#new-job-order"
+          className="inline-flex items-center rounded-md border border-[var(--link)] bg-[var(--link)] px-3 py-1.5 text-sm font-medium text-white transition hover:opacity-90"
+        >
+          + New Job Order
+        </a>
       </div>
 
       <Card>
-        <div className="mb-3 text-sm font-semibold">Create</div>
-        <ServiceJobCreateForm equipmentUnits={equipmentUnitOptions} customers={customers} />
-      </Card>
-
-      <Card>
-        <div className="mb-3 text-sm font-semibold">List</div>
+        <div className="mb-3 text-sm font-semibold">Job Orders</div>
         <div className="overflow-auto">
           <Table>
             <thead>
@@ -186,6 +189,13 @@ export default async function ServiceJobsPage() {
           </Table>
         </div>
       </Card>
+
+      <details id="new-job-order" className="rounded-lg border border-[var(--card-border)] bg-[var(--card-bg)] p-4 shadow-[var(--shadow-card)] scroll-mt-4">
+        <summary className="cursor-pointer list-none text-sm font-semibold">+ Create New Job Order</summary>
+        <div className="mt-4 border-t border-[var(--card-border)] pt-4">
+          <ServiceJobCreateForm equipmentUnits={equipmentUnitOptions} customers={customers} />
+        </div>
+      </details>
     </div>
   );
 }

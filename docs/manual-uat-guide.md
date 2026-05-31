@@ -319,7 +319,8 @@ Steps:
 37. Approve/release/settle the IOU advance or reject/cancel it if it was not used.
 38. Create and complete a service handover.
 39. Convert the handover to sales invoice using the labor source that bills approved timesheets.
-40. Open the service job detail page and review the costing and closeout readiness sections.
+40. Open the service job detail page. Confirm the compact header, tab bar, cockpit, and process timeline fit the first viewport.
+41. Open the `Billing` tab and review closeout readiness, warranty/billing entitlement, quotations, and final invoices.
 
 Expected:
 
@@ -329,11 +330,15 @@ Expected:
 - service jobs and service contracts use the serialized equipment unit, but the picker displays and searches the linked Item table SKU/name as well as the unit serial number
 - the contract can be linked to the same unit and appears on both the contract list and equipment-unit detail page
 - service lists now expose explicit `View` / `Edit` entry points instead of relying only on clickable document numbers
+- the service job list shows existing job orders first; the new-job form is opened from `+ New Job Order` instead of blocking the list
+- the job detail header is compact and moves date-heavy fields behind `Show dates & details`
+- job tab and process-timeline links scroll directly to the tab content area
 - open jobs can be edited, but that header locks after the job is started
 - the job first shows warranty entitlement, then changes to contract entitlement after refresh
 - the job can be opened as `Repair` and moved to `In Progress`
 - technicians can be created in the service master page and selected on job detail labor entries
 - a daily field sheet can be created from the job detail page and becomes the running record for that day's staff, progress, IOU, expense voucher, MRN, and material disposition
+- staff/labor and progress entry views show a clear no-daily-sheet message and `Go to Daily Sheets` action when no sheet exists, not a disabled form
 - daily sheet counts increase as linked staff, progress, material, return, expense, and IOU records are added
 - job closeout is blocked until daily field sheets are submitted and approved or rejected
 - IOU advances can be recorded during a running multi-day job and remain pending until released/settled/rejected/cancelled

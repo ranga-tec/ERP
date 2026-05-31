@@ -6,8 +6,8 @@ This document captures the current state of the AI assistant work, the GRN parti
 
 Important status note:
 
-- latest service-job workflow changes are live on Railway through commit `2e29358`
-- service job detail now uses workflow tabs and daily-work sub-tabs
+- latest pushed service-job workflow baseline includes `415a60e Remove service job next actions panel`; additional local Job Order UX revamp work on 2026-05-31 should be treated as the current UI direction once pushed
+- service job detail now uses workflow tabs and daily-work sub-tabs, with tab links anchored to `#tab-content`
 - closeout readiness tiles now link to relevant workflow areas
 - the older assistant / GRN sections later in this file are historical checkpoint notes and should be treated as design context, not a description of the current worktree
 - the reusable frontend data-grid framework is now live through three rollout waves
@@ -22,26 +22,36 @@ Important status note:
 
 Current service-job UX baseline:
 
+- `Service -> Jobs`
+  - list appears first
+  - `+ New Job Order` opens the bottom create section
 - `Overview`
-  - job intake, entitlement, clickable closeout readiness
+  - compact cockpit
+  - process timeline
+  - collapsed edit job
+  - collapsed job intake
 - `Plan`
   - work step / subassembly operations
   - planned parts/sub-parts
   - estimated labor
   - operation start/complete actions
+  - `+ Add Operation` opens the add form on demand
 - `Daily Work`
   - `Daily Sheets`
   - `Staff / Labor`
   - `Progress`
+  - no-sheet labor/progress views show a clean call-to-action to daily sheets instead of disabled forms
 - `Materials`
   - MRN creation
   - material return/damage/rejection disposition
+  - `+ New MRN` opens the creation form on demand
 - `Expenses`
   - IOU / employee advance
   - petty cash expense
   - employee out-of-pocket claim
 - `Billing`
   - closeout readiness
+  - warranty/billing entitlement
   - final invoice/not-billable decision
   - estimates and invoices
 - `Costs`
@@ -60,6 +70,9 @@ Recent service-job commits:
 - `93432b9` `Revise service job testing checklist for tabs`
 - `debe9df` `Refine service job daily work flow`
 - `2e29358` `Link service job closeout checks to workflows`
+- `2c07a87` `Improve service job workflow navigation`
+- `6cd43e6` `Compact service job overview dashboard`
+- `415a60e` `Remove service job next actions panel`
 
 Verification completed for latest service-job work:
 

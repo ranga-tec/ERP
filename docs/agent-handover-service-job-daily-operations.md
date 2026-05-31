@@ -22,7 +22,7 @@ Local update on 2026-05-26:
 - IOU creation confirms the generated IOU number and pending finance approval state.
 - Daily progress history appears before the add-progress form.
 - Daily sheet rows expose quick links for labour, progress, material issue, IOU request, and expense entry.
-- Phase 2 cockpit work is also implemented: job detail now shows summary metrics, a process timeline, and next-action suggestions above the tab navigation.
+- Phase 2 cockpit work is also implemented: job detail now shows summary metrics and a process timeline above the tab navigation.
 
 Local update on 2026-05-27:
 
@@ -37,6 +37,17 @@ Local update on 2026-05-27:
 - Dispatch Board shows unassigned, assigned/active, waiting, and completed job lanes.
 - Technician Workbench shows today's assignments, open daily sheets, active jobs, and quick links for progress, materials, IOUs, and expenses.
 
+Local update on 2026-05-31:
+
+- Job Order list UX was revised so the job list is the primary first screen. `+ New Job Order` links to the create form at the bottom of the page, behind a clear `+ Create New Job Order` details section.
+- Job detail header was compacted to keep the first viewport usable: breadcrumb, job number, status/type badges, essential meta, PDF, and workflow actions are inline; date-heavy details are hidden behind `Show dates & details`.
+- Job tab links, cockpit links, process-timeline links, daily-work links, material links, and expense links now append `#tab-content` so users land directly at the tab/work area.
+- The `Overview` tab was decluttered to fit the cockpit and full process timeline in one normal desktop viewport. Billing entitlement, closeout readiness, and final invoice work now belong to the `Billing` tab.
+- The separate `Next Actions` panel was removed. The process timeline is the main guided workflow surface.
+- `Daily Work -> Staff / Labor` and `Daily Work -> Progress` no longer show disabled forms when there is no selected daily sheet. They show a no-sheet empty state and a single `Go to Daily Sheets` action.
+- `Daily Work -> Daily Sheets` now has a stronger empty state with `+ Create First Daily Sheet`; when sheets exist, `+ Add Another Day` appears in the card header.
+- `Plan` and `Materials` add/create forms are now obvious on-demand rows (`+ Add Operation`, `+ New MRN`) while the current table/list remains primary.
+
 GitHub push status:
 
 - Pushed to `origin/main`.
@@ -47,6 +58,9 @@ GitHub push status:
   - `8af1961 Organize service job detail into workflow tabs`
   - `debe9df Refine service job daily work flow`
   - `2e29358 Link service job closeout checks to workflows`
+  - `2c07a87 Improve service job workflow navigation`
+  - `6cd43e6 Compact service job overview dashboard`
+  - `415a60e Remove service job next actions panel`
 
 Railway status:
 
@@ -105,6 +119,8 @@ The user also clarified after implementation:
   - `Staff / Labor`
   - `Progress`
 - Closeout readiness tiles are clickable and route users to the relevant tab/sub-tab or supporting module.
+- Newer job links append `#tab-content` so stage/tile clicks focus the actual working tab instead of the top of the long page.
+- The current design rule is: primary data and status must appear before create forms; create/add forms should be opened on demand and must not hide existing records below the fold.
 
 ## Industry/Standard Pattern Used
 

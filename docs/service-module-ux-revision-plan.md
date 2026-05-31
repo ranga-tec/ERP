@@ -20,7 +20,6 @@ Implemented on 2026-05-26:
 - Job detail now includes a `Job Cockpit` section above the old tab navigation.
 - Cockpit metrics show last progress, staff today, pending cash/expenses, uninvoiced labour, material disposition, service taken, invoice state, and job cost.
 - A process timeline now shows Intake, Plan, Daily Work, Materials, Expenses, Quote, Service Taken, Invoice, and Close with status badges.
-- A next-actions panel suggests job actions from current blockers and workflow state, such as creating a daily sheet, adding progress, clearing material disposition, reviewing IOUs/claims, creating service taken, or creating the final invoice.
 - Production frontend build passed after the Phase 2 changes.
 
 ## Phase 3 Implementation Status
@@ -51,6 +50,24 @@ Implemented on 2026-05-27:
 - Added `Service -> Technician Workbench` at `/service/technician-workbench`.
 - Dispatch Board shows unassigned, assigned/active, waiting, and completed service job lanes with assigned staff, daily-sheet state, latest progress, and next action links.
 - Technician Workbench shows today's assignments, open daily sheets, active jobs, and quick links to progress, material issue, IOU request, and expense entry.
+
+## Job Order UI/UX Revamp Status
+
+Implemented on 2026-05-31:
+
+- `Service -> Jobs` now prioritizes the existing job list. The create form is moved to the bottom behind a `+ Create New Job Order` details section, opened from the `+ New Job Order` header link.
+- Job detail header is compact: breadcrumb, job number, status badge, job type, essential meta, PDF, and workflow action buttons fit near the top. Dates and less-used fields are hidden behind `Show dates & details`.
+- The separate large actions panel was removed from the job detail page.
+- The tab bar has `id="tab-content"`, and all job tab/timeline href helpers append `#tab-content` so workflow links land at the working area instead of the page top.
+- `Overview` was reduced to the cockpit, process timeline, collapsed edit section, and collapsed job-intake section. Duplicate closeout/billing cards and the redundant workflow links card were removed from the overview.
+- The `Next Actions` panel was removed; the process timeline and tab bar are the primary navigation surfaces.
+- `Billing` now owns closeout readiness, warranty/billing entitlement, quotations, and final invoices.
+- `Daily Work -> Daily Sheets` has a clearer empty state with `+ Create First Daily Sheet`; when records exist, `+ Add Another Day` is in the card header.
+- `Daily Work -> Staff / Labor` and `Daily Work -> Progress` no longer render disabled entry forms when no daily sheet is selected. They show a clean no-sheet message and a `Go to Daily Sheets` call-to-action.
+- `Plan` shows the operations table as the primary content and exposes `+ Add Operation` as an obvious expandable action.
+- `Materials` exposes `+ New MRN` as an obvious expandable action instead of a passive closed card.
+
+Design rule now applied to the Job Order module: each first view should fit the working viewport as far as practical. Lists, cockpit/process status, empty states, and current records come first; create/add forms are secondary and opened on demand.
 
 ## Problem Summary
 
@@ -273,7 +290,7 @@ This is the highest-value quick win.
   - pending material disposition
   - invoice/service taken status
 - Completed: add process timeline below the header.
-- Completed: add next-action panel based on closeout checks and current job status.
+- Superseded: the earlier next-action panel was removed during the 2026-05-31 Job Order revamp. The process timeline, cockpit metrics, closeout readiness, and command-center cards are now the guided-action surfaces.
 
 ### Phase 3: Daily Sheet Card Workspace
 
