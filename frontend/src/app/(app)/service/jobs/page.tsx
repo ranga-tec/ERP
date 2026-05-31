@@ -3,6 +3,7 @@ import { backendFetchJson } from "@/lib/backend.server";
 import { AuditTrailButton } from "@/components/AuditTrailButton";
 import { TransactionLink } from "@/components/TransactionLink";
 import { Card, Table } from "@/components/ui";
+import { JobFormModal } from "./JobFormModal";
 import { ServiceJobCreateForm } from "./ServiceJobCreateForm";
 
 type ServiceJobDto = {
@@ -103,12 +104,9 @@ export default async function ServiceJobsPage() {
           <h1 className="text-2xl font-semibold">Job Orders</h1>
           <p className="mt-1 text-sm text-zinc-500">Open, assign, execute, complete, invoice, close, and reopen when authorized.</p>
         </div>
-        <a
-          href="#new-job-order"
-          className="inline-flex items-center rounded-md border border-[var(--link)] bg-[var(--link)] px-3 py-1.5 text-sm font-medium text-white transition hover:opacity-90"
-        >
-          + New Job Order
-        </a>
+        <JobFormModal title="Create New Job Order" description="Open a service, repair, PDI, warranty, or inspection job." buttonLabel="+ New Job Order">
+          <ServiceJobCreateForm equipmentUnits={equipmentUnitOptions} customers={customers} />
+        </JobFormModal>
       </div>
 
       <Card>
@@ -189,13 +187,6 @@ export default async function ServiceJobsPage() {
           </Table>
         </div>
       </Card>
-
-      <details id="new-job-order" className="rounded-lg border border-[var(--card-border)] bg-[var(--card-bg)] p-4 shadow-[var(--shadow-card)] scroll-mt-4">
-        <summary className="cursor-pointer list-none text-sm font-semibold">+ Create New Job Order</summary>
-        <div className="mt-4 border-t border-[var(--card-border)] pt-4">
-          <ServiceJobCreateForm equipmentUnits={equipmentUnitOptions} customers={customers} />
-        </div>
-      </details>
     </div>
   );
 }

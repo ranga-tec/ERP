@@ -3,6 +3,7 @@ import Link from "next/link";
 import { backendFetchJson } from "@/lib/backend.server";
 import { ItemInlineLink } from "@/components/InlineLink";
 import { Card, SecondaryLink, Table } from "@/components/ui";
+import { JobFormModal } from "../JobFormModal";
 import { ServiceJobActions } from "../ServiceJobActions";
 import { ServiceJobEditForm } from "../ServiceJobEditForm";
 import { ServiceJobAssignmentActions } from "../ServiceJobAssignmentActions";
@@ -1283,18 +1284,10 @@ export default async function ServiceJobDetailPage({
             <div className="text-sm font-semibold">Job Operations / Sub-Parts Plan</div>
             <div className="mt-1 text-xs text-zinc-500">Plan complex repair stages, expected sub-parts, labor, and due dates before issuing actual MRNs or recording labor.</div>
           </div>
-        </div>
-        <details className="mb-4 rounded-md border border-[var(--card-border)]">
-          <summary className="cursor-pointer list-none p-3">
-            <div className="flex items-center justify-between gap-3">
-              <span className="text-sm font-medium text-zinc-600 dark:text-zinc-400">Add operation / sub-part</span>
-              <span className="shrink-0 rounded border border-[var(--link)] px-2.5 py-1 text-xs font-medium text-[var(--link)]">+ Add Operation</span>
-            </div>
-          </summary>
-          <div className="border-t border-[var(--card-border)] p-3">
+          <JobFormModal title="Add Operation / Sub-Part" description="Plan a repair step, expected part, labor estimate, and due date." buttonLabel="+ Add Operation" variant="secondary" disabled={!canAddJobActivity}>
             <ServiceJobOperationAddForm serviceJobId={job.id} items={items} nextSequence={nextOperationSequence} disabled={!canAddJobActivity} />
-          </div>
-        </details>
+          </JobFormModal>
+        </div>
         <div className="mt-4 overflow-auto">
           <Table>
             <thead>
@@ -1423,28 +1416,20 @@ export default async function ServiceJobDetailPage({
             <div className="mt-1 text-xs text-zinc-500">Capture each working day — replaces paper job sheets, cash notes, and material return notes.</div>
           </div>
           {dailySheets.length > 0 ? (
-            <details className="group">
-              <summary className="cursor-pointer list-none rounded-md border border-[var(--card-border)] px-3 py-1.5 text-sm font-medium text-zinc-600 hover:border-[var(--link)] hover:text-[var(--link)] dark:text-zinc-400">
-                + Add Another Day
-              </summary>
-              <div className="mt-3 rounded-md border border-[var(--card-border)] p-3">
-                <ServiceJobDailySheetCreateForm serviceJobId={job.id} disabled={!canAddJobActivity} disabledReason={dailySheetCreateDisabledReason} />
-              </div>
-            </details>
+            <JobFormModal title="Add Daily Field Sheet" description="Create another daily work record for this job." buttonLabel="+ Add Another Day" variant="secondary" disabled={!canAddJobActivity}>
+              <ServiceJobDailySheetCreateForm serviceJobId={job.id} disabled={!canAddJobActivity} disabledReason={dailySheetCreateDisabledReason} />
+            </JobFormModal>
           ) : null}
         </div>
         {dailySheets.length === 0 ? (
-          <details className="rounded-lg border-2 border-dashed border-[var(--card-border)] p-6 text-center">
-            <summary className="cursor-pointer list-none">
-              <div className="mb-3 text-sm text-zinc-500">No daily field sheets recorded yet. Start by creating your first one.</div>
-              <div className="inline-flex items-center rounded-md border border-[var(--link)] bg-[var(--link)] px-4 py-2 text-sm font-medium text-white transition hover:opacity-90">
-                + Create First Daily Sheet
-              </div>
-            </summary>
-            <div className="mt-4 border-t border-[var(--card-border)] pt-4 text-left">
-              <ServiceJobDailySheetCreateForm serviceJobId={job.id} disabled={!canAddJobActivity} disabledReason={dailySheetCreateDisabledReason} />
+          <div className="rounded-lg border-2 border-dashed border-[var(--card-border)] p-6 text-center">
+            <div className="mb-3 text-sm text-zinc-500">No daily field sheets recorded yet. Start by creating your first one.</div>
+            <div className="flex justify-center">
+              <JobFormModal title="Create First Daily Sheet" description="Create the first daily work record before adding labour, progress, materials, IOUs, or expenses." buttonLabel="+ Create First Daily Sheet" disabled={!canAddJobActivity}>
+                <ServiceJobDailySheetCreateForm serviceJobId={job.id} disabled={!canAddJobActivity} disabledReason={dailySheetCreateDisabledReason} />
+              </JobFormModal>
             </div>
-          </details>
+          </div>
         ) : null}
         <div className="mt-4 space-y-3">
           {dailySheetSummaries.map((summary) => {
@@ -1603,29 +1588,30 @@ export default async function ServiceJobDetailPage({
         title="Daily Staff / Labor"
         summary={`Assign staff and labor for ${selectedDailySheet.number}.`}
         meta={`${selectedAssignments.length} assigned`}
+        defaultOpen
       >
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
           <Link className="text-sm font-semibold text-[var(--link)] underline underline-offset-2" href="/service/technicians">
             Technician Master
           </Link>
-        </div>
-        <div className="mb-4">
-          {selectedDailySheetLockReason ? (
-            <div className="mb-3 rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-900/40 dark:bg-amber-950/30 dark:text-amber-100">
-              {selectedDailySheetLockReason}{" "}
-              <Link className="font-semibold underline underline-offset-2" href={dailyWorkHref(job.id, "sheets")}>
-                Open daily sheets
-              </Link>
-            </div>
-          ) : null}
-          <ServiceJobAssignmentAddForm
-            serviceJobId={job.id}
-            technicians={technicians}
-            dailySheets={selectedDailySheets}
-            defaultDailySheetId={selectedDailySheet?.id ?? ""}
-            requireDailySheet
-            disabled={!canAddJobActivity || !selectedDailySheet || selectedDailySheetLocked}
-          />
+          <JobFormModal title="Add Staff / Labor" description={`Assign staff and labor for ${selectedDailySheet.number}.`} buttonLabel="+ Add Staff / Labor" variant="secondary" disabled={!canAddJobActivity || !selectedDailySheet || selectedDailySheetLocked}>
+            {selectedDailySheetLockReason ? (
+              <div className="mb-3 rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-900/40 dark:bg-amber-950/30 dark:text-amber-100">
+                {selectedDailySheetLockReason}{" "}
+                <Link className="font-semibold underline underline-offset-2" href={dailyWorkHref(job.id, "sheets")}>
+                  Open daily sheets
+                </Link>
+              </div>
+            ) : null}
+            <ServiceJobAssignmentAddForm
+              serviceJobId={job.id}
+              technicians={technicians}
+              dailySheets={selectedDailySheets}
+              defaultDailySheetId={selectedDailySheet?.id ?? ""}
+              requireDailySheet
+              disabled={!canAddJobActivity || !selectedDailySheet || selectedDailySheetLocked}
+            />
+          </JobFormModal>
         </div>
         <div className="overflow-auto">
           <Table>
@@ -1684,6 +1670,7 @@ export default async function ServiceJobDetailPage({
         title="Daily Progress"
         summary={`Record completed work, pending work, and issues for ${selectedDailySheet.number}.`}
         meta={`${selectedProgressUpdates.length} updates`}
+        defaultOpen
       >
         <div className="space-y-3">
           {selectedProgressUpdates.map((update) => (
@@ -1709,9 +1696,8 @@ export default async function ServiceJobDetailPage({
             <div className="text-sm text-zinc-500">No progress updates recorded for the selected daily sheet yet.</div>
           ) : null}
         </div>
-        <details className="mt-4 rounded-md border border-[var(--card-border)] p-3" open={selectedProgressUpdates.length === 0}>
-          <summary className="cursor-pointer text-sm font-medium">Add progress update</summary>
-          <div className="mt-3">
+        <div className="mt-4 flex justify-end">
+          <JobFormModal title="Add Progress Update" description={`Record completed work, pending work, and issues for ${selectedDailySheet.number}.`} buttonLabel="+ Add Progress" variant="secondary" disabled={!canAddJobActivity || !selectedDailySheet || selectedDailySheetLocked}>
             {selectedDailySheetLockReason ? (
               <div className="mb-3 rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-900/40 dark:bg-amber-950/30 dark:text-amber-100">
                 {selectedDailySheetLockReason}{" "}
@@ -1727,8 +1713,8 @@ export default async function ServiceJobDetailPage({
               requireDailySheet
               disabled={!canAddJobActivity || !selectedDailySheet || selectedDailySheetLocked}
             />
-          </div>
-        </details>
+          </JobFormModal>
+        </div>
       </CollapsibleCard>
       ) : null}
         </>
@@ -1759,13 +1745,17 @@ export default async function ServiceJobDetailPage({
 
         {activeExpenseView === "ious" ? (
         <div className="rounded-lg border border-[var(--card-border)] p-3">
-          <div className="mb-3">
-            <div className="text-sm font-semibold">IOU / Employee Advance</div>
-            <div className="mt-1 text-xs text-zinc-500">
-              Issue an advance against this job and daily sheet. Creation submits the IOU; finance then approves it, releases cash, and settles the advance after receipts are accounted.
+          <div className="mb-3 flex flex-wrap items-start justify-between gap-2">
+            <div>
+              <div className="text-sm font-semibold">IOU / Employee Advance</div>
+              <div className="mt-1 text-xs text-zinc-500">
+                Issue an advance against this job and daily sheet. Creation submits the IOU; finance then approves it, releases cash, and settles the advance after receipts are accounted.
+              </div>
             </div>
+            <JobFormModal title="Request IOU / Employee Advance" description="Create and submit an advance request against this job." buttonLabel="+ Request IOU" variant="secondary" disabled={!canAddJobActivity}>
+              <ServiceJobDailyIouCreateForm serviceJobId={job.id} dailySheets={dailySheets} disabled={!canAddJobActivity} />
+            </JobFormModal>
           </div>
-          <ServiceJobDailyIouCreateForm serviceJobId={job.id} dailySheets={dailySheets} disabled={!canAddJobActivity} />
           <div className="mt-5 border-t border-[var(--card-border)] pt-4">
             <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
               <div>
@@ -1828,20 +1818,24 @@ export default async function ServiceJobDetailPage({
 
         {activeExpenseView === "petty-cash" ? (
         <div className="rounded-lg border border-[var(--card-border)] p-3">
-          <div className="mb-3">
-            <div className="text-sm font-semibold">Petty Cash Expense</div>
-            <div className="mt-1 text-xs text-zinc-500">
-              Record expenses already paid from company petty cash. Create the voucher, add lines on the voucher detail page, then submit, approve, and settle against the petty cash fund.
+          <div className="mb-3 flex flex-wrap items-start justify-between gap-2">
+            <div>
+              <div className="text-sm font-semibold">Petty Cash Expense</div>
+              <div className="mt-1 text-xs text-zinc-500">
+                Record expenses already paid from company petty cash. Create the voucher, add lines on the voucher detail page, then submit, approve, and settle against the petty cash fund.
+              </div>
             </div>
+            <JobFormModal title="Create Petty Cash Voucher" description="Create a petty-cash-funded service expense claim for this job." buttonLabel="+ Petty Cash Voucher" variant="secondary" disabled={!canAddJobActivity}>
+              <ServiceJobDailyExpenseClaimCreateForm
+                serviceJobId={job.id}
+                dailySheets={dailySheets}
+                defaultFundingSource="2"
+                lockFundingSource
+                submitLabel="Create Petty Cash Voucher"
+                disabled={!canAddJobActivity}
+              />
+            </JobFormModal>
           </div>
-          <ServiceJobDailyExpenseClaimCreateForm
-            serviceJobId={job.id}
-            dailySheets={dailySheets}
-            defaultFundingSource="2"
-            lockFundingSource
-            submitLabel="Create Petty Cash Voucher"
-            disabled={!canAddJobActivity}
-          />
           <ServiceJobExpenseClaimRegister
             claims={expenseClaims.filter((claim) => claim.fundingSource === 2)}
             dailySheetNumberById={dailySheetNumberById}
@@ -1852,20 +1846,24 @@ export default async function ServiceJobDetailPage({
 
         {activeExpenseView === "reimbursements" ? (
         <div className="rounded-lg border border-[var(--card-border)] p-3">
-          <div className="mb-3">
-            <div className="text-sm font-semibold">Employee Out-of-Pocket Claim</div>
-            <div className="mt-1 text-xs text-zinc-500">
-              Capture expenses paid personally by staff. Create the claim, add lines on the claim detail page, then submit, approve, and settle when reimbursement is paid.
+          <div className="mb-3 flex flex-wrap items-start justify-between gap-2">
+            <div>
+              <div className="text-sm font-semibold">Employee Out-of-Pocket Claim</div>
+              <div className="mt-1 text-xs text-zinc-500">
+                Capture expenses paid personally by staff. Create the claim, add lines on the claim detail page, then submit, approve, and settle when reimbursement is paid.
+              </div>
             </div>
+            <JobFormModal title="Create Reimbursement Claim" description="Create an out-of-pocket reimbursement claim for this job." buttonLabel="+ Reimbursement Claim" variant="secondary" disabled={!canAddJobActivity}>
+              <ServiceJobDailyExpenseClaimCreateForm
+                serviceJobId={job.id}
+                dailySheets={dailySheets}
+                defaultFundingSource="1"
+                lockFundingSource
+                submitLabel="Create Reimbursement Claim"
+                disabled={!canAddJobActivity}
+              />
+            </JobFormModal>
           </div>
-          <ServiceJobDailyExpenseClaimCreateForm
-            serviceJobId={job.id}
-            dailySheets={dailySheets}
-            defaultFundingSource="1"
-            lockFundingSource
-            submitLabel="Create Reimbursement Claim"
-            disabled={!canAddJobActivity}
-          />
           <ServiceJobExpenseClaimRegister
             claims={expenseClaims.filter((claim) => claim.fundingSource === 1)}
             dailySheetNumberById={dailySheetNumberById}
@@ -1974,22 +1972,17 @@ export default async function ServiceJobDetailPage({
       ) : null}
 
       {activeMaterialView === "issues" ? (
-        <details className="rounded-lg border border-[var(--card-border)] bg-[var(--card-bg)] p-4 shadow-[var(--shadow-card)]">
-          <summary className="cursor-pointer list-none">
-            <div className="flex items-center justify-between gap-3">
-              <div>
-                <div className="text-sm font-semibold">Create MRN</div>
-                <div className="mt-0.5 text-xs text-zinc-500">Create a draft material requisition, then add lines and post it from the MRN screen.</div>
-              </div>
-              <div className="shrink-0 rounded-md border border-[var(--link)] px-3 py-1.5 text-sm font-medium text-[var(--link)] transition hover:bg-[var(--surface-soft)]">
-                + New MRN
-              </div>
+        <Card>
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <div className="text-sm font-semibold">Create MRN</div>
+              <div className="mt-0.5 text-xs text-zinc-500">Create a draft material requisition, then add lines and post it from the MRN screen.</div>
             </div>
-          </summary>
-          <div className="mt-4 border-t border-[var(--card-border)] pt-4">
+            <JobFormModal title="Create MRN" description="Create a draft material requisition for this job." buttonLabel="+ New MRN" variant="secondary" disabled={!canAddJobActivity}>
             <ServiceJobDailyMaterialRequisitionCreateForm serviceJobId={job.id} dailySheets={dailySheets} warehouses={warehouses} disabled={!canAddJobActivity} />
+            </JobFormModal>
           </div>
-        </details>
+        </Card>
       ) : null}
 
       {activeMaterialView === "returns" ? (
@@ -1998,15 +1991,19 @@ export default async function ServiceJobDetailPage({
         summary="Draft not-needed, wrongly-issued, or supplier-rejected returns first, then post to receive usable stock."
         defaultOpen
       >
-        <ServiceJobMaterialDispositionAddForm
-          serviceJobId={job.id}
-          materialLines={costing.materialLines}
-          dailySheets={dailySheets}
-          allowedKinds={["1", "2", "4"]}
-          submitLabel="Save Material Return Draft"
-          disabled={!canAddJobActivity}
-        />
-        <div className="mt-5 overflow-auto">
+        <div className="mb-3 flex justify-end">
+          <JobFormModal title="Save Material Return Draft" description="Draft not-needed, wrongly-issued, or supplier-rejected returns before posting usable stock back." buttonLabel="+ Material Return" variant="secondary" disabled={!canAddJobActivity}>
+            <ServiceJobMaterialDispositionAddForm
+              serviceJobId={job.id}
+              materialLines={costing.materialLines}
+              dailySheets={dailySheets}
+              allowedKinds={["1", "2", "4"]}
+              submitLabel="Save Material Return Draft"
+              disabled={!canAddJobActivity}
+            />
+          </JobFormModal>
+        </div>
+        <div className="overflow-auto">
           <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
             <div className="text-sm font-medium">Return Material Drafts / Posted</div>
             <div className="text-xs text-zinc-500">{returnMaterialDispositions.filter((disposition) => !disposition.isVoided).length} active / {returnMaterialDispositions.length} total</div>
@@ -2089,15 +2086,19 @@ export default async function ServiceJobDetailPage({
         summary="Record issued material that is damaged or unusable. Posting a damage draft does not receive usable stock."
         defaultOpen
       >
-        <ServiceJobMaterialDispositionAddForm
-          serviceJobId={job.id}
-          materialLines={costing.materialLines}
-          dailySheets={dailySheets}
-          allowedKinds={["3"]}
-          submitLabel="Save Damage Draft"
-          disabled={!canAddJobActivity}
-        />
-        <div className="mt-5 overflow-auto">
+        <div className="mb-3 flex justify-end">
+          <JobFormModal title="Save Damage Draft" description="Record issued material that is damaged or unusable." buttonLabel="+ Damage Draft" variant="secondary" disabled={!canAddJobActivity}>
+            <ServiceJobMaterialDispositionAddForm
+              serviceJobId={job.id}
+              materialLines={costing.materialLines}
+              dailySheets={dailySheets}
+              allowedKinds={["3"]}
+              submitLabel="Save Damage Draft"
+              disabled={!canAddJobActivity}
+            />
+          </JobFormModal>
+        </div>
+        <div className="overflow-auto">
           <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
             <div className="text-sm font-medium">Damage Drafts / Posted</div>
             <div className="text-xs text-zinc-500">{damageMaterialDispositions.filter((disposition) => !disposition.isVoided).length} active / {damageMaterialDispositions.length} total</div>

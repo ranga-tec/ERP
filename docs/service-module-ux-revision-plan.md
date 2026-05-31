@@ -64,8 +64,9 @@ Implemented on 2026-05-31:
 - `Billing` now owns closeout readiness, warranty/billing entitlement, quotations, and final invoices.
 - `Daily Work -> Daily Sheets` has a clearer empty state with `+ Create First Daily Sheet`; when records exist, `+ Add Another Day` is in the card header.
 - `Daily Work -> Staff / Labor` and `Daily Work -> Progress` no longer render disabled entry forms when no daily sheet is selected. They show a clean no-sheet message and a `Go to Daily Sheets` call-to-action.
-- `Plan` shows the operations table as the primary content and exposes `+ Add Operation` as an obvious expandable action.
-- `Materials` exposes `+ New MRN` as an obvious expandable action instead of a passive closed card.
+- Job Order add/create actions now open as modal dialogs in front of the current table/register: new job order, operation, daily sheet, staff/labor, progress, IOU, petty-cash voucher, reimbursement claim, MRN, material return, and damage draft.
+- `Plan` shows the operations table as the primary content and exposes `+ Add Operation` as a modal action.
+- `Materials` exposes `+ New MRN` as a modal action instead of a passive closed card.
 
 Design rule now applied to the Job Order module: each first view should fit the working viewport as far as practical. Lists, cockpit/process status, empty states, and current records come first; create/add forms are secondary and opened on demand.
 

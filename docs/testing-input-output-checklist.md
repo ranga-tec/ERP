@@ -683,9 +683,9 @@ Open the job detail and verify each tab loads without leaving the job context:
 | Tab | Expected content |
 | --- | --- |
 | `Overview` | compact cockpit, process timeline, collapsed edit job, collapsed job intake |
-| `Plan` | `Job Operations / Sub-Parts Plan`, operations table, and visible `+ Add Operation` expandable row |
-| `Daily Work` | sub-tabs for `Daily Sheets`, `Staff / Labor`, and `Progress`; daily sheets show first, create forms open on demand |
-| `Materials` | materials/lubricants issue, material returns/damage/rejection, and visible `+ New MRN` expandable row |
+| `Plan` | `Job Operations / Sub-Parts Plan`, operations table, and visible `+ Add Operation` modal action |
+| `Daily Work` | sub-tabs for `Daily Sheets`, `Staff / Labor`, and `Progress`; daily sheets show first, create forms open in modal dialogs |
+| `Materials` | materials/lubricants issue, material returns/damage/rejection, and visible `+ New MRN` modal action |
 | `Expenses` | IOU / employee advance, petty cash expense, employee out-of-pocket claim |
 | `Billing` | closeout readiness, warranty/billing entitlement, final invoice decision, quotations and final invoices |
 | `Costs` | actual cost cards, profitability report, cost sources |
@@ -702,6 +702,7 @@ Expected:
 | Tab focus | click any tab or process timeline card | browser scrolls directly to the tab bar/content area, not just the top of the job page |
 | Invalid tab fallback | manually open `?tab=wrong` | page falls back to `Overview` |
 | Closeout tile links | `Billing` tab -> `Closeout Readiness` | pending tiles are clickable and open the relevant tab/sub-tab |
+| Add/create forms | Job list and job detail tabs | create/add buttons open modal dialogs in front of the table/register; the table remains the primary page view |
 
 Command Center smoke test:
 
