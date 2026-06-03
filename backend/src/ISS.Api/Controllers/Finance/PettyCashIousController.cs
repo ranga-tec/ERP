@@ -86,6 +86,7 @@ public sealed class PettyCashIousController(
         var requestedByName = string.IsNullOrWhiteSpace(request.RequestedByName)
             ? User.Identity?.Name ?? "Unknown user"
             : request.RequestedByName;
+        var expectedSettlementAtUtc = request.ExpectedSettlementAt?.ToUniversalTime();
 
         var id = await financeService.CreatePettyCashIouAsync(
             request.ServiceJobId,
@@ -93,7 +94,7 @@ public sealed class PettyCashIousController(
             requestedByName,
             request.Amount,
             request.Purpose,
-            request.ExpectedSettlementAt,
+            expectedSettlementAtUtc,
             request.ServiceJobDailySheetId,
             cancellationToken);
 

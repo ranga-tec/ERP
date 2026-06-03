@@ -8,8 +8,10 @@ import { Button, Input, Select } from "@/components/ui";
 type CustomerRef = { id: string; code: string; name: string };
 type SupplierRef = { id: string; code: string; name: string };
 type CreditNoteDto = { id: string; referenceNumber: string };
+type CounterpartyTypeValue = "1" | "2";
 
-const counterpartyLabel: Record<string, string> = { "1": "Customer", "2": "Supplier" };
+const counterpartyLabel: Record<CounterpartyTypeValue, string> = { "1": "Customer", "2": "Supplier" };
+const isCounterpartyTypeValue = (value: string): value is CounterpartyTypeValue => value === "1" || value === "2";
 
 export function CreditNoteCreateForm({
   customers,
@@ -19,7 +21,7 @@ export function CreditNoteCreateForm({
 }: {
   customers: CustomerRef[];
   suppliers: SupplierRef[];
-  fixedCounterpartyType?: "1" | "2";
+  fixedCounterpartyType?: CounterpartyTypeValue;
   submitLabel?: string;
 }) {
   const router = useRouter();
@@ -81,7 +83,9 @@ export function CreditNoteCreateForm({
             <Select
               value={counterpartyType}
               onChange={(e) => {
-                setCounterpartyType(e.target.value);
+                const nextCounterpartyType = e.target.value;
+                if (!isCounterpartyTypeValue(nextCounterpartyType)) return;
+                setCounterpartyType(nextCounterpartyType);
                 setCounterpartyId("");
               }}
               required

@@ -38,7 +38,7 @@ export function ServiceJobDailyIouCreateForm({
         requestedByName: null,
         amount: Number(amount),
         purpose: purpose.trim(),
-        expectedSettlementAt: expectedSettlementAt || null,
+        expectedSettlementAt: expectedSettlementAt ? new Date(`${expectedSettlementAt}T00:00:00`).toISOString() : null,
       });
       await apiPostNoContent(`finance/petty-cash-ious/${iou.id}/submit`, {});
       setSuccess(`${iou.number} request sent. It is now visible in the Job IOU Register and waiting for finance approval.`);
