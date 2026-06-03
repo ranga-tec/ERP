@@ -13,7 +13,10 @@ const SIDEBAR_SECTION_STORAGE_KEY = "iss_sidebar_sections_v1";
 const sections: NavSection[] = [
   {
     title: "Overview",
-    items: [{ href: "/", label: "Dashboard" }],
+    items: [
+      { href: "/", label: "Dashboard" },
+      { href: "/help", label: "Help" },
+    ],
   },
   {
     title: "Master Data",
