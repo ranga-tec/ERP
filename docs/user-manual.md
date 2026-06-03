@@ -171,7 +171,7 @@ Note:
   - the list page exposes `View` and `Edit`; `Edit` is available while the job is still `Open`
   - the job detail header is compact: job number, status, type, equipment, customer, site, responsible officer, PDF, and workflow action buttons stay at the top without taking the full viewport
   - less-used date fields are behind `Show dates & details`
-  - while status is still `Open`, you can edit the job header (unit, customer, type, problem) from the `Overview` tab
+  - while status is still `Open`, you can edit the job header (unit, customer, type, problem) from the `Overview` tab; `Edit Job` opens the edit form in a modal dialog so the overview stays compact
   - once the job is started, header editing is locked and execution should continue through work orders, estimates, material issues, and handover
   - entitlement is captured automatically when the job is created by checking active service contracts first, then manufacturer warranty on the equipment unit
   - use `Refresh Entitlement` on the job if warranty/contract data is added after the job was already opened
@@ -184,7 +184,7 @@ Note:
   - when no daily sheet exists, `Daily Work -> Daily Sheets` shows a clear empty state and `+ Create First Daily Sheet`; labour and progress views show a single `Go to Daily Sheets` call-to-action instead of disabled forms
   - daily sheet cards include direct links to add labour, add progress, issue materials, request an IOU, or add an expense without hunting through the full job page
   - daily job detail sections keep the running work separated into `Daily Staff / Labor`, `Daily Progress`, `IOU / Employee Advance`, `Petty Cash Expense`, `Employee Out-of-Pocket Claim`, `Materials / Lubricants Issue`, and `Material Returns / Damage / Rejection`
-  - Job Order add/create actions open in modal dialogs in front of the current table or register, including new job order, plan operation, daily sheet, staff/labor, progress, IOU, petty-cash voucher, reimbursement claim, MRN, material return, and damage draft
+  - Job Order create/add/edit actions use the shared form modal pattern in front of the current table or register, including new job order, edit job, plan operation, daily sheet, staff/labor, progress, IOU, petty-cash voucher, reimbursement claim, MRN, material return, and damage draft
   - `Plan` keeps the operations table visible first and exposes `+ Add Operation` as a modal form
   - `Materials` keeps posted material context visible and exposes `+ New MRN` as a modal form
   - the progress view shows existing progress updates first, then the add-progress form, so users can review the latest work status before entering another update

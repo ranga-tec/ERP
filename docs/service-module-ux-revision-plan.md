@@ -67,6 +67,8 @@ Implemented on 2026-05-31:
 - Job Order add/create actions now open as modal dialogs in front of the current table/register: new job order, operation, daily sheet, staff/labor, progress, IOU, petty-cash voucher, reimbursement claim, MRN, material return, and damage draft.
 - `Plan` shows the operations table as the primary content and exposes `+ Add Operation` as a modal action.
 - `Materials` exposes `+ New MRN` as a modal action instead of a passive closed card.
+- The job-order modal pattern has been promoted to the shared `frontend/src/components/AppFormModal.tsx` component so future modules can use the same create/edit dialog behavior instead of copying a service-job-local component.
+- `Overview -> Edit Job` now opens the existing job header edit form in a modal dialog instead of rendering the full edit form inline on the overview.
 
 Design rule now applied to the Job Order module: each first view should fit the working viewport as far as practical. Lists, cockpit/process status, empty states, and current records come first; create/add forms are secondary and opened on demand.
 

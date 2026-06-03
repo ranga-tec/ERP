@@ -1,9 +1,9 @@
 import Link from "next/link";
 import { backendFetchJson } from "@/lib/backend.server";
+import { AppFormModal } from "@/components/AppFormModal";
 import { AuditTrailButton } from "@/components/AuditTrailButton";
 import { TransactionLink } from "@/components/TransactionLink";
 import { Card, Table } from "@/components/ui";
-import { JobFormModal } from "./JobFormModal";
 import { ServiceJobCreateForm } from "./ServiceJobCreateForm";
 
 type ServiceJobDto = {
@@ -104,9 +104,9 @@ export default async function ServiceJobsPage() {
           <h1 className="text-2xl font-semibold">Job Orders</h1>
           <p className="mt-1 text-sm text-zinc-500">Open, assign, execute, complete, invoice, close, and reopen when authorized.</p>
         </div>
-        <JobFormModal title="Create New Job Order" description="Open a service, repair, PDI, warranty, or inspection job." buttonLabel="+ New Job Order">
+        <AppFormModal title="Create New Job Order" description="Open a service, repair, PDI, warranty, or inspection job." buttonLabel="+ New Job Order">
           <ServiceJobCreateForm equipmentUnits={equipmentUnitOptions} customers={customers} />
-        </JobFormModal>
+        </AppFormModal>
       </div>
 
       <Card>

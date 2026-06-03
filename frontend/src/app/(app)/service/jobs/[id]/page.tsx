@@ -1,9 +1,9 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
 import { backendFetchJson } from "@/lib/backend.server";
+import { AppFormModal } from "@/components/AppFormModal";
 import { ItemInlineLink } from "@/components/InlineLink";
 import { Card, SecondaryLink, Table } from "@/components/ui";
-import { JobFormModal } from "../JobFormModal";
 import { ServiceJobActions } from "../ServiceJobActions";
 import { ServiceJobEditForm } from "../ServiceJobEditForm";
 import { ServiceJobAssignmentActions } from "../ServiceJobAssignmentActions";
@@ -1242,9 +1242,17 @@ export default async function ServiceJobDetailPage({
       </Card>
 
       {canEditHeader ? (
-        <CollapsibleCard title="Edit Job" summary="Change intake header fields while the job is still editable.">
-          <ServiceJobEditForm job={job} equipmentUnits={equipmentUnitOptions} customers={customers} />
-        </CollapsibleCard>
+        <Card>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <div className="text-sm font-semibold">Edit Job</div>
+              <div className="mt-1 text-xs text-zinc-500">Change intake header fields while the job is still editable.</div>
+            </div>
+            <AppFormModal title="Edit Job Order" description="Update equipment, customer, job type, dates, site, responsibility, and intake notes." buttonLabel="Edit Job" variant="secondary">
+              <ServiceJobEditForm job={job} equipmentUnits={equipmentUnitOptions} customers={customers} />
+            </AppFormModal>
+          </div>
+        </Card>
       ) : (
         <CollapsibleCard title="Edit Job" summary="Header fields are locked after work starts.">
           <div className="text-sm text-zinc-500">
@@ -1284,9 +1292,9 @@ export default async function ServiceJobDetailPage({
             <div className="text-sm font-semibold">Job Operations / Sub-Parts Plan</div>
             <div className="mt-1 text-xs text-zinc-500">Plan complex repair stages, expected sub-parts, labor, and due dates before issuing actual MRNs or recording labor.</div>
           </div>
-          <JobFormModal title="Add Operation / Sub-Part" description="Plan a repair step, expected part, labor estimate, and due date." buttonLabel="+ Add Operation" variant="secondary" disabled={!canAddJobActivity}>
+          <AppFormModal title="Add Operation / Sub-Part" description="Plan a repair step, expected part, labor estimate, and due date." buttonLabel="+ Add Operation" variant="secondary" disabled={!canAddJobActivity}>
             <ServiceJobOperationAddForm serviceJobId={job.id} items={items} nextSequence={nextOperationSequence} disabled={!canAddJobActivity} />
-          </JobFormModal>
+          </AppFormModal>
         </div>
         <div className="mt-4 overflow-auto">
           <Table>
@@ -1416,18 +1424,18 @@ export default async function ServiceJobDetailPage({
             <div className="mt-1 text-xs text-zinc-500">Capture each working day — replaces paper job sheets, cash notes, and material return notes.</div>
           </div>
           {dailySheets.length > 0 ? (
-            <JobFormModal title="Add Daily Field Sheet" description="Create another daily work record for this job." buttonLabel="+ Add Another Day" variant="secondary" disabled={!canAddJobActivity}>
+            <AppFormModal title="Add Daily Field Sheet" description="Create another daily work record for this job." buttonLabel="+ Add Another Day" variant="secondary" disabled={!canAddJobActivity}>
               <ServiceJobDailySheetCreateForm serviceJobId={job.id} disabled={!canAddJobActivity} disabledReason={dailySheetCreateDisabledReason} />
-            </JobFormModal>
+            </AppFormModal>
           ) : null}
         </div>
         {dailySheets.length === 0 ? (
           <div className="rounded-lg border-2 border-dashed border-[var(--card-border)] p-6 text-center">
             <div className="mb-3 text-sm text-zinc-500">No daily field sheets recorded yet. Start by creating your first one.</div>
             <div className="flex justify-center">
-              <JobFormModal title="Create First Daily Sheet" description="Create the first daily work record before adding labour, progress, materials, IOUs, or expenses." buttonLabel="+ Create First Daily Sheet" disabled={!canAddJobActivity}>
+              <AppFormModal title="Create First Daily Sheet" description="Create the first daily work record before adding labour, progress, materials, IOUs, or expenses." buttonLabel="+ Create First Daily Sheet" disabled={!canAddJobActivity}>
                 <ServiceJobDailySheetCreateForm serviceJobId={job.id} disabled={!canAddJobActivity} disabledReason={dailySheetCreateDisabledReason} />
-              </JobFormModal>
+              </AppFormModal>
             </div>
           </div>
         ) : null}
@@ -1594,7 +1602,7 @@ export default async function ServiceJobDetailPage({
           <Link className="text-sm font-semibold text-[var(--link)] underline underline-offset-2" href="/service/technicians">
             Technician Master
           </Link>
-          <JobFormModal title="Add Staff / Labor" description={`Assign staff and labor for ${selectedDailySheet.number}.`} buttonLabel="+ Add Staff / Labor" variant="secondary" disabled={!canAddJobActivity || !selectedDailySheet || selectedDailySheetLocked}>
+          <AppFormModal title="Add Staff / Labor" description={`Assign staff and labor for ${selectedDailySheet.number}.`} buttonLabel="+ Add Staff / Labor" variant="secondary" disabled={!canAddJobActivity || !selectedDailySheet || selectedDailySheetLocked}>
             {selectedDailySheetLockReason ? (
               <div className="mb-3 rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-900/40 dark:bg-amber-950/30 dark:text-amber-100">
                 {selectedDailySheetLockReason}{" "}
@@ -1611,7 +1619,7 @@ export default async function ServiceJobDetailPage({
               requireDailySheet
               disabled={!canAddJobActivity || !selectedDailySheet || selectedDailySheetLocked}
             />
-          </JobFormModal>
+          </AppFormModal>
         </div>
         <div className="overflow-auto">
           <Table>
@@ -1697,7 +1705,7 @@ export default async function ServiceJobDetailPage({
           ) : null}
         </div>
         <div className="mt-4 flex justify-end">
-          <JobFormModal title="Add Progress Update" description={`Record completed work, pending work, and issues for ${selectedDailySheet.number}.`} buttonLabel="+ Add Progress" variant="secondary" disabled={!canAddJobActivity || !selectedDailySheet || selectedDailySheetLocked}>
+          <AppFormModal title="Add Progress Update" description={`Record completed work, pending work, and issues for ${selectedDailySheet.number}.`} buttonLabel="+ Add Progress" variant="secondary" disabled={!canAddJobActivity || !selectedDailySheet || selectedDailySheetLocked}>
             {selectedDailySheetLockReason ? (
               <div className="mb-3 rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-900/40 dark:bg-amber-950/30 dark:text-amber-100">
                 {selectedDailySheetLockReason}{" "}
@@ -1713,7 +1721,7 @@ export default async function ServiceJobDetailPage({
               requireDailySheet
               disabled={!canAddJobActivity || !selectedDailySheet || selectedDailySheetLocked}
             />
-          </JobFormModal>
+          </AppFormModal>
         </div>
       </CollapsibleCard>
       ) : null}
@@ -1752,9 +1760,9 @@ export default async function ServiceJobDetailPage({
                 Request an advance against this job and daily sheet. The requester is the signed-in system user; once submitted, the request stays visible in the register below.
               </div>
             </div>
-            <JobFormModal title="Request IOU / Employee Advance" description="Create and submit an advance request against this job." buttonLabel="+ Request IOU" variant="secondary" disabled={!canAddJobActivity}>
+            <AppFormModal title="Request IOU / Employee Advance" description="Create and submit an advance request against this job." buttonLabel="+ Request IOU" variant="secondary" disabled={!canAddJobActivity}>
               <ServiceJobDailyIouCreateForm serviceJobId={job.id} dailySheets={dailySheets} disabled={!canAddJobActivity} />
-            </JobFormModal>
+            </AppFormModal>
           </div>
           <div className="mt-5 border-t border-[var(--card-border)] pt-4">
             <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
@@ -1825,7 +1833,7 @@ export default async function ServiceJobDetailPage({
                 Record expenses paid from company petty cash. Capture the accountant-issued bill number and whether the receiver got cash by handover, bank deposit, or another method.
               </div>
             </div>
-            <JobFormModal title="Create Petty Cash Voucher" description="Create a petty-cash-funded service expense claim for this job." buttonLabel="+ Petty Cash Voucher" variant="secondary" disabled={!canAddJobActivity}>
+            <AppFormModal title="Create Petty Cash Voucher" description="Create a petty-cash-funded service expense claim for this job." buttonLabel="+ Petty Cash Voucher" variant="secondary" disabled={!canAddJobActivity}>
               <ServiceJobDailyExpenseClaimCreateForm
                 serviceJobId={job.id}
                 dailySheets={dailySheets}
@@ -1834,7 +1842,7 @@ export default async function ServiceJobDetailPage({
                 submitLabel="Create Petty Cash Voucher"
                 disabled={!canAddJobActivity}
               />
-            </JobFormModal>
+            </AppFormModal>
           </div>
           <ServiceJobExpenseClaimRegister
             claims={expenseClaims.filter((claim) => claim.fundingSource === 2)}
@@ -1853,7 +1861,7 @@ export default async function ServiceJobDetailPage({
                 Capture expenses paid personally by the signed-in user. Create the claim, add lines on the claim detail page, then submit for approval and reimbursement settlement.
               </div>
             </div>
-            <JobFormModal title="Create Reimbursement Claim" description="Create an out-of-pocket reimbursement claim for this job." buttonLabel="+ Reimbursement Claim" variant="secondary" disabled={!canAddJobActivity}>
+            <AppFormModal title="Create Reimbursement Claim" description="Create an out-of-pocket reimbursement claim for this job." buttonLabel="+ Reimbursement Claim" variant="secondary" disabled={!canAddJobActivity}>
               <ServiceJobDailyExpenseClaimCreateForm
                 serviceJobId={job.id}
                 dailySheets={dailySheets}
@@ -1862,7 +1870,7 @@ export default async function ServiceJobDetailPage({
                 submitLabel="Create Reimbursement Claim"
                 disabled={!canAddJobActivity}
               />
-            </JobFormModal>
+            </AppFormModal>
           </div>
           <ServiceJobExpenseClaimRegister
             claims={expenseClaims.filter((claim) => claim.fundingSource === 1)}
@@ -1978,9 +1986,9 @@ export default async function ServiceJobDetailPage({
               <div className="text-sm font-semibold">Create MRN</div>
               <div className="mt-0.5 text-xs text-zinc-500">Create a draft material requisition, then add lines and post it from the MRN screen.</div>
             </div>
-            <JobFormModal title="Create MRN" description="Create a draft material requisition for this job." buttonLabel="+ New MRN" variant="secondary" disabled={!canAddJobActivity}>
+            <AppFormModal title="Create MRN" description="Create a draft material requisition for this job." buttonLabel="+ New MRN" variant="secondary" disabled={!canAddJobActivity}>
             <ServiceJobDailyMaterialRequisitionCreateForm serviceJobId={job.id} dailySheets={dailySheets} warehouses={warehouses} disabled={!canAddJobActivity} />
-            </JobFormModal>
+            </AppFormModal>
           </div>
         </Card>
       ) : null}
@@ -1992,7 +2000,7 @@ export default async function ServiceJobDetailPage({
         defaultOpen
       >
         <div className="mb-3 flex justify-end">
-          <JobFormModal title="Save Material Return Draft" description="Draft not-needed, wrongly-issued, or supplier-rejected returns before posting usable stock back." buttonLabel="+ Material Return" variant="secondary" disabled={!canAddJobActivity}>
+          <AppFormModal title="Save Material Return Draft" description="Draft not-needed, wrongly-issued, or supplier-rejected returns before posting usable stock back." buttonLabel="+ Material Return" variant="secondary" disabled={!canAddJobActivity}>
             <ServiceJobMaterialDispositionAddForm
               serviceJobId={job.id}
               materialLines={costing.materialLines}
@@ -2001,7 +2009,7 @@ export default async function ServiceJobDetailPage({
               submitLabel="Save Material Return Draft"
               disabled={!canAddJobActivity}
             />
-          </JobFormModal>
+          </AppFormModal>
         </div>
         <div className="overflow-auto">
           <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
@@ -2087,7 +2095,7 @@ export default async function ServiceJobDetailPage({
         defaultOpen
       >
         <div className="mb-3 flex justify-end">
-          <JobFormModal title="Save Damage Draft" description="Record issued material that is damaged or unusable." buttonLabel="+ Damage Draft" variant="secondary" disabled={!canAddJobActivity}>
+          <AppFormModal title="Save Damage Draft" description="Record issued material that is damaged or unusable." buttonLabel="+ Damage Draft" variant="secondary" disabled={!canAddJobActivity}>
             <ServiceJobMaterialDispositionAddForm
               serviceJobId={job.id}
               materialLines={costing.materialLines}
@@ -2096,7 +2104,7 @@ export default async function ServiceJobDetailPage({
               submitLabel="Save Damage Draft"
               disabled={!canAddJobActivity}
             />
-          </JobFormModal>
+          </AppFormModal>
         </div>
         <div className="overflow-auto">
           <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
