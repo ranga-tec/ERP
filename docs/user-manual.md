@@ -141,6 +141,8 @@ Note:
 
 ## Service workflows
 
+- Detailed job-order guide with screenshots: `docs/job-orders-user-manual.md`.
+
 - Equipment units:
   - register serialized customer equipment against an `Equipment` type item from `Master Data -> Items`
   - the item record stores the equipment model/SKU/name; the equipment unit stores the serial number, customer ownership, warranty, and service scheduling fields
