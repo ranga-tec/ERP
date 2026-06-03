@@ -141,7 +141,7 @@ Note:
 
 ## Service workflows
 
-- Detailed job-order guide with screenshots: `docs/job-orders-user-manual.md`.
+- Detailed service job section guide with screenshots: `docs/job-orders-user-manual.md`.
 
 - Equipment units:
   - register serialized customer equipment against an `Equipment` type item from `Master Data -> Items`
