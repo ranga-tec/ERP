@@ -25,14 +25,28 @@ export function ServiceJobDailyExpenseClaimCreateForm({
 }) {
   const router = useRouter();
   const [dailySheetId, setDailySheetId] = useState("");
-  const [claimedByName, setClaimedByName] = useState("");
   const [fundingSource, setFundingSource] = useState(defaultFundingSource);
   const [expenseDate, setExpenseDate] = useState("");
   const [merchantName, setMerchantName] = useState("");
   const [receiptReference, setReceiptReference] = useState("");
+  const [handoverMethod, setHandoverMethod] = useState("cash-handover");
+  const [handoverMethodOther, setHandoverMethodOther] = useState("");
   const [notes, setNotes] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const isPettyCash = fundingSource === "2";
+  const handoverMethodLabel =
+    handoverMethod === "bank-deposit"
+      ? "Bank deposit"
+      : handoverMethod === "cash-handover"
+        ? "Cash handover"
+        : handoverMethodOther.trim() || "Other";
+  const resolvedNotes = [
+    isPettyCash ? `Payment handover: ${handoverMethodLabel}` : null,
+    notes.trim() || null,
+  ]
+    .filter(Boolean)
+    .join("\n");
 
   async function onSubmit(event: React.FormEvent) {
     event.preventDefault();
@@ -42,12 +56,12 @@ export function ServiceJobDailyExpenseClaimCreateForm({
       const claim = await apiPost<ClaimDto>("service/expense-claims", {
         serviceJobId,
         serviceJobDailySheetId: dailySheetId || null,
-        claimedByName: claimedByName.trim() || null,
+        claimedByName: null,
         fundingSource: Number(fundingSource),
         expenseDate: expenseDate ? new Date(expenseDate).toISOString() : null,
         merchantName: merchantName.trim() || null,
         receiptReference: receiptReference.trim() || null,
-        notes: notes.trim() || null,
+        notes: resolvedNotes || null,
       });
       router.push(`/service/expense-claims/${claim.id}`);
     } catch (err) {
@@ -59,6 +73,11 @@ export function ServiceJobDailyExpenseClaimCreateForm({
 
   return (
     <form onSubmit={onSubmit} className="space-y-3">
+      <div className="rounded-md border border-sky-200 bg-sky-50 p-3 text-sm text-sky-900 dark:border-sky-900/40 dark:bg-sky-950/30 dark:text-sky-100">
+        {isPettyCash
+          ? "Voucher receiver is recorded from the signed-in system user. Enter the accountant-issued bill number and how cash was handed over."
+          : "Claimant is recorded from the signed-in system user. It cannot be typed manually."}
+      </div>
       <div className="grid gap-3 lg:grid-cols-4">
         <div>
           <label className="mb-1 block text-sm font-medium">Daily sheet</label>
@@ -79,11 +98,7 @@ export function ServiceJobDailyExpenseClaimCreateForm({
           </Select>
         </div>
         <div>
-          <label className="mb-1 block text-sm font-medium">Claimed by</label>
-          <Input value={claimedByName} onChange={(event) => setClaimedByName(event.target.value)} disabled={disabled || busy} />
-        </div>
-        <div>
-          <label className="mb-1 block text-sm font-medium">Expense date</label>
+          <label className="mb-1 block text-sm font-medium">{isPettyCash ? "Voucher date" : "Expense date"}</label>
           <Input type="datetime-local" value={expenseDate} onChange={(event) => setExpenseDate(event.target.value)} disabled={disabled || busy} />
         </div>
       </div>
@@ -93,10 +108,28 @@ export function ServiceJobDailyExpenseClaimCreateForm({
           <Input value={merchantName} onChange={(event) => setMerchantName(event.target.value)} disabled={disabled || busy} />
         </div>
         <div>
-          <label className="mb-1 block text-sm font-medium">Receipt ref</label>
+          <label className="mb-1 block text-sm font-medium">{isPettyCash ? "Bill number" : "Receipt ref"}</label>
           <Input value={receiptReference} onChange={(event) => setReceiptReference(event.target.value)} disabled={disabled || busy} />
         </div>
       </div>
+      {isPettyCash ? (
+        <div className="grid gap-3 lg:grid-cols-2">
+          <div>
+            <label className="mb-1 block text-sm font-medium">Payment handover</label>
+            <Select value={handoverMethod} onChange={(event) => setHandoverMethod(event.target.value)} disabled={disabled || busy}>
+              <option value="cash-handover">Cash handover</option>
+              <option value="bank-deposit">Bank deposit</option>
+              <option value="other">Other</option>
+            </Select>
+          </div>
+          {handoverMethod === "other" ? (
+            <div>
+              <label className="mb-1 block text-sm font-medium">Other handover method</label>
+              <Input value={handoverMethodOther} onChange={(event) => setHandoverMethodOther(event.target.value)} disabled={disabled || busy} />
+            </div>
+          ) : null}
+        </div>
+      ) : null}
       <div>
         <label className="mb-1 block text-sm font-medium">Notes</label>
         <Textarea value={notes} onChange={(event) => setNotes(event.target.value)} disabled={disabled || busy} />

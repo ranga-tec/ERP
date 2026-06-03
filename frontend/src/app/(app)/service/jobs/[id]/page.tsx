@@ -1723,7 +1723,7 @@ export default async function ServiceJobDetailPage({
       {activeTab === "expenses" ? (
       <CollapsibleCard
         title="Cash and Expenses"
-        summary="Track advances, company-paid petty cash, and employee reimbursements separately."
+        summary="Use one focused workflow at a time: IOU advance requests, petty cash vouchers, or out-of-pocket reimbursement claims."
         defaultOpen
       >
         <div className="mb-4 flex flex-wrap gap-2">
@@ -1749,7 +1749,7 @@ export default async function ServiceJobDetailPage({
             <div>
               <div className="text-sm font-semibold">IOU / Employee Advance</div>
               <div className="mt-1 text-xs text-zinc-500">
-                Issue an advance against this job and daily sheet. Creation submits the IOU; finance then approves it, releases cash, and settles the advance after receipts are accounted.
+                Request an advance against this job and daily sheet. The requester is the signed-in system user; once submitted, the request stays visible in the register below.
               </div>
             </div>
             <JobFormModal title="Request IOU / Employee Advance" description="Create and submit an advance request against this job." buttonLabel="+ Request IOU" variant="secondary" disabled={!canAddJobActivity}>
@@ -1822,7 +1822,7 @@ export default async function ServiceJobDetailPage({
             <div>
               <div className="text-sm font-semibold">Petty Cash Expense</div>
               <div className="mt-1 text-xs text-zinc-500">
-                Record expenses already paid from company petty cash. Create the voucher, add lines on the voucher detail page, then submit, approve, and settle against the petty cash fund.
+                Record expenses paid from company petty cash. Capture the accountant-issued bill number and whether the receiver got cash by handover, bank deposit, or another method.
               </div>
             </div>
             <JobFormModal title="Create Petty Cash Voucher" description="Create a petty-cash-funded service expense claim for this job." buttonLabel="+ Petty Cash Voucher" variant="secondary" disabled={!canAddJobActivity}>
@@ -1850,7 +1850,7 @@ export default async function ServiceJobDetailPage({
             <div>
               <div className="text-sm font-semibold">Employee Out-of-Pocket Claim</div>
               <div className="mt-1 text-xs text-zinc-500">
-                Capture expenses paid personally by staff. Create the claim, add lines on the claim detail page, then submit, approve, and settle when reimbursement is paid.
+                Capture expenses paid personally by the signed-in user. Create the claim, add lines on the claim detail page, then submit for approval and reimbursement settlement.
               </div>
             </div>
             <JobFormModal title="Create Reimbursement Claim" description="Create an out-of-pocket reimbursement claim for this job." buttonLabel="+ Reimbursement Claim" variant="secondary" disabled={!canAddJobActivity}>

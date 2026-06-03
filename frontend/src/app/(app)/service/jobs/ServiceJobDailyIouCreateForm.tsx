@@ -19,7 +19,6 @@ export function ServiceJobDailyIouCreateForm({
 }) {
   const router = useRouter();
   const [dailySheetId, setDailySheetId] = useState("");
-  const [requestedByName, setRequestedByName] = useState("");
   const [amount, setAmount] = useState("");
   const [expectedSettlementAt, setExpectedSettlementAt] = useState("");
   const [purpose, setPurpose] = useState("");
@@ -36,15 +35,14 @@ export function ServiceJobDailyIouCreateForm({
       const iou = await apiPost<PettyCashIouDto>("finance/petty-cash-ious", {
         serviceJobId,
         serviceJobDailySheetId: dailySheetId || null,
-        requestedByName: requestedByName.trim() || null,
+        requestedByName: null,
         amount: Number(amount),
         purpose: purpose.trim(),
         expectedSettlementAt: expectedSettlementAt || null,
       });
       await apiPostNoContent(`finance/petty-cash-ious/${iou.id}/submit`, {});
-      setSuccess(`${iou.number} submitted and waiting for finance approval.`);
+      setSuccess(`${iou.number} request sent. It is now visible in the Job IOU Register and waiting for finance approval.`);
       setDailySheetId("");
-      setRequestedByName("");
       setAmount("");
       setExpectedSettlementAt("");
       setPurpose("");
@@ -58,6 +56,9 @@ export function ServiceJobDailyIouCreateForm({
 
   return (
     <form onSubmit={onSubmit} className="space-y-3">
+      <div className="rounded-md border border-sky-200 bg-sky-50 p-3 text-sm text-sky-900 dark:border-sky-900/40 dark:bg-sky-950/30 dark:text-sky-100">
+        Requester is recorded from the signed-in system user. It cannot be typed manually.
+      </div>
       <div className="grid gap-3 lg:grid-cols-4">
         <div>
           <label className="mb-1 block text-sm font-medium">Daily sheet</label>
@@ -65,10 +66,6 @@ export function ServiceJobDailyIouCreateForm({
             <option value="">Unlinked</option>
             {dailySheets.filter((sheet) => sheet.status !== 2).map((sheet) => <option key={sheet.id} value={sheet.id}>{sheet.number}</option>)}
           </Select>
-        </div>
-        <div>
-          <label className="mb-1 block text-sm font-medium">Person</label>
-          <Input value={requestedByName} onChange={(event) => setRequestedByName(event.target.value)} disabled={disabled || busy} placeholder="Defaults to signed-in user" />
         </div>
         <div>
           <label className="mb-1 block text-sm font-medium">Amount</label>
