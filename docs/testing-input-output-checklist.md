@@ -4,6 +4,8 @@ This document gives testers exact values to enter, expected outputs, and where t
 
 Use it for manual UAT, demo database testing, and regression checks after deployments. Run the scenario as an `Admin` user first. Role-by-role testing can be done later using `docs/role-based-test-checklists.md`.
 
+For a standalone Service Job section QA run covering jobs, daily sheets, labour, materials, material returns, petty cash, IOUs, accounts, invoices, closeout, and reporting, use `docs/service-job-section-testing-document.md`.
+
 ## Recent Workflow Notes
 
 ### Service Job Materials

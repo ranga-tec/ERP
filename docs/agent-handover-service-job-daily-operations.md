@@ -339,6 +339,7 @@ Other sections:
 Updated/added:
 
 - `docs/service-job-daily-field-operations-requirement.md`
+- `docs/service-job-section-testing-document.md`
 - `docs/testing-input-output-checklist.md`
 - `docs/manual-uat-guide.md`
 - `docs/end-to-end-testing-workflow.md`
