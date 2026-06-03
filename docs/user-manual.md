@@ -168,7 +168,7 @@ Note:
   - choose `Service`, `Repair`, `PDI`, `Warranty`, or `Inspection` when opening the job
   - select equipment using the searchable equipment-unit picker; it searches the linked item SKU/name, serial number, and customer code
   - after equipment is selected, the customer defaults from the equipment unit but can still be changed before saving if required
-  - the list page exposes `View` and `Edit`; `Edit` is available while the job is still `Open`
+  - the list page exposes `View` and `Edit`; `Edit` is available while the job is still `Open` and opens the job header edit modal directly from the list
   - the job detail header is compact: job number, status, type, equipment, customer, site, responsible officer, PDF, and workflow action buttons stay at the top without taking the full viewport
   - less-used date fields are behind `Show dates & details`
   - while status is still `Open`, you can edit the job header (unit, customer, type, problem) from the `Overview` tab; `Edit Job` opens the edit form in a modal dialog so the overview stays compact

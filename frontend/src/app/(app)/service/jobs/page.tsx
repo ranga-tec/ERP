@@ -5,6 +5,7 @@ import { AuditTrailButton } from "@/components/AuditTrailButton";
 import { TransactionLink } from "@/components/TransactionLink";
 import { Card, Table } from "@/components/ui";
 import { ServiceJobCreateForm } from "./ServiceJobCreateForm";
+import { ServiceJobEditForm } from "./ServiceJobEditForm";
 
 type ServiceJobDto = {
   id: string;
@@ -165,9 +166,14 @@ export default async function ServiceJobsPage() {
                         View
                       </Link>
                       {j.status === 0 || j.status === 1 || j.status === 13 ? (
-                        <Link className="font-semibold text-[var(--link)] underline underline-offset-2" href={`/service/jobs/${j.id}`}>
-                          Edit
-                        </Link>
+                        <AppFormModal
+                          title={`Edit Job Order ${j.number}`}
+                          description="Update equipment, customer, job type, dates, site, responsibility, and intake notes."
+                          buttonLabel="Edit"
+                          variant="secondary"
+                        >
+                          <ServiceJobEditForm job={j} equipmentUnits={equipmentUnitOptions} customers={customers} />
+                        </AppFormModal>
                       ) : (
                         <span className="text-zinc-400">Edit</span>
                       )}

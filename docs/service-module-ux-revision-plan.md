@@ -69,6 +69,7 @@ Implemented on 2026-05-31:
 - `Materials` exposes `+ New MRN` as a modal action instead of a passive closed card.
 - The job-order modal pattern has been promoted to the shared `frontend/src/components/AppFormModal.tsx` component so future modules can use the same create/edit dialog behavior instead of copying a service-job-local component.
 - `Overview -> Edit Job` now opens the existing job header edit form in a modal dialog instead of rendering the full edit form inline on the overview.
+- `Service -> Jobs` list-row `Edit` now opens the same job header edit modal directly from the list instead of navigating to the detail page first.
 
 Design rule now applied to the Job Order module: each first view should fit the working viewport as far as practical. Lists, cockpit/process status, empty states, and current records come first; create/add forms are secondary and opened on demand.
 
