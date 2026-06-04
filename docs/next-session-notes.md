@@ -4,34 +4,59 @@
 
 - Repo: `D:\VScode Projects\ISS`
 - Branch: `main`
-- Current purpose: resume from the deployed service-job workflow tabs, clickable closeout readiness, daily-sheet-driven staff/progress flow, ERP-density, searchable-dropdown, finance account-mapping, chart-of-accounts workspace, reusable line-grid rollout, and direct-edit workflow checkpoints
-- Current tracked code state: latest pushed/deployed service-job workflow baseline is `2e29358`
-- Current local artifacts:
-  - untracked `.playwright-cli/`
-  - untracked `images/`
+- Current purpose: resume from the service-job module UX revamp (modal forms, viewport-fit overview, AppFormModal pattern) and proceed to reporting, PDF, finance refinements, and deployment
+- Current tracked code state: latest local commits include the full Job Order UX revamp session (2026-06-04)
+- Current local artifacts (untracked, not committed):
+  - `frontend/iss_pw*.cjs` — Playwright test scripts from UX review session (safe to delete or .gitignore)
+  - `SS/` — UI screenshots from Playwright verification
+  - `data/`
+  - `Modification reqs/`
+  - `docs/testing-input-output-checklist.pdf`
+  - `image.png`
+
+## What Was Completed This Session (2026-06-04)
+
+### Job Order Module — Full UI/UX Revamp
+
+- `AppFormModal` component added (`frontend/src/components/AppFormModal.tsx`): client-side modal dialog for all create/edit forms
+- All job order create/edit forms converted to modals (see user manual section 7–18)
+- Job list: list-first layout, `+ New Job Order` modal button top-right, Edit from list row → modal
+- Job detail header: compact 2-line header, status/type badges, `Show dates & details ▾` toggle, inline PDF and workflow actions
+- Tab navigation: all links append `#tab-content` → browser scrolls directly to tab content on click
+- Overview tab: Job Cockpit + Process Timeline fit in one 1440×900 viewport; Billing Entitlement moved to Billing tab; no extra sections below the timeline except collapsed Edit Job and Job Intake
+- Daily Sheets: `+ Create First Daily Sheet` modal CTA when empty; `+ Add Another Day` in header when sheets exist
+- Staff/Labor and Progress: clean empty-state with `Go to Daily Sheets` button when no sheet selected (no disabled form shown)
+- Plan tab: `+ Add Operation` button-styled row; form expands inline
+- Materials tab: `+ New MRN` button-styled row
+- Billing tab: Warranty/Billing Entitlement section added here
+- User manual rewritten: `docs/job-orders-user-manual.md`
+- Agent handover updated: `docs/agent-handover-service-job-daily-operations.md`
+
+### Local Server State
+
+- Production `next start` running on port 3000 (ISS ERP, full build with all changes)
+- Dev `next dev` running on port 3003 (ISS ERP, Turbopack, live changes)
+- Backend running on port 5257
 
 ## Current GitHub Checkpoints
 
 Most relevant recent commits on `main`:
 
-- `11752e7` `Show stock ledger document numbers`
-- `9788070` `Add service job operations planning`
-- `3b41460` `Normalize Railway start script line endings`
-- `909f5b1` `Fix service job operations actual labor query`
-- `acc3298` `Simplify service job detail workflow`
-- `8af1961` `Organize service job detail into workflow tabs`
-- `93432b9` `Revise service job testing checklist for tabs`
-- `debe9df` `Refine service job daily work flow`
-- `2e29358` `Link service job closeout checks to workflows`
-- `20225c0` `Tighten ERP UI density and shared grid styling`
-- `a1d7ed2` `Make app dropdowns searchable`
-- `fd7426a` `Add category default account mappings`
-- `97a359d` `Resolve accounts on transaction lines`
-- `dc50cab` `Roll out shared line editors to wave 2 documents`
-- `5f69cda` `Add chart of accounts workspace modes`
-- `cc0f80b` `Roll out tracked document line editors`
-- `3d97d3d` `Fix finance list actions and warehouse selectors`
-- `72b504f` `Fix direct edit entry and service draft workflows`
+- `1b2788f` `Add service job section testing document`
+- `4a30445` `Move help link into service menu`
+- `f62b95c` `Add rendered help manual page`
+- `d1cfe98` `Expand service job section manual`
+- `9d0dfe2` `Add job orders user manual`
+- `a490ba3` `Open job list edit in modal`
+- `b1dced2` `Promote service job form modal`
+- `0e1e0db` `Fix IOU date UTC handling`
+- `20266a6` `Refine service job expense workflows`
+- `c83df06` `Fix job order modal close behavior`
+- `ae5994f` `Add job order modal entry forms`
+- `9d01963` `Document and push job order UX revamp`
+- `415a60e` `Remove service job next actions panel`
+- `6cd43e6` `Compact service job overview dashboard`
+- `2c07a87` `Improve service job workflow navigation`
 
 ## Current Production Deployment State
 

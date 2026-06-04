@@ -37,6 +37,17 @@ Local update on 2026-05-27:
 - Dispatch Board shows unassigned, assigned/active, waiting, and completed job lanes.
 - Technician Workbench shows today's assignments, open daily sheets, active jobs, and quick links for progress, materials, IOUs, and expenses.
 
+Local update on 2026-06-04:
+
+- Full UI/UX expert review and revamp of the Job Order module was conducted using Playwright browser automation (screenshots verified at 1440×900 viewport).
+- `AppFormModal` client component (`frontend/src/components/AppFormModal.tsx`) was added. All create/edit forms across the job order module now open in focused modal dialogs without navigating away from the current page.
+- Forms converted to modal: Create New Job Order, Edit Job Header, Add Operation/Sub-Part, Add Daily Field Sheet, Create First Daily Sheet, Add Staff/Labor, Add Progress Update, Request IOU/Advance, Create Petty Cash Voucher, Create Reimbursement Claim, Edit Job from list row.
+- Production build was rebuilt (`npm run build --webpack`) and redeployed locally. All CSS hashes are consistent. The `next start` server on port 3000 was restarted and verified healthy.
+- User manual (`docs/job-orders-user-manual.md`) was fully rewritten to reflect the modal-based UI, viewport-fit overview, Process Timeline navigation, and the new empty-state CTAs.
+- Agent handover document and next-session notes updated to reflect this session's changes.
+- Playwright test scripts (used during this session) are untracked and should be cleaned up or .gitignored:
+  - `frontend/iss_pw*.cjs`
+
 Local update on 2026-05-31:
 
 - Job Order list UX was revised so the job list is the primary first screen. `+ New Job Order` links to the create form at the bottom of the page, behind a clear `+ Create New Job Order` details section.
@@ -416,20 +427,29 @@ Still pending:
 
 ## Recommended Next Agent Steps
 
-1. Treat `origin/main` at `2e29358` or later as the baseline.
-2. Preserve unrelated local worktree changes unless the user explicitly asks to stage or revert them.
-3. Continue with remaining reporting/PDF/accounting refinements, especially:
+1. Treat `origin/main` at the latest pushed commit as the baseline.
+2. Preserve unrelated local worktree changes (finance, sidebar, work-orders) unless the user explicitly asks to stage or revert them.
+3. Clean up untracked Playwright test scripts left in `frontend/`:
+   - `frontend/iss_pw*.cjs`
+   - Either delete them or add to `.gitignore`
+4. Continue with remaining reporting/PDF/accounting refinements, especially:
    - daily sheet PDF/service report
    - pending closeout report
-   - IOU/employee advance report
+   - IOU/employee advance report per employee and per job
    - material issued/returned/damaged report
-   - direct line entry for MRN/expense from the daily job context
-4. Run targeted checks for service-job work:
+   - partial IOU settlement details (amount spent, cash returned, extra reimbursement)
+   - bill/attachment upload per expense line or daily sheet
+5. Finance pending:
+   - expense category master for structured expense line classification
+   - approval role checks for finance supervisor vs service supervisor
+   - stronger audit trail/reporting for employee advances and reimbursement balances
+6. Infrastructure:
+   - add a `next start` process manager or startup script so production server (port 3000) survives reboots without manual intervention
+7. Run targeted checks for service-job work:
    - `dotnet test backend\tests\ISS.UnitTests\ISS.UnitTests.csproj`
    - `dotnet build backend\src\ISS.Api\ISS.Api.csproj`
    - `npx tsc --noEmit` from `frontend/`
-   - targeted `npx eslint` for changed frontend files
-5. Push with `GIT_TERMINAL_PROMPT=0` if the Windows Git credential manager hangs.
-6. Deploy to Railway from a clean detached worktree using:
+8. Push with `GIT_TERMINAL_PROMPT=0` if the Windows Git credential manager hangs.
+9. Deploy to Railway from a clean detached worktree using:
    - `npx @railway/cli@latest up --service ERP --environment production --detach`
-7. Verify `/login`, job detail tabs, and daily-work deep links after deploy.
+10. Verify `/login`, job detail tabs, and daily-work deep links after deploy.
