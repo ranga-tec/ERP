@@ -3,6 +3,7 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { LogoutButton } from "@/components/LogoutButton";
+import { NotificationBell } from "@/components/NotificationBell";
 import { Sidebar } from "@/components/Sidebar";
 import { AssistantPanel } from "@/components/assistant/AssistantPanel";
 
@@ -111,6 +112,7 @@ export function AppShell({ children, email, roles }: AppShellProps) {
             </div>
 
             <div className="ml-3 flex items-center gap-2">
+              <NotificationBell />
               <LogoutButton />
             </div>
           </header>

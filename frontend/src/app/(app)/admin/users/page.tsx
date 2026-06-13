@@ -16,11 +16,19 @@ type UserDto = {
 };
 
 type CompanyDto = { id: string; code: string; name: string; isActive: boolean };
+type PermissionDefinitionDto = {
+  key: string;
+  module: string;
+  action: string;
+  label: string;
+  description: string;
+};
 
 export default async function AdminUsersPage() {
-  const [users, companies] = await Promise.all([
+  const [users, companies, permissionDefinitions] = await Promise.all([
     backendFetchJson<UserDto[]>("/admin/users?take=200"),
     backendFetchJson<CompanyDto[]>("/companies"),
+    backendFetchJson<PermissionDefinitionDto[]>("/admin/users/permission-definitions"),
   ]);
 
   return (
@@ -82,7 +90,12 @@ export default async function AdminUsersPage() {
                     )}
                   </td>
                   <td className="py-2 pr-3">
-                    <UserRowActions userId={u.id} initialRoles={u.roles ?? []} isLocked={u.isLocked} />
+                    <UserRowActions
+                      userId={u.id}
+                      initialRoles={u.roles ?? []}
+                      isLocked={u.isLocked}
+                      permissionDefinitions={permissionDefinitions}
+                    />
                   </td>
                 </tr>
               ))}

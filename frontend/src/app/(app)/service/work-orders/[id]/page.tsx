@@ -141,7 +141,7 @@ export default async function WorkOrderDetailPage({ params }: { params: Promise<
         <div className="mb-3 text-sm font-semibold">Add Labor Entry</div>
         <WorkOrderTimeEntryAddForm workOrderId={wo.id} technicians={technicians} disabled={!canAddLabor} />
         <div className="mt-3 text-xs text-zinc-500">
-          Warranty or contract coverage can reduce approved labor billing to zero even when the technician entry is marked billable.
+          New labor entries are saved as Draft. Use the row actions below to Submit the entry, then Approve it. Warranty or contract coverage can reduce approved labor billing to zero even when the technician entry is marked billable.
         </div>
       </Card>
 

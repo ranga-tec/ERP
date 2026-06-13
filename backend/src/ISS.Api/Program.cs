@@ -101,6 +101,7 @@ builder.Services.AddRateLimiter(options =>
 });
 
 builder.Services.AddScoped<ISS.Api.Services.JwtTokenService>();
+builder.Services.AddScoped<ISS.Api.Security.AccessControlService>();
 builder.Services.AddHostedService<ISS.Api.Services.NotificationDispatcherHostedService>();
 builder.Services.AddSingleton<ISS.Api.Assistant.AssistantSessionStore>();
 builder.Services.AddHttpClient<ISS.Api.Assistant.AssistantProviderGateway>(client =>

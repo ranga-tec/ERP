@@ -1,5 +1,6 @@
 using ISS.Api.Security;
 using ISS.Application.Abstractions;
+using ISS.Application.Common;
 using ISS.Application.Persistence;
 using ISS.Application.Services;
 using ISS.Domain.Finance;
@@ -15,7 +16,9 @@ namespace ISS.Api.Controllers.Finance;
 public sealed class PettyCashIousController(
     IIssDbContext dbContext,
     FinanceService financeService,
-    ICurrentUser currentUser) : ControllerBase
+    ICurrentUser currentUser,
+    AccessControlService accessControl,
+    NotificationService notificationService) : ControllerBase
 {
     public sealed record PettyCashIouDto(
         Guid Id,
@@ -60,6 +63,11 @@ public sealed class PettyCashIousController(
         [FromQuery] int take = 100,
         CancellationToken cancellationToken = default)
     {
+        if (!await HasPermissionAsync(AppPermissions.PettyCashIouView, cancellationToken))
+        {
+            return Forbid();
+        }
+
         skip = Math.Max(0, skip);
         take = Math.Clamp(take, 1, 500);
 
@@ -82,6 +90,11 @@ public sealed class PettyCashIousController(
     [HttpPost]
     public async Task<ActionResult<PettyCashIouDto>> Create(CreatePettyCashIouRequest request, CancellationToken cancellationToken)
     {
+        if (!await HasPermissionAsync(AppPermissions.PettyCashIouCreate, cancellationToken))
+        {
+            return Forbid();
+        }
+
         var userId = currentUser.UserId ?? Guid.Empty;
         var requestedByName = string.IsNullOrWhiteSpace(request.RequestedByName)
             ? User.Identity?.Name ?? "Unknown user"
@@ -104,6 +117,11 @@ public sealed class PettyCashIousController(
     [HttpGet("{id:guid}")]
     public async Task<ActionResult<PettyCashIouDto>> Get(Guid id, CancellationToken cancellationToken)
     {
+        if (!await HasPermissionAsync(AppPermissions.PettyCashIouView, cancellationToken))
+        {
+            return Forbid();
+        }
+
         var iou = await dbContext.PettyCashIous.AsNoTracking()
             .Where(x => x.Id == id)
             .Select(x => ToDto(x))
@@ -115,40 +133,121 @@ public sealed class PettyCashIousController(
     [HttpPost("{id:guid}/submit")]
     public async Task<ActionResult> Submit(Guid id, CancellationToken cancellationToken)
     {
+        if (!await HasPermissionAsync(AppPermissions.PettyCashIouSubmit, cancellationToken))
+        {
+            return Forbid();
+        }
+
         await financeService.SubmitPettyCashIouAsync(id, cancellationToken);
+        await NotifyIouSubmittedAsync(id, cancellationToken);
         return NoContent();
     }
 
     [HttpPost("{id:guid}/approve")]
-    [Authorize(Roles = $"{Roles.Admin},{Roles.Finance}")]
     public async Task<ActionResult> Approve(Guid id, CancellationToken cancellationToken)
     {
+        if (!await HasPermissionAsync(AppPermissions.PettyCashIouApprove, cancellationToken))
+        {
+            return Forbid();
+        }
+
         await financeService.ApprovePettyCashIouAsync(id, currentUser.UserId ?? Guid.Empty, cancellationToken);
+        await NotifyRequesterAsync(id, "IOU approved", "Your IOU request has been approved.", cancellationToken);
         return NoContent();
     }
 
     [HttpPost("{id:guid}/reject")]
-    [Authorize(Roles = $"{Roles.Admin},{Roles.Finance}")]
     public async Task<ActionResult> Reject(Guid id, RejectPettyCashIouRequest? request, CancellationToken cancellationToken)
     {
+        if (!await HasPermissionAsync(AppPermissions.PettyCashIouReject, cancellationToken))
+        {
+            return Forbid();
+        }
+
         await financeService.RejectPettyCashIouAsync(id, request?.Reason, cancellationToken);
+        await NotifyRequesterAsync(id, "IOU rejected", "Your IOU request has been rejected.", cancellationToken);
         return NoContent();
     }
 
     [HttpPost("{id:guid}/release")]
-    [Authorize(Roles = $"{Roles.Admin},{Roles.Finance}")]
     public async Task<ActionResult> Release(Guid id, ReleasePettyCashIouRequest request, CancellationToken cancellationToken)
     {
+        if (!await HasPermissionAsync(AppPermissions.PettyCashIouRelease, cancellationToken))
+        {
+            return Forbid();
+        }
+
         await financeService.ReleasePettyCashIouAsync(id, request.PettyCashFundId, request.ReleaseReference, cancellationToken);
+        await NotifyRequesterAsync(id, "IOU cash released", "Cash has been released for your IOU request.", cancellationToken);
         return NoContent();
     }
 
     [HttpPost("{id:guid}/settle")]
-    [Authorize(Roles = $"{Roles.Admin},{Roles.Finance}")]
     public async Task<ActionResult> Settle(Guid id, SettlePettyCashIouRequest request, CancellationToken cancellationToken)
     {
+        if (!await HasPermissionAsync(AppPermissions.PettyCashIouSettle, cancellationToken))
+        {
+            return Forbid();
+        }
+
         await financeService.SettlePettyCashIouAsync(id, request.SettledAmount, request.SettlementReference, cancellationToken);
+        await NotifyRequesterAsync(id, "IOU settled", "Your IOU request has been settled/accounted.", cancellationToken);
         return NoContent();
+    }
+
+    private async Task<bool> HasPermissionAsync(string permissionKey, CancellationToken cancellationToken)
+        => currentUser.UserId is { } userId
+           && await accessControl.HasPermissionAsync(userId, permissionKey, cancellationToken);
+
+    private async Task NotifyIouSubmittedAsync(Guid id, CancellationToken cancellationToken)
+    {
+        var iou = await dbContext.PettyCashIous.AsNoTracking()
+            .Where(x => x.Id == id)
+            .Select(x => new { x.Id, x.Number, x.RequestedByUserId, x.RequestedByName, x.Amount, x.Purpose })
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (iou is null)
+        {
+            return;
+        }
+
+        var recipients = await accessControl.GetActiveUserIdsWithAnyPermissionAsync(
+            [AppPermissions.PettyCashIouApprove, AppPermissions.PettyCashIouRelease],
+            excludeUserId: null,
+            cancellationToken);
+
+        notificationService.EnqueueInAppForUsers(
+            recipients,
+            "IOU request waiting",
+            $"{iou.Number} from {iou.RequestedByName} is waiting for approval/release. Amount: {iou.Amount:0.00}.",
+            "/finance/petty-cash-ious",
+            ReferenceTypes.PettyCashIou,
+            iou.Id);
+
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    private async Task NotifyRequesterAsync(Guid id, string title, string message, CancellationToken cancellationToken)
+    {
+        var iou = await dbContext.PettyCashIous.AsNoTracking()
+            .Where(x => x.Id == id)
+            .Select(x => new { x.Id, x.Number, x.RequestedByUserId })
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (iou is null || iou.RequestedByUserId == Guid.Empty)
+        {
+            return;
+        }
+
+        notificationService.EnqueueInApp(
+            iou.RequestedByUserId,
+            title,
+            $"{iou.Number}: {message}",
+            "/finance/petty-cash-ious",
+            ReferenceTypes.PettyCashIou,
+            iou.Id);
+
+        await dbContext.SaveChangesAsync(cancellationToken);
     }
 
     private static PettyCashIouDto ToDto(PettyCashIou iou)

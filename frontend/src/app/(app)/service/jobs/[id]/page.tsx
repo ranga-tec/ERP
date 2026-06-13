@@ -1513,6 +1513,14 @@ export default async function ServiceJobDetailPage({
                   <Link className="font-semibold text-[var(--link)] underline underline-offset-2" href={expenseHref(job.id, "reimbursements")}>
                     Add expense
                   </Link>
+                  <Link
+                    className="font-semibold text-[var(--link)] underline underline-offset-2"
+                    href={`/api/backend/service/jobs/${job.id}/daily-sheets/${sheet.id}/pdf`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    Service report PDF
+                  </Link>
                   <ServiceJobDailySheetActions serviceJobId={job.id} dailySheetId={sheet.id} status={sheet.status} />
                 </div>
               </div>

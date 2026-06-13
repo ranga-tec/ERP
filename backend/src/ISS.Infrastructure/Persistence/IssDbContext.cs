@@ -12,6 +12,7 @@ using ISS.Domain.Sales;
 using ISS.Domain.Sequences;
 using ISS.Domain.Service;
 using ISS.Domain.Notifications;
+using ISS.Domain.Security;
 using ISS.Infrastructure.Identity;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
@@ -94,6 +95,8 @@ public sealed class IssDbContext(
     public DbSet<DocumentComment> DocumentComments => Set<DocumentComment>();
     public DbSet<DocumentAttachment> DocumentAttachments => Set<DocumentAttachment>();
     public DbSet<NotificationOutboxItem> NotificationOutboxItems => Set<NotificationOutboxItem>();
+    public DbSet<UserNotification> UserNotifications => Set<UserNotification>();
+    public DbSet<UserPermissionOverride> UserPermissionOverrides => Set<UserPermissionOverride>();
     public DbSet<AssistantAccessPolicy> AssistantAccessPolicies => Set<AssistantAccessPolicy>();
     public DbSet<AssistantProviderProfile> AssistantProviderProfiles => Set<AssistantProviderProfile>();
     public DbSet<AssistantUserPreference> AssistantUserPreferences => Set<AssistantUserPreference>();
@@ -109,6 +112,13 @@ public sealed class IssDbContext(
         {
             entity.HasIndex(x => x.CompanyId);
             entity.HasOne(x => x.Company).WithMany().HasForeignKey(x => x.CompanyId).OnDelete(DeleteBehavior.Restrict);
+        });
+
+        builder.Entity<UserPermissionOverride>(entity =>
+        {
+            entity.HasIndex(x => new { x.UserId, x.PermissionKey }).IsUnique();
+            entity.Property(x => x.PermissionKey).HasMaxLength(128);
+            entity.HasOne<ApplicationUser>().WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
         });
 
         builder.Entity<Company>(entity =>
@@ -956,6 +966,17 @@ public sealed class IssDbContext(
             entity.Property(x => x.LastError).HasMaxLength(2000);
             entity.Property(x => x.ReferenceType).HasMaxLength(64);
             entity.HasIndex(x => new { x.Status, x.NextAttemptAt });
+        });
+
+        builder.Entity<UserNotification>(entity =>
+        {
+            entity.HasIndex(x => new { x.RecipientUserId, x.ReadAt, x.NotificationCreatedAt });
+            entity.HasIndex(x => new { x.ReferenceType, x.ReferenceId });
+            entity.Property(x => x.Title).HasMaxLength(160);
+            entity.Property(x => x.Message).HasMaxLength(1000);
+            entity.Property(x => x.Href).HasMaxLength(512);
+            entity.Property(x => x.ReferenceType).HasMaxLength(64);
+            entity.HasOne<ApplicationUser>().WithMany().HasForeignKey(x => x.RecipientUserId).OnDelete(DeleteBehavior.Cascade);
         });
 
         builder.Entity<AuditLog>(entity =>

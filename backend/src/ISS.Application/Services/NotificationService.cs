@@ -48,5 +48,36 @@ public sealed class NotificationService(
             referenceType,
             referenceId));
     }
-}
 
+    public void EnqueueInApp(
+        Guid recipientUserId,
+        string title,
+        string message,
+        string? href = null,
+        string? referenceType = null,
+        Guid? referenceId = null)
+    {
+        dbContext.UserNotifications.Add(new UserNotification(
+            recipientUserId,
+            title,
+            message,
+            href,
+            clock.UtcNow,
+            referenceType,
+            referenceId));
+    }
+
+    public void EnqueueInAppForUsers(
+        IEnumerable<Guid> recipientUserIds,
+        string title,
+        string message,
+        string? href = null,
+        string? referenceType = null,
+        Guid? referenceId = null)
+    {
+        foreach (var userId in recipientUserIds.Distinct())
+        {
+            EnqueueInApp(userId, title, message, href, referenceType, referenceId);
+        }
+    }
+}

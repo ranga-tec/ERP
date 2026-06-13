@@ -26,7 +26,8 @@ public enum PdfDocumentType
     CustomerReturn = 22,
     ServiceEstimate = 23,
     ServiceHandover = 24,
-    ServiceExpenseClaim = 25
+    ServiceExpenseClaim = 25,
+    ServiceJobDailySheet = 26
 }
 
 public sealed record PdfDocument(string FileName, byte[] Content, string ContentType = "application/pdf");

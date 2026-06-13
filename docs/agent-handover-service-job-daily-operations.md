@@ -48,6 +48,19 @@ Local update on 2026-06-04:
 - Playwright test scripts (used during this session) are untracked and should be cleaned up or .gitignored:
   - `frontend/iss_pw*.cjs`
 
+Local update on 2026-06-13:
+
+- Daily sheet PDF/service report is implemented.
+- Backend route added: `GET /api/service/jobs/{id}/daily-sheets/{dailySheetId}/pdf`.
+- PDF renderer added under the existing `IDocumentPdfService` / QuestPDF pipeline as `PdfDocumentType.ServiceJobDailySheet`.
+- The report includes the daily sheet header, planned/completed/pending work, problems/instructions/notes, staff/labor, progress updates, material issues, returns/damage/supplier rejection, IOUs, and expense claims.
+- Job daily sheet cards now expose a `Service report PDF` link.
+- First user access-level and in-app notification slice is implemented for petty-cash IOUs.
+- Added persistent user permission overrides plus Admin -> Users access settings. Role defaults still preserve existing Finance/Service behavior unless Admin saves explicit permissions.
+- Added in-app user notifications with unread count, a header `Notifications` entry, `/notifications` page, and mark-read actions.
+- IOU endpoint permissions now cover view/create/submit/approve/reject/release/settle. When an IOU is submitted, all active users with approve or release rights receive an in-app notification. Requesters receive notifications when the IOU is approved, rejected, released, or settled.
+- Migration added: `20260613161955_AddUserPermissionsAndUserNotifications`.
+
 Local update on 2026-05-31:
 
 - Job Order list UX was revised so the job list is the primary first screen. `+ New Job Order` links to the create form at the bottom of the page, behind a clear `+ Create New Job Order` details section.
@@ -411,7 +424,6 @@ Still pending:
 
 Still pending:
 
-- daily sheet PDF/service report
 - job daily sheet report
 - technician daily work/time report
 - petty cash by job report
@@ -433,7 +445,6 @@ Still pending:
    - `frontend/iss_pw*.cjs`
    - Either delete them or add to `.gitignore`
 4. Continue with remaining reporting/PDF/accounting refinements, especially:
-   - daily sheet PDF/service report
    - pending closeout report
    - IOU/employee advance report per employee and per job
    - material issued/returned/damaged report

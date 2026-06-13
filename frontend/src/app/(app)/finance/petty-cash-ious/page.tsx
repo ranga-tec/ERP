@@ -5,6 +5,7 @@ import { PettyCashIouCreateForm } from "./PettyCashIouCreateForm";
 
 type ServiceJobDto = { id: string; number: string; status: number };
 type FundDto = { id: string; code: string; name: string; isActive: boolean };
+type CurrentPermissionsDto = { permissions: string[] };
 type PettyCashIouDto = {
   id: string;
   number: string;
@@ -23,19 +24,22 @@ const statusLabel: Record<number, string> = {
   0: "Draft",
   1: "Submitted",
   2: "Approved",
-  3: "Released",
-  4: "Settled",
+  3: "Cash Released",
+  4: "Settled / Accounted",
   5: "Rejected",
   6: "Cancelled",
 };
 
 export default async function PettyCashIousPage() {
-  const [jobs, funds, ious] = await Promise.all([
+  const [jobs, funds, ious, currentPermissions] = await Promise.all([
     backendFetchJson<ServiceJobDto[]>("/service/jobs?take=500"),
     backendFetchJson<FundDto[]>("/finance/petty-cash-funds"),
     backendFetchJson<PettyCashIouDto[]>("/finance/petty-cash-ious?take=200"),
+    backendFetchJson<CurrentPermissionsDto>("/me/permissions"),
   ]);
   const activeFunds = funds.filter((fund) => fund.isActive);
+  const permissions = new Set(currentPermissions.permissions);
+  const canCreate = permissions.has("Finance.PettyCashIou.Create");
 
   return (
     <div className="space-y-6">
@@ -44,10 +48,12 @@ export default async function PettyCashIousPage() {
         <p className="mt-1 text-sm text-zinc-500">Approved cash advances linked to job order numbers.</p>
       </div>
 
-      <Card>
-        <div className="mb-3 text-sm font-semibold">Create IOU</div>
-        <PettyCashIouCreateForm serviceJobs={jobs.filter((job) => job.status !== 3 && job.status !== 4)} />
-      </Card>
+      {canCreate ? (
+        <Card>
+          <div className="mb-3 text-sm font-semibold">Create IOU</div>
+          <PettyCashIouCreateForm serviceJobs={jobs.filter((job) => job.status !== 3 && job.status !== 4)} />
+        </Card>
+      ) : null}
 
       <Card>
         <div className="mb-3 text-sm font-semibold">IOUs</div>
@@ -74,7 +80,13 @@ export default async function PettyCashIousPage() {
                   <td className="py-2 pr-3">{statusLabel[iou.status] ?? iou.status}</td>
                   <td className="max-w-sm py-2 pr-3 text-zinc-500">{iou.purpose}</td>
                   <td className="py-2 pr-3">
-                    <PettyCashIouActions id={iou.id} status={iou.status} funds={activeFunds} amount={iou.amount} />
+                    <PettyCashIouActions
+                      id={iou.id}
+                      status={iou.status}
+                      funds={activeFunds}
+                      amount={iou.amount}
+                      permissions={currentPermissions.permissions}
+                    />
                   </td>
                 </tr>
               ))}

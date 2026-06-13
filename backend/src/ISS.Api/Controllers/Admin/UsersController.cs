@@ -15,7 +15,8 @@ namespace ISS.Api.Controllers.Admin;
 public sealed class UsersController(
     UserManager<ApplicationUser> userManager,
     RoleManager<IdentityRole<Guid>> roleManager,
-    IIssDbContext dbContext) : ControllerBase
+    IIssDbContext dbContext,
+    AccessControlService accessControl) : ControllerBase
 {
     public sealed record UserDto(
         Guid Id,
@@ -32,6 +33,9 @@ public sealed class UsersController(
     public sealed record SetCompanyRequest(Guid CompanyId);
     public sealed record SetRolesRequest(string[] Roles);
     public sealed record ResetPasswordRequest(string NewPassword);
+    public sealed record PermissionDefinitionDto(string Key, string Module, string Action, string Label, string Description);
+    public sealed record UserPermissionsDto(Guid UserId, bool HasExplicitOverrides, IReadOnlyList<string> EffectivePermissions);
+    public sealed record SetUserPermissionsRequest(string[] Permissions);
 
     [HttpGet]
     public async Task<ActionResult<IReadOnlyList<UserDto>>> List(
@@ -67,6 +71,62 @@ public sealed class UsersController(
         }
 
         return Ok(await ToDtoAsync(user));
+    }
+
+    [HttpGet("permission-definitions")]
+    public ActionResult<IReadOnlyList<PermissionDefinitionDto>> PermissionDefinitions()
+        => Ok(accessControl.Definitions
+            .Select(x => new PermissionDefinitionDto(x.Key, x.Module, x.Action, x.Label, x.Description))
+            .ToList());
+
+    [HttpGet("{id:guid}/permissions")]
+    public async Task<ActionResult<UserPermissionsDto>> GetPermissions(Guid id, CancellationToken cancellationToken)
+    {
+        var user = await userManager.FindByIdAsync(id.ToString());
+        if (user is null)
+        {
+            return NotFound();
+        }
+
+        var permissions = await accessControl.GetEffectivePermissionsAsync(id, cancellationToken);
+        var hasExplicitOverrides = await accessControl.HasExplicitOverridesAsync(id, cancellationToken);
+        return Ok(new UserPermissionsDto(id, hasExplicitOverrides, permissions.OrderBy(x => x).ToArray()));
+    }
+
+    [HttpPut("{id:guid}/permissions")]
+    public async Task<ActionResult<UserPermissionsDto>> SetPermissions(Guid id, SetUserPermissionsRequest request, CancellationToken cancellationToken)
+    {
+        var user = await userManager.FindByIdAsync(id.ToString());
+        if (user is null)
+        {
+            return NotFound();
+        }
+
+        try
+        {
+            await accessControl.SetExplicitPermissionsAsync(id, request.Permissions, cancellationToken);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { error = ex.Message });
+        }
+
+        var permissions = await accessControl.GetEffectivePermissionsAsync(id, cancellationToken);
+        return Ok(new UserPermissionsDto(id, true, permissions.OrderBy(x => x).ToArray()));
+    }
+
+    [HttpDelete("{id:guid}/permissions")]
+    public async Task<ActionResult<UserPermissionsDto>> ResetPermissions(Guid id, CancellationToken cancellationToken)
+    {
+        var user = await userManager.FindByIdAsync(id.ToString());
+        if (user is null)
+        {
+            return NotFound();
+        }
+
+        await accessControl.ResetToRoleDefaultsAsync(id, cancellationToken);
+        var permissions = await accessControl.GetEffectivePermissionsAsync(id, cancellationToken);
+        return Ok(new UserPermissionsDto(id, false, permissions.OrderBy(x => x).ToArray()));
     }
 
     [HttpPost]

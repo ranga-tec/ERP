@@ -1025,6 +1025,21 @@ public sealed class ServiceJobsController(
         return Ok(sheets);
     }
 
+    [HttpGet("{id:guid}/daily-sheets/{dailySheetId:guid}/pdf")]
+    public async Task<ActionResult> DailySheetPdf(Guid id, Guid dailySheetId, CancellationToken cancellationToken)
+    {
+        var belongsToJob = await dbContext.ServiceJobDailySheets.AsNoTracking()
+            .AnyAsync(x => x.ServiceJobId == id && x.Id == dailySheetId, cancellationToken);
+
+        if (!belongsToJob)
+        {
+            return NotFound();
+        }
+
+        var doc = await pdfService.RenderAsync(PdfDocumentType.ServiceJobDailySheet, dailySheetId, cancellationToken);
+        return File(doc.Content, doc.ContentType, doc.FileName);
+    }
+
     [HttpPost("{id:guid}/daily-sheets")]
     [Authorize(Roles = $"{Roles.Admin},{Roles.Service}")]
     public async Task<ActionResult<ServiceJobDailySheetDto>> CreateDailySheet(Guid id, CreateServiceJobDailySheetRequest request, CancellationToken cancellationToken)

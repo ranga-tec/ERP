@@ -15,7 +15,19 @@ namespace ISS.Api.Controllers.Sales;
 public sealed class InvoicesController(IIssDbContext dbContext, SalesService salesService, IDocumentPdfService pdfService) : ControllerBase
 {
     public sealed record InvoiceSummaryDto(Guid Id, string Number, Guid CustomerId, DateTimeOffset InvoiceDate, DateTimeOffset? DueDate, SalesInvoiceStatus Status, decimal Total);
-    public sealed record InvoiceDto(Guid Id, string Number, Guid CustomerId, DateTimeOffset InvoiceDate, DateTimeOffset? DueDate, SalesInvoiceStatus Status, decimal Subtotal, decimal TaxTotal, decimal Total, IReadOnlyList<InvoiceLineDto> Lines);
+    public sealed record InvoiceDto(
+        Guid Id,
+        string Number,
+        Guid CustomerId,
+        DateTimeOffset InvoiceDate,
+        DateTimeOffset? DueDate,
+        SalesInvoiceStatus Status,
+        decimal Subtotal,
+        decimal TaxTotal,
+        decimal Total,
+        Guid? ServiceJobId,
+        string? ServiceJobNumber,
+        IReadOnlyList<InvoiceLineDto> Lines);
     public sealed record InvoiceLineDto(
         Guid Id,
         Guid ItemId,
@@ -136,6 +148,18 @@ public sealed class InvoicesController(IIssDbContext dbContext, SalesService sal
             return NotFound();
         }
 
+        var serviceJobLink = await dbContext.ServiceHandovers.AsNoTracking()
+            .Where(x => x.SalesInvoiceId == invoice.Id)
+            .Select(x => new
+            {
+                x.ServiceJobId,
+                ServiceJobNumber = dbContext.ServiceJobs
+                    .Where(job => job.Id == x.ServiceJobId)
+                    .Select(job => job.Number)
+                    .FirstOrDefault()
+            })
+            .FirstOrDefaultAsync(cancellationToken);
+
         return Ok(new InvoiceDto(
             invoice.Id,
             invoice.Number,
@@ -146,6 +170,8 @@ public sealed class InvoicesController(IIssDbContext dbContext, SalesService sal
             invoice.Subtotal,
             invoice.TaxTotal,
             invoice.Total,
+            serviceJobLink?.ServiceJobId,
+            serviceJobLink?.ServiceJobNumber,
             invoice.Lines.Select(l => new InvoiceLineDto(
                 l.Id,
                 l.ItemId,

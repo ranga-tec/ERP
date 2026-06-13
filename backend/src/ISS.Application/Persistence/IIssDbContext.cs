@@ -9,6 +9,7 @@ using ISS.Domain.Sales;
 using ISS.Domain.Sequences;
 using ISS.Domain.Service;
 using ISS.Domain.Notifications;
+using ISS.Domain.Security;
 using Microsoft.EntityFrameworkCore;
 
 namespace ISS.Application.Persistence;
@@ -82,6 +83,8 @@ public interface IIssDbContext
     DbSet<DocumentComment> DocumentComments { get; }
     DbSet<DocumentAttachment> DocumentAttachments { get; }
     DbSet<NotificationOutboxItem> NotificationOutboxItems { get; }
+    DbSet<UserNotification> UserNotifications { get; }
+    DbSet<UserPermissionOverride> UserPermissionOverrides { get; }
     DbSet<AssistantAccessPolicy> AssistantAccessPolicies { get; }
     DbSet<AssistantProviderProfile> AssistantProviderProfiles { get; }
     DbSet<AssistantUserPreference> AssistantUserPreferences { get; }

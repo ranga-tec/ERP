@@ -85,7 +85,7 @@ export function ServiceExpenseClaimActions({
           Reject
         </SecondaryButton>
         <SecondaryButton type="button" disabled={!canSettle || busy} onClick={() => void act("settle")}>
-          Settle
+          {fundingSource === 2 ? "Settle Petty Cash" : "Settle Reimbursement"}
         </SecondaryButton>
       </div>
 

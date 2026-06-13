@@ -34,6 +34,8 @@ const transactionTypeLabel: Record<number, string> = {
   2: "Top Up",
   3: "Expense Settlement",
   4: "Adjustment",
+  5: "IOU Cash Release",
+  6: "IOU Settlement Return",
 };
 
 const directionLabel: Record<number, string> = {
@@ -48,6 +50,34 @@ export default async function PettyCashFundDetailPage({ params }: { params: Prom
     backendFetchJson<PettyCashFundDto>(`/finance/petty-cash-funds/${id}`),
     backendFetchJson<CurrencyDto[]>("/currencies"),
   ]);
+
+  const movementRows = [
+    {
+      label: "Opening balance / top ups",
+      in: fund.transactions.filter((transaction) => transaction.type === 1 || transaction.type === 2).reduce((sum, transaction) => sum + transaction.amount, 0),
+      out: 0,
+    },
+    {
+      label: "IOU cash released",
+      in: 0,
+      out: fund.transactions.filter((transaction) => transaction.type === 5).reduce((sum, transaction) => sum + transaction.amount, 0),
+    },
+    {
+      label: "IOU settlement returns",
+      in: fund.transactions.filter((transaction) => transaction.type === 6).reduce((sum, transaction) => sum + transaction.amount, 0),
+      out: 0,
+    },
+    {
+      label: "Petty cash expense settlements",
+      in: 0,
+      out: fund.transactions.filter((transaction) => transaction.type === 3).reduce((sum, transaction) => sum + transaction.amount, 0),
+    },
+    {
+      label: "Adjustments",
+      in: fund.transactions.filter((transaction) => transaction.type === 4 && transaction.direction === 1).reduce((sum, transaction) => sum + transaction.amount, 0),
+      out: fund.transactions.filter((transaction) => transaction.type === 4 && transaction.direction === 2).reduce((sum, transaction) => sum + transaction.amount, 0),
+    },
+  ];
 
   return (
     <div className="space-y-6">
@@ -94,6 +124,38 @@ export default async function PettyCashFundDetailPage({ params }: { params: Prom
       <Card>
         <div className="mb-3 text-sm font-semibold">Transactions</div>
         <PettyCashFundTransactionForms fundId={fund.id} />
+      </Card>
+
+      <Card>
+        <div className="mb-3 text-sm font-semibold">Cash Movement Breakdown</div>
+        <div className="overflow-auto">
+          <Table>
+            <thead>
+              <tr className="border-b border-zinc-200 text-left text-xs uppercase tracking-wide text-zinc-500 dark:border-zinc-800">
+                <th className="py-2 pr-3">Movement</th>
+                <th className="py-2 pr-3 text-right">Cash In</th>
+                <th className="py-2 pr-3 text-right">Cash Out</th>
+                <th className="py-2 pr-3 text-right">Net</th>
+              </tr>
+            </thead>
+            <tbody>
+              {movementRows.map((row) => (
+                <tr key={row.label} className="border-b border-zinc-100 dark:border-zinc-900">
+                  <td className="py-2 pr-3">{row.label}</td>
+                  <td className="py-2 pr-3 text-right">{row.in.toFixed(2)}</td>
+                  <td className="py-2 pr-3 text-right">{row.out.toFixed(2)}</td>
+                  <td className="py-2 pr-3 text-right font-medium">{(row.in - row.out).toFixed(2)}</td>
+                </tr>
+              ))}
+              <tr className="border-t border-zinc-300 font-semibold dark:border-zinc-700">
+                <td className="py-2 pr-3">Current balance</td>
+                <td className="py-2 pr-3 text-right">{movementRows.reduce((sum, row) => sum + row.in, 0).toFixed(2)}</td>
+                <td className="py-2 pr-3 text-right">{movementRows.reduce((sum, row) => sum + row.out, 0).toFixed(2)}</td>
+                <td className="py-2 pr-3 text-right">{fund.balance.toFixed(2)}</td>
+              </tr>
+            </tbody>
+          </Table>
+        </div>
       </Card>
 
       {fund.notes ? (

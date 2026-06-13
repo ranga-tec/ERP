@@ -66,7 +66,7 @@ export function WorkOrderCreateForm({ serviceJobs }: { serviceJobs: ServiceJobRe
       ) : null}
 
       <Button type="submit" disabled={busy}>
-        {busy ? "Creating..." : "Create Job Detail"}
+        {busy ? "Creating..." : "Create Job Sheet / Work Order"}
       </Button>
     </form>
   );

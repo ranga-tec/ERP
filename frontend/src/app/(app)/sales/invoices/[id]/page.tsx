@@ -21,6 +21,8 @@ type InvoiceDto = {
   subtotal: number;
   taxTotal: number;
   total: number;
+  serviceJobId?: string | null;
+  serviceJobNumber?: string | null;
   lines: {
     id: string;
     itemId: string;
@@ -33,6 +35,18 @@ type InvoiceDto = {
     taxPercent: number;
     lineTotal: number;
   }[];
+};
+
+type ServiceJobCostingDto = {
+  serviceJobId: string;
+  jobNumber: string;
+  materialConsumedCost: number;
+  directPurchaseCost: number;
+  approvedLaborCost: number;
+  approvedExpenseClaimCost: number;
+  totalActualCost: number;
+  postedInvoiceTotal: number;
+  postedGrossMargin: number;
 };
 
 type CustomerDto = { id: string; code: string; name: string };
@@ -68,6 +82,9 @@ export default async function InvoiceDetailPage({
     backendFetchJson<ItemDto[]>("/items"),
     canManageInvoices ? backendFetchJson<TaxDto[]>("/taxes") : Promise.resolve([] as TaxDto[]),
   ]);
+  const serviceCosting = invoice.serviceJobId
+    ? await backendFetchJson<ServiceJobCostingDto>(`/service/jobs/${invoice.serviceJobId}/costing`).catch(() => null)
+    : null;
 
   const customerById = new Map(customers.map((c) => [c.id, c]));
   const itemLabelById = new Map(
@@ -151,6 +168,49 @@ export default async function InvoiceDetailPage({
           canEdit={isDraft && canManageInvoices}
         />
       </Card>
+
+      {serviceCosting ? (
+        <Card>
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <div className="text-sm font-semibold">Service Profit / Loss</div>
+              <div className="mt-1 text-xs text-zinc-500">
+                From linked job{" "}
+                <Link className="underline underline-offset-2" href={`/service/jobs/${serviceCosting.serviceJobId}?tab=costs`}>
+                  {invoice.serviceJobNumber ?? serviceCosting.jobNumber}
+                </Link>
+              </div>
+            </div>
+            <SecondaryLink href={`/service/jobs/${serviceCosting.serviceJobId}?tab=costs`}>
+              View Job Costs
+            </SecondaryLink>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            <div className="rounded-md border border-[var(--card-border)] p-3">
+              <div className="text-xs uppercase tracking-wide text-zinc-500">This Invoice</div>
+              <div className="mt-2 text-xl font-semibold">{invoice.total.toFixed(2)}</div>
+            </div>
+            <div className="rounded-md border border-[var(--card-border)] p-3">
+              <div className="text-xs uppercase tracking-wide text-zinc-500">Job Invoice Revenue</div>
+              <div className="mt-2 text-xl font-semibold">{serviceCosting.postedInvoiceTotal.toFixed(2)}</div>
+            </div>
+            <div className="rounded-md border border-[var(--card-border)] p-3">
+              <div className="text-xs uppercase tracking-wide text-zinc-500">Actual Cost</div>
+              <div className="mt-2 text-xl font-semibold">{serviceCosting.totalActualCost.toFixed(2)}</div>
+            </div>
+            <div className="rounded-md border border-[var(--card-border)] p-3">
+              <div className="text-xs uppercase tracking-wide text-zinc-500">Posted Gross Margin</div>
+              <div className="mt-2 text-xl font-semibold">{serviceCosting.postedGrossMargin.toFixed(2)}</div>
+            </div>
+          </div>
+          <div className="mt-3 grid gap-2 text-sm text-zinc-500 sm:grid-cols-2 xl:grid-cols-4">
+            <div>Materials: {serviceCosting.materialConsumedCost.toFixed(2)}</div>
+            <div>Direct purchases: {serviceCosting.directPurchaseCost.toFixed(2)}</div>
+            <div>Approved labor: {serviceCosting.approvedLaborCost.toFixed(2)}</div>
+            <div>Approved claims: {serviceCosting.approvedExpenseClaimCost.toFixed(2)}</div>
+          </div>
+        </Card>
+      ) : null}
 
       {unresolvedRevenueLineCount > 0 ? (
         <Card>
