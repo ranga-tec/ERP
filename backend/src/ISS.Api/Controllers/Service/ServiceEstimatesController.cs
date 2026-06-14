@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using ISS.Api.Security;
 using ISS.Application.Abstractions;
 using ISS.Application.Persistence;
@@ -15,7 +16,8 @@ namespace ISS.Api.Controllers.Service;
 public sealed class ServiceEstimatesController(
     IIssDbContext dbContext,
     ServiceManagementService serviceManagementService,
-    IDocumentPdfService pdfService) : ControllerBase
+    IDocumentPdfService pdfService,
+    AccessControlService accessControl) : ControllerBase
 {
     public sealed record ServiceEstimateSummaryDto(
         Guid Id,
@@ -89,6 +91,11 @@ public sealed class ServiceEstimatesController(
         [FromQuery] int take = 100,
         CancellationToken cancellationToken = default)
     {
+        if (!await HasPermissionAsync(AppPermissions.ServiceEstimateView, cancellationToken))
+        {
+            return Forbid();
+        }
+
         skip = Math.Max(0, skip);
         take = Math.Clamp(take, 1, 500);
 
@@ -120,6 +127,11 @@ public sealed class ServiceEstimatesController(
     [HttpPost]
     public async Task<ActionResult<ServiceEstimateDto>> Create(CreateServiceEstimateRequest request, CancellationToken cancellationToken)
     {
+        if (!await HasPermissionAsync(AppPermissions.ServiceEstimateCreate, cancellationToken))
+        {
+            return Forbid();
+        }
+
         var id = await serviceManagementService.CreateServiceEstimateAsync(
             request.ServiceJobId,
             request.ValidUntil,
@@ -131,6 +143,11 @@ public sealed class ServiceEstimatesController(
     [HttpPut("{id:guid}")]
     public async Task<ActionResult<ServiceEstimateDto>> Update(Guid id, UpdateServiceEstimateRequest request, CancellationToken cancellationToken)
     {
+        if (!await HasPermissionAsync(AppPermissions.ServiceEstimateEdit, cancellationToken))
+        {
+            return Forbid();
+        }
+
         await serviceManagementService.UpdateServiceEstimateAsync(
             id,
             request.ValidUntil,
@@ -142,6 +159,11 @@ public sealed class ServiceEstimatesController(
     [HttpGet("{id:guid}")]
     public async Task<ActionResult<ServiceEstimateDto>> Get(Guid id, CancellationToken cancellationToken)
     {
+        if (!await HasPermissionAsync(AppPermissions.ServiceEstimateView, cancellationToken))
+        {
+            return Forbid();
+        }
+
         var estimate = await dbContext.ServiceEstimates.AsNoTracking()
             .Include(x => x.Lines)
             .FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
@@ -183,6 +205,11 @@ public sealed class ServiceEstimatesController(
     [HttpGet("{id:guid}/pdf")]
     public async Task<ActionResult> Pdf(Guid id, CancellationToken cancellationToken)
     {
+        if (!await HasPermissionAsync(AppPermissions.ServiceEstimateView, cancellationToken))
+        {
+            return Forbid();
+        }
+
         var doc = await pdfService.RenderAsync(PdfDocumentType.ServiceEstimate, id, cancellationToken);
         return File(doc.Content, doc.ContentType, doc.FileName);
     }
@@ -190,6 +217,11 @@ public sealed class ServiceEstimatesController(
     [HttpPost("{id:guid}/lines")]
     public async Task<ActionResult> AddLine(Guid id, AddServiceEstimateLineRequest request, CancellationToken cancellationToken)
     {
+        if (!await HasPermissionAsync(AppPermissions.ServiceEstimateEdit, cancellationToken))
+        {
+            return Forbid();
+        }
+
         await serviceManagementService.AddServiceEstimateLineAsync(
             id,
             request.Kind,
@@ -205,6 +237,11 @@ public sealed class ServiceEstimatesController(
     [HttpPut("{id:guid}/lines/{lineId:guid}")]
     public async Task<ActionResult> UpdateLine(Guid id, Guid lineId, UpdateServiceEstimateLineRequest request, CancellationToken cancellationToken)
     {
+        if (!await HasPermissionAsync(AppPermissions.ServiceEstimateEdit, cancellationToken))
+        {
+            return Forbid();
+        }
+
         await serviceManagementService.UpdateServiceEstimateLineAsync(
             id,
             lineId,
@@ -221,6 +258,11 @@ public sealed class ServiceEstimatesController(
     [HttpDelete("{id:guid}/lines/{lineId:guid}")]
     public async Task<ActionResult> RemoveLine(Guid id, Guid lineId, CancellationToken cancellationToken)
     {
+        if (!await HasPermissionAsync(AppPermissions.ServiceEstimateEdit, cancellationToken))
+        {
+            return Forbid();
+        }
+
         await serviceManagementService.RemoveServiceEstimateLineAsync(id, lineId, cancellationToken);
         return NoContent();
     }
@@ -228,6 +270,11 @@ public sealed class ServiceEstimatesController(
     [HttpPost("{id:guid}/approve")]
     public async Task<ActionResult> Approve(Guid id, CancellationToken cancellationToken)
     {
+        if (!await HasPermissionAsync(AppPermissions.ServiceEstimateApprove, cancellationToken))
+        {
+            return Forbid();
+        }
+
         await serviceManagementService.ApproveServiceEstimateAsync(id, cancellationToken);
         return NoContent();
     }
@@ -235,6 +282,11 @@ public sealed class ServiceEstimatesController(
     [HttpPost("{id:guid}/send")]
     public async Task<ActionResult> Send(Guid id, SendServiceEstimateRequest? request, CancellationToken cancellationToken)
     {
+        if (!await HasPermissionAsync(AppPermissions.ServiceEstimateSend, cancellationToken))
+        {
+            return Forbid();
+        }
+
         await serviceManagementService.SendServiceEstimateToCustomerAsync(id, request?.AppBaseUrl, cancellationToken);
         return NoContent();
     }
@@ -242,6 +294,11 @@ public sealed class ServiceEstimatesController(
     [HttpPost("{id:guid}/revise")]
     public async Task<ActionResult<ServiceEstimateDto>> Revise(Guid id, ReviseServiceEstimateRequest? request, CancellationToken cancellationToken)
     {
+        if (!await HasPermissionAsync(AppPermissions.ServiceEstimateRevise, cancellationToken))
+        {
+            return Forbid();
+        }
+
         var revisedEstimateId = await serviceManagementService.ReviseServiceEstimateAsync(
             id,
             request?.ValidUntil,
@@ -253,7 +310,19 @@ public sealed class ServiceEstimatesController(
     [HttpPost("{id:guid}/reject")]
     public async Task<ActionResult> Reject(Guid id, CancellationToken cancellationToken)
     {
+        if (!await HasPermissionAsync(AppPermissions.ServiceEstimateReject, cancellationToken))
+        {
+            return Forbid();
+        }
+
         await serviceManagementService.RejectServiceEstimateAsync(id, cancellationToken);
         return NoContent();
+    }
+
+    private async Task<bool> HasPermissionAsync(string permissionKey, CancellationToken cancellationToken)
+    {
+        var userIdValue = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        return Guid.TryParse(userIdValue, out var userId)
+               && await accessControl.HasPermissionAsync(userId, permissionKey, cancellationToken);
     }
 }

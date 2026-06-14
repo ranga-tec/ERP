@@ -201,6 +201,33 @@ public sealed class AccessControlService(
             yield return AppPermissions.ServiceMaterialRequisitionCreate;
             yield return AppPermissions.ServiceMaterialRequisitionEdit;
             yield return AppPermissions.ServiceMaterialRequisitionVoid;
+            yield return AppPermissions.ServiceDailySheetSubmit;
+            yield return AppPermissions.ServiceDailySheetApprove;
+            yield return AppPermissions.ServiceDailySheetReject;
+            yield return AppPermissions.ServiceJobAssignmentCreate;
+            yield return AppPermissions.ServiceJobAssignmentApprove;
+            yield return AppPermissions.ServiceJobAssignmentReject;
+            yield return AppPermissions.ServiceWorkOrderTimeEntrySubmit;
+            yield return AppPermissions.ServiceWorkOrderTimeEntryApprove;
+            yield return AppPermissions.ServiceWorkOrderTimeEntryReject;
+            yield return AppPermissions.ServiceEstimateView;
+            yield return AppPermissions.ServiceEstimateCreate;
+            yield return AppPermissions.ServiceEstimateEdit;
+            yield return AppPermissions.ServiceEstimateApprove;
+            yield return AppPermissions.ServiceEstimateReject;
+            yield return AppPermissions.ServiceEstimateSend;
+            yield return AppPermissions.ServiceEstimateRevise;
+        }
+
+        if (roleSet.Contains(Roles.Sales))
+        {
+            yield return AppPermissions.ServiceEstimateView;
+            yield return AppPermissions.ServiceEstimateCreate;
+            yield return AppPermissions.ServiceEstimateEdit;
+            yield return AppPermissions.ServiceEstimateApprove;
+            yield return AppPermissions.ServiceEstimateReject;
+            yield return AppPermissions.ServiceEstimateSend;
+            yield return AppPermissions.ServiceEstimateRevise;
         }
     }
 }

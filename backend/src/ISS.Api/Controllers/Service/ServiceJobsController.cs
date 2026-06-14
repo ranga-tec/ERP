@@ -1,5 +1,7 @@
+using System.Security.Claims;
 using ISS.Api.Security;
 using ISS.Application.Abstractions;
+using ISS.Application.Common;
 using ISS.Application.Persistence;
 using ISS.Application.Services;
 using ISS.Domain.Finance;
@@ -17,7 +19,9 @@ public sealed class ServiceJobsController(
     IIssDbContext dbContext,
     ServiceManagementService serviceManagementService,
     ServiceCostingService serviceCostingService,
-    IDocumentPdfService pdfService) : ControllerBase
+    IDocumentPdfService pdfService,
+    AccessControlService accessControl,
+    NotificationService notificationService) : ControllerBase
 {
     public sealed record ServiceJobDto(
         Guid Id,
@@ -1097,7 +1101,13 @@ public sealed class ServiceJobsController(
     [Authorize(Roles = $"{Roles.Admin},{Roles.Service}")]
     public async Task<ActionResult> SubmitDailySheet(Guid id, Guid dailySheetId, CancellationToken cancellationToken)
     {
+        if (!await HasPermissionAsync(AppPermissions.ServiceDailySheetSubmit, cancellationToken))
+        {
+            return Forbid();
+        }
+
         await serviceManagementService.SubmitServiceJobDailySheetAsync(id, dailySheetId, cancellationToken);
+        await NotifyDailySheetSubmittedAsync(id, dailySheetId, cancellationToken);
         return NoContent();
     }
 
@@ -1105,7 +1115,13 @@ public sealed class ServiceJobsController(
     [Authorize(Roles = $"{Roles.Admin},{Roles.Service}")]
     public async Task<ActionResult> ApproveDailySheet(Guid id, Guid dailySheetId, CancellationToken cancellationToken)
     {
+        if (!await HasPermissionAsync(AppPermissions.ServiceDailySheetApprove, cancellationToken))
+        {
+            return Forbid();
+        }
+
         await serviceManagementService.ApproveServiceJobDailySheetAsync(id, dailySheetId, cancellationToken);
+        await NotifyDailySheetCreatorAsync(id, dailySheetId, "Daily sheet approved", "Your service job daily sheet has been approved.", cancellationToken);
         return NoContent();
     }
 
@@ -1113,7 +1129,13 @@ public sealed class ServiceJobsController(
     [Authorize(Roles = $"{Roles.Admin},{Roles.Service}")]
     public async Task<ActionResult> RejectDailySheet(Guid id, Guid dailySheetId, RejectServiceJobDailySheetRequest? request, CancellationToken cancellationToken)
     {
+        if (!await HasPermissionAsync(AppPermissions.ServiceDailySheetReject, cancellationToken))
+        {
+            return Forbid();
+        }
+
         await serviceManagementService.RejectServiceJobDailySheetAsync(id, dailySheetId, request?.Reason, cancellationToken);
+        await NotifyDailySheetCreatorAsync(id, dailySheetId, "Daily sheet rejected", "Your service job daily sheet has been rejected.", cancellationToken);
         return NoContent();
     }
 
@@ -1287,6 +1309,11 @@ public sealed class ServiceJobsController(
     [Authorize(Roles = $"{Roles.Admin},{Roles.Service}")]
     public async Task<ActionResult<ServiceJobAssignmentDto>> AddAssignment(Guid id, AddServiceJobAssignmentRequest request, CancellationToken cancellationToken)
     {
+        if (!await HasPermissionAsync(AppPermissions.ServiceJobAssignmentCreate, cancellationToken))
+        {
+            return Forbid();
+        }
+
         var assignmentId = await serviceManagementService.AddServiceJobAssignmentAsync(
             id,
             request.TechnicianId,
@@ -1324,6 +1351,7 @@ public sealed class ServiceJobsController(
                 x.RejectionReason))
             .FirstOrDefaultAsync(cancellationToken);
 
+        await NotifyAssignmentCreatedAsync(id, assignmentId, cancellationToken);
         return assignment is null ? NotFound() : Ok(assignment);
     }
 
@@ -1331,7 +1359,13 @@ public sealed class ServiceJobsController(
     [Authorize(Roles = $"{Roles.Admin},{Roles.Service}")]
     public async Task<ActionResult> ApproveAssignment(Guid id, Guid assignmentId, CancellationToken cancellationToken)
     {
+        if (!await HasPermissionAsync(AppPermissions.ServiceJobAssignmentApprove, cancellationToken))
+        {
+            return Forbid();
+        }
+
         await serviceManagementService.ApproveServiceJobAssignmentAsync(id, assignmentId, cancellationToken);
+        await NotifyAssignmentCreatorAsync(id, assignmentId, "Job assignment approved", "Your service job assignment has been approved.", cancellationToken);
         return NoContent();
     }
 
@@ -1339,7 +1373,13 @@ public sealed class ServiceJobsController(
     [Authorize(Roles = $"{Roles.Admin},{Roles.Service}")]
     public async Task<ActionResult> RejectAssignment(Guid id, Guid assignmentId, RejectServiceJobAssignmentRequest? request, CancellationToken cancellationToken)
     {
+        if (!await HasPermissionAsync(AppPermissions.ServiceJobAssignmentReject, cancellationToken))
+        {
+            return Forbid();
+        }
+
         await serviceManagementService.RejectServiceJobAssignmentAsync(id, assignmentId, request?.Reason, cancellationToken);
+        await NotifyAssignmentCreatorAsync(id, assignmentId, "Job assignment rejected", "Your service job assignment has been rejected.", cancellationToken);
         return NoContent();
     }
 
@@ -1601,6 +1641,115 @@ public sealed class ServiceJobsController(
         }
 
         return ("Open job", jobHref);
+    }
+
+    private async Task<bool> HasPermissionAsync(string permissionKey, CancellationToken cancellationToken)
+    {
+        var userIdValue = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        return Guid.TryParse(userIdValue, out var userId)
+               && await accessControl.HasPermissionAsync(userId, permissionKey, cancellationToken);
+    }
+
+    private async Task NotifyDailySheetSubmittedAsync(Guid serviceJobId, Guid dailySheetId, CancellationToken cancellationToken)
+    {
+        var sheet = await dbContext.ServiceJobDailySheets.AsNoTracking()
+            .Where(x => x.ServiceJobId == serviceJobId && x.Id == dailySheetId)
+            .Select(x => new { x.Id, x.Number, x.PreparedByName, x.CreatedBy })
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (sheet is null)
+        {
+            return;
+        }
+
+        var recipients = await accessControl.GetActiveUserIdsWithAnyPermissionAsync(
+            [AppPermissions.ServiceDailySheetApprove, AppPermissions.ServiceDailySheetReject],
+            excludeUserId: sheet.CreatedBy,
+            cancellationToken);
+
+        notificationService.EnqueueInAppForUsers(
+            recipients,
+            "Daily sheet waiting",
+            $"{sheet.Number} from {sheet.PreparedByName} is waiting for approval.",
+            $"/service/jobs/{serviceJobId}?tab=daily-work&dailyView=sheets",
+            ReferenceTypes.ServiceJobDailySheet,
+            sheet.Id);
+
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    private async Task NotifyDailySheetCreatorAsync(Guid serviceJobId, Guid dailySheetId, string title, string message, CancellationToken cancellationToken)
+    {
+        var sheet = await dbContext.ServiceJobDailySheets.AsNoTracking()
+            .Where(x => x.ServiceJobId == serviceJobId && x.Id == dailySheetId)
+            .Select(x => new { x.Id, x.Number, x.CreatedBy })
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (sheet is null || sheet.CreatedBy is null || sheet.CreatedBy == Guid.Empty)
+        {
+            return;
+        }
+
+        notificationService.EnqueueInApp(
+            sheet.CreatedBy.Value,
+            title,
+            $"{sheet.Number}: {message}",
+            $"/service/jobs/{serviceJobId}?tab=daily-work&dailyView=sheets",
+            ReferenceTypes.ServiceJobDailySheet,
+            sheet.Id);
+
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    private async Task NotifyAssignmentCreatedAsync(Guid serviceJobId, Guid assignmentId, CancellationToken cancellationToken)
+    {
+        var assignment = await dbContext.ServiceJobAssignments.AsNoTracking()
+            .Where(x => x.ServiceJobId == serviceJobId && x.Id == assignmentId)
+            .Select(x => new { x.Id, x.EmployeeName, x.CreatedBy })
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (assignment is null)
+        {
+            return;
+        }
+
+        var recipients = await accessControl.GetActiveUserIdsWithAnyPermissionAsync(
+            [AppPermissions.ServiceJobAssignmentApprove, AppPermissions.ServiceJobAssignmentReject],
+            excludeUserId: assignment.CreatedBy,
+            cancellationToken);
+
+        notificationService.EnqueueInAppForUsers(
+            recipients,
+            "Job assignment waiting",
+            $"{assignment.EmployeeName} assignment is waiting for approval.",
+            $"/service/jobs/{serviceJobId}?tab=daily-work&dailyView=labor",
+            ReferenceTypes.ServiceJobAssignment,
+            assignment.Id);
+
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    private async Task NotifyAssignmentCreatorAsync(Guid serviceJobId, Guid assignmentId, string title, string message, CancellationToken cancellationToken)
+    {
+        var assignment = await dbContext.ServiceJobAssignments.AsNoTracking()
+            .Where(x => x.ServiceJobId == serviceJobId && x.Id == assignmentId)
+            .Select(x => new { x.Id, x.EmployeeName, x.CreatedBy })
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (assignment is null || assignment.CreatedBy is null || assignment.CreatedBy == Guid.Empty)
+        {
+            return;
+        }
+
+        notificationService.EnqueueInApp(
+            assignment.CreatedBy.Value,
+            title,
+            $"{assignment.EmployeeName}: {message}",
+            $"/service/jobs/{serviceJobId}?tab=daily-work&dailyView=labor",
+            ReferenceTypes.ServiceJobAssignment,
+            assignment.Id);
+
+        await dbContext.SaveChangesAsync(cancellationToken);
     }
 
     private static (string Label, string Href) ServiceDashboardNextAction(

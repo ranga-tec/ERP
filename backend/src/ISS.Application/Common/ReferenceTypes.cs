@@ -8,6 +8,8 @@ public static class ReferenceTypes
     public const string ServiceContract = "SC";
     public const string ServiceEstimate = "SE";
     public const string ServiceHandover = "SH";
+    public const string WorkOrder = "WO";
+    public const string WorkOrderTimeEntry = "WOTE";
     public const string GoodsReceipt = "GRN";
     public const string SupplierInvoice = "SINV";
     public const string SupplierReturn = "SR";
@@ -16,6 +18,7 @@ public static class ReferenceTypes
     public const string MaterialRequisition = "MR";
     public const string ServiceJobMaterialDisposition = "SJMD";
     public const string ServiceJobDailySheet = "SJDS";
+    public const string ServiceJobAssignment = "SJA";
     public const string ServiceExpenseClaim = "SEC";
     public const string PettyCashFund = "PCF";
     public const string PettyCashIou = "IOU";

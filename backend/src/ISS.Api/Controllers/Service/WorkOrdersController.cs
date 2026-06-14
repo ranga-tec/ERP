@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using ISS.Api.Security;
 using ISS.Application.Abstractions;
+using ISS.Application.Common;
 using ISS.Application.Persistence;
 using ISS.Application.Services;
 using ISS.Domain.Service;
@@ -16,7 +17,9 @@ namespace ISS.Api.Controllers.Service;
 public sealed class WorkOrdersController(
     IIssDbContext dbContext,
     ServiceManagementService serviceManagementService,
-    IDocumentPdfService pdfService) : ControllerBase
+    IDocumentPdfService pdfService,
+    AccessControlService accessControl,
+    NotificationService notificationService) : ControllerBase
 {
     public sealed record WorkOrderTimeEntryDto(
         Guid Id,
@@ -249,14 +252,26 @@ public sealed class WorkOrdersController(
     [HttpPost("{id:guid}/time-entries/{timeEntryId:guid}/submit")]
     public async Task<ActionResult> SubmitTimeEntry(Guid id, Guid timeEntryId, CancellationToken cancellationToken)
     {
+        if (!await HasPermissionAsync(AppPermissions.ServiceWorkOrderTimeEntrySubmit, cancellationToken))
+        {
+            return Forbid();
+        }
+
         await serviceManagementService.SubmitWorkOrderTimeEntryAsync(id, timeEntryId, cancellationToken);
+        await NotifyTimeEntrySubmittedAsync(id, timeEntryId, cancellationToken);
         return NoContent();
     }
 
     [HttpPost("{id:guid}/time-entries/{timeEntryId:guid}/approve")]
     public async Task<ActionResult> ApproveTimeEntry(Guid id, Guid timeEntryId, CancellationToken cancellationToken)
     {
+        if (!await HasPermissionAsync(AppPermissions.ServiceWorkOrderTimeEntryApprove, cancellationToken))
+        {
+            return Forbid();
+        }
+
         await serviceManagementService.ApproveWorkOrderTimeEntryAsync(id, timeEntryId, cancellationToken);
+        await NotifyTimeEntryOwnerAsync(id, timeEntryId, "Time entry approved", "Your work-order time entry has been approved.", cancellationToken);
         return NoContent();
     }
 
@@ -267,8 +282,73 @@ public sealed class WorkOrdersController(
         RejectWorkOrderTimeEntryRequest? request,
         CancellationToken cancellationToken)
     {
+        if (!await HasPermissionAsync(AppPermissions.ServiceWorkOrderTimeEntryReject, cancellationToken))
+        {
+            return Forbid();
+        }
+
         await serviceManagementService.RejectWorkOrderTimeEntryAsync(id, timeEntryId, request?.RejectionReason, cancellationToken);
+        await NotifyTimeEntryOwnerAsync(id, timeEntryId, "Time entry rejected", "Your work-order time entry has been rejected.", cancellationToken);
         return NoContent();
+    }
+
+    private async Task<bool> HasPermissionAsync(string permissionKey, CancellationToken cancellationToken)
+    {
+        var userIdValue = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        return Guid.TryParse(userIdValue, out var userId)
+               && await accessControl.HasPermissionAsync(userId, permissionKey, cancellationToken);
+    }
+
+    private async Task NotifyTimeEntrySubmittedAsync(Guid workOrderId, Guid timeEntryId, CancellationToken cancellationToken)
+    {
+        var entry = await dbContext.WorkOrderTimeEntries.AsNoTracking()
+            .Where(x => x.WorkOrderId == workOrderId && x.Id == timeEntryId)
+            .Select(x => new { x.Id, x.TechnicianUserId, x.TechnicianName, x.HoursWorked })
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (entry is null)
+        {
+            return;
+        }
+
+        var recipients = await accessControl.GetActiveUserIdsWithAnyPermissionAsync(
+            [AppPermissions.ServiceWorkOrderTimeEntryApprove, AppPermissions.ServiceWorkOrderTimeEntryReject],
+            excludeUserId: entry.TechnicianUserId,
+            cancellationToken);
+
+        notificationService.EnqueueInAppForUsers(
+            recipients,
+            "Time entry waiting",
+            $"{entry.TechnicianName} submitted {entry.HoursWorked:0.##} hour(s) for approval.",
+            $"/service/work-orders/{workOrderId}",
+            ReferenceTypes.WorkOrderTimeEntry,
+            entry.Id);
+
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    private async Task NotifyTimeEntryOwnerAsync(Guid workOrderId, Guid timeEntryId, string title, string message, CancellationToken cancellationToken)
+    {
+        var entry = await dbContext.WorkOrderTimeEntries.AsNoTracking()
+            .Where(x => x.WorkOrderId == workOrderId && x.Id == timeEntryId)
+            .Select(x => new { x.Id, x.TechnicianUserId, x.TechnicianName })
+            .FirstOrDefaultAsync(cancellationToken);
+
+        var recipientUserId = entry?.TechnicianUserId;
+        if (entry is null || recipientUserId is null || recipientUserId == Guid.Empty)
+        {
+            return;
+        }
+
+        notificationService.EnqueueInApp(
+            recipientUserId.Value,
+            title,
+            $"{entry.TechnicianName}: {message}",
+            $"/service/work-orders/{workOrderId}",
+            ReferenceTypes.WorkOrderTimeEntry,
+            entry.Id);
+
+        await dbContext.SaveChangesAsync(cancellationToken);
     }
 
     private WorkOrderDto MapWorkOrder(WorkOrder workOrder, ServiceCoverageScope entitlementCoverage)

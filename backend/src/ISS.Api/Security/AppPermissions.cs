@@ -24,6 +24,22 @@ public static class AppPermissions
     public const string ServiceMaterialRequisitionEdit = "Service.MaterialRequisition.Edit";
     public const string ServiceMaterialRequisitionPost = "Service.MaterialRequisition.Post";
     public const string ServiceMaterialRequisitionVoid = "Service.MaterialRequisition.Void";
+    public const string ServiceDailySheetSubmit = "Service.DailySheet.Submit";
+    public const string ServiceDailySheetApprove = "Service.DailySheet.Approve";
+    public const string ServiceDailySheetReject = "Service.DailySheet.Reject";
+    public const string ServiceJobAssignmentCreate = "Service.JobAssignment.Create";
+    public const string ServiceJobAssignmentApprove = "Service.JobAssignment.Approve";
+    public const string ServiceJobAssignmentReject = "Service.JobAssignment.Reject";
+    public const string ServiceWorkOrderTimeEntrySubmit = "Service.WorkOrderTimeEntry.Submit";
+    public const string ServiceWorkOrderTimeEntryApprove = "Service.WorkOrderTimeEntry.Approve";
+    public const string ServiceWorkOrderTimeEntryReject = "Service.WorkOrderTimeEntry.Reject";
+    public const string ServiceEstimateView = "Service.Estimate.View";
+    public const string ServiceEstimateCreate = "Service.Estimate.Create";
+    public const string ServiceEstimateEdit = "Service.Estimate.Edit";
+    public const string ServiceEstimateApprove = "Service.Estimate.Approve";
+    public const string ServiceEstimateReject = "Service.Estimate.Reject";
+    public const string ServiceEstimateSend = "Service.Estimate.Send";
+    public const string ServiceEstimateRevise = "Service.Estimate.Revise";
 
     public static readonly AppPermissionDefinition[] All =
     [
@@ -46,7 +62,23 @@ public static class AppPermissions
         new(ServiceMaterialRequisitionCreate, "Service / Material Requisitions", "Create", "Create MRNs", "Create material requisitions for service jobs."),
         new(ServiceMaterialRequisitionEdit, "Service / Material Requisitions", "Edit", "Edit MRNs", "Add, update, or remove draft material requisition lines."),
         new(ServiceMaterialRequisitionPost, "Service / Material Requisitions", "Post", "Post MRNs", "Post material requisitions and issue stock to service jobs."),
-        new(ServiceMaterialRequisitionVoid, "Service / Material Requisitions", "Void", "Void MRNs", "Void draft material requisitions.")
+        new(ServiceMaterialRequisitionVoid, "Service / Material Requisitions", "Void", "Void MRNs", "Void draft material requisitions."),
+        new(ServiceDailySheetSubmit, "Service / Daily Sheets", "Submit", "Submit daily sheets", "Submit service job daily sheets for supervisor approval."),
+        new(ServiceDailySheetApprove, "Service / Daily Sheets", "Approve", "Approve daily sheets", "Approve submitted service job daily sheets."),
+        new(ServiceDailySheetReject, "Service / Daily Sheets", "Reject", "Reject daily sheets", "Reject submitted service job daily sheets."),
+        new(ServiceJobAssignmentCreate, "Service / Job Assignments", "Create", "Create assignments", "Create labor/technician assignment records."),
+        new(ServiceJobAssignmentApprove, "Service / Job Assignments", "Approve", "Approve assignments", "Approve pending labor/technician assignments."),
+        new(ServiceJobAssignmentReject, "Service / Job Assignments", "Reject", "Reject assignments", "Reject pending labor/technician assignments."),
+        new(ServiceWorkOrderTimeEntrySubmit, "Service / Work Orders", "Submit", "Submit time entries", "Submit labor time entries for approval."),
+        new(ServiceWorkOrderTimeEntryApprove, "Service / Work Orders", "Approve", "Approve time entries", "Approve submitted labor time entries."),
+        new(ServiceWorkOrderTimeEntryReject, "Service / Work Orders", "Reject", "Reject time entries", "Reject submitted labor time entries."),
+        new(ServiceEstimateView, "Service / Estimates", "View", "View estimates", "Open and review service estimates."),
+        new(ServiceEstimateCreate, "Service / Estimates", "Create", "Create estimates", "Create service estimates."),
+        new(ServiceEstimateEdit, "Service / Estimates", "Edit", "Edit estimates", "Update service estimate headers and lines."),
+        new(ServiceEstimateApprove, "Service / Estimates", "Approve", "Approve estimates", "Approve draft service estimates."),
+        new(ServiceEstimateReject, "Service / Estimates", "Reject", "Reject estimates", "Reject draft service estimates."),
+        new(ServiceEstimateSend, "Service / Estimates", "Send", "Send estimates", "Send service estimates to customers."),
+        new(ServiceEstimateRevise, "Service / Estimates", "Revise", "Revise estimates", "Create revisions from existing service estimates.")
     ];
 
     public static readonly string[] AllKeys = All.Select(x => x.Key).ToArray();
