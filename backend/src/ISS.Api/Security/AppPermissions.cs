@@ -11,6 +11,19 @@ public static class AppPermissions
     public const string PettyCashIouReject = "Finance.PettyCashIou.Reject";
     public const string PettyCashIouRelease = "Finance.PettyCashIou.Release";
     public const string PettyCashIouSettle = "Finance.PettyCashIou.Settle";
+    public const string FinancePaymentView = "Finance.Payment.View";
+    public const string FinancePaymentCreate = "Finance.Payment.Create";
+    public const string FinancePaymentAllocate = "Finance.Payment.Allocate";
+    public const string FinanceCreditNoteView = "Finance.CreditNote.View";
+    public const string FinanceCreditNoteCreate = "Finance.CreditNote.Create";
+    public const string FinanceCreditNoteAllocate = "Finance.CreditNote.Allocate";
+    public const string FinanceDebitNoteView = "Finance.DebitNote.View";
+    public const string FinanceDebitNoteCreate = "Finance.DebitNote.Create";
+    public const string FinancePettyCashFundView = "Finance.PettyCashFund.View";
+    public const string FinancePettyCashFundCreate = "Finance.PettyCashFund.Create";
+    public const string FinancePettyCashFundEdit = "Finance.PettyCashFund.Edit";
+    public const string FinancePettyCashFundTopUp = "Finance.PettyCashFund.TopUp";
+    public const string FinancePettyCashFundAdjust = "Finance.PettyCashFund.Adjust";
     public const string ServiceExpenseClaimView = "Service.ExpenseClaim.View";
     public const string ServiceExpenseClaimCreate = "Service.ExpenseClaim.Create";
     public const string ServiceExpenseClaimEdit = "Service.ExpenseClaim.Edit";
@@ -116,6 +129,19 @@ public static class AppPermissions
         new(PettyCashIouReject, "Finance / Petty Cash IOU", "Reject", "Reject IOUs", "Reject submitted IOU requests."),
         new(PettyCashIouRelease, "Finance / Petty Cash IOU", "Release", "Release cash", "Release approved petty cash to the requester."),
         new(PettyCashIouSettle, "Finance / Petty Cash IOU", "Settle", "Settle IOUs", "Record IOU settlement/accounting."),
+        new(FinancePaymentView, "Finance / Payments", "View", "View payments", "Open and review payment receipts and vouchers."),
+        new(FinancePaymentCreate, "Finance / Payments", "Create", "Create payments", "Create incoming or outgoing payment records."),
+        new(FinancePaymentAllocate, "Finance / Payments", "Allocate", "Allocate payments", "Allocate payments to receivables or payables."),
+        new(FinanceCreditNoteView, "Finance / Credit Notes", "View", "View credit notes", "Open and review customer or supplier credit notes."),
+        new(FinanceCreditNoteCreate, "Finance / Credit Notes", "Create", "Create credit notes", "Create customer or supplier credit notes."),
+        new(FinanceCreditNoteAllocate, "Finance / Credit Notes", "Allocate", "Allocate credit notes", "Allocate credit notes to receivables or payables."),
+        new(FinanceDebitNoteView, "Finance / Debit Notes", "View", "View debit notes", "Open and review debit notes."),
+        new(FinanceDebitNoteCreate, "Finance / Debit Notes", "Create", "Create debit notes", "Create debit notes."),
+        new(FinancePettyCashFundView, "Finance / Petty Cash Funds", "View", "View funds", "Open and review petty cash funds."),
+        new(FinancePettyCashFundCreate, "Finance / Petty Cash Funds", "Create", "Create funds", "Create petty cash funds."),
+        new(FinancePettyCashFundEdit, "Finance / Petty Cash Funds", "Edit", "Edit funds", "Update petty cash fund settings."),
+        new(FinancePettyCashFundTopUp, "Finance / Petty Cash Funds", "Top Up", "Top up funds", "Add top-up transactions to petty cash funds."),
+        new(FinancePettyCashFundAdjust, "Finance / Petty Cash Funds", "Adjust", "Adjust funds", "Add adjustment transactions to petty cash funds."),
         new(ServiceExpenseClaimView, "Service / Expense Claims", "View", "View claims", "Open and review service expense claims."),
         new(ServiceExpenseClaimCreate, "Service / Expense Claims", "Create", "Create claims", "Create service expense claims against job orders."),
         new(ServiceExpenseClaimEdit, "Service / Expense Claims", "Edit", "Edit claims", "Add, update, or remove draft service expense claim lines."),

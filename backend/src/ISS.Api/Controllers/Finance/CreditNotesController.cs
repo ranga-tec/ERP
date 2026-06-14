@@ -1,18 +1,25 @@
 using ISS.Api.Security;
 using ISS.Application.Abstractions;
+using ISS.Application.Common;
 using ISS.Application.Persistence;
 using ISS.Application.Services;
 using ISS.Domain.Finance;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using System.Security.Claims;
 
 namespace ISS.Api.Controllers.Finance;
 
 [ApiController]
 [Route("api/finance/credit-notes")]
 [Authorize(Roles = $"{Roles.Admin},{Roles.Finance}")]
-public sealed class CreditNotesController(IIssDbContext dbContext, FinanceService financeService, IDocumentPdfService pdfService) : ControllerBase
+public sealed class CreditNotesController(
+    IIssDbContext dbContext,
+    FinanceService financeService,
+    IDocumentPdfService pdfService,
+    AccessControlService accessControl,
+    NotificationService notificationService) : ControllerBase
 {
     public sealed record CreditNoteDto(
         Guid Id,
@@ -40,6 +47,11 @@ public sealed class CreditNotesController(IIssDbContext dbContext, FinanceServic
         [FromQuery] bool remainingOnly = false,
         CancellationToken cancellationToken = default)
     {
+        if (!await HasPermissionAsync(AppPermissions.FinanceCreditNoteView, cancellationToken))
+        {
+            return Forbid();
+        }
+
         var query = dbContext.CreditNotes.AsNoTracking();
 
         if (counterpartyType is not null)
@@ -80,6 +92,11 @@ public sealed class CreditNotesController(IIssDbContext dbContext, FinanceServic
     [HttpGet("{id:guid}")]
     public async Task<ActionResult<CreditNoteDetailDto>> Get(Guid id, CancellationToken cancellationToken)
     {
+        if (!await HasPermissionAsync(AppPermissions.FinanceCreditNoteView, cancellationToken))
+        {
+            return Forbid();
+        }
+
         var creditNote = await dbContext.CreditNotes.AsNoTracking()
             .Include(x => x.Allocations)
             .FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
@@ -110,6 +127,11 @@ public sealed class CreditNotesController(IIssDbContext dbContext, FinanceServic
     [HttpGet("{id:guid}/pdf")]
     public async Task<ActionResult> Pdf(Guid id, CancellationToken cancellationToken)
     {
+        if (!await HasPermissionAsync(AppPermissions.FinanceCreditNoteView, cancellationToken))
+        {
+            return Forbid();
+        }
+
         var doc = await pdfService.RenderAsync(PdfDocumentType.CreditNote, id, cancellationToken);
         return File(doc.Content, doc.ContentType, doc.FileName);
     }
@@ -117,6 +139,11 @@ public sealed class CreditNotesController(IIssDbContext dbContext, FinanceServic
     [HttpPost]
     public async Task<ActionResult<CreditNoteDto>> Create(CreateCreditNoteRequest request, CancellationToken cancellationToken)
     {
+        if (!await HasPermissionAsync(AppPermissions.FinanceCreditNoteCreate, cancellationToken))
+        {
+            return Forbid();
+        }
+
         var id = await financeService.CreateCreditNoteAsync(
             request.CounterpartyType,
             request.CounterpartyId,
@@ -151,22 +178,70 @@ public sealed class CreditNotesController(IIssDbContext dbContext, FinanceServic
     [HttpPost("{id:guid}/allocate/ar")]
     public async Task<ActionResult> AllocateToAr(Guid id, AllocateRequest request, CancellationToken cancellationToken)
     {
+        if (!await HasPermissionAsync(AppPermissions.FinanceCreditNoteAllocate, cancellationToken))
+        {
+            return Forbid();
+        }
+
         await financeService.AllocateCreditNoteToArAsync(id, request.EntryId, request.Amount, cancellationToken);
+        await NotifyCreditNoteCreatorAsync(id, "Credit note allocated", "Your credit note has been allocated to accounts receivable.", cancellationToken);
         return NoContent();
     }
 
     [HttpPost("{id:guid}/allocate/ap")]
     public async Task<ActionResult> AllocateToAp(Guid id, AllocateRequest request, CancellationToken cancellationToken)
     {
+        if (!await HasPermissionAsync(AppPermissions.FinanceCreditNoteAllocate, cancellationToken))
+        {
+            return Forbid();
+        }
+
         await financeService.AllocateCreditNoteToApAsync(id, request.EntryId, request.Amount, cancellationToken);
+        await NotifyCreditNoteCreatorAsync(id, "Credit note allocated", "Your credit note has been allocated to accounts payable.", cancellationToken);
         return NoContent();
     }
 
     [HttpPost("{id:guid}/auto-allocate")]
     public async Task<ActionResult> AutoAllocate(Guid id, CancellationToken cancellationToken)
     {
+        if (!await HasPermissionAsync(AppPermissions.FinanceCreditNoteAllocate, cancellationToken))
+        {
+            return Forbid();
+        }
+
         await financeService.AutoAllocateCreditNoteAsync(id, cancellationToken);
+        await NotifyCreditNoteCreatorAsync(id, "Credit note allocated", "Your credit note has been auto-allocated.", cancellationToken);
         return NoContent();
+    }
+
+    private async Task<bool> HasPermissionAsync(string permissionKey, CancellationToken cancellationToken)
+    {
+        var userIdValue = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        return Guid.TryParse(userIdValue, out var userId)
+               && await accessControl.HasPermissionAsync(userId, permissionKey, cancellationToken);
+    }
+
+    private async Task NotifyCreditNoteCreatorAsync(Guid id, string title, string message, CancellationToken cancellationToken)
+    {
+        var note = await dbContext.CreditNotes.AsNoTracking()
+            .Where(x => x.Id == id)
+            .Select(x => new { x.Id, x.ReferenceNumber, x.CreatedBy })
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (note?.CreatedBy is null)
+        {
+            return;
+        }
+
+        notificationService.EnqueueInApp(
+            note.CreatedBy.Value,
+            title,
+            $"{note.ReferenceNumber}: {message}",
+            $"/finance/credit-notes/{note.Id}",
+            ReferenceTypes.CreditNote,
+            note.Id);
+
+        await dbContext.SaveChangesAsync(cancellationToken);
     }
 
     private async Task PopulateSourceReferenceNumbersAsync(List<CreditNoteDto> notes, CancellationToken cancellationToken)

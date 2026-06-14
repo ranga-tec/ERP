@@ -1,18 +1,25 @@
 using ISS.Api.Security;
 using ISS.Application.Abstractions;
+using ISS.Application.Common;
 using ISS.Application.Persistence;
 using ISS.Application.Services;
 using ISS.Domain.Finance;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using System.Security.Claims;
 
 namespace ISS.Api.Controllers.Finance;
 
 [ApiController]
 [Route("api/finance/payments")]
 [Authorize(Roles = $"{Roles.Admin},{Roles.Finance}")]
-public sealed class PaymentsController(IIssDbContext dbContext, FinanceService financeService, IDocumentPdfService pdfService) : ControllerBase
+public sealed class PaymentsController(
+    IIssDbContext dbContext,
+    FinanceService financeService,
+    IDocumentPdfService pdfService,
+    AccessControlService accessControl,
+    NotificationService notificationService) : ControllerBase
 {
     public sealed record PaymentDto(
         Guid Id,
@@ -61,6 +68,11 @@ public sealed class PaymentsController(IIssDbContext dbContext, FinanceService f
     [HttpGet]
     public async Task<ActionResult<IReadOnlyList<PaymentDto>>> List([FromQuery] int skip = 0, [FromQuery] int take = 100, CancellationToken cancellationToken = default)
     {
+        if (!await HasPermissionAsync(AppPermissions.FinancePaymentView, cancellationToken))
+        {
+            return Forbid();
+        }
+
         skip = Math.Max(0, skip);
         take = Math.Clamp(take, 1, 500);
 
@@ -91,6 +103,11 @@ public sealed class PaymentsController(IIssDbContext dbContext, FinanceService f
     [HttpGet("{id:guid}")]
     public async Task<ActionResult<PaymentDetailDto>> Get(Guid id, CancellationToken cancellationToken)
     {
+        if (!await HasPermissionAsync(AppPermissions.FinancePaymentView, cancellationToken))
+        {
+            return Forbid();
+        }
+
         var payment = await dbContext.Payments.AsNoTracking()
             .Include(x => x.Allocations)
             .Include(x => x.PaymentType)
@@ -122,6 +139,11 @@ public sealed class PaymentsController(IIssDbContext dbContext, FinanceService f
     [HttpGet("{id:guid}/pdf")]
     public async Task<ActionResult> Pdf(Guid id, CancellationToken cancellationToken)
     {
+        if (!await HasPermissionAsync(AppPermissions.FinancePaymentView, cancellationToken))
+        {
+            return Forbid();
+        }
+
         var doc = await pdfService.RenderAsync(PdfDocumentType.Payment, id, cancellationToken);
         return File(doc.Content, doc.ContentType, doc.FileName);
     }
@@ -129,6 +151,11 @@ public sealed class PaymentsController(IIssDbContext dbContext, FinanceService f
     [HttpPost]
     public async Task<ActionResult<PaymentDto>> Create(CreatePaymentRequest request, CancellationToken cancellationToken)
     {
+        if (!await HasPermissionAsync(AppPermissions.FinancePaymentCreate, cancellationToken))
+        {
+            return Forbid();
+        }
+
         var id = await financeService.CreatePaymentAsync(
             request.Direction,
             request.CounterpartyType,
@@ -165,14 +192,56 @@ public sealed class PaymentsController(IIssDbContext dbContext, FinanceService f
     [HttpPost("{id:guid}/allocate/ar")]
     public async Task<ActionResult> AllocateToAr(Guid id, AllocateRequest request, CancellationToken cancellationToken)
     {
+        if (!await HasPermissionAsync(AppPermissions.FinancePaymentAllocate, cancellationToken))
+        {
+            return Forbid();
+        }
+
         await financeService.AllocatePaymentToArAsync(id, request.EntryId, request.Amount, cancellationToken);
+        await NotifyPaymentCreatorAsync(id, "Payment allocated", "Your payment has been allocated to accounts receivable.", cancellationToken);
         return NoContent();
     }
 
     [HttpPost("{id:guid}/allocate/ap")]
     public async Task<ActionResult> AllocateToAp(Guid id, AllocateRequest request, CancellationToken cancellationToken)
     {
+        if (!await HasPermissionAsync(AppPermissions.FinancePaymentAllocate, cancellationToken))
+        {
+            return Forbid();
+        }
+
         await financeService.AllocatePaymentToApAsync(id, request.EntryId, request.Amount, cancellationToken);
+        await NotifyPaymentCreatorAsync(id, "Payment allocated", "Your payment has been allocated to accounts payable.", cancellationToken);
         return NoContent();
+    }
+
+    private async Task<bool> HasPermissionAsync(string permissionKey, CancellationToken cancellationToken)
+    {
+        var userIdValue = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        return Guid.TryParse(userIdValue, out var userId)
+               && await accessControl.HasPermissionAsync(userId, permissionKey, cancellationToken);
+    }
+
+    private async Task NotifyPaymentCreatorAsync(Guid id, string title, string message, CancellationToken cancellationToken)
+    {
+        var payment = await dbContext.Payments.AsNoTracking()
+            .Where(x => x.Id == id)
+            .Select(x => new { x.Id, x.ReferenceNumber, x.CreatedBy })
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (payment?.CreatedBy is null)
+        {
+            return;
+        }
+
+        notificationService.EnqueueInApp(
+            payment.CreatedBy.Value,
+            title,
+            $"{payment.ReferenceNumber}: {message}",
+            $"/finance/payments/{payment.Id}",
+            ReferenceTypes.Payment,
+            payment.Id);
+
+        await dbContext.SaveChangesAsync(cancellationToken);
     }
 }

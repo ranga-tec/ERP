@@ -6,13 +6,18 @@ using ISS.Domain.Finance;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using System.Security.Claims;
 
 namespace ISS.Api.Controllers.Finance;
 
 [ApiController]
 [Route("api/finance/debit-notes")]
 [Authorize(Roles = $"{Roles.Admin},{Roles.Finance}")]
-public sealed class DebitNotesController(IIssDbContext dbContext, FinanceService financeService, IDocumentPdfService pdfService) : ControllerBase
+public sealed class DebitNotesController(
+    IIssDbContext dbContext,
+    FinanceService financeService,
+    IDocumentPdfService pdfService,
+    AccessControlService accessControl) : ControllerBase
 {
     public sealed record DebitNoteDto(
         Guid Id,
@@ -33,6 +38,11 @@ public sealed class DebitNotesController(IIssDbContext dbContext, FinanceService
         [FromQuery] Guid? counterpartyId = null,
         CancellationToken cancellationToken = default)
     {
+        if (!await HasPermissionAsync(AppPermissions.FinanceDebitNoteView, cancellationToken))
+        {
+            return Forbid();
+        }
+
         var query = dbContext.DebitNotes.AsNoTracking();
 
         if (counterpartyType is not null)
@@ -65,6 +75,11 @@ public sealed class DebitNotesController(IIssDbContext dbContext, FinanceService
     [HttpGet("{id:guid}")]
     public async Task<ActionResult<DebitNoteDto>> Get(Guid id, CancellationToken cancellationToken)
     {
+        if (!await HasPermissionAsync(AppPermissions.FinanceDebitNoteView, cancellationToken))
+        {
+            return Forbid();
+        }
+
         var note = await dbContext.DebitNotes.AsNoTracking()
             .Where(x => x.Id == id)
             .Select(x => new DebitNoteDto(
@@ -85,6 +100,11 @@ public sealed class DebitNotesController(IIssDbContext dbContext, FinanceService
     [HttpGet("{id:guid}/pdf")]
     public async Task<ActionResult> Pdf(Guid id, CancellationToken cancellationToken)
     {
+        if (!await HasPermissionAsync(AppPermissions.FinanceDebitNoteView, cancellationToken))
+        {
+            return Forbid();
+        }
+
         var doc = await pdfService.RenderAsync(PdfDocumentType.DebitNote, id, cancellationToken);
         return File(doc.Content, doc.ContentType, doc.FileName);
     }
@@ -92,6 +112,11 @@ public sealed class DebitNotesController(IIssDbContext dbContext, FinanceService
     [HttpPost]
     public async Task<ActionResult<DebitNoteDto>> Create(CreateDebitNoteRequest request, CancellationToken cancellationToken)
     {
+        if (!await HasPermissionAsync(AppPermissions.FinanceDebitNoteCreate, cancellationToken))
+        {
+            return Forbid();
+        }
+
         var id = await financeService.CreateDebitNoteAsync(
             request.CounterpartyType,
             request.CounterpartyId,
@@ -100,5 +125,12 @@ public sealed class DebitNotesController(IIssDbContext dbContext, FinanceService
             cancellationToken: cancellationToken);
 
         return await Get(id, cancellationToken);
+    }
+
+    private async Task<bool> HasPermissionAsync(string permissionKey, CancellationToken cancellationToken)
+    {
+        var userIdValue = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        return Guid.TryParse(userIdValue, out var userId)
+               && await accessControl.HasPermissionAsync(userId, permissionKey, cancellationToken);
     }
 }

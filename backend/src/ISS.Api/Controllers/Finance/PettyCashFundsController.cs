@@ -1,10 +1,12 @@
 using ISS.Api.Security;
+using ISS.Application.Common;
 using ISS.Application.Persistence;
 using ISS.Application.Services;
 using ISS.Domain.Finance;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using System.Security.Claims;
 
 namespace ISS.Api.Controllers.Finance;
 
@@ -13,7 +15,9 @@ namespace ISS.Api.Controllers.Finance;
 [Authorize(Roles = $"{Roles.Admin},{Roles.Finance}")]
 public sealed class PettyCashFundsController(
     IIssDbContext dbContext,
-    FinanceService financeService) : ControllerBase
+    FinanceService financeService,
+    AccessControlService accessControl,
+    NotificationService notificationService) : ControllerBase
 {
     public sealed record PettyCashTransactionDto(
         Guid Id,
@@ -83,6 +87,11 @@ public sealed class PettyCashFundsController(
     [HttpGet]
     public async Task<ActionResult<IReadOnlyList<PettyCashFundSummaryDto>>> List(CancellationToken cancellationToken)
     {
+        if (!await HasPermissionAsync(AppPermissions.FinancePettyCashFundView, cancellationToken))
+        {
+            return Forbid();
+        }
+
         var funds = await dbContext.PettyCashFunds.AsNoTracking()
             .OrderBy(x => x.Code)
             .Select(x => new PettyCashFundSummaryDto(
@@ -103,6 +112,11 @@ public sealed class PettyCashFundsController(
     [HttpPost]
     public async Task<ActionResult<PettyCashFundDto>> Create(CreatePettyCashFundRequest request, CancellationToken cancellationToken)
     {
+        if (!await HasPermissionAsync(AppPermissions.FinancePettyCashFundCreate, cancellationToken))
+        {
+            return Forbid();
+        }
+
         var id = await financeService.CreatePettyCashFundAsync(
             request.Code,
             request.Name,
@@ -120,6 +134,11 @@ public sealed class PettyCashFundsController(
     [HttpGet("{id:guid}")]
     public async Task<ActionResult<PettyCashFundDto>> Get(Guid id, CancellationToken cancellationToken)
     {
+        if (!await HasPermissionAsync(AppPermissions.FinancePettyCashFundView, cancellationToken))
+        {
+            return Forbid();
+        }
+
         var fund = await dbContext.PettyCashFunds.AsNoTracking()
             .Include(x => x.Transactions)
             .FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
@@ -157,6 +176,11 @@ public sealed class PettyCashFundsController(
     [HttpPut("{id:guid}")]
     public async Task<ActionResult<PettyCashFundDto>> Update(Guid id, UpdatePettyCashFundRequest request, CancellationToken cancellationToken)
     {
+        if (!await HasPermissionAsync(AppPermissions.FinancePettyCashFundEdit, cancellationToken))
+        {
+            return Forbid();
+        }
+
         await financeService.UpdatePettyCashFundAsync(
             id,
             request.Code,
@@ -167,12 +191,18 @@ public sealed class PettyCashFundsController(
             request.IsActive,
             cancellationToken);
 
+        await NotifyPettyCashFundCreatorAsync(id, "Petty cash fund updated", "Your petty cash fund has been updated.", cancellationToken);
         return await Get(id, cancellationToken);
     }
 
     [HttpPost("{id:guid}/top-ups")]
     public async Task<ActionResult> TopUp(Guid id, AddPettyCashTopUpRequest request, CancellationToken cancellationToken)
     {
+        if (!await HasPermissionAsync(AppPermissions.FinancePettyCashFundTopUp, cancellationToken))
+        {
+            return Forbid();
+        }
+
         await financeService.AddPettyCashTopUpAsync(
             id,
             request.Amount,
@@ -180,12 +210,18 @@ public sealed class PettyCashFundsController(
             request.ReferenceNumber,
             request.Notes,
             cancellationToken);
+        await NotifyPettyCashFundCreatorAsync(id, "Petty cash fund topped up", "A top-up was added to your petty cash fund.", cancellationToken);
         return NoContent();
     }
 
     [HttpPost("{id:guid}/adjustments")]
     public async Task<ActionResult> Adjust(Guid id, AddPettyCashAdjustmentRequest request, CancellationToken cancellationToken)
     {
+        if (!await HasPermissionAsync(AppPermissions.FinancePettyCashFundAdjust, cancellationToken))
+        {
+            return Forbid();
+        }
+
         await financeService.AddPettyCashAdjustmentAsync(
             id,
             request.Amount,
@@ -194,6 +230,37 @@ public sealed class PettyCashFundsController(
             request.ReferenceNumber,
             request.Notes,
             cancellationToken);
+        await NotifyPettyCashFundCreatorAsync(id, "Petty cash fund adjusted", "An adjustment was added to your petty cash fund.", cancellationToken);
         return NoContent();
+    }
+
+    private async Task<bool> HasPermissionAsync(string permissionKey, CancellationToken cancellationToken)
+    {
+        var userIdValue = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        return Guid.TryParse(userIdValue, out var userId)
+               && await accessControl.HasPermissionAsync(userId, permissionKey, cancellationToken);
+    }
+
+    private async Task NotifyPettyCashFundCreatorAsync(Guid id, string title, string message, CancellationToken cancellationToken)
+    {
+        var fund = await dbContext.PettyCashFunds.AsNoTracking()
+            .Where(x => x.Id == id)
+            .Select(x => new { x.Id, x.Code, x.CreatedBy })
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (fund?.CreatedBy is null)
+        {
+            return;
+        }
+
+        notificationService.EnqueueInApp(
+            fund.CreatedBy.Value,
+            title,
+            $"{fund.Code}: {message}",
+            $"/finance/petty-cash/{fund.Id}",
+            ReferenceTypes.PettyCashFund,
+            fund.Id);
+
+        await dbContext.SaveChangesAsync(cancellationToken);
     }
 }
