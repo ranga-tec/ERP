@@ -21,6 +21,7 @@ type ServiceExpenseClaimSummaryDto = {
 };
 
 type ServiceJobDto = { id: string; number: string; kind: number };
+type CurrentUserPermissionsDto = { userId: string; permissions: string[] };
 
 const statusLabel: Record<number, string> = {
   0: "Draft",
@@ -36,12 +37,15 @@ const fundingSourceLabel: Record<number, string> = {
 };
 
 export default async function ServiceExpenseClaimsPage() {
-  const [claims, jobs] = await Promise.all([
+  const [claims, jobs, currentUserPermissions] = await Promise.all([
     backendFetchJson<ServiceExpenseClaimSummaryDto[]>("/service/expense-claims?take=100"),
     backendFetchJson<ServiceJobDto[]>("/service/jobs?take=500"),
+    backendFetchJson<CurrentUserPermissionsDto>("/me/permissions"),
   ]);
 
   const jobById = new Map(jobs.map((job) => [job.id, job]));
+  const permissions = new Set(currentUserPermissions.permissions);
+  const canCreate = permissions.has("Service.ExpenseClaim.Create");
 
   return (
     <div className="space-y-6">
@@ -52,10 +56,12 @@ export default async function ServiceExpenseClaimsPage() {
         </p>
       </div>
 
-      <Card>
-        <div className="mb-3 text-sm font-semibold">Create</div>
-        <ServiceExpenseClaimCreateForm serviceJobs={jobs} />
-      </Card>
+      {canCreate ? (
+        <Card>
+          <div className="mb-3 text-sm font-semibold">Create</div>
+          <ServiceExpenseClaimCreateForm serviceJobs={jobs} />
+        </Card>
+      ) : null}
 
       <Card>
         <div className="mb-3 text-sm font-semibold">List</div>

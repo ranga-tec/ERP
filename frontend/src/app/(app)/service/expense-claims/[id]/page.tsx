@@ -55,6 +55,7 @@ type ItemDto = { id: string; sku: string; name: string };
 type PaymentTypeDto = { id: string; code: string; name: string; isActive: boolean };
 type PettyCashFundDto = { id: string; code: string; name: string; balance: number; isActive: boolean };
 type ServiceEstimateSummaryDto = { id: string; number: string; revisionNumber: number; status: number; total: number; serviceJobId: string };
+type CurrentUserPermissionsDto = { userId: string; permissions: string[] };
 
 const statusLabel: Record<number, string> = {
   0: "Draft",
@@ -77,24 +78,30 @@ export default async function ServiceExpenseClaimDetailPage({ params }: { params
   const roles = new Set(session?.roles ?? []);
   const isFinanceOrAdmin = roles.has("Admin") || roles.has("Finance");
 
-  const [claim, jobs, items, paymentTypes, pettyCashFunds, estimates] = await Promise.all([
+  const [claim, jobs, items, paymentTypes, pettyCashFunds, estimates, currentUserPermissions] = await Promise.all([
     backendFetchJson<ServiceExpenseClaimDto>(`/service/expense-claims/${id}`),
     backendFetchJson<ServiceJobDto[]>("/service/jobs?take=500"),
     backendFetchJson<ItemDto[]>("/items/options"),
     isFinanceOrAdmin ? backendFetchJson<PaymentTypeDto[]>("/payment-types") : Promise.resolve([]),
     isFinanceOrAdmin ? backendFetchJson<PettyCashFundDto[]>("/finance/petty-cash-funds") : Promise.resolve([]),
     backendFetchJson<ServiceEstimateSummaryDto[]>("/service/estimates?take=500"),
+    backendFetchJson<CurrentUserPermissionsDto>("/me/permissions"),
   ]);
 
+  const permissions = new Set(currentUserPermissions.permissions);
   const jobById = new Map(jobs.map((job) => [job.id, job]));
   const paymentTypeById = new Map(paymentTypes.map((paymentType) => [paymentType.id, paymentType]));
   const pettyCashFundById = new Map(pettyCashFunds.map((fund) => [fund.id, fund]));
   const isDraft = claim.status === 0;
-  const canSubmit = claim.status === 0;
-  const canApprove = claim.status === 1 && isFinanceOrAdmin;
-  const canReject = claim.status === 1 && isFinanceOrAdmin;
-  const canSettle = claim.status === 2 && isFinanceOrAdmin;
-  const canConvertBillable = !isDraft && claim.billableUnconvertedLineCount > 0 && (claim.status === 2 || claim.status === 4);
+  const canEdit = permissions.has("Service.ExpenseClaim.Edit");
+  const canSubmit = claim.status === 0 && permissions.has("Service.ExpenseClaim.Submit");
+  const canApprove = claim.status === 1 && permissions.has("Service.ExpenseClaim.Approve");
+  const canReject = claim.status === 1 && permissions.has("Service.ExpenseClaim.Reject");
+  const canSettle = claim.status === 2 && permissions.has("Service.ExpenseClaim.Settle");
+  const canConvertBillable = !isDraft
+    && claim.billableUnconvertedLineCount > 0
+    && (claim.status === 2 || claim.status === 4)
+    && permissions.has("Service.ExpenseClaim.Convert");
   const jobEstimates = estimates.filter((estimate) => estimate.serviceJobId === claim.serviceJobId);
   const unresolvedExpenseLineCount = claim.lines.filter((line) => !line.expenseAccountId).length;
 
@@ -188,7 +195,7 @@ export default async function ServiceExpenseClaimDetailPage({ params }: { params
         </Card>
       ) : null}
 
-      {isDraft ? (
+      {isDraft && canEdit ? (
         <Card>
           <div className="mb-3 text-sm font-semibold">Add line</div>
           <ServiceExpenseClaimLineAddForm claimId={claim.id} items={items} />
@@ -209,18 +216,18 @@ export default async function ServiceExpenseClaimDetailPage({ params }: { params
                 <th className="py-2 pr-3">Billable</th>
                 <th className="py-2 pr-3">Estimate</th>
                 <th className="py-2 pr-3">Line Total</th>
-                {isDraft ? <th className="py-2 pr-3">Actions</th> : null}
+                {isDraft && canEdit ? <th className="py-2 pr-3">Actions</th> : null}
               </tr>
             </thead>
             <tbody>
               {claim.lines.map((line) =>
-                isDraft ? (
+                isDraft && canEdit ? (
                   <ServiceExpenseClaimLineRow
                     key={line.id}
                     claimId={claim.id}
                     line={line}
                     items={items}
-                    canEdit={isDraft}
+                    canEdit={isDraft && canEdit}
                   />
                 ) : (
                   <tr key={line.id} className="border-b border-zinc-100 align-top dark:border-zinc-900">
@@ -251,7 +258,7 @@ export default async function ServiceExpenseClaimDetailPage({ params }: { params
               )}
               {claim.lines.length === 0 ? (
                 <tr>
-                  <td className="py-6 text-sm text-zinc-500" colSpan={isDraft ? 9 : 8}>
+                  <td className="py-6 text-sm text-zinc-500" colSpan={isDraft && canEdit ? 9 : 8}>
                     No lines yet.
                   </td>
                 </tr>

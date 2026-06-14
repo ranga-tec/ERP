@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using ISS.Api.Security;
 using ISS.Application.Abstractions;
+using ISS.Application.Common;
 using ISS.Application.Persistence;
 using ISS.Application.Services;
 using ISS.Domain.Service;
@@ -16,7 +17,9 @@ namespace ISS.Api.Controllers.Service;
 public sealed class ServiceExpenseClaimsController(
     IIssDbContext dbContext,
     ServiceManagementService serviceManagementService,
-    IDocumentPdfService pdfService) : ControllerBase
+    IDocumentPdfService pdfService,
+    AccessControlService accessControl,
+    NotificationService notificationService) : ControllerBase
 {
     public sealed record ServiceExpenseClaimSummaryDto(
         Guid Id,
@@ -110,6 +113,11 @@ public sealed class ServiceExpenseClaimsController(
         [FromQuery] int take = 100,
         CancellationToken cancellationToken = default)
     {
+        if (!await HasPermissionAsync(AppPermissions.ServiceExpenseClaimView, cancellationToken))
+        {
+            return Forbid();
+        }
+
         skip = Math.Max(0, skip);
         take = Math.Clamp(take, 1, 500);
 
@@ -147,6 +155,11 @@ public sealed class ServiceExpenseClaimsController(
     [HttpPost]
     public async Task<ActionResult<ServiceExpenseClaimDto>> Create(CreateServiceExpenseClaimRequest request, CancellationToken cancellationToken)
     {
+        if (!await HasPermissionAsync(AppPermissions.ServiceExpenseClaimCreate, cancellationToken))
+        {
+            return Forbid();
+        }
+
         var userIdValue = User.FindFirstValue(ClaimTypes.NameIdentifier);
         var claimedByUserId = Guid.TryParse(userIdValue, out var parsedUserId) ? parsedUserId : (Guid?)null;
         var fallbackName = User.Identity?.Name ?? User.FindFirstValue(ClaimTypes.Email) ?? "Unknown";
@@ -170,6 +183,11 @@ public sealed class ServiceExpenseClaimsController(
     [HttpGet("{id:guid}")]
     public async Task<ActionResult<ServiceExpenseClaimDto>> Get(Guid id, CancellationToken cancellationToken)
     {
+        if (!await HasPermissionAsync(AppPermissions.ServiceExpenseClaimView, cancellationToken))
+        {
+            return Forbid();
+        }
+
         var claim = await dbContext.ServiceExpenseClaims.AsNoTracking()
             .Include(x => x.Lines)
             .ThenInclude(line => line.ExpenseAccount)
@@ -222,6 +240,11 @@ public sealed class ServiceExpenseClaimsController(
     [HttpGet("{id:guid}/pdf")]
     public async Task<ActionResult> Pdf(Guid id, CancellationToken cancellationToken)
     {
+        if (!await HasPermissionAsync(AppPermissions.ServiceExpenseClaimView, cancellationToken))
+        {
+            return Forbid();
+        }
+
         var doc = await pdfService.RenderAsync(PdfDocumentType.ServiceExpenseClaim, id, cancellationToken);
         return File(doc.Content, doc.ContentType, doc.FileName);
     }
@@ -229,6 +252,11 @@ public sealed class ServiceExpenseClaimsController(
     [HttpPost("{id:guid}/lines")]
     public async Task<ActionResult> AddLine(Guid id, AddServiceExpenseClaimLineRequest request, CancellationToken cancellationToken)
     {
+        if (!await HasPermissionAsync(AppPermissions.ServiceExpenseClaimEdit, cancellationToken))
+        {
+            return Forbid();
+        }
+
         await serviceManagementService.AddServiceExpenseClaimLineAsync(
             id,
             request.ItemId,
@@ -243,6 +271,11 @@ public sealed class ServiceExpenseClaimsController(
     [HttpPut("{id:guid}/lines/{lineId:guid}")]
     public async Task<ActionResult> UpdateLine(Guid id, Guid lineId, UpdateServiceExpenseClaimLineRequest request, CancellationToken cancellationToken)
     {
+        if (!await HasPermissionAsync(AppPermissions.ServiceExpenseClaimEdit, cancellationToken))
+        {
+            return Forbid();
+        }
+
         await serviceManagementService.UpdateServiceExpenseClaimLineAsync(
             id,
             lineId,
@@ -258,6 +291,11 @@ public sealed class ServiceExpenseClaimsController(
     [HttpDelete("{id:guid}/lines/{lineId:guid}")]
     public async Task<ActionResult> RemoveLine(Guid id, Guid lineId, CancellationToken cancellationToken)
     {
+        if (!await HasPermissionAsync(AppPermissions.ServiceExpenseClaimEdit, cancellationToken))
+        {
+            return Forbid();
+        }
+
         await serviceManagementService.RemoveServiceExpenseClaimLineAsync(id, lineId, cancellationToken);
         return NoContent();
     }
@@ -265,36 +303,57 @@ public sealed class ServiceExpenseClaimsController(
     [HttpPost("{id:guid}/submit")]
     public async Task<ActionResult> Submit(Guid id, CancellationToken cancellationToken)
     {
+        if (!await HasPermissionAsync(AppPermissions.ServiceExpenseClaimSubmit, cancellationToken))
+        {
+            return Forbid();
+        }
+
         await serviceManagementService.SubmitServiceExpenseClaimAsync(id, cancellationToken);
+        await NotifyExpenseClaimSubmittedAsync(id, cancellationToken);
         return NoContent();
     }
 
     [HttpPost("{id:guid}/approve")]
-    [Authorize(Roles = $"{Roles.Admin},{Roles.Finance}")]
     public async Task<ActionResult> Approve(Guid id, CancellationToken cancellationToken)
     {
+        if (!await HasPermissionAsync(AppPermissions.ServiceExpenseClaimApprove, cancellationToken))
+        {
+            return Forbid();
+        }
+
         await serviceManagementService.ApproveServiceExpenseClaimAsync(id, cancellationToken);
+        await NotifyClaimantAsync(id, "Expense claim approved", "Your service expense claim has been approved.", cancellationToken);
         return NoContent();
     }
 
     [HttpPost("{id:guid}/reject")]
-    [Authorize(Roles = $"{Roles.Admin},{Roles.Finance}")]
     public async Task<ActionResult> Reject(Guid id, RejectServiceExpenseClaimRequest? request, CancellationToken cancellationToken)
     {
+        if (!await HasPermissionAsync(AppPermissions.ServiceExpenseClaimReject, cancellationToken))
+        {
+            return Forbid();
+        }
+
         await serviceManagementService.RejectServiceExpenseClaimAsync(id, request?.RejectionReason, cancellationToken);
+        await NotifyClaimantAsync(id, "Expense claim rejected", "Your service expense claim has been rejected.", cancellationToken);
         return NoContent();
     }
 
     [HttpPost("{id:guid}/settle")]
-    [Authorize(Roles = $"{Roles.Admin},{Roles.Finance}")]
     public async Task<ActionResult> Settle(Guid id, SettleServiceExpenseClaimRequest? request, CancellationToken cancellationToken)
     {
+        if (!await HasPermissionAsync(AppPermissions.ServiceExpenseClaimSettle, cancellationToken))
+        {
+            return Forbid();
+        }
+
         await serviceManagementService.SettleServiceExpenseClaimAsync(
             id,
             request?.SettlementPaymentTypeId,
             request?.SettlementPettyCashFundId,
             request?.SettlementReference,
             cancellationToken);
+        await NotifyClaimantAsync(id, "Expense claim settled", "Your service expense claim has been settled.", cancellationToken);
         return NoContent();
     }
 
@@ -304,6 +363,11 @@ public sealed class ServiceExpenseClaimsController(
         ConvertBillableLinesToEstimateRequest? request,
         CancellationToken cancellationToken)
     {
+        if (!await HasPermissionAsync(AppPermissions.ServiceExpenseClaimConvert, cancellationToken))
+        {
+            return Forbid();
+        }
+
         var result = await serviceManagementService.ConvertBillableExpenseClaimToEstimateAsync(
             id,
             request?.ServiceEstimateId,
@@ -313,5 +377,63 @@ public sealed class ServiceExpenseClaimsController(
             cancellationToken);
 
         return Ok(new ConvertBillableLinesToEstimateResponse(result.ServiceEstimateId, result.AddedLineCount));
+    }
+
+    private async Task<bool> HasPermissionAsync(string permissionKey, CancellationToken cancellationToken)
+    {
+        var userIdValue = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        return Guid.TryParse(userIdValue, out var userId)
+               && await accessControl.HasPermissionAsync(userId, permissionKey, cancellationToken);
+    }
+
+    private async Task NotifyExpenseClaimSubmittedAsync(Guid id, CancellationToken cancellationToken)
+    {
+        var claim = await dbContext.ServiceExpenseClaims.AsNoTracking()
+            .Where(x => x.Id == id)
+            .Select(x => new { x.Id, x.Number, x.ClaimedByUserId, x.ClaimedByName, x.Total })
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (claim is null)
+        {
+            return;
+        }
+
+        var recipients = await accessControl.GetActiveUserIdsWithAnyPermissionAsync(
+            [AppPermissions.ServiceExpenseClaimApprove, AppPermissions.ServiceExpenseClaimSettle],
+            excludeUserId: null,
+            cancellationToken);
+
+        notificationService.EnqueueInAppForUsers(
+            recipients,
+            "Expense claim waiting",
+            $"{claim.Number} from {claim.ClaimedByName} is waiting for approval/settlement. Amount: {claim.Total:0.00}.",
+            $"/service/expense-claims/{claim.Id}",
+            ReferenceTypes.ServiceExpenseClaim,
+            claim.Id);
+
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    private async Task NotifyClaimantAsync(Guid id, string title, string message, CancellationToken cancellationToken)
+    {
+        var claim = await dbContext.ServiceExpenseClaims.AsNoTracking()
+            .Where(x => x.Id == id)
+            .Select(x => new { x.Id, x.Number, x.ClaimedByUserId })
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (claim is null || claim.ClaimedByUserId is null || claim.ClaimedByUserId == Guid.Empty)
+        {
+            return;
+        }
+
+        notificationService.EnqueueInApp(
+            claim.ClaimedByUserId.Value,
+            title,
+            $"{claim.Number}: {message}",
+            $"/service/expense-claims/{claim.Id}",
+            ReferenceTypes.ServiceExpenseClaim,
+            claim.Id);
+
+        await dbContext.SaveChangesAsync(cancellationToken);
     }
 }

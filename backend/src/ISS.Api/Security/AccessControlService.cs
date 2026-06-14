@@ -169,6 +169,23 @@ public sealed class AccessControlService(
             yield return AppPermissions.PettyCashIouReject;
             yield return AppPermissions.PettyCashIouRelease;
             yield return AppPermissions.PettyCashIouSettle;
+            yield return AppPermissions.ServiceExpenseClaimView;
+            yield return AppPermissions.ServiceExpenseClaimCreate;
+            yield return AppPermissions.ServiceExpenseClaimEdit;
+            yield return AppPermissions.ServiceExpenseClaimSubmit;
+            yield return AppPermissions.ServiceExpenseClaimApprove;
+            yield return AppPermissions.ServiceExpenseClaimReject;
+            yield return AppPermissions.ServiceExpenseClaimSettle;
+            yield return AppPermissions.ServiceExpenseClaimConvert;
+            yield return AppPermissions.ServiceMaterialRequisitionView;
+        }
+
+        if (roleSet.Contains(Roles.Inventory))
+        {
+            yield return AppPermissions.ServiceMaterialRequisitionView;
+            yield return AppPermissions.ServiceMaterialRequisitionEdit;
+            yield return AppPermissions.ServiceMaterialRequisitionPost;
+            yield return AppPermissions.ServiceMaterialRequisitionVoid;
         }
 
         if (roleSet.Contains(Roles.Service))
@@ -176,6 +193,14 @@ public sealed class AccessControlService(
             yield return AppPermissions.PettyCashIouView;
             yield return AppPermissions.PettyCashIouCreate;
             yield return AppPermissions.PettyCashIouSubmit;
+            yield return AppPermissions.ServiceExpenseClaimView;
+            yield return AppPermissions.ServiceExpenseClaimCreate;
+            yield return AppPermissions.ServiceExpenseClaimEdit;
+            yield return AppPermissions.ServiceExpenseClaimSubmit;
+            yield return AppPermissions.ServiceMaterialRequisitionView;
+            yield return AppPermissions.ServiceMaterialRequisitionCreate;
+            yield return AppPermissions.ServiceMaterialRequisitionEdit;
+            yield return AppPermissions.ServiceMaterialRequisitionVoid;
         }
     }
 }

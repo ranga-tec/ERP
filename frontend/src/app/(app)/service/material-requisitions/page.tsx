@@ -17,6 +17,7 @@ type MaterialRequisitionSummaryDto = {
 
 type ServiceJobDto = { id: string; number: string };
 type WarehouseDto = { id: string; code: string; name: string };
+type CurrentUserPermissionsDto = { userId: string; permissions: string[] };
 
 const statusLabel: Record<number, string> = {
   0: "Draft",
@@ -25,12 +26,16 @@ const statusLabel: Record<number, string> = {
 };
 
 export default async function MaterialRequisitionsPage() {
-  const [mrs, jobs, warehouses] = await Promise.all([
+  const [mrs, jobs, warehouses, currentUserPermissions] = await Promise.all([
     backendFetchJson<MaterialRequisitionSummaryDto[]>("/service/material-requisitions?take=100"),
     backendFetchJson<ServiceJobDto[]>("/service/jobs?take=500"),
     backendFetchJson<WarehouseDto[]>("/warehouses"),
+    backendFetchJson<CurrentUserPermissionsDto>("/me/permissions"),
   ]);
 
+  const permissions = new Set(currentUserPermissions.permissions);
+  const canCreate = permissions.has("Service.MaterialRequisition.Create");
+  const canEdit = permissions.has("Service.MaterialRequisition.Edit");
   const jobById = new Map(jobs.map((j) => [j.id, j]));
   const warehouseById = new Map(warehouses.map((w) => [w.id, w]));
 
@@ -41,10 +46,12 @@ export default async function MaterialRequisitionsPage() {
         <p className="mt-1 text-sm text-zinc-500">Request and issue materials to a job order from a warehouse.</p>
       </div>
 
-      <Card>
-        <div className="mb-3 text-sm font-semibold">Create</div>
-        <MaterialRequisitionCreateForm serviceJobs={jobs} warehouses={warehouses} />
-      </Card>
+      {canCreate ? (
+        <Card>
+          <div className="mb-3 text-sm font-semibold">Create</div>
+          <MaterialRequisitionCreateForm serviceJobs={jobs} warehouses={warehouses} />
+        </Card>
+      ) : null}
 
       <Card>
         <div className="mb-3 text-sm font-semibold">List</div>
@@ -81,7 +88,7 @@ export default async function MaterialRequisitionsPage() {
                   <td className="py-2 pr-3">
                     <ListViewEditActions
                       viewHref={`/service/material-requisitions/${m.id}`}
-                      canEdit={m.status === 0}
+                      canEdit={m.status === 0 && canEdit}
                       auditTableName="MaterialRequisitions"
                       auditRecordId={m.id}
                     />

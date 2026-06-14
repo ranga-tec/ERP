@@ -23,6 +23,7 @@ type MaterialRequisitionDto = {
 type ServiceJobDto = { id: string; number: string };
 type WarehouseDto = { id: string; code: string; name: string };
 type ItemDto = { id: string; sku: string; name: string; trackingType: number };
+type CurrentUserPermissionsDto = { userId: string; permissions: string[] };
 
 const statusLabel: Record<number, string> = {
   0: "Draft",
@@ -41,17 +42,22 @@ export default async function MaterialRequisitionDetailPage({
   const { mode } = await searchParams;
   const startInEditMode = mode === "edit";
 
-  const [mr, jobs, warehouses, items] = await Promise.all([
+  const [mr, jobs, warehouses, items, currentUserPermissions] = await Promise.all([
     backendFetchJson<MaterialRequisitionDto>(`/service/material-requisitions/${id}`),
     backendFetchJson<ServiceJobDto[]>("/service/jobs?take=500"),
     backendFetchJson<WarehouseDto[]>("/warehouses"),
     backendFetchJson<ItemDto[]>("/items/options"),
+    backendFetchJson<CurrentUserPermissionsDto>("/me/permissions"),
   ]);
 
+  const permissions = new Set(currentUserPermissions.permissions);
   const jobById = new Map(jobs.map((j) => [j.id, j]));
   const warehouseById = new Map(warehouses.map((w) => [w.id, w]));
   const itemById = new Map(items.map((i) => [i.id, i]));
   const isDraft = mr.status === 0;
+  const canEdit = permissions.has("Service.MaterialRequisition.Edit");
+  const canPost = permissions.has("Service.MaterialRequisition.Post");
+  const canVoid = permissions.has("Service.MaterialRequisition.Void");
 
   return (
     <div className="space-y-6">
@@ -87,10 +93,10 @@ export default async function MaterialRequisitionDetailPage({
             Download PDF
           </SecondaryLink>
         </div>
-        <MaterialRequisitionActions requisitionId={mr.id} canPost={isDraft && mr.lines.length > 0} canVoid={isDraft} />
+        <MaterialRequisitionActions requisitionId={mr.id} canPost={isDraft && mr.lines.length > 0 && canPost} canVoid={isDraft && canVoid} />
       </Card>
 
-      {isDraft ? (
+      {isDraft && canEdit ? (
         <>
           {startInEditMode ? (
             <DocumentDirectEditNotice addLineHref={`/service/material-requisitions/${mr.id}`} />
@@ -123,7 +129,7 @@ export default async function MaterialRequisitionDetailPage({
                 <th className="py-2 pr-3">Qty</th>
                 <th className="py-2 pr-3">Batch</th>
                 <th className="py-2 pr-3">Serials</th>
-                {isDraft ? <th className="py-2 pr-3">Actions</th> : null}
+                {isDraft && canEdit ? <th className="py-2 pr-3">Actions</th> : null}
               </tr>
             </thead>
             <tbody>
@@ -144,14 +150,14 @@ export default async function MaterialRequisitionDetailPage({
                     warehouses={warehouses}
                     itemLabel={itemLabel}
                     trackingType={item?.trackingType}
-                    canEdit={isDraft}
+                    canEdit={isDraft && canEdit}
                     startInEditMode={startInEditMode}
                   />
                 );
               })}
               {mr.lines.length === 0 ? (
                 <tr>
-                  <td className="py-6 text-sm text-zinc-500" colSpan={isDraft ? 5 : 4}>
+                  <td className="py-6 text-sm text-zinc-500" colSpan={isDraft && canEdit ? 5 : 4}>
                     No lines yet.
                   </td>
                 </tr>
