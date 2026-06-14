@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { apiPostNoContent } from "@/lib/api-client";
 import { ItemLookupField } from "@/components/ItemLookupField";
-import { Button, Input, Select, Textarea } from "@/components/ui";
+import { Button, Input, Textarea } from "@/components/ui";
 import { LineStockInsight } from "@/components/LineStockInsight";
 
 type ItemRef = { id: string; sku: string; name: string; trackingType: number; defaultUnitCost: number };

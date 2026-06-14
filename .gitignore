@@ -48,3 +48,9 @@ backup/
 image/
 images/
 output/
+Modification reqs/
+SS/
+data/
+image.png
+docs/testing-input-output-checklist.pdf
+frontend/iss_pw*.cjs

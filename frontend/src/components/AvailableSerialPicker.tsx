@@ -29,18 +29,21 @@ export function AvailableSerialPicker({
   const [serials, setSerials] = useState<string[] | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const hasLookup = Boolean(warehouseId && itemId);
 
   useEffect(() => {
-    if (!warehouseId || !itemId) {
-      setSerials(null);
-      setError(null);
-      setBusy(false);
+    if (!hasLookup) {
       return;
     }
 
     let ignore = false;
-    setBusy(true);
-    setError(null);
+    const resetHandle = window.setTimeout(() => {
+      if (!ignore) {
+        setSerials(null);
+        setBusy(true);
+        setError(null);
+      }
+    }, 0);
 
     const qs = new URLSearchParams({ warehouseId, itemId });
     apiGet<SerialOnHandDto[]>(`inventory/serials-on-hand?${qs.toString()}`)
@@ -63,11 +66,14 @@ export function AvailableSerialPicker({
 
     return () => {
       ignore = true;
+      window.clearTimeout(resetHandle);
     };
-  }, [warehouseId, itemId]);
+  }, [hasLookup, warehouseId, itemId]);
 
   const selected = useMemo(() => parseList(value), [value]);
   const selectedSet = useMemo(() => new Set(selected.map((serial) => serial.toLowerCase())), [selected]);
+  const visibleSerials = hasLookup ? serials : null;
+  const visibleError = hasLookup ? error : null;
   const qty = Number(quantity);
   const requestedCount = Number.isFinite(qty) && qty > 0 ? Math.trunc(qty) : 0;
 
@@ -81,7 +87,7 @@ export function AvailableSerialPicker({
   }
 
   function selectFirstAvailable() {
-    setSelected((serials ?? []).slice(0, requestedCount || 1));
+    setSelected((visibleSerials ?? []).slice(0, requestedCount || 1));
   }
 
   return (
@@ -94,18 +100,18 @@ export function AvailableSerialPicker({
             {requestedCount ? ` of ${requestedCount}` : ""}.
           </div>
         </div>
-        <SecondaryButton type="button" className="px-2 py-1 text-xs" onClick={selectFirstAvailable} disabled={busy || !serials?.length}>
+        <SecondaryButton type="button" className="px-2 py-1 text-xs" onClick={selectFirstAvailable} disabled={!hasLookup || busy || !visibleSerials?.length}>
           Select first available
         </SecondaryButton>
       </div>
 
-      {busy ? <div className="mt-3 text-xs text-zinc-500">Loading serials...</div> : null}
-      {error ? <div className="mt-3 text-xs text-red-700 dark:text-red-300">{error}</div> : null}
-      {!busy && serials?.length === 0 ? <div className="mt-3 text-xs text-red-700 dark:text-red-300">No serial stock is available in this warehouse.</div> : null}
+      {hasLookup && busy ? <div className="mt-3 text-xs text-zinc-500">Loading serials...</div> : null}
+      {visibleError ? <div className="mt-3 text-xs text-red-700 dark:text-red-300">{visibleError}</div> : null}
+      {hasLookup && !busy && visibleSerials?.length === 0 ? <div className="mt-3 text-xs text-red-700 dark:text-red-300">No serial stock is available in this warehouse.</div> : null}
 
-      {serials && serials.length > 0 ? (
+      {visibleSerials && visibleSerials.length > 0 ? (
         <div className="mt-3 grid max-h-44 gap-2 overflow-auto sm:grid-cols-2 lg:grid-cols-3">
-          {serials.map((serial) => (
+          {visibleSerials.map((serial) => (
             <label
               key={serial}
               className="flex items-center gap-2 rounded-md border border-[var(--input-border)] bg-[var(--surface)] px-2 py-1.5 text-xs"

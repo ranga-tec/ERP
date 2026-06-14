@@ -48,28 +48,21 @@ function modeButtonClass(active: boolean): string {
 }
 
 export function LedgerAccountsWorkspace({ accounts }: { accounts: LedgerAccountDto[] }) {
-  const [workspaceMode, setWorkspaceMode] = useState<WorkspaceMode>("classic");
-  const [hasLoadedPreference, setHasLoadedPreference] = useState(false);
+  const [workspaceMode, setWorkspaceMode] = useState<WorkspaceMode>(() => {
+    if (typeof window === "undefined") {
+      return "classic";
+    }
+
+    const stored = window.localStorage.getItem(workspaceStorageKey);
+    return stored === "classic" || stored === "priority" ? stored : "classic";
+  });
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("active");
   const [typeFilter, setTypeFilter] = useState<string>("all");
 
   useEffect(() => {
-    const stored = window.localStorage.getItem(workspaceStorageKey);
-    if (stored === "classic" || stored === "priority") {
-      setWorkspaceMode(stored);
-    }
-
-    setHasLoadedPreference(true);
-  }, []);
-
-  useEffect(() => {
-    if (!hasLoadedPreference) {
-      return;
-    }
-
     window.localStorage.setItem(workspaceStorageKey, workspaceMode);
-  }, [hasLoadedPreference, workspaceMode]);
+  }, [workspaceMode]);
 
   const normalizedSearch = search.trim().toLowerCase();
   const filteredAccounts = accounts.filter((account) => {

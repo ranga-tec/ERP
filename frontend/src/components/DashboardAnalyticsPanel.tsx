@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { Card } from "@/components/ui";
 
 type DashboardMetricDto = {
@@ -155,14 +155,11 @@ export function DashboardAnalyticsPanel({
       }));
   }, [heroMetrics, sections]);
 
-  useEffect(() => {
-    if (!queueSections.some((section) => section.key === selectedSectionKey)) {
-      setSelectedSectionKey(queueSections[0]?.key ?? "");
-    }
-  }, [queueSections, selectedSectionKey]);
-
+  const effectiveSelectedSectionKey = queueSections.some((section) => section.key === selectedSectionKey)
+    ? selectedSectionKey
+    : queueSections[0]?.key ?? "";
   const selectedQueueSection =
-    queueSections.find((section) => section.key === selectedSectionKey) ?? queueSections[0] ?? null;
+    queueSections.find((section) => section.key === effectiveSelectedSectionKey) ?? null;
 
   const queueMax = Math.max(
     1,
@@ -239,7 +236,7 @@ export function DashboardAnalyticsPanel({
                 </div>
                 {queueSections.map((section) => {
                   const sectionTotal = section.metrics.reduce((sum, metric) => sum + metricNumericValue(metric), 0);
-                  const active = selectedQueueSection?.key === section.key;
+                  const active = effectiveSelectedSectionKey === section.key;
                   return (
                     <button
                       key={section.key}
