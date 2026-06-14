@@ -13,7 +13,7 @@ namespace ISS.Api.Controllers.Procurement;
 
 [ApiController]
 [Route("api/procurement/supplier-invoices")]
-[Authorize(Roles = $"{Roles.Admin},{Roles.Procurement},{Roles.Finance}")]
+[Authorize]
 public sealed class SupplierInvoicesController(
     IIssDbContext dbContext,
     ProcurementService procurementService,

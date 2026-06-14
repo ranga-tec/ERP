@@ -19,16 +19,19 @@ type DebitNoteDto = {
 
 type CustomerDto = { id: string; code: string; name: string };
 type SupplierDto = { id: string; code: string; name: string };
+type CurrentPermissionsDto = { permissions: string[] };
 
 const counterpartyLabel: Record<number, string> = { 1: "Customer", 2: "Supplier" };
 
 export default async function DebitNotesPage() {
-  const [notes, customers, suppliers] = await Promise.all([
+  const [notes, customers, suppliers, currentPermissions] = await Promise.all([
     backendFetchJson<DebitNoteDto[]>("/finance/debit-notes"),
     backendFetchJson<CustomerDto[]>("/customers"),
     backendFetchJson<SupplierDto[]>("/suppliers"),
+    backendFetchJson<CurrentPermissionsDto>("/me/permissions"),
   ]);
 
+  const canCreate = new Set(currentPermissions.permissions).has("Finance.DebitNote.Create");
   const customerById = new Map(customers.map((customer) => [customer.id, customer]));
   const supplierById = new Map(suppliers.map((supplier) => [supplier.id, supplier]));
 
@@ -45,10 +48,12 @@ export default async function DebitNotesPage() {
         <p className="mt-1 text-sm text-zinc-500">Issue additional charges to customers/suppliers (AR/AP).</p>
       </div>
 
-      <Card>
-        <div className="mb-3 text-sm font-semibold">Create</div>
-        <DebitNoteCreateForm customers={customers} suppliers={suppliers} />
-      </Card>
+      {canCreate ? (
+        <Card>
+          <div className="mb-3 text-sm font-semibold">Create</div>
+          <DebitNoteCreateForm customers={customers} suppliers={suppliers} />
+        </Card>
+      ) : null}
 
       <Card>
         <div className="mb-3 text-sm font-semibold">List</div>

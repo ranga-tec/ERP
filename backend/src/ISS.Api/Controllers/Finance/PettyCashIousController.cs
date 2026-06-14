@@ -12,7 +12,7 @@ namespace ISS.Api.Controllers.Finance;
 
 [ApiController]
 [Route("api/finance/petty-cash-ious")]
-[Authorize(Roles = $"{Roles.Admin},{Roles.Finance},{Roles.Service}")]
+[Authorize]
 public sealed class PettyCashIousController(
     IIssDbContext dbContext,
     FinanceService financeService,

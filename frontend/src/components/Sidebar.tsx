@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { usePathname } from "next/navigation";
-import { canAccessPath } from "@/lib/route-access";
+import { canAccessPathWithPermissions } from "@/lib/route-access";
 
 type NavItem = { href: string; label: string };
 type NavSection = { title: string; items: NavItem[] };
@@ -134,6 +134,7 @@ const sections: NavSection[] = [
 
 type SidebarProps = {
   roles: string[];
+  permissions?: string[] | null;
   collapsed?: boolean;
   onNavigate?: () => void;
   onToggleCollapse?: () => void;
@@ -211,7 +212,7 @@ function ChevronIcon({ expanded }: { expanded: boolean }) {
   );
 }
 
-export function Sidebar({ roles, collapsed = false, onNavigate, onToggleCollapse }: SidebarProps) {
+export function Sidebar({ roles, permissions = null, collapsed = false, onNavigate, onToggleCollapse }: SidebarProps) {
   const pathname = usePathname();
   const canToggle = typeof onToggleCollapse === "function";
   const pinned = !collapsed;
@@ -245,7 +246,7 @@ export function Sidebar({ roles, collapsed = false, onNavigate, onToggleCollapse
     const visibleSections = sections
       .map((section) => ({
         ...section,
-        items: section.items.filter((item) => canAccessPath(roles, item.href)),
+        items: section.items.filter((item) => canAccessPathWithPermissions(roles, item.href, permissions)),
       }))
       .filter((section) => section.items.length > 0);
 
@@ -266,7 +267,7 @@ export function Sidebar({ roles, collapsed = false, onNavigate, onToggleCollapse
         };
       })
       .filter((section) => section.items.length > 0);
-  }, [normalizedSearch, roles]);
+  }, [normalizedSearch, permissions, roles]);
 
   return (
     <aside

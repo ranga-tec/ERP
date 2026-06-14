@@ -13,7 +13,7 @@ namespace ISS.Api.Controllers.Procurement;
 
 [ApiController]
 [Route("api/procurement/rfqs")]
-[Authorize(Roles = $"{Roles.Admin},{Roles.Procurement}")]
+[Authorize]
 public sealed class RfqsController(
     IIssDbContext dbContext,
     ProcurementService procurementService,

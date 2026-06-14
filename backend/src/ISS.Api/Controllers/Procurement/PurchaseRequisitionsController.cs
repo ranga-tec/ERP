@@ -12,7 +12,7 @@ namespace ISS.Api.Controllers.Procurement;
 
 [ApiController]
 [Route("api/procurement/purchase-requisitions")]
-[Authorize(Roles = $"{Roles.Admin},{Roles.Procurement}")]
+[Authorize]
 public sealed class PurchaseRequisitionsController(
     IIssDbContext dbContext,
     ProcurementService procurementService,

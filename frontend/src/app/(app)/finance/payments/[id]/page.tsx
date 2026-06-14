@@ -33,6 +33,7 @@ type PaymentDetailDto = {
 type CustomerDto = { id: string; code: string; name: string };
 type SupplierDto = { id: string; code: string; name: string };
 type ReferenceFormDto = { code: string; routeTemplate?: string | null; isActive: boolean };
+type CurrentPermissionsDto = { permissions: string[] };
 
 type ArDto = {
   id: string;
@@ -62,16 +63,19 @@ const counterpartyLabel: Record<number, string> = { 1: "Customer", 2: "Supplier"
 export default async function PaymentDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
 
-  const [payment, customers, suppliers, referenceForms] = await Promise.all([
+  const [payment, customers, suppliers, referenceForms, currentPermissions] = await Promise.all([
     backendFetchJson<PaymentDetailDto>(`/finance/payments/${id}`),
     backendFetchJson<CustomerDto[]>("/customers"),
     backendFetchJson<SupplierDto[]>("/suppliers"),
     backendFetchJson<ReferenceFormDto[]>("/reference-forms"),
+    backendFetchJson<CurrentPermissionsDto>("/me/permissions"),
   ]);
 
   const customerById = new Map(customers.map((c) => [c.id, c]));
   const supplierById = new Map(suppliers.map((s) => [s.id, s]));
   const referenceRouteMap = buildReferenceRouteMap(referenceForms);
+  const permissions = new Set(currentPermissions.permissions);
+  const canAllocate = permissions.has("Finance.Payment.Allocate");
 
   const allocated = payment.allocations.reduce((sum, a) => sum + a.amount, 0);
   const remaining = Math.max(0, payment.amount - allocated);
@@ -190,7 +194,7 @@ export default async function PaymentDetailPage({ params }: { params: Promise<{ 
         </div>
       </Card>
 
-      {remaining > 0 ? (
+      {remaining > 0 && canAllocate ? (
         <Card>
           <div className="mb-3 text-sm font-semibold">Allocate</div>
           {allocateEntries.length ? (

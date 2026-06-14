@@ -13,7 +13,7 @@ namespace ISS.Api.Controllers.Procurement;
 
 [ApiController]
 [Route("api/procurement/supplier-returns")]
-[Authorize(Roles = $"{Roles.Admin},{Roles.Procurement},{Roles.Inventory}")]
+[Authorize]
 public sealed class SupplierReturnsController(
     IIssDbContext dbContext,
     ProcurementService procurementService,

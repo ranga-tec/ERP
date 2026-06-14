@@ -4,12 +4,16 @@ import { CreditNoteCreateForm } from "../credit-notes/CreditNoteCreateForm";
 import { CreditNoteListTable, type CreditNoteListDto } from "../credit-notes/CreditNoteListTable";
 
 type CustomerDto = { id: string; code: string; name: string };
+type CurrentPermissionsDto = { permissions: string[] };
 
 export default async function ArCreditNotesPage() {
-  const [notes, customers] = await Promise.all([
+  const [notes, customers, currentPermissions] = await Promise.all([
     backendFetchJson<CreditNoteListDto[]>("/finance/credit-notes?counterpartyType=1"),
     backendFetchJson<CustomerDto[]>("/customers"),
+    backendFetchJson<CurrentPermissionsDto>("/me/permissions"),
   ]);
+
+  const canCreate = new Set(currentPermissions.permissions).has("Finance.CreditNote.Create");
 
   return (
     <div className="space-y-6">
@@ -20,15 +24,17 @@ export default async function ArCreditNotesPage() {
         </p>
       </div>
 
-      <Card>
-        <div className="mb-3 text-sm font-semibold">Create A/R Credit Note</div>
-        <CreditNoteCreateForm
-          customers={customers}
-          suppliers={[]}
-          fixedCounterpartyType="1"
-          submitLabel="Create A/R Credit Note"
-        />
-      </Card>
+      {canCreate ? (
+        <Card>
+          <div className="mb-3 text-sm font-semibold">Create A/R Credit Note</div>
+          <CreditNoteCreateForm
+            customers={customers}
+            suppliers={[]}
+            fixedCounterpartyType="1"
+            submitLabel="Create A/R Credit Note"
+          />
+        </Card>
+      ) : null}
 
       <Card>
         <div className="mb-3 text-sm font-semibold">A/R Credit Notes</div>

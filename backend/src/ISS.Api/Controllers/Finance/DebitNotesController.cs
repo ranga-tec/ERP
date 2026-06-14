@@ -12,7 +12,7 @@ namespace ISS.Api.Controllers.Finance;
 
 [ApiController]
 [Route("api/finance/debit-notes")]
-[Authorize(Roles = $"{Roles.Admin},{Roles.Finance}")]
+[Authorize]
 public sealed class DebitNotesController(
     IIssDbContext dbContext,
     FinanceService financeService,

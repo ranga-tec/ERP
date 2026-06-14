@@ -13,7 +13,7 @@ namespace ISS.Api.Controllers.Service;
 
 [ApiController]
 [Route("api/service/expense-claims")]
-[Authorize(Roles = $"{Roles.Admin},{Roles.Service},{Roles.Finance}")]
+[Authorize]
 public sealed class ServiceExpenseClaimsController(
     IIssDbContext dbContext,
     ServiceManagementService serviceManagementService,

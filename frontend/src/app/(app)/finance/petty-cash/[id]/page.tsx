@@ -6,6 +6,7 @@ import { PettyCashFundEditForm } from "../PettyCashFundEditForm";
 import { PettyCashFundTransactionForms } from "../PettyCashFundTransactionForms";
 
 type CurrencyDto = { code: string; name: string; isBase: boolean; isActive: boolean };
+type CurrentPermissionsDto = { permissions: string[] };
 type PettyCashFundDto = {
   id: string;
   code: string;
@@ -46,10 +47,16 @@ const directionLabel: Record<number, string> = {
 export default async function PettyCashFundDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
 
-  const [fund, currencies] = await Promise.all([
+  const [fund, currencies, currentPermissions] = await Promise.all([
     backendFetchJson<PettyCashFundDto>(`/finance/petty-cash-funds/${id}`),
     backendFetchJson<CurrencyDto[]>("/currencies"),
+    backendFetchJson<CurrentPermissionsDto>("/me/permissions"),
   ]);
+
+  const permissions = new Set(currentPermissions.permissions);
+  const canEdit = permissions.has("Finance.PettyCashFund.Edit");
+  const canTopUp = permissions.has("Finance.PettyCashFund.TopUp");
+  const canAdjust = permissions.has("Finance.PettyCashFund.Adjust");
 
   const movementRows = [
     {
@@ -116,15 +123,19 @@ export default async function PettyCashFundDetailPage({ params }: { params: Prom
         </Card>
       </div>
 
-      <Card>
-        <div className="mb-3 text-sm font-semibold">Fund Details</div>
-        <PettyCashFundEditForm fund={fund} currencies={currencies} />
-      </Card>
+      {canEdit ? (
+        <Card>
+          <div className="mb-3 text-sm font-semibold">Fund Details</div>
+          <PettyCashFundEditForm fund={fund} currencies={currencies} />
+        </Card>
+      ) : null}
 
-      <Card>
-        <div className="mb-3 text-sm font-semibold">Transactions</div>
-        <PettyCashFundTransactionForms fundId={fund.id} />
-      </Card>
+      {canTopUp || canAdjust ? (
+        <Card>
+          <div className="mb-3 text-sm font-semibold">Transactions</div>
+          <PettyCashFundTransactionForms fundId={fund.id} canTopUp={canTopUp} canAdjust={canAdjust} />
+        </Card>
+      ) : null}
 
       <Card>
         <div className="mb-3 text-sm font-semibold">Cash Movement Breakdown</div>

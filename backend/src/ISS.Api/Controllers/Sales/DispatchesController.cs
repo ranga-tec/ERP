@@ -14,7 +14,7 @@ namespace ISS.Api.Controllers.Sales;
 
 [ApiController]
 [Route("api/sales/dispatches")]
-[Authorize(Roles = $"{Roles.Admin},{Roles.Sales},{Roles.Inventory},{Roles.Finance}")]
+[Authorize]
 public sealed class DispatchesController(
     IIssDbContext dbContext,
     SalesService salesService,

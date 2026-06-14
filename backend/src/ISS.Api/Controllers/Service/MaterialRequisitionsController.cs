@@ -13,7 +13,7 @@ namespace ISS.Api.Controllers.Service;
 
 [ApiController]
 [Route("api/service/material-requisitions")]
-[Authorize(Roles = $"{Roles.Admin},{Roles.Service},{Roles.Inventory}")]
+[Authorize]
 public sealed class MaterialRequisitionsController(
     IIssDbContext dbContext,
     ServiceManagementService serviceManagementService,

@@ -25,19 +25,23 @@ type CustomerDto = { id: string; code: string; name: string };
 type SupplierDto = { id: string; code: string; name: string };
 type PaymentTypeDto = { id: string; code: string; name: string; isActive: boolean };
 type CurrencyDto = { id: string; code: string; name: string; isBase: boolean; isActive: boolean };
+type CurrentPermissionsDto = { permissions: string[] };
 
 const directionLabel: Record<number, string> = { 1: "Incoming", 2: "Outgoing" };
 const counterpartyLabel: Record<number, string> = { 1: "Customer", 2: "Supplier" };
 
 export default async function PaymentsPage() {
-  const [payments, customers, suppliers, paymentTypes, currencies] = await Promise.all([
+  const [payments, customers, suppliers, paymentTypes, currencies, currentPermissions] = await Promise.all([
     backendFetchJson<PaymentDto[]>("/finance/payments?take=100"),
     backendFetchJson<CustomerDto[]>("/customers"),
     backendFetchJson<SupplierDto[]>("/suppliers"),
     backendFetchJson<PaymentTypeDto[]>("/payment-types"),
     backendFetchJson<CurrencyDto[]>("/currencies"),
+    backendFetchJson<CurrentPermissionsDto>("/me/permissions"),
   ]);
 
+  const permissions = new Set(currentPermissions.permissions);
+  const canCreate = permissions.has("Finance.Payment.Create");
   const customerById = new Map(customers.map((c) => [c.id, c]));
   const supplierById = new Map(suppliers.map((s) => [s.id, s]));
 
@@ -54,15 +58,17 @@ export default async function PaymentsPage() {
         <p className="mt-1 text-sm text-zinc-500">Record incoming/outgoing payments and allocate to AR/AP.</p>
       </div>
 
-      <Card>
-        <div className="mb-3 text-sm font-semibold">Create</div>
-        <PaymentCreateForm
-          customers={customers}
-          suppliers={suppliers}
-          paymentTypes={paymentTypes}
-          currencies={currencies}
-        />
-      </Card>
+      {canCreate ? (
+        <Card>
+          <div className="mb-3 text-sm font-semibold">Create</div>
+          <PaymentCreateForm
+            customers={customers}
+            suppliers={suppliers}
+            paymentTypes={paymentTypes}
+            currencies={currencies}
+          />
+        </Card>
+      ) : null}
 
       <Card>
         <div className="mb-3 text-sm font-semibold">List</div>

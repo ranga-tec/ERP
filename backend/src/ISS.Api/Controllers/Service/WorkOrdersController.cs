@@ -13,7 +13,7 @@ namespace ISS.Api.Controllers.Service;
 
 [ApiController]
 [Route("api/service/work-orders")]
-[Authorize(Roles = $"{Roles.Admin},{Roles.Service}")]
+[Authorize]
 public sealed class WorkOrdersController(
     IIssDbContext dbContext,
     ServiceManagementService serviceManagementService,

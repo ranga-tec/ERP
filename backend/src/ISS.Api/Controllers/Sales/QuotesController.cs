@@ -13,7 +13,7 @@ namespace ISS.Api.Controllers.Sales;
 
 [ApiController]
 [Route("api/sales/quotes")]
-[Authorize(Roles = $"{Roles.Admin},{Roles.Sales}")]
+[Authorize]
 public sealed class QuotesController(
     IIssDbContext dbContext,
     SalesService salesService,

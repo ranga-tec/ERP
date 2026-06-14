@@ -13,7 +13,7 @@ namespace ISS.Api.Controllers.Sales;
 
 [ApiController]
 [Route("api/sales/customer-returns")]
-[Authorize(Roles = $"{Roles.Admin},{Roles.Sales},{Roles.Inventory},{Roles.Finance}")]
+[Authorize]
 public sealed class CustomerReturnsController(
     IIssDbContext dbContext,
     SalesService salesService,

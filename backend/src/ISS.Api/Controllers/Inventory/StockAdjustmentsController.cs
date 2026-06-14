@@ -13,7 +13,7 @@ namespace ISS.Api.Controllers.Inventory;
 
 [ApiController]
 [Route("api/inventory/stock-adjustments")]
-[Authorize(Roles = $"{Roles.Admin},{Roles.Inventory}")]
+[Authorize]
 public sealed class StockAdjustmentsController(
     IIssDbContext dbContext,
     InventoryOperationsService inventoryOperationsService,

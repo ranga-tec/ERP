@@ -5,6 +5,7 @@ import { Card, Table } from "@/components/ui";
 import { PettyCashFundCreateForm } from "./PettyCashFundCreateForm";
 
 type CurrencyDto = { code: string; name: string; isBase: boolean; isActive: boolean };
+type CurrentPermissionsDto = { permissions: string[] };
 type PettyCashFundSummaryDto = {
   id: string;
   code: string;
@@ -18,10 +19,15 @@ type PettyCashFundSummaryDto = {
 };
 
 export default async function PettyCashFundsPage() {
-  const [currencies, funds] = await Promise.all([
+  const [currencies, funds, currentPermissions] = await Promise.all([
     backendFetchJson<CurrencyDto[]>("/currencies"),
     backendFetchJson<PettyCashFundSummaryDto[]>("/finance/petty-cash-funds"),
+    backendFetchJson<CurrentPermissionsDto>("/me/permissions"),
   ]);
+
+  const permissions = new Set(currentPermissions.permissions);
+  const canCreate = permissions.has("Finance.PettyCashFund.Create");
+  const canEdit = permissions.has("Finance.PettyCashFund.Edit");
 
   return (
     <div className="space-y-6">
@@ -32,10 +38,12 @@ export default async function PettyCashFundsPage() {
         </p>
       </div>
 
-      <Card>
-        <div className="mb-3 text-sm font-semibold">Create Fund</div>
-        <PettyCashFundCreateForm currencies={currencies} />
-      </Card>
+      {canCreate ? (
+        <Card>
+          <div className="mb-3 text-sm font-semibold">Create Fund</div>
+          <PettyCashFundCreateForm currencies={currencies} />
+        </Card>
+      ) : null}
 
       <Card>
         <div className="mb-3 text-sm font-semibold">Funds</div>
@@ -72,7 +80,7 @@ export default async function PettyCashFundsPage() {
                   </td>
                   <td className="py-2 pr-3">{fund.isActive ? "Active" : "Inactive"}</td>
                   <td className="py-2 pr-3">
-                    <ListViewEditActions viewHref={`/finance/petty-cash/${fund.id}`} />
+                    <ListViewEditActions viewHref={`/finance/petty-cash/${fund.id}`} canEdit={canEdit} />
                   </td>
                 </tr>
               ))}

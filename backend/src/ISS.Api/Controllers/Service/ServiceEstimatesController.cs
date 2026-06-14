@@ -12,7 +12,7 @@ namespace ISS.Api.Controllers.Service;
 
 [ApiController]
 [Route("api/service/estimates")]
-[Authorize(Roles = $"{Roles.Admin},{Roles.Service},{Roles.Sales}")]
+[Authorize]
 public sealed class ServiceEstimatesController(
     IIssDbContext dbContext,
     ServiceManagementService serviceManagementService,

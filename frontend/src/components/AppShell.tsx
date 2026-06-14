@@ -6,6 +6,7 @@ import { LogoutButton } from "@/components/LogoutButton";
 import { NotificationBell } from "@/components/NotificationBell";
 import { Sidebar } from "@/components/Sidebar";
 import { AssistantPanel } from "@/components/assistant/AssistantPanel";
+import { apiGet } from "@/lib/api-client";
 
 const SIDEBAR_COLLAPSED_STORAGE_KEY = "iss_sidebar_collapsed_v2";
 
@@ -14,6 +15,8 @@ type AppShellProps = {
   email: string;
   roles: string[];
 };
+
+type CurrentUserPermissionsDto = { permissions: string[] };
 
 function readCollapsedPreference(): boolean {
   if (typeof window === "undefined") return false;
@@ -25,6 +28,7 @@ export function AppShell({ children, email, roles }: AppShellProps) {
   const pathname = usePathname();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+  const [permissions, setPermissions] = useState<string[] | null>(null);
 
   useEffect(() => {
     const handle = window.setTimeout(() => {
@@ -32,6 +36,26 @@ export function AppShell({ children, email, roles }: AppShellProps) {
     }, 0);
 
     return () => window.clearTimeout(handle);
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    apiGet<CurrentUserPermissionsDto>("me/permissions")
+      .then((result) => {
+        if (!cancelled) {
+          setPermissions(result.permissions);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setPermissions(null);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   function toggleDesktopSidebar() {
@@ -73,13 +97,14 @@ export function AppShell({ children, email, roles }: AppShellProps) {
         className="fixed inset-y-0 left-0 z-40 w-[17rem] max-w-[86vw] -translate-x-full transition-transform duration-200 lg:hidden data-[open=true]:translate-x-0"
         data-open={mobileSidebarOpen}
       >
-        <Sidebar roles={roles} onNavigate={() => setMobileSidebarOpen(false)} />
+        <Sidebar roles={roles} permissions={permissions} onNavigate={() => setMobileSidebarOpen(false)} />
       </div>
 
       <div className="relative flex h-full min-h-0">
         <div className="hidden h-full lg:block">
           <Sidebar
             roles={roles}
+            permissions={permissions}
             collapsed={sidebarCollapsed}
             onToggleCollapse={toggleDesktopSidebar}
           />

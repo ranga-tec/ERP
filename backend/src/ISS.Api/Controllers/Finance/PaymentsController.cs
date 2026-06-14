@@ -13,7 +13,7 @@ namespace ISS.Api.Controllers.Finance;
 
 [ApiController]
 [Route("api/finance/payments")]
-[Authorize(Roles = $"{Roles.Admin},{Roles.Finance}")]
+[Authorize]
 public sealed class PaymentsController(
     IIssDbContext dbContext,
     FinanceService financeService,

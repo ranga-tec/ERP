@@ -33,6 +33,7 @@ type CreditNoteDetailDto = {
 
 type CustomerDto = { id: string; code: string; name: string };
 type SupplierDto = { id: string; code: string; name: string };
+type CurrentPermissionsDto = { permissions: string[] };
 
 type ArDto = {
   id: string;
@@ -61,13 +62,16 @@ const counterpartyLabel: Record<number, string> = { 1: "Customer", 2: "Supplier"
 export default async function CreditNoteDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
 
-  const [detail, customers, suppliers] = await Promise.all([
+  const [detail, customers, suppliers, currentPermissions] = await Promise.all([
     backendFetchJson<CreditNoteDetailDto>(`/finance/credit-notes/${id}`),
     backendFetchJson<CustomerDto[]>("/customers"),
     backendFetchJson<SupplierDto[]>("/suppliers"),
+    backendFetchJson<CurrentPermissionsDto>("/me/permissions"),
   ]);
 
   const note = detail.creditNote;
+  const permissions = new Set(currentPermissions.permissions);
+  const canAllocate = permissions.has("Finance.CreditNote.Allocate");
   const customerById = new Map(customers.map((customer) => [customer.id, customer]));
   const supplierById = new Map(suppliers.map((supplier) => [supplier.id, supplier]));
 
@@ -139,7 +143,9 @@ export default async function CreditNoteDetailPage({ params }: { params: Promise
             Download PDF
           </SecondaryLink>
         </div>
-        <CreditNoteActions creditNoteId={note.id} allocateMode={allocateMode} entries={filteredEntries} />
+        {canAllocate ? (
+          <CreditNoteActions creditNoteId={note.id} allocateMode={allocateMode} entries={filteredEntries} />
+        ) : null}
       </Card>
 
       <Card>

@@ -14,7 +14,7 @@ namespace ISS.Api.Controllers.Service;
 
 [ApiController]
 [Route("api/service/jobs")]
-[Authorize(Roles = $"{Roles.Admin},{Roles.Service},{Roles.Sales},{Roles.Inventory}")]
+[Authorize]
 public sealed class ServiceJobsController(
     IIssDbContext dbContext,
     ServiceManagementService serviceManagementService,
