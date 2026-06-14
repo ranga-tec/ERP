@@ -40,6 +40,14 @@ public static class AppPermissions
     public const string ServiceEstimateReject = "Service.Estimate.Reject";
     public const string ServiceEstimateSend = "Service.Estimate.Send";
     public const string ServiceEstimateRevise = "Service.Estimate.Revise";
+    public const string ProcurementPurchaseRequisitionView = "Procurement.PurchaseRequisition.View";
+    public const string ProcurementPurchaseRequisitionCreate = "Procurement.PurchaseRequisition.Create";
+    public const string ProcurementPurchaseRequisitionEdit = "Procurement.PurchaseRequisition.Edit";
+    public const string ProcurementPurchaseRequisitionSubmit = "Procurement.PurchaseRequisition.Submit";
+    public const string ProcurementPurchaseRequisitionApprove = "Procurement.PurchaseRequisition.Approve";
+    public const string ProcurementPurchaseRequisitionReject = "Procurement.PurchaseRequisition.Reject";
+    public const string ProcurementPurchaseRequisitionCancel = "Procurement.PurchaseRequisition.Cancel";
+    public const string ProcurementPurchaseRequisitionConvert = "Procurement.PurchaseRequisition.Convert";
 
     public static readonly AppPermissionDefinition[] All =
     [
@@ -78,7 +86,15 @@ public static class AppPermissions
         new(ServiceEstimateApprove, "Service / Estimates", "Approve", "Approve estimates", "Approve draft service estimates."),
         new(ServiceEstimateReject, "Service / Estimates", "Reject", "Reject estimates", "Reject draft service estimates."),
         new(ServiceEstimateSend, "Service / Estimates", "Send", "Send estimates", "Send service estimates to customers."),
-        new(ServiceEstimateRevise, "Service / Estimates", "Revise", "Revise estimates", "Create revisions from existing service estimates.")
+        new(ServiceEstimateRevise, "Service / Estimates", "Revise", "Revise estimates", "Create revisions from existing service estimates."),
+        new(ProcurementPurchaseRequisitionView, "Procurement / Purchase Requisitions", "View", "View PRs", "Open and review purchase requisitions."),
+        new(ProcurementPurchaseRequisitionCreate, "Procurement / Purchase Requisitions", "Create", "Create PRs", "Create purchase requisitions."),
+        new(ProcurementPurchaseRequisitionEdit, "Procurement / Purchase Requisitions", "Edit", "Edit PRs", "Add, update, or remove draft purchase requisition lines."),
+        new(ProcurementPurchaseRequisitionSubmit, "Procurement / Purchase Requisitions", "Submit", "Submit PRs", "Submit purchase requisitions for approval."),
+        new(ProcurementPurchaseRequisitionApprove, "Procurement / Purchase Requisitions", "Approve", "Approve PRs", "Approve submitted purchase requisitions."),
+        new(ProcurementPurchaseRequisitionReject, "Procurement / Purchase Requisitions", "Reject", "Reject PRs", "Reject submitted purchase requisitions."),
+        new(ProcurementPurchaseRequisitionCancel, "Procurement / Purchase Requisitions", "Cancel", "Cancel PRs", "Cancel draft or submitted purchase requisitions."),
+        new(ProcurementPurchaseRequisitionConvert, "Procurement / Purchase Requisitions", "Convert", "Convert to PO", "Convert approved purchase requisitions to purchase orders.")
     ];
 
     public static readonly string[] AllKeys = All.Select(x => x.Key).ToArray();

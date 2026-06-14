@@ -188,6 +188,18 @@ public sealed class AccessControlService(
             yield return AppPermissions.ServiceMaterialRequisitionVoid;
         }
 
+        if (roleSet.Contains(Roles.Procurement))
+        {
+            yield return AppPermissions.ProcurementPurchaseRequisitionView;
+            yield return AppPermissions.ProcurementPurchaseRequisitionCreate;
+            yield return AppPermissions.ProcurementPurchaseRequisitionEdit;
+            yield return AppPermissions.ProcurementPurchaseRequisitionSubmit;
+            yield return AppPermissions.ProcurementPurchaseRequisitionApprove;
+            yield return AppPermissions.ProcurementPurchaseRequisitionReject;
+            yield return AppPermissions.ProcurementPurchaseRequisitionCancel;
+            yield return AppPermissions.ProcurementPurchaseRequisitionConvert;
+        }
+
         if (roleSet.Contains(Roles.Service))
         {
             yield return AppPermissions.PettyCashIouView;

@@ -11,6 +11,7 @@ public static class ReferenceTypes
     public const string WorkOrder = "WO";
     public const string WorkOrderTimeEntry = "WOTE";
     public const string GoodsReceipt = "GRN";
+    public const string PurchaseRequisition = "PR";
     public const string SupplierInvoice = "SINV";
     public const string SupplierReturn = "SR";
     public const string DispatchNote = "DN";
