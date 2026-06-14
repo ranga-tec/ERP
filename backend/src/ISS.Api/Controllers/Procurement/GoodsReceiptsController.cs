@@ -1,5 +1,7 @@
+using System.Security.Claims;
 using ISS.Api.Security;
 using ISS.Application.Abstractions;
+using ISS.Application.Common;
 using ISS.Application.Persistence;
 using ISS.Application.Services;
 using ISS.Domain.Procurement;
@@ -12,7 +14,12 @@ namespace ISS.Api.Controllers.Procurement;
 [ApiController]
 [Route("api/procurement/goods-receipts")]
 [Authorize(Roles = $"{Roles.Admin},{Roles.Procurement},{Roles.Inventory}")]
-public sealed class GoodsReceiptsController(IIssDbContext dbContext, ProcurementService procurementService, IDocumentPdfService pdfService) : ControllerBase
+public sealed class GoodsReceiptsController(
+    IIssDbContext dbContext,
+    ProcurementService procurementService,
+    IDocumentPdfService pdfService,
+    AccessControlService accessControl,
+    NotificationService notificationService) : ControllerBase
 {
     public sealed record GoodsReceiptSummaryDto(Guid Id, string Number, Guid PurchaseOrderId, Guid WarehouseId, DateTimeOffset ReceivedAt, GoodsReceiptStatus Status);
     public sealed record GoodsReceiptDto(Guid Id, string Number, Guid PurchaseOrderId, Guid WarehouseId, DateTimeOffset ReceivedAt, GoodsReceiptStatus Status, IReadOnlyList<GoodsReceiptLineDto> Lines);
@@ -40,6 +47,11 @@ public sealed class GoodsReceiptsController(IIssDbContext dbContext, Procurement
     [HttpGet]
     public async Task<ActionResult<IReadOnlyList<GoodsReceiptSummaryDto>>> List([FromQuery] int skip = 0, [FromQuery] int take = 100, CancellationToken cancellationToken = default)
     {
+        if (!await HasPermissionAsync(AppPermissions.ProcurementGoodsReceiptView, cancellationToken))
+        {
+            return Forbid();
+        }
+
         skip = Math.Max(0, skip);
         take = Math.Clamp(take, 1, 500);
 
@@ -56,6 +68,11 @@ public sealed class GoodsReceiptsController(IIssDbContext dbContext, Procurement
     [HttpPost]
     public async Task<ActionResult<GoodsReceiptDto>> Create(CreateGoodsReceiptRequest request, CancellationToken cancellationToken)
     {
+        if (!await HasPermissionAsync(AppPermissions.ProcurementGoodsReceiptCreate, cancellationToken))
+        {
+            return Forbid();
+        }
+
         var id = await procurementService.CreateGoodsReceiptAsync(request.PurchaseOrderId, request.WarehouseId, cancellationToken);
         return await Get(id, cancellationToken);
     }
@@ -63,6 +80,11 @@ public sealed class GoodsReceiptsController(IIssDbContext dbContext, Procurement
     [HttpGet("{id:guid}")]
     public async Task<ActionResult<GoodsReceiptDto>> Get(Guid id, CancellationToken cancellationToken)
     {
+        if (!await HasPermissionAsync(AppPermissions.ProcurementGoodsReceiptView, cancellationToken))
+        {
+            return Forbid();
+        }
+
         var grn = await dbContext.GoodsReceipts.AsNoTracking()
             .Include(x => x.Lines)
             .ThenInclude(l => l.Serials)
@@ -94,6 +116,11 @@ public sealed class GoodsReceiptsController(IIssDbContext dbContext, Procurement
     [HttpGet("{id:guid}/receipt-plan")]
     public async Task<ActionResult<GoodsReceiptReceiptPlanDto>> ReceiptPlan(Guid id, CancellationToken cancellationToken)
     {
+        if (!await HasPermissionAsync(AppPermissions.ProcurementGoodsReceiptView, cancellationToken))
+        {
+            return Forbid();
+        }
+
         var plan = await BuildReceiptPlanAsync(id, cancellationToken);
         return plan is null ? NotFound() : Ok(plan);
     }
@@ -101,6 +128,11 @@ public sealed class GoodsReceiptsController(IIssDbContext dbContext, Procurement
     [HttpGet("{id:guid}/pdf")]
     public async Task<ActionResult> Pdf(Guid id, CancellationToken cancellationToken)
     {
+        if (!await HasPermissionAsync(AppPermissions.ProcurementGoodsReceiptView, cancellationToken))
+        {
+            return Forbid();
+        }
+
         var doc = await pdfService.RenderAsync(PdfDocumentType.GoodsReceipt, id, cancellationToken);
         return File(doc.Content, doc.ContentType, doc.FileName);
     }
@@ -108,6 +140,11 @@ public sealed class GoodsReceiptsController(IIssDbContext dbContext, Procurement
     [HttpPost("{id:guid}/lines")]
     public async Task<ActionResult> AddLine(Guid id, AddGoodsReceiptLineRequest request, CancellationToken cancellationToken)
     {
+        if (!await HasPermissionAsync(AppPermissions.ProcurementGoodsReceiptEdit, cancellationToken))
+        {
+            return Forbid();
+        }
+
         await procurementService.AddGoodsReceiptLineAsync(
             id,
             request.ItemId,
@@ -123,6 +160,11 @@ public sealed class GoodsReceiptsController(IIssDbContext dbContext, Procurement
     [HttpPut("{id:guid}/lines/{lineId:guid}")]
     public async Task<ActionResult> UpdateLine(Guid id, Guid lineId, UpdateGoodsReceiptLineRequest request, CancellationToken cancellationToken)
     {
+        if (!await HasPermissionAsync(AppPermissions.ProcurementGoodsReceiptEdit, cancellationToken))
+        {
+            return Forbid();
+        }
+
         await procurementService.UpdateGoodsReceiptLineAsync(id, lineId, request.Quantity, request.UnitCost, request.BatchNumber, request.Serials, cancellationToken);
         return NoContent();
     }
@@ -130,6 +172,11 @@ public sealed class GoodsReceiptsController(IIssDbContext dbContext, Procurement
     [HttpDelete("{id:guid}/lines/{lineId:guid}")]
     public async Task<ActionResult> DeleteLine(Guid id, Guid lineId, CancellationToken cancellationToken)
     {
+        if (!await HasPermissionAsync(AppPermissions.ProcurementGoodsReceiptEdit, cancellationToken))
+        {
+            return Forbid();
+        }
+
         await procurementService.RemoveGoodsReceiptLineAsync(id, lineId, cancellationToken);
         return NoContent();
     }
@@ -140,6 +187,11 @@ public sealed class GoodsReceiptsController(IIssDbContext dbContext, Procurement
         UpdateGoodsReceiptReceiptPlanRequest request,
         CancellationToken cancellationToken)
     {
+        if (!await HasPermissionAsync(AppPermissions.ProcurementGoodsReceiptEdit, cancellationToken))
+        {
+            return Forbid();
+        }
+
         await procurementService.ReplaceGoodsReceiptReceiptPlanAsync(
             id,
             request.Lines.Select(x => new ProcurementService.GoodsReceiptReceiptPlanLineInput(
@@ -157,8 +209,44 @@ public sealed class GoodsReceiptsController(IIssDbContext dbContext, Procurement
     [HttpPost("{id:guid}/post")]
     public async Task<ActionResult> Post(Guid id, CancellationToken cancellationToken)
     {
+        if (!await HasPermissionAsync(AppPermissions.ProcurementGoodsReceiptPost, cancellationToken))
+        {
+            return Forbid();
+        }
+
         await procurementService.PostGoodsReceiptAsync(id, cancellationToken);
+        await NotifyGoodsReceiptCreatorAsync(id, "Goods receipt posted", "Your goods receipt has been posted.", cancellationToken);
         return NoContent();
+    }
+
+    private async Task<bool> HasPermissionAsync(string permissionKey, CancellationToken cancellationToken)
+    {
+        var userIdValue = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        return Guid.TryParse(userIdValue, out var userId)
+               && await accessControl.HasPermissionAsync(userId, permissionKey, cancellationToken);
+    }
+
+    private async Task NotifyGoodsReceiptCreatorAsync(Guid id, string title, string message, CancellationToken cancellationToken)
+    {
+        var grn = await dbContext.GoodsReceipts.AsNoTracking()
+            .Where(x => x.Id == id)
+            .Select(x => new { x.Id, x.Number, x.CreatedBy })
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (grn is null || grn.CreatedBy is null || grn.CreatedBy == Guid.Empty)
+        {
+            return;
+        }
+
+        notificationService.EnqueueInApp(
+            grn.CreatedBy.Value,
+            title,
+            $"{grn.Number}: {message}",
+            $"/procurement/goods-receipts/{grn.Id}",
+            ReferenceTypes.GoodsReceipt,
+            grn.Id);
+
+        await dbContext.SaveChangesAsync(cancellationToken);
     }
 
     private async Task<GoodsReceiptReceiptPlanDto?> BuildReceiptPlanAsync(Guid goodsReceiptId, CancellationToken cancellationToken)

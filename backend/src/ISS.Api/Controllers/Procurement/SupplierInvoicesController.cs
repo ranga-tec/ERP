@@ -1,5 +1,7 @@
+using System.Security.Claims;
 using ISS.Api.Security;
 using ISS.Application.Abstractions;
+using ISS.Application.Common;
 using ISS.Application.Persistence;
 using ISS.Application.Services;
 using ISS.Domain.Procurement;
@@ -15,7 +17,9 @@ namespace ISS.Api.Controllers.Procurement;
 public sealed class SupplierInvoicesController(
     IIssDbContext dbContext,
     ProcurementService procurementService,
-    IDocumentPdfService pdfService) : ControllerBase
+    IDocumentPdfService pdfService,
+    AccessControlService accessControl,
+    NotificationService notificationService) : ControllerBase
 {
     public sealed record SupplierInvoiceDto(
         Guid Id,
@@ -74,6 +78,11 @@ public sealed class SupplierInvoicesController(
         [FromQuery] int take = 100,
         CancellationToken cancellationToken = default)
     {
+        if (!await HasPermissionAsync(AppPermissions.ProcurementSupplierInvoiceView, cancellationToken))
+        {
+            return Forbid();
+        }
+
         skip = Math.Max(0, skip);
         take = Math.Clamp(take, 1, 500);
 
@@ -110,6 +119,11 @@ public sealed class SupplierInvoicesController(
     [HttpPost]
     public async Task<ActionResult<SupplierInvoiceDto>> Create(CreateSupplierInvoiceRequest request, CancellationToken cancellationToken)
     {
+        if (!await HasPermissionAsync(AppPermissions.ProcurementSupplierInvoiceCreate, cancellationToken))
+        {
+            return Forbid();
+        }
+
         var id = await procurementService.CreateSupplierInvoiceAsync(
             request.SupplierId,
             request.InvoiceNumber,
@@ -132,6 +146,11 @@ public sealed class SupplierInvoicesController(
     [HttpPut("{id:guid}")]
     public async Task<ActionResult<SupplierInvoiceDto>> Update(Guid id, UpdateSupplierInvoiceRequest request, CancellationToken cancellationToken)
     {
+        if (!await HasPermissionAsync(AppPermissions.ProcurementSupplierInvoiceEdit, cancellationToken))
+        {
+            return Forbid();
+        }
+
         await procurementService.UpdateSupplierInvoiceAsync(
             id,
             request.SupplierId,
@@ -155,6 +174,11 @@ public sealed class SupplierInvoicesController(
     [HttpGet("{id:guid}")]
     public async Task<ActionResult<SupplierInvoiceDto>> Get(Guid id, CancellationToken cancellationToken)
     {
+        if (!await HasPermissionAsync(AppPermissions.ProcurementSupplierInvoiceView, cancellationToken))
+        {
+            return Forbid();
+        }
+
         var invoice = await dbContext.SupplierInvoices.AsNoTracking()
             .Where(x => x.Id == id)
             .Select(x => new SupplierInvoiceDto(
@@ -185,6 +209,11 @@ public sealed class SupplierInvoicesController(
     [HttpGet("{id:guid}/pdf")]
     public async Task<ActionResult> Pdf(Guid id, CancellationToken cancellationToken)
     {
+        if (!await HasPermissionAsync(AppPermissions.ProcurementSupplierInvoiceView, cancellationToken))
+        {
+            return Forbid();
+        }
+
         var doc = await pdfService.RenderAsync(PdfDocumentType.SupplierInvoice, id, cancellationToken);
         return File(doc.Content, doc.ContentType, doc.FileName);
     }
@@ -192,7 +221,43 @@ public sealed class SupplierInvoicesController(
     [HttpPost("{id:guid}/post")]
     public async Task<ActionResult> Post(Guid id, CancellationToken cancellationToken)
     {
+        if (!await HasPermissionAsync(AppPermissions.ProcurementSupplierInvoicePost, cancellationToken))
+        {
+            return Forbid();
+        }
+
         await procurementService.PostSupplierInvoiceAsync(id, cancellationToken);
+        await NotifySupplierInvoiceCreatorAsync(id, "Supplier invoice posted", "Your supplier invoice has been posted.", cancellationToken);
         return NoContent();
+    }
+
+    private async Task<bool> HasPermissionAsync(string permissionKey, CancellationToken cancellationToken)
+    {
+        var userIdValue = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        return Guid.TryParse(userIdValue, out var userId)
+               && await accessControl.HasPermissionAsync(userId, permissionKey, cancellationToken);
+    }
+
+    private async Task NotifySupplierInvoiceCreatorAsync(Guid id, string title, string message, CancellationToken cancellationToken)
+    {
+        var invoice = await dbContext.SupplierInvoices.AsNoTracking()
+            .Where(x => x.Id == id)
+            .Select(x => new { x.Id, x.Number, x.CreatedBy })
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (invoice is null || invoice.CreatedBy is null || invoice.CreatedBy == Guid.Empty)
+        {
+            return;
+        }
+
+        notificationService.EnqueueInApp(
+            invoice.CreatedBy.Value,
+            title,
+            $"{invoice.Number}: {message}",
+            $"/procurement/supplier-invoices/{invoice.Id}",
+            ReferenceTypes.SupplierInvoice,
+            invoice.Id);
+
+        await dbContext.SaveChangesAsync(cancellationToken);
     }
 }

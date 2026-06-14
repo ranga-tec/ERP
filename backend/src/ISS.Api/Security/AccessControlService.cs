@@ -186,6 +186,18 @@ public sealed class AccessControlService(
             yield return AppPermissions.ServiceMaterialRequisitionEdit;
             yield return AppPermissions.ServiceMaterialRequisitionPost;
             yield return AppPermissions.ServiceMaterialRequisitionVoid;
+            yield return AppPermissions.ProcurementGoodsReceiptView;
+            yield return AppPermissions.ProcurementGoodsReceiptCreate;
+            yield return AppPermissions.ProcurementGoodsReceiptEdit;
+            yield return AppPermissions.ProcurementGoodsReceiptPost;
+            yield return AppPermissions.ProcurementDirectPurchaseView;
+            yield return AppPermissions.ProcurementDirectPurchaseCreate;
+            yield return AppPermissions.ProcurementDirectPurchaseEdit;
+            yield return AppPermissions.ProcurementDirectPurchasePost;
+            yield return AppPermissions.ProcurementSupplierReturnView;
+            yield return AppPermissions.ProcurementSupplierReturnCreate;
+            yield return AppPermissions.ProcurementSupplierReturnEdit;
+            yield return AppPermissions.ProcurementSupplierReturnPost;
             yield return AppPermissions.InventoryStockAdjustmentView;
             yield return AppPermissions.InventoryStockAdjustmentCreate;
             yield return AppPermissions.InventoryStockAdjustmentEdit;
@@ -208,6 +220,42 @@ public sealed class AccessControlService(
             yield return AppPermissions.ProcurementPurchaseRequisitionReject;
             yield return AppPermissions.ProcurementPurchaseRequisitionCancel;
             yield return AppPermissions.ProcurementPurchaseRequisitionConvert;
+            yield return AppPermissions.ProcurementRfqView;
+            yield return AppPermissions.ProcurementRfqCreate;
+            yield return AppPermissions.ProcurementRfqEdit;
+            yield return AppPermissions.ProcurementRfqSend;
+            yield return AppPermissions.ProcurementPurchaseOrderView;
+            yield return AppPermissions.ProcurementPurchaseOrderCreate;
+            yield return AppPermissions.ProcurementPurchaseOrderEdit;
+            yield return AppPermissions.ProcurementPurchaseOrderApprove;
+            yield return AppPermissions.ProcurementGoodsReceiptView;
+            yield return AppPermissions.ProcurementGoodsReceiptCreate;
+            yield return AppPermissions.ProcurementGoodsReceiptEdit;
+            yield return AppPermissions.ProcurementGoodsReceiptPost;
+            yield return AppPermissions.ProcurementDirectPurchaseView;
+            yield return AppPermissions.ProcurementDirectPurchaseCreate;
+            yield return AppPermissions.ProcurementDirectPurchaseEdit;
+            yield return AppPermissions.ProcurementDirectPurchasePost;
+            yield return AppPermissions.ProcurementSupplierInvoiceView;
+            yield return AppPermissions.ProcurementSupplierInvoiceCreate;
+            yield return AppPermissions.ProcurementSupplierInvoiceEdit;
+            yield return AppPermissions.ProcurementSupplierInvoicePost;
+            yield return AppPermissions.ProcurementSupplierReturnView;
+            yield return AppPermissions.ProcurementSupplierReturnCreate;
+            yield return AppPermissions.ProcurementSupplierReturnEdit;
+            yield return AppPermissions.ProcurementSupplierReturnPost;
+        }
+
+        if (roleSet.Contains(Roles.Finance))
+        {
+            yield return AppPermissions.ProcurementDirectPurchaseView;
+            yield return AppPermissions.ProcurementDirectPurchaseCreate;
+            yield return AppPermissions.ProcurementDirectPurchaseEdit;
+            yield return AppPermissions.ProcurementDirectPurchasePost;
+            yield return AppPermissions.ProcurementSupplierInvoiceView;
+            yield return AppPermissions.ProcurementSupplierInvoiceCreate;
+            yield return AppPermissions.ProcurementSupplierInvoiceEdit;
+            yield return AppPermissions.ProcurementSupplierInvoicePost;
         }
 
         if (roleSet.Contains(Roles.Service))

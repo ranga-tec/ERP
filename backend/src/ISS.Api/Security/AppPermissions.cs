@@ -58,6 +58,30 @@ public static class AppPermissions
     public const string InventoryStockTransferEdit = "Inventory.StockTransfer.Edit";
     public const string InventoryStockTransferPost = "Inventory.StockTransfer.Post";
     public const string InventoryStockTransferVoid = "Inventory.StockTransfer.Void";
+    public const string ProcurementRfqView = "Procurement.Rfq.View";
+    public const string ProcurementRfqCreate = "Procurement.Rfq.Create";
+    public const string ProcurementRfqEdit = "Procurement.Rfq.Edit";
+    public const string ProcurementRfqSend = "Procurement.Rfq.Send";
+    public const string ProcurementPurchaseOrderView = "Procurement.PurchaseOrder.View";
+    public const string ProcurementPurchaseOrderCreate = "Procurement.PurchaseOrder.Create";
+    public const string ProcurementPurchaseOrderEdit = "Procurement.PurchaseOrder.Edit";
+    public const string ProcurementPurchaseOrderApprove = "Procurement.PurchaseOrder.Approve";
+    public const string ProcurementGoodsReceiptView = "Procurement.GoodsReceipt.View";
+    public const string ProcurementGoodsReceiptCreate = "Procurement.GoodsReceipt.Create";
+    public const string ProcurementGoodsReceiptEdit = "Procurement.GoodsReceipt.Edit";
+    public const string ProcurementGoodsReceiptPost = "Procurement.GoodsReceipt.Post";
+    public const string ProcurementDirectPurchaseView = "Procurement.DirectPurchase.View";
+    public const string ProcurementDirectPurchaseCreate = "Procurement.DirectPurchase.Create";
+    public const string ProcurementDirectPurchaseEdit = "Procurement.DirectPurchase.Edit";
+    public const string ProcurementDirectPurchasePost = "Procurement.DirectPurchase.Post";
+    public const string ProcurementSupplierInvoiceView = "Procurement.SupplierInvoice.View";
+    public const string ProcurementSupplierInvoiceCreate = "Procurement.SupplierInvoice.Create";
+    public const string ProcurementSupplierInvoiceEdit = "Procurement.SupplierInvoice.Edit";
+    public const string ProcurementSupplierInvoicePost = "Procurement.SupplierInvoice.Post";
+    public const string ProcurementSupplierReturnView = "Procurement.SupplierReturn.View";
+    public const string ProcurementSupplierReturnCreate = "Procurement.SupplierReturn.Create";
+    public const string ProcurementSupplierReturnEdit = "Procurement.SupplierReturn.Edit";
+    public const string ProcurementSupplierReturnPost = "Procurement.SupplierReturn.Post";
 
     public static readonly AppPermissionDefinition[] All =
     [
@@ -114,7 +138,31 @@ public static class AppPermissions
         new(InventoryStockTransferCreate, "Inventory / Stock Transfers", "Create", "Create transfers", "Create stock transfers."),
         new(InventoryStockTransferEdit, "Inventory / Stock Transfers", "Edit", "Edit transfers", "Add, update, or remove draft stock transfer lines."),
         new(InventoryStockTransferPost, "Inventory / Stock Transfers", "Post", "Post transfers", "Post stock transfers to inventory."),
-        new(InventoryStockTransferVoid, "Inventory / Stock Transfers", "Void", "Void transfers", "Void draft stock transfers.")
+        new(InventoryStockTransferVoid, "Inventory / Stock Transfers", "Void", "Void transfers", "Void draft stock transfers."),
+        new(ProcurementRfqView, "Procurement / RFQs", "View", "View RFQs", "Open and review requests for quotation."),
+        new(ProcurementRfqCreate, "Procurement / RFQs", "Create", "Create RFQs", "Create requests for quotation."),
+        new(ProcurementRfqEdit, "Procurement / RFQs", "Edit", "Edit RFQs", "Add, update, or remove draft RFQ lines."),
+        new(ProcurementRfqSend, "Procurement / RFQs", "Send", "Send RFQs", "Mark RFQs as sent to suppliers."),
+        new(ProcurementPurchaseOrderView, "Procurement / Purchase Orders", "View", "View POs", "Open and review purchase orders."),
+        new(ProcurementPurchaseOrderCreate, "Procurement / Purchase Orders", "Create", "Create POs", "Create purchase orders."),
+        new(ProcurementPurchaseOrderEdit, "Procurement / Purchase Orders", "Edit", "Edit POs", "Add, update, or remove draft purchase order lines."),
+        new(ProcurementPurchaseOrderApprove, "Procurement / Purchase Orders", "Approve", "Approve POs", "Approve draft purchase orders."),
+        new(ProcurementGoodsReceiptView, "Procurement / Goods Receipts", "View", "View GRNs", "Open and review goods receipts."),
+        new(ProcurementGoodsReceiptCreate, "Procurement / Goods Receipts", "Create", "Create GRNs", "Create goods receipts."),
+        new(ProcurementGoodsReceiptEdit, "Procurement / Goods Receipts", "Edit", "Edit GRNs", "Add, update, or remove draft goods receipt lines."),
+        new(ProcurementGoodsReceiptPost, "Procurement / Goods Receipts", "Post", "Post GRNs", "Post goods receipts to inventory and payables."),
+        new(ProcurementDirectPurchaseView, "Procurement / Direct Purchases", "View", "View direct purchases", "Open and review direct purchases."),
+        new(ProcurementDirectPurchaseCreate, "Procurement / Direct Purchases", "Create", "Create direct purchases", "Create direct purchases."),
+        new(ProcurementDirectPurchaseEdit, "Procurement / Direct Purchases", "Edit", "Edit direct purchases", "Add, update, or remove draft direct purchase lines."),
+        new(ProcurementDirectPurchasePost, "Procurement / Direct Purchases", "Post", "Post direct purchases", "Post direct purchases to inventory and payables."),
+        new(ProcurementSupplierInvoiceView, "Procurement / Supplier Invoices", "View", "View supplier invoices", "Open and review supplier invoices."),
+        new(ProcurementSupplierInvoiceCreate, "Procurement / Supplier Invoices", "Create", "Create supplier invoices", "Create supplier invoices."),
+        new(ProcurementSupplierInvoiceEdit, "Procurement / Supplier Invoices", "Edit", "Edit supplier invoices", "Update draft supplier invoices."),
+        new(ProcurementSupplierInvoicePost, "Procurement / Supplier Invoices", "Post", "Post supplier invoices", "Post supplier invoices to accounts payable."),
+        new(ProcurementSupplierReturnView, "Procurement / Supplier Returns", "View", "View supplier returns", "Open and review supplier returns."),
+        new(ProcurementSupplierReturnCreate, "Procurement / Supplier Returns", "Create", "Create supplier returns", "Create supplier returns."),
+        new(ProcurementSupplierReturnEdit, "Procurement / Supplier Returns", "Edit", "Edit supplier returns", "Add, update, or remove draft supplier return lines."),
+        new(ProcurementSupplierReturnPost, "Procurement / Supplier Returns", "Post", "Post supplier returns", "Post supplier returns to inventory and credit notes.")
     ];
 
     public static readonly string[] AllKeys = All.Select(x => x.Key).ToArray();

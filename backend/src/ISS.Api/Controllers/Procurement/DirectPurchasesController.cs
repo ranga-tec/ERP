@@ -1,5 +1,7 @@
+using System.Security.Claims;
 using ISS.Api.Security;
 using ISS.Application.Abstractions;
+using ISS.Application.Common;
 using ISS.Application.Persistence;
 using ISS.Application.Services;
 using ISS.Domain.Procurement;
@@ -15,7 +17,9 @@ namespace ISS.Api.Controllers.Procurement;
 public sealed class DirectPurchasesController(
     IIssDbContext dbContext,
     ProcurementService procurementService,
-    IDocumentPdfService pdfService) : ControllerBase
+    IDocumentPdfService pdfService,
+    AccessControlService accessControl,
+    NotificationService notificationService) : ControllerBase
 {
     public sealed record DirectPurchaseSummaryDto(
         Guid Id,
@@ -69,6 +73,11 @@ public sealed class DirectPurchasesController(
         [FromQuery] int take = 100,
         CancellationToken cancellationToken = default)
     {
+        if (!await HasPermissionAsync(AppPermissions.ProcurementDirectPurchaseView, cancellationToken))
+        {
+            return Forbid();
+        }
+
         skip = Math.Max(0, skip);
         take = Math.Clamp(take, 1, 500);
 
@@ -96,6 +105,11 @@ public sealed class DirectPurchasesController(
     [HttpPost]
     public async Task<ActionResult<DirectPurchaseDto>> Create(CreateDirectPurchaseRequest request, CancellationToken cancellationToken)
     {
+        if (!await HasPermissionAsync(AppPermissions.ProcurementDirectPurchaseCreate, cancellationToken))
+        {
+            return Forbid();
+        }
+
         var id = await procurementService.CreateDirectPurchaseAsync(
             request.SupplierId,
             request.WarehouseId,
@@ -110,6 +124,11 @@ public sealed class DirectPurchasesController(
     [HttpGet("{id:guid}")]
     public async Task<ActionResult<DirectPurchaseDto>> Get(Guid id, CancellationToken cancellationToken)
     {
+        if (!await HasPermissionAsync(AppPermissions.ProcurementDirectPurchaseView, cancellationToken))
+        {
+            return Forbid();
+        }
+
         var dp = await dbContext.DirectPurchases.AsNoTracking()
             .Include(x => x.Lines)
             .ThenInclude(l => l.ExpenseAccount)
@@ -155,6 +174,11 @@ public sealed class DirectPurchasesController(
     [HttpGet("{id:guid}/pdf")]
     public async Task<ActionResult> Pdf(Guid id, CancellationToken cancellationToken)
     {
+        if (!await HasPermissionAsync(AppPermissions.ProcurementDirectPurchaseView, cancellationToken))
+        {
+            return Forbid();
+        }
+
         var doc = await pdfService.RenderAsync(PdfDocumentType.DirectPurchase, id, cancellationToken);
         return File(doc.Content, doc.ContentType, doc.FileName);
     }
@@ -162,6 +186,11 @@ public sealed class DirectPurchasesController(
     [HttpPost("{id:guid}/lines")]
     public async Task<ActionResult> AddLine(Guid id, AddDirectPurchaseLineRequest request, CancellationToken cancellationToken)
     {
+        if (!await HasPermissionAsync(AppPermissions.ProcurementDirectPurchaseEdit, cancellationToken))
+        {
+            return Forbid();
+        }
+
         await procurementService.AddDirectPurchaseLineAsync(
             id,
             request.ItemId,
@@ -178,6 +207,11 @@ public sealed class DirectPurchasesController(
     [HttpPut("{id:guid}/lines/{lineId:guid}")]
     public async Task<ActionResult> UpdateLine(Guid id, Guid lineId, UpdateDirectPurchaseLineRequest request, CancellationToken cancellationToken)
     {
+        if (!await HasPermissionAsync(AppPermissions.ProcurementDirectPurchaseEdit, cancellationToken))
+        {
+            return Forbid();
+        }
+
         await procurementService.UpdateDirectPurchaseLineAsync(
             id,
             lineId,
@@ -193,6 +227,11 @@ public sealed class DirectPurchasesController(
     [HttpDelete("{id:guid}/lines/{lineId:guid}")]
     public async Task<ActionResult> RemoveLine(Guid id, Guid lineId, CancellationToken cancellationToken)
     {
+        if (!await HasPermissionAsync(AppPermissions.ProcurementDirectPurchaseEdit, cancellationToken))
+        {
+            return Forbid();
+        }
+
         await procurementService.RemoveDirectPurchaseLineAsync(id, lineId, cancellationToken);
         return NoContent();
     }
@@ -200,7 +239,43 @@ public sealed class DirectPurchasesController(
     [HttpPost("{id:guid}/post")]
     public async Task<ActionResult> Post(Guid id, CancellationToken cancellationToken)
     {
+        if (!await HasPermissionAsync(AppPermissions.ProcurementDirectPurchasePost, cancellationToken))
+        {
+            return Forbid();
+        }
+
         await procurementService.PostDirectPurchaseAsync(id, cancellationToken);
+        await NotifyDirectPurchaseCreatorAsync(id, "Direct purchase posted", "Your direct purchase has been posted.", cancellationToken);
         return NoContent();
+    }
+
+    private async Task<bool> HasPermissionAsync(string permissionKey, CancellationToken cancellationToken)
+    {
+        var userIdValue = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        return Guid.TryParse(userIdValue, out var userId)
+               && await accessControl.HasPermissionAsync(userId, permissionKey, cancellationToken);
+    }
+
+    private async Task NotifyDirectPurchaseCreatorAsync(Guid id, string title, string message, CancellationToken cancellationToken)
+    {
+        var dp = await dbContext.DirectPurchases.AsNoTracking()
+            .Where(x => x.Id == id)
+            .Select(x => new { x.Id, x.Number, x.CreatedBy })
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (dp is null || dp.CreatedBy is null || dp.CreatedBy == Guid.Empty)
+        {
+            return;
+        }
+
+        notificationService.EnqueueInApp(
+            dp.CreatedBy.Value,
+            title,
+            $"{dp.Number}: {message}",
+            $"/procurement/direct-purchases/{dp.Id}",
+            ReferenceTypes.DirectPurchase,
+            dp.Id);
+
+        await dbContext.SaveChangesAsync(cancellationToken);
     }
 }
