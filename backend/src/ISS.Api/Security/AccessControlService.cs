@@ -208,6 +208,20 @@ public sealed class AccessControlService(
             yield return AppPermissions.InventoryStockTransferEdit;
             yield return AppPermissions.InventoryStockTransferPost;
             yield return AppPermissions.InventoryStockTransferVoid;
+            yield return AppPermissions.SalesOrderView;
+            yield return AppPermissions.SalesDispatchView;
+            yield return AppPermissions.SalesDispatchCreate;
+            yield return AppPermissions.SalesDispatchEdit;
+            yield return AppPermissions.SalesDispatchPost;
+            yield return AppPermissions.SalesDirectDispatchView;
+            yield return AppPermissions.SalesDirectDispatchCreate;
+            yield return AppPermissions.SalesDirectDispatchEdit;
+            yield return AppPermissions.SalesDirectDispatchPost;
+            yield return AppPermissions.SalesInvoiceView;
+            yield return AppPermissions.SalesCustomerReturnView;
+            yield return AppPermissions.SalesCustomerReturnCreate;
+            yield return AppPermissions.SalesCustomerReturnEdit;
+            yield return AppPermissions.SalesCustomerReturnPost;
         }
 
         if (roleSet.Contains(Roles.Procurement))
@@ -256,6 +270,16 @@ public sealed class AccessControlService(
             yield return AppPermissions.ProcurementSupplierInvoiceCreate;
             yield return AppPermissions.ProcurementSupplierInvoiceEdit;
             yield return AppPermissions.ProcurementSupplierInvoicePost;
+            yield return AppPermissions.SalesOrderView;
+            yield return AppPermissions.SalesDispatchView;
+            yield return AppPermissions.SalesInvoiceView;
+            yield return AppPermissions.SalesInvoiceCreate;
+            yield return AppPermissions.SalesInvoiceEdit;
+            yield return AppPermissions.SalesInvoicePost;
+            yield return AppPermissions.SalesCustomerReturnView;
+            yield return AppPermissions.SalesCustomerReturnCreate;
+            yield return AppPermissions.SalesCustomerReturnEdit;
+            yield return AppPermissions.SalesCustomerReturnPost;
         }
 
         if (roleSet.Contains(Roles.Service))
@@ -287,6 +311,10 @@ public sealed class AccessControlService(
             yield return AppPermissions.ServiceEstimateReject;
             yield return AppPermissions.ServiceEstimateSend;
             yield return AppPermissions.ServiceEstimateRevise;
+            yield return AppPermissions.SalesDirectDispatchView;
+            yield return AppPermissions.SalesDirectDispatchCreate;
+            yield return AppPermissions.SalesDirectDispatchEdit;
+            yield return AppPermissions.SalesDirectDispatchPost;
         }
 
         if (roleSet.Contains(Roles.Sales))
@@ -298,6 +326,30 @@ public sealed class AccessControlService(
             yield return AppPermissions.ServiceEstimateReject;
             yield return AppPermissions.ServiceEstimateSend;
             yield return AppPermissions.ServiceEstimateRevise;
+            yield return AppPermissions.SalesQuoteView;
+            yield return AppPermissions.SalesQuoteCreate;
+            yield return AppPermissions.SalesQuoteEdit;
+            yield return AppPermissions.SalesQuoteSend;
+            yield return AppPermissions.SalesOrderView;
+            yield return AppPermissions.SalesOrderCreate;
+            yield return AppPermissions.SalesOrderEdit;
+            yield return AppPermissions.SalesOrderConfirm;
+            yield return AppPermissions.SalesDispatchView;
+            yield return AppPermissions.SalesDispatchCreate;
+            yield return AppPermissions.SalesDispatchEdit;
+            yield return AppPermissions.SalesDispatchPost;
+            yield return AppPermissions.SalesDirectDispatchView;
+            yield return AppPermissions.SalesDirectDispatchCreate;
+            yield return AppPermissions.SalesDirectDispatchEdit;
+            yield return AppPermissions.SalesDirectDispatchPost;
+            yield return AppPermissions.SalesInvoiceView;
+            yield return AppPermissions.SalesInvoiceCreate;
+            yield return AppPermissions.SalesInvoiceEdit;
+            yield return AppPermissions.SalesInvoicePost;
+            yield return AppPermissions.SalesCustomerReturnView;
+            yield return AppPermissions.SalesCustomerReturnCreate;
+            yield return AppPermissions.SalesCustomerReturnEdit;
+            yield return AppPermissions.SalesCustomerReturnPost;
         }
     }
 }

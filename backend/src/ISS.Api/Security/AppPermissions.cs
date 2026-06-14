@@ -82,6 +82,30 @@ public static class AppPermissions
     public const string ProcurementSupplierReturnCreate = "Procurement.SupplierReturn.Create";
     public const string ProcurementSupplierReturnEdit = "Procurement.SupplierReturn.Edit";
     public const string ProcurementSupplierReturnPost = "Procurement.SupplierReturn.Post";
+    public const string SalesQuoteView = "Sales.Quote.View";
+    public const string SalesQuoteCreate = "Sales.Quote.Create";
+    public const string SalesQuoteEdit = "Sales.Quote.Edit";
+    public const string SalesQuoteSend = "Sales.Quote.Send";
+    public const string SalesOrderView = "Sales.Order.View";
+    public const string SalesOrderCreate = "Sales.Order.Create";
+    public const string SalesOrderEdit = "Sales.Order.Edit";
+    public const string SalesOrderConfirm = "Sales.Order.Confirm";
+    public const string SalesDispatchView = "Sales.Dispatch.View";
+    public const string SalesDispatchCreate = "Sales.Dispatch.Create";
+    public const string SalesDispatchEdit = "Sales.Dispatch.Edit";
+    public const string SalesDispatchPost = "Sales.Dispatch.Post";
+    public const string SalesDirectDispatchView = "Sales.DirectDispatch.View";
+    public const string SalesDirectDispatchCreate = "Sales.DirectDispatch.Create";
+    public const string SalesDirectDispatchEdit = "Sales.DirectDispatch.Edit";
+    public const string SalesDirectDispatchPost = "Sales.DirectDispatch.Post";
+    public const string SalesInvoiceView = "Sales.Invoice.View";
+    public const string SalesInvoiceCreate = "Sales.Invoice.Create";
+    public const string SalesInvoiceEdit = "Sales.Invoice.Edit";
+    public const string SalesInvoicePost = "Sales.Invoice.Post";
+    public const string SalesCustomerReturnView = "Sales.CustomerReturn.View";
+    public const string SalesCustomerReturnCreate = "Sales.CustomerReturn.Create";
+    public const string SalesCustomerReturnEdit = "Sales.CustomerReturn.Edit";
+    public const string SalesCustomerReturnPost = "Sales.CustomerReturn.Post";
 
     public static readonly AppPermissionDefinition[] All =
     [
@@ -162,7 +186,31 @@ public static class AppPermissions
         new(ProcurementSupplierReturnView, "Procurement / Supplier Returns", "View", "View supplier returns", "Open and review supplier returns."),
         new(ProcurementSupplierReturnCreate, "Procurement / Supplier Returns", "Create", "Create supplier returns", "Create supplier returns."),
         new(ProcurementSupplierReturnEdit, "Procurement / Supplier Returns", "Edit", "Edit supplier returns", "Add, update, or remove draft supplier return lines."),
-        new(ProcurementSupplierReturnPost, "Procurement / Supplier Returns", "Post", "Post supplier returns", "Post supplier returns to inventory and credit notes.")
+        new(ProcurementSupplierReturnPost, "Procurement / Supplier Returns", "Post", "Post supplier returns", "Post supplier returns to inventory and credit notes."),
+        new(SalesQuoteView, "Sales / Quotes", "View", "View quotes", "Open and review sales quotes."),
+        new(SalesQuoteCreate, "Sales / Quotes", "Create", "Create quotes", "Create sales quotes."),
+        new(SalesQuoteEdit, "Sales / Quotes", "Edit", "Edit quotes", "Add, update, or remove draft quote lines."),
+        new(SalesQuoteSend, "Sales / Quotes", "Send", "Send quotes", "Mark sales quotes as sent."),
+        new(SalesOrderView, "Sales / Orders", "View", "View orders", "Open and review sales orders."),
+        new(SalesOrderCreate, "Sales / Orders", "Create", "Create orders", "Create sales orders."),
+        new(SalesOrderEdit, "Sales / Orders", "Edit", "Edit orders", "Add, update, or remove draft order lines."),
+        new(SalesOrderConfirm, "Sales / Orders", "Confirm", "Confirm orders", "Confirm sales orders."),
+        new(SalesDispatchView, "Sales / Dispatches", "View", "View dispatches", "Open and review dispatch notes."),
+        new(SalesDispatchCreate, "Sales / Dispatches", "Create", "Create dispatches", "Create dispatch notes."),
+        new(SalesDispatchEdit, "Sales / Dispatches", "Edit", "Edit dispatches", "Add, update, or remove draft dispatch lines."),
+        new(SalesDispatchPost, "Sales / Dispatches", "Post", "Post dispatches", "Post dispatches to inventory."),
+        new(SalesDirectDispatchView, "Sales / Direct Dispatches", "View", "View direct dispatches", "Open and review direct dispatches."),
+        new(SalesDirectDispatchCreate, "Sales / Direct Dispatches", "Create", "Create direct dispatches", "Create direct dispatches."),
+        new(SalesDirectDispatchEdit, "Sales / Direct Dispatches", "Edit", "Edit direct dispatches", "Add, update, or remove draft direct dispatch lines."),
+        new(SalesDirectDispatchPost, "Sales / Direct Dispatches", "Post", "Post direct dispatches", "Post direct dispatches to inventory."),
+        new(SalesInvoiceView, "Sales / Invoices", "View", "View invoices", "Open and review sales invoices."),
+        new(SalesInvoiceCreate, "Sales / Invoices", "Create", "Create invoices", "Create sales invoices."),
+        new(SalesInvoiceEdit, "Sales / Invoices", "Edit", "Edit invoices", "Add, update, or remove draft invoice lines."),
+        new(SalesInvoicePost, "Sales / Invoices", "Post", "Post invoices", "Post sales invoices to accounts receivable."),
+        new(SalesCustomerReturnView, "Sales / Customer Returns", "View", "View returns", "Open and review customer returns."),
+        new(SalesCustomerReturnCreate, "Sales / Customer Returns", "Create", "Create returns", "Create customer returns."),
+        new(SalesCustomerReturnEdit, "Sales / Customer Returns", "Edit", "Edit returns", "Add, update, or remove draft customer return lines."),
+        new(SalesCustomerReturnPost, "Sales / Customer Returns", "Post", "Post returns", "Post customer returns to inventory and credit notes.")
     ];
 
     public static readonly string[] AllKeys = All.Select(x => x.Key).ToArray();

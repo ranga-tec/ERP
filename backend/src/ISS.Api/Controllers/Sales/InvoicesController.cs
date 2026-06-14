@@ -1,5 +1,7 @@
+using System.Security.Claims;
 using ISS.Api.Security;
 using ISS.Application.Abstractions;
+using ISS.Application.Common;
 using ISS.Application.Persistence;
 using ISS.Application.Services;
 using ISS.Domain.Sales;
@@ -12,7 +14,12 @@ namespace ISS.Api.Controllers.Sales;
 [ApiController]
 [Route("api/sales/invoices")]
 [Authorize(Roles = $"{Roles.Admin},{Roles.Sales},{Roles.Finance},{Roles.Inventory}")]
-public sealed class InvoicesController(IIssDbContext dbContext, SalesService salesService, IDocumentPdfService pdfService) : ControllerBase
+public sealed class InvoicesController(
+    IIssDbContext dbContext,
+    SalesService salesService,
+    IDocumentPdfService pdfService,
+    AccessControlService accessControl,
+    NotificationService notificationService) : ControllerBase
 {
     public sealed record InvoiceSummaryDto(Guid Id, string Number, Guid CustomerId, DateTimeOffset InvoiceDate, DateTimeOffset? DueDate, SalesInvoiceStatus Status, decimal Total);
     public sealed record InvoiceDto(
@@ -49,6 +56,11 @@ public sealed class InvoicesController(IIssDbContext dbContext, SalesService sal
     [HttpGet]
     public async Task<ActionResult<IReadOnlyList<InvoiceSummaryDto>>> List([FromQuery] int skip = 0, [FromQuery] int take = 100, CancellationToken cancellationToken = default)
     {
+        if (!await HasPermissionAsync(AppPermissions.SalesInvoiceView, cancellationToken))
+        {
+            return Forbid();
+        }
+
         skip = Math.Max(0, skip);
         take = Math.Clamp(take, 1, 500);
 
@@ -112,25 +124,37 @@ public sealed class InvoicesController(IIssDbContext dbContext, SalesService sal
     }
 
     [HttpPost]
-    [Authorize(Roles = $"{Roles.Admin},{Roles.Sales},{Roles.Finance}")]
     public async Task<ActionResult<InvoiceDto>> Create(CreateInvoiceRequest request, CancellationToken cancellationToken)
     {
+        if (!await HasPermissionAsync(AppPermissions.SalesInvoiceCreate, cancellationToken))
+        {
+            return Forbid();
+        }
+
         var id = await salesService.CreateInvoiceAsync(request.CustomerId, request.DueDate, cancellationToken);
         return await Get(id, cancellationToken);
     }
 
     [HttpPost("from-dispatch")]
-    [Authorize(Roles = $"{Roles.Admin},{Roles.Sales},{Roles.Finance}")]
     public async Task<ActionResult<InvoiceDto>> CreateFromDispatch(CreateInvoiceFromDispatchRequest request, CancellationToken cancellationToken)
     {
+        if (!await HasPermissionAsync(AppPermissions.SalesInvoiceCreate, cancellationToken))
+        {
+            return Forbid();
+        }
+
         var id = await salesService.CreateInvoiceFromDispatchAsync(request.DispatchId, request.DueDate, cancellationToken);
         return await Get(id, cancellationToken);
     }
 
     [HttpPost("from-direct-dispatch")]
-    [Authorize(Roles = $"{Roles.Admin},{Roles.Sales},{Roles.Finance}")]
     public async Task<ActionResult<InvoiceDto>> CreateFromDirectDispatch(CreateInvoiceFromDirectDispatchRequest request, CancellationToken cancellationToken)
     {
+        if (!await HasPermissionAsync(AppPermissions.SalesInvoiceCreate, cancellationToken))
+        {
+            return Forbid();
+        }
+
         var id = await salesService.CreateInvoiceFromDirectDispatchAsync(request.DirectDispatchId, request.DueDate, cancellationToken);
         return await Get(id, cancellationToken);
     }
@@ -138,6 +162,11 @@ public sealed class InvoicesController(IIssDbContext dbContext, SalesService sal
     [HttpGet("{id:guid}")]
     public async Task<ActionResult<InvoiceDto>> Get(Guid id, CancellationToken cancellationToken)
     {
+        if (!await HasPermissionAsync(AppPermissions.SalesInvoiceView, cancellationToken))
+        {
+            return Forbid();
+        }
+
         var invoice = await dbContext.SalesInvoices.AsNoTracking()
             .Include(x => x.Lines)
             .ThenInclude(x => x.RevenueAccount)
@@ -188,22 +217,35 @@ public sealed class InvoicesController(IIssDbContext dbContext, SalesService sal
     [HttpGet("{id:guid}/pdf")]
     public async Task<ActionResult> Pdf(Guid id, CancellationToken cancellationToken)
     {
+        if (!await HasPermissionAsync(AppPermissions.SalesInvoiceView, cancellationToken))
+        {
+            return Forbid();
+        }
+
         var doc = await pdfService.RenderAsync(PdfDocumentType.SalesInvoice, id, cancellationToken);
         return File(doc.Content, doc.ContentType, doc.FileName);
     }
 
     [HttpPost("{id:guid}/lines")]
-    [Authorize(Roles = $"{Roles.Admin},{Roles.Sales},{Roles.Finance}")]
     public async Task<ActionResult> AddLine(Guid id, AddInvoiceLineRequest request, CancellationToken cancellationToken)
     {
+        if (!await HasPermissionAsync(AppPermissions.SalesInvoiceEdit, cancellationToken))
+        {
+            return Forbid();
+        }
+
         await salesService.AddInvoiceLineAsync(id, request.ItemId, request.Quantity, request.UnitPrice, request.DiscountPercent, request.TaxPercent, cancellationToken);
         return NoContent();
     }
 
     [HttpPut("{id:guid}/lines/{lineId:guid}")]
-    [Authorize(Roles = $"{Roles.Admin},{Roles.Sales},{Roles.Finance}")]
     public async Task<ActionResult> UpdateLine(Guid id, Guid lineId, UpdateInvoiceLineRequest request, CancellationToken cancellationToken)
     {
+        if (!await HasPermissionAsync(AppPermissions.SalesInvoiceEdit, cancellationToken))
+        {
+            return Forbid();
+        }
+
         await salesService.UpdateInvoiceLineAsync(
             id,
             lineId,
@@ -216,18 +258,57 @@ public sealed class InvoicesController(IIssDbContext dbContext, SalesService sal
     }
 
     [HttpDelete("{id:guid}/lines/{lineId:guid}")]
-    [Authorize(Roles = $"{Roles.Admin},{Roles.Sales},{Roles.Finance}")]
     public async Task<ActionResult> RemoveLine(Guid id, Guid lineId, CancellationToken cancellationToken)
     {
+        if (!await HasPermissionAsync(AppPermissions.SalesInvoiceEdit, cancellationToken))
+        {
+            return Forbid();
+        }
+
         await salesService.RemoveInvoiceLineAsync(id, lineId, cancellationToken);
         return NoContent();
     }
 
     [HttpPost("{id:guid}/post")]
-    [Authorize(Roles = $"{Roles.Admin},{Roles.Sales},{Roles.Finance}")]
     public async Task<ActionResult> Post(Guid id, CancellationToken cancellationToken)
     {
+        if (!await HasPermissionAsync(AppPermissions.SalesInvoicePost, cancellationToken))
+        {
+            return Forbid();
+        }
+
         await salesService.PostInvoiceAsync(id, cancellationToken);
+        await NotifyInvoiceCreatorAsync(id, "Sales invoice posted", "Your sales invoice has been posted.", cancellationToken);
         return NoContent();
+    }
+
+    private async Task<bool> HasPermissionAsync(string permissionKey, CancellationToken cancellationToken)
+    {
+        var userIdValue = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        return Guid.TryParse(userIdValue, out var userId)
+               && await accessControl.HasPermissionAsync(userId, permissionKey, cancellationToken);
+    }
+
+    private async Task NotifyInvoiceCreatorAsync(Guid id, string title, string message, CancellationToken cancellationToken)
+    {
+        var invoice = await dbContext.SalesInvoices.AsNoTracking()
+            .Where(x => x.Id == id)
+            .Select(x => new { x.Id, x.Number, x.CreatedBy })
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (invoice is null || invoice.CreatedBy is null || invoice.CreatedBy == Guid.Empty)
+        {
+            return;
+        }
+
+        notificationService.EnqueueInApp(
+            invoice.CreatedBy.Value,
+            title,
+            $"{invoice.Number}: {message}",
+            $"/sales/invoices/{invoice.Id}",
+            ReferenceTypes.SalesInvoice,
+            invoice.Id);
+
+        await dbContext.SaveChangesAsync(cancellationToken);
     }
 }

@@ -1,5 +1,7 @@
+using System.Security.Claims;
 using ISS.Api.Security;
 using ISS.Application.Abstractions;
+using ISS.Application.Common;
 using ISS.Application.Persistence;
 using ISS.Application.Services;
 using ISS.Domain.Sales;
@@ -15,7 +17,9 @@ namespace ISS.Api.Controllers.Sales;
 public sealed class CustomerReturnsController(
     IIssDbContext dbContext,
     SalesService salesService,
-    IDocumentPdfService pdfService) : ControllerBase
+    IDocumentPdfService pdfService,
+    AccessControlService accessControl,
+    NotificationService notificationService) : ControllerBase
 {
     public sealed record CustomerReturnSummaryDto(
         Guid Id,
@@ -48,6 +52,11 @@ public sealed class CustomerReturnsController(
     [HttpGet]
     public async Task<ActionResult<IReadOnlyList<CustomerReturnSummaryDto>>> List([FromQuery] int skip = 0, [FromQuery] int take = 100, CancellationToken cancellationToken = default)
     {
+        if (!await HasPermissionAsync(AppPermissions.SalesCustomerReturnView, cancellationToken))
+        {
+            return Forbid();
+        }
+
         skip = Math.Max(0, skip);
         take = Math.Clamp(take, 1, 500);
 
@@ -73,6 +82,11 @@ public sealed class CustomerReturnsController(
     [HttpPost]
     public async Task<ActionResult<CustomerReturnDto>> Create(CreateCustomerReturnRequest request, CancellationToken cancellationToken)
     {
+        if (!await HasPermissionAsync(AppPermissions.SalesCustomerReturnCreate, cancellationToken))
+        {
+            return Forbid();
+        }
+
         var id = await salesService.CreateCustomerReturnAsync(
             request.CustomerId,
             request.WarehouseId,
@@ -86,6 +100,11 @@ public sealed class CustomerReturnsController(
     [HttpGet("{id:guid}")]
     public async Task<ActionResult<CustomerReturnDto>> Get(Guid id, CancellationToken cancellationToken)
     {
+        if (!await HasPermissionAsync(AppPermissions.SalesCustomerReturnView, cancellationToken))
+        {
+            return Forbid();
+        }
+
         var cr = await dbContext.CustomerReturns.AsNoTracking()
             .Include(x => x.Lines)
             .ThenInclude(l => l.Serials)
@@ -112,6 +131,11 @@ public sealed class CustomerReturnsController(
     [HttpGet("{id:guid}/pdf")]
     public async Task<ActionResult> Pdf(Guid id, CancellationToken cancellationToken)
     {
+        if (!await HasPermissionAsync(AppPermissions.SalesCustomerReturnView, cancellationToken))
+        {
+            return Forbid();
+        }
+
         var doc = await pdfService.RenderAsync(PdfDocumentType.CustomerReturn, id, cancellationToken);
         return File(doc.Content, doc.ContentType, doc.FileName);
     }
@@ -119,6 +143,11 @@ public sealed class CustomerReturnsController(
     [HttpPost("{id:guid}/lines")]
     public async Task<ActionResult> AddLine(Guid id, AddCustomerReturnLineRequest request, CancellationToken cancellationToken)
     {
+        if (!await HasPermissionAsync(AppPermissions.SalesCustomerReturnEdit, cancellationToken))
+        {
+            return Forbid();
+        }
+
         await salesService.AddCustomerReturnLineAsync(id, request.ItemId, request.Quantity, request.UnitPrice, request.BatchNumber, request.Serials, cancellationToken);
         return NoContent();
     }
@@ -126,6 +155,11 @@ public sealed class CustomerReturnsController(
     [HttpPut("{id:guid}/lines/{lineId:guid}")]
     public async Task<ActionResult> UpdateLine(Guid id, Guid lineId, UpdateCustomerReturnLineRequest request, CancellationToken cancellationToken)
     {
+        if (!await HasPermissionAsync(AppPermissions.SalesCustomerReturnEdit, cancellationToken))
+        {
+            return Forbid();
+        }
+
         await salesService.UpdateCustomerReturnLineAsync(
             id,
             lineId,
@@ -140,6 +174,11 @@ public sealed class CustomerReturnsController(
     [HttpDelete("{id:guid}/lines/{lineId:guid}")]
     public async Task<ActionResult> RemoveLine(Guid id, Guid lineId, CancellationToken cancellationToken)
     {
+        if (!await HasPermissionAsync(AppPermissions.SalesCustomerReturnEdit, cancellationToken))
+        {
+            return Forbid();
+        }
+
         await salesService.RemoveCustomerReturnLineAsync(id, lineId, cancellationToken);
         return NoContent();
     }
@@ -147,7 +186,43 @@ public sealed class CustomerReturnsController(
     [HttpPost("{id:guid}/post")]
     public async Task<ActionResult> Post(Guid id, CancellationToken cancellationToken)
     {
+        if (!await HasPermissionAsync(AppPermissions.SalesCustomerReturnPost, cancellationToken))
+        {
+            return Forbid();
+        }
+
         await salesService.PostCustomerReturnAsync(id, cancellationToken);
+        await NotifyCustomerReturnCreatorAsync(id, "Customer return posted", "Your customer return has been posted.", cancellationToken);
         return NoContent();
+    }
+
+    private async Task<bool> HasPermissionAsync(string permissionKey, CancellationToken cancellationToken)
+    {
+        var userIdValue = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        return Guid.TryParse(userIdValue, out var userId)
+               && await accessControl.HasPermissionAsync(userId, permissionKey, cancellationToken);
+    }
+
+    private async Task NotifyCustomerReturnCreatorAsync(Guid id, string title, string message, CancellationToken cancellationToken)
+    {
+        var customerReturn = await dbContext.CustomerReturns.AsNoTracking()
+            .Where(x => x.Id == id)
+            .Select(x => new { x.Id, x.Number, x.CreatedBy })
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (customerReturn is null || customerReturn.CreatedBy is null || customerReturn.CreatedBy == Guid.Empty)
+        {
+            return;
+        }
+
+        notificationService.EnqueueInApp(
+            customerReturn.CreatedBy.Value,
+            title,
+            $"{customerReturn.Number}: {message}",
+            $"/sales/customer-returns/{customerReturn.Id}",
+            ReferenceTypes.CustomerReturn,
+            customerReturn.Id);
+
+        await dbContext.SaveChangesAsync(cancellationToken);
     }
 }

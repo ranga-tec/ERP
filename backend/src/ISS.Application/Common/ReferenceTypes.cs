@@ -17,6 +17,8 @@ public static class ReferenceTypes
     public const string SupplierInvoice = "SINV";
     public const string SupplierReturn = "SR";
     public const string DispatchNote = "DN";
+    public const string SalesQuote = "SQ";
+    public const string SalesOrder = "SO";
     public const string SalesInvoice = "INV";
     public const string MaterialRequisition = "MR";
     public const string ServiceJobMaterialDisposition = "SJMD";

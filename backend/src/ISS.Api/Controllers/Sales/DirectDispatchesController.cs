@@ -1,5 +1,7 @@
+using System.Security.Claims;
 using ISS.Api.Security;
 using ISS.Application.Abstractions;
+using ISS.Application.Common;
 using ISS.Application.Persistence;
 using ISS.Application.Services;
 using ISS.Domain.Sales;
@@ -16,7 +18,9 @@ namespace ISS.Api.Controllers.Sales;
 public sealed class DirectDispatchesController(
     IIssDbContext dbContext,
     SalesService salesService,
-    IDocumentPdfService pdfService) : ControllerBase
+    IDocumentPdfService pdfService,
+    AccessControlService accessControl,
+    NotificationService notificationService) : ControllerBase
 {
     public sealed record DirectDispatchSummaryDto(
         Guid Id,
@@ -56,6 +60,11 @@ public sealed class DirectDispatchesController(
     [HttpGet]
     public async Task<ActionResult<IReadOnlyList<DirectDispatchSummaryDto>>> List([FromQuery] int skip = 0, [FromQuery] int take = 100, CancellationToken cancellationToken = default)
     {
+        if (!await HasPermissionAsync(AppPermissions.SalesDirectDispatchView, cancellationToken))
+        {
+            return Forbid();
+        }
+
         skip = Math.Max(0, skip);
         take = Math.Clamp(take, 1, 500);
 
@@ -85,6 +94,11 @@ public sealed class DirectDispatchesController(
     [HttpPost]
     public async Task<ActionResult<DirectDispatchDto>> Create(CreateDirectDispatchRequest request, CancellationToken cancellationToken)
     {
+        if (!await HasPermissionAsync(AppPermissions.SalesDirectDispatchCreate, cancellationToken))
+        {
+            return Forbid();
+        }
+
         var id = await salesService.CreateDirectDispatchAsync(
             request.WarehouseId,
             request.CustomerId,
@@ -101,6 +115,11 @@ public sealed class DirectDispatchesController(
     [HttpGet("{id:guid}")]
     public async Task<ActionResult<DirectDispatchDto>> Get(Guid id, CancellationToken cancellationToken)
     {
+        if (!await HasPermissionAsync(AppPermissions.SalesDirectDispatchView, cancellationToken))
+        {
+            return Forbid();
+        }
+
         var dispatch = await dbContext.DirectDispatches.AsNoTracking()
             .Include(x => x.Lines)
             .ThenInclude(l => l.Serials)
@@ -130,6 +149,11 @@ public sealed class DirectDispatchesController(
     [HttpGet("{id:guid}/pdf")]
     public async Task<ActionResult> Pdf(Guid id, CancellationToken cancellationToken)
     {
+        if (!await HasPermissionAsync(AppPermissions.SalesDirectDispatchView, cancellationToken))
+        {
+            return Forbid();
+        }
+
         var doc = await pdfService.RenderAsync(PdfDocumentType.DirectDispatch, id, cancellationToken);
         return File(doc.Content, doc.ContentType, doc.FileName);
     }
@@ -137,6 +161,11 @@ public sealed class DirectDispatchesController(
     [HttpPost("{id:guid}/lines")]
     public async Task<ActionResult> AddLine(Guid id, AddDirectDispatchLineRequest request, CancellationToken cancellationToken)
     {
+        if (!await HasPermissionAsync(AppPermissions.SalesDirectDispatchEdit, cancellationToken))
+        {
+            return Forbid();
+        }
+
         await salesService.AddDirectDispatchLineAsync(id, request.ItemId, request.Quantity, request.BatchNumber, request.Serials, cancellationToken);
         return NoContent();
     }
@@ -144,6 +173,11 @@ public sealed class DirectDispatchesController(
     [HttpPut("{id:guid}/lines/{lineId:guid}")]
     public async Task<ActionResult> UpdateLine(Guid id, Guid lineId, UpdateDirectDispatchLineRequest request, CancellationToken cancellationToken)
     {
+        if (!await HasPermissionAsync(AppPermissions.SalesDirectDispatchEdit, cancellationToken))
+        {
+            return Forbid();
+        }
+
         await salesService.UpdateDirectDispatchLineAsync(id, lineId, request.Quantity, request.BatchNumber, request.Serials, cancellationToken);
         return NoContent();
     }
@@ -151,6 +185,11 @@ public sealed class DirectDispatchesController(
     [HttpDelete("{id:guid}/lines/{lineId:guid}")]
     public async Task<ActionResult> RemoveLine(Guid id, Guid lineId, CancellationToken cancellationToken)
     {
+        if (!await HasPermissionAsync(AppPermissions.SalesDirectDispatchEdit, cancellationToken))
+        {
+            return Forbid();
+        }
+
         await salesService.RemoveDirectDispatchLineAsync(id, lineId, cancellationToken);
         return NoContent();
     }
@@ -158,7 +197,43 @@ public sealed class DirectDispatchesController(
     [HttpPost("{id:guid}/post")]
     public async Task<ActionResult> Post(Guid id, CancellationToken cancellationToken)
     {
+        if (!await HasPermissionAsync(AppPermissions.SalesDirectDispatchPost, cancellationToken))
+        {
+            return Forbid();
+        }
+
         await salesService.PostDirectDispatchAsync(id, cancellationToken);
+        await NotifyDirectDispatchCreatorAsync(id, "Direct dispatch posted", "Your direct dispatch has been posted.", cancellationToken);
         return NoContent();
+    }
+
+    private async Task<bool> HasPermissionAsync(string permissionKey, CancellationToken cancellationToken)
+    {
+        var userIdValue = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        return Guid.TryParse(userIdValue, out var userId)
+               && await accessControl.HasPermissionAsync(userId, permissionKey, cancellationToken);
+    }
+
+    private async Task NotifyDirectDispatchCreatorAsync(Guid id, string title, string message, CancellationToken cancellationToken)
+    {
+        var dispatch = await dbContext.DirectDispatches.AsNoTracking()
+            .Where(x => x.Id == id)
+            .Select(x => new { x.Id, x.Number, x.CreatedBy })
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (dispatch is null || dispatch.CreatedBy is null || dispatch.CreatedBy == Guid.Empty)
+        {
+            return;
+        }
+
+        notificationService.EnqueueInApp(
+            dispatch.CreatedBy.Value,
+            title,
+            $"{dispatch.Number}: {message}",
+            $"/sales/direct-dispatches/{dispatch.Id}",
+            ReferenceTypes.DirectDispatch,
+            dispatch.Id);
+
+        await dbContext.SaveChangesAsync(cancellationToken);
     }
 }
