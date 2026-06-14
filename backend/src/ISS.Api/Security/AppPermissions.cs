@@ -48,6 +48,16 @@ public static class AppPermissions
     public const string ProcurementPurchaseRequisitionReject = "Procurement.PurchaseRequisition.Reject";
     public const string ProcurementPurchaseRequisitionCancel = "Procurement.PurchaseRequisition.Cancel";
     public const string ProcurementPurchaseRequisitionConvert = "Procurement.PurchaseRequisition.Convert";
+    public const string InventoryStockAdjustmentView = "Inventory.StockAdjustment.View";
+    public const string InventoryStockAdjustmentCreate = "Inventory.StockAdjustment.Create";
+    public const string InventoryStockAdjustmentEdit = "Inventory.StockAdjustment.Edit";
+    public const string InventoryStockAdjustmentPost = "Inventory.StockAdjustment.Post";
+    public const string InventoryStockAdjustmentVoid = "Inventory.StockAdjustment.Void";
+    public const string InventoryStockTransferView = "Inventory.StockTransfer.View";
+    public const string InventoryStockTransferCreate = "Inventory.StockTransfer.Create";
+    public const string InventoryStockTransferEdit = "Inventory.StockTransfer.Edit";
+    public const string InventoryStockTransferPost = "Inventory.StockTransfer.Post";
+    public const string InventoryStockTransferVoid = "Inventory.StockTransfer.Void";
 
     public static readonly AppPermissionDefinition[] All =
     [
@@ -94,7 +104,17 @@ public static class AppPermissions
         new(ProcurementPurchaseRequisitionApprove, "Procurement / Purchase Requisitions", "Approve", "Approve PRs", "Approve submitted purchase requisitions."),
         new(ProcurementPurchaseRequisitionReject, "Procurement / Purchase Requisitions", "Reject", "Reject PRs", "Reject submitted purchase requisitions."),
         new(ProcurementPurchaseRequisitionCancel, "Procurement / Purchase Requisitions", "Cancel", "Cancel PRs", "Cancel draft or submitted purchase requisitions."),
-        new(ProcurementPurchaseRequisitionConvert, "Procurement / Purchase Requisitions", "Convert", "Convert to PO", "Convert approved purchase requisitions to purchase orders.")
+        new(ProcurementPurchaseRequisitionConvert, "Procurement / Purchase Requisitions", "Convert", "Convert to PO", "Convert approved purchase requisitions to purchase orders."),
+        new(InventoryStockAdjustmentView, "Inventory / Stock Adjustments", "View", "View adjustments", "Open and review stock adjustments."),
+        new(InventoryStockAdjustmentCreate, "Inventory / Stock Adjustments", "Create", "Create adjustments", "Create stock adjustments."),
+        new(InventoryStockAdjustmentEdit, "Inventory / Stock Adjustments", "Edit", "Edit adjustments", "Add, update, or remove draft stock adjustment lines."),
+        new(InventoryStockAdjustmentPost, "Inventory / Stock Adjustments", "Post", "Post adjustments", "Post stock adjustments to inventory."),
+        new(InventoryStockAdjustmentVoid, "Inventory / Stock Adjustments", "Void", "Void adjustments", "Void draft stock adjustments."),
+        new(InventoryStockTransferView, "Inventory / Stock Transfers", "View", "View transfers", "Open and review stock transfers."),
+        new(InventoryStockTransferCreate, "Inventory / Stock Transfers", "Create", "Create transfers", "Create stock transfers."),
+        new(InventoryStockTransferEdit, "Inventory / Stock Transfers", "Edit", "Edit transfers", "Add, update, or remove draft stock transfer lines."),
+        new(InventoryStockTransferPost, "Inventory / Stock Transfers", "Post", "Post transfers", "Post stock transfers to inventory."),
+        new(InventoryStockTransferVoid, "Inventory / Stock Transfers", "Void", "Void transfers", "Void draft stock transfers.")
     ];
 
     public static readonly string[] AllKeys = All.Select(x => x.Key).ToArray();

@@ -186,6 +186,16 @@ public sealed class AccessControlService(
             yield return AppPermissions.ServiceMaterialRequisitionEdit;
             yield return AppPermissions.ServiceMaterialRequisitionPost;
             yield return AppPermissions.ServiceMaterialRequisitionVoid;
+            yield return AppPermissions.InventoryStockAdjustmentView;
+            yield return AppPermissions.InventoryStockAdjustmentCreate;
+            yield return AppPermissions.InventoryStockAdjustmentEdit;
+            yield return AppPermissions.InventoryStockAdjustmentPost;
+            yield return AppPermissions.InventoryStockAdjustmentVoid;
+            yield return AppPermissions.InventoryStockTransferView;
+            yield return AppPermissions.InventoryStockTransferCreate;
+            yield return AppPermissions.InventoryStockTransferEdit;
+            yield return AppPermissions.InventoryStockTransferPost;
+            yield return AppPermissions.InventoryStockTransferVoid;
         }
 
         if (roleSet.Contains(Roles.Procurement))
