@@ -2,180 +2,307 @@ import type { ReactNode } from "react";
 import Image from "next/image";
 import { Card, Table } from "@/components/ui";
 
-type LinkItem = {
-  href: string;
-  label: string;
-};
-
-type TableRow = {
-  left: string;
-  right: string;
+type LinkItem = { href: string; label: string };
+type Row = { left: string; right: string };
+type FlowStep = {
+  title: string;
+  input: string;
+  output: string;
+  check: string;
 };
 
 const quickLinks: LinkItem[] = [
-  { href: "#service-menu", label: "Service Menu" },
-  { href: "#equipment-units", label: "Equipment Units" },
-  { href: "#command-center", label: "Command Center" },
-  { href: "#job-orders", label: "Job Orders" },
-  { href: "#daily-sheets", label: "Daily Sheets" },
-  { href: "#daily-labour", label: "Daily Labour" },
-  { href: "#work-order-labour", label: "Work Order Labour" },
-  { href: "#materials", label: "Materials" },
-  { href: "#expenses", label: "Expenses" },
-  { href: "#billing", label: "Billing" },
-  { href: "#costs", label: "Costs" },
-  { href: "#flow", label: "End-To-End Flow" },
+  { href: "#start", label: "Start Here" },
+  { href: "#master-data", label: "Master Data" },
+  { href: "#procurement", label: "Procurement" },
+  { href: "#inventory", label: "Inventory" },
+  { href: "#sales", label: "Sales" },
+  { href: "#service", label: "Service" },
+  { href: "#finance", label: "Finance" },
+  { href: "#admin", label: "Access & Notifications" },
+  { href: "#reporting", label: "Reports" },
+  { href: "#checks", label: "Testing Checks" },
 ];
 
-const serviceAreas: TableRow[] = [
+const moduleRows: Row[] = [
+  { left: "Overview", right: "Dashboard, KPIs, queues, and shortcuts." },
+  { left: "Master Data", right: "Items, customers, suppliers, warehouses, taxes, currencies, payment types, and setup records." },
+  { left: "Procurement", right: "Purchase requisitions, RFQs, purchase orders, goods receipts, supplier invoices, and supplier returns." },
+  { left: "Inventory", right: "Stock availability, on-hand checks, reorder alerts, stock adjustments, and stock transfers." },
+  { left: "Sales", right: "Quotes, orders, dispatches, direct dispatches, invoices, and customer returns." },
+  { left: "Service", right: "Equipment units, jobs, daily sheets, work orders, materials, expenses, estimates, handovers, and closeout." },
+  { left: "Finance", right: "AR, AP, payments, petty cash, IOUs, credit notes, debit notes, and allocations." },
+  { left: "Reporting", right: "Stock, aging, tax, service, sales, purchase, supplier, and costing reports." },
+  { left: "Admin", right: "Users, permissions, notifications, imports, and settings." },
+  { left: "Audit Logs", right: "Evidence of who created, changed, approved, posted, or settled records." },
+];
+
+const masterDataRows: FlowStep[] = [
   {
-    left: "Command Center",
-    right: "Supervisor view of active jobs, overdue work, missing daily sheets, missing progress, finance blockers, billing queues, and closeout blockers.",
+    title: "Currencies",
+    input: "Code, name, symbol, minor units, base currency flag, and exchange rates where needed.",
+    output: "Currency can be used in invoices, payments, and reports.",
+    check: "Only one active base currency should exist. Foreign currency transactions need an exchange rate.",
   },
   {
-    left: "Dispatch Board",
-    right: "Operational lane view for unassigned, assigned or active, waiting, and completed jobs.",
+    title: "Items",
+    input: "SKU, name, type, UoM, category, cost, tax, and tracking type.",
+    output: "Item becomes selectable in purchase, sales, inventory, and service documents.",
+    check: "Tracking type must be correct before transactions start. Use serial tracking for equipment units.",
   },
   {
-    left: "Technician Workbench",
-    right: "Technician daily view for today's assignments, open daily sheets, and quick actions.",
+    title: "Customers and suppliers",
+    input: "Code, name, contact details, address, active status.",
+    output: "Customer can be used in sales/service. Supplier can be used in procurement/AP.",
+    check: "Do not duplicate codes. Use inactive status instead of deleting records already used by transactions.",
   },
   {
-    left: "Equipment Units",
-    right: "Customer-owned machines or equipment that can receive service jobs.",
-  },
-  {
-    left: "Service Contracts",
-    right: "Contract coverage, billing entitlement, and service agreement information.",
-  },
-  {
-    left: "Job Orders",
-    right: "Main job record: intake, daily work, materials, expenses, billing, costs, and closeout.",
-  },
-  {
-    left: "Technicians",
-    right: "Technician master records and default labour rates.",
-  },
-  {
-    left: "Job Sheets / Work Orders",
-    right: "Billable work records and time entries used for labour costing and invoicing.",
-  },
-  {
-    left: "MRN / Material Requisitions",
-    right: "Stock issue documents used to consume spare parts or materials for jobs.",
-  },
-  {
-    left: "Quotations / Estimates",
-    right: "Customer quotation and change-order process.",
-  },
-  {
-    left: "Service Taken / Handovers",
-    right: "Customer handover, final service confirmation, and invoice conversion path.",
-  },
-  {
-    left: "Quality Checks",
-    right: "Inspection or QC records linked to service work.",
+    title: "Warehouses and bins",
+    input: "Warehouse code/name and optional bin, zone, rack, shelf details.",
+    output: "Stock can be received, issued, counted, and transferred by location.",
+    check: "Unassigned stock means earlier stock exists without a bin/rack.",
   },
 ];
 
-const dailyLabourComparison = [
+const procurementRows: FlowStep[] = [
   {
-    daily: "Shows who attended a daily field sheet.",
-    workOrder: "Shows billable or costed labour time entries.",
+    title: "Purchase requisition",
+    input: "Required date, reason, item, quantity, and notes.",
+    output: "Draft PR is created. Submit sends it for approval.",
+    check: "Users with approve permission receive notifications. Approved PR can convert to PO.",
   },
   {
-    daily: "Used for daily job supervision.",
-    workOrder: "Used for costing, approval, and customer billing.",
+    title: "RFQ",
+    input: "Supplier, requested items, quantities, and notes.",
+    output: "RFQ is created and can be marked as sent.",
+    check: "RFQ number and PDF are available.",
   },
   {
-    daily: "Linked to a daily sheet.",
-    workOrder: "Linked to a work order/job sheet and service job.",
+    title: "Purchase order",
+    input: "Supplier, items, quantities, unit costs, taxes.",
+    output: "Draft PO is created. Approval confirms the purchase.",
+    check: "Creator is notified on approval. Approved PO can be used for goods receipt.",
   },
   {
-    daily: 'Helps answer: "Who worked today?"',
-    workOrder: 'Helps answer: "What labour cost or billing should be posted?"',
+    title: "Goods receipt",
+    input: "PO, warehouse, received quantity, cost, batch, and serials where required.",
+    output: "Posting increases stock and can create AP.",
+    check: "Inventory availability, stock ledger, and supplier AP must update after posting.",
   },
   {
-    daily: "Does not by itself create final billable labour.",
-    workOrder: "Approved billable entries can feed invoices.",
-  },
-];
-
-const commonQuestions: TableRow[] = [
-  {
-    left: "Should I create a daily sheet or a work order?",
-    right: "Create a daily sheet for daily site/work record. Use a work order/job sheet for billable labour/time entries.",
-  },
-  {
-    left: "Does daily staff labour create an invoice?",
-    right: "No. It records attendance/work for the day. Invoice labour comes from approved billable job sheet/work-order time entries.",
-  },
-  {
-    left: "Does planning a part reduce stock?",
-    right: "No. Stock reduces only when an MRN is posted.",
-  },
-  {
-    left: "Why is my IOU still visible after requesting it?",
-    right: "That is correct. It stays visible so the requester and supervisor know it was sent and can track finance status.",
-  },
-  {
-    left: "Why can't I close the job?",
-    right: "Open Billing -> Closeout Readiness and clear the listed blockers.",
-  },
-  {
-    left: "Why can't I edit the job header?",
-    right: "The job may already be started, completed, invoiced, closed, or cancelled. Continue through operational tabs instead.",
-  },
-  {
-    left: "Why does an expense claim show zero total?",
-    right: "Open the claim detail and add expense lines.",
-  },
-  {
-    left: "Where do I check job profit?",
-    right: "Open the job Costs tab.",
-  },
-  {
-    left: "Where do technicians work daily?",
-    right: "Use Technician Workbench or the job Daily Work tab.",
+    title: "Supplier invoice and return",
+    input: "Supplier invoice details or return item/quantity/reason.",
+    output: "Posting supplier invoice updates AP. Posting return reduces stock and creates supplier credit note.",
+    check: "AP, credit notes, stock, and PDFs match the posted document.",
   },
 ];
 
-function Section({
-  id,
-  title,
-  children,
-}: {
-  id: string;
-  title: string;
-  children: ReactNode;
-}) {
+const inventoryRows: FlowStep[] = [
+  {
+    title: "Inventory availability",
+    input: "Optional warehouse, item, batch, bin, or serial filters.",
+    output: "Searchable stock table with quantity, cost, and value.",
+    check: "Posted receipts increase stock. Posted dispatches/MRNs reduce stock.",
+  },
+  {
+    title: "On hand",
+    input: "Warehouse, item, and batch filters.",
+    output: "Balance view by warehouse, item, batch, or combined view.",
+    check: "Use this for exact quantity checks.",
+  },
+  {
+    title: "Stock adjustment",
+    input: "Warehouse, reason, item, and counted quantity.",
+    output: "Posting records only the variance between system and counted quantity.",
+    check: "Stock ledger shows the adjustment. Voided drafts do not affect stock.",
+  },
+  {
+    title: "Stock transfer",
+    input: "From warehouse, to warehouse, item, quantity, batch, serials.",
+    output: "Posting reduces source warehouse and increases destination warehouse.",
+    check: "Total company stock stays the same while warehouse balances change.",
+  },
+];
+
+const salesRows: FlowStep[] = [
+  {
+    title: "Quote",
+    input: "Customer, valid date, items/services, quantity, price, tax.",
+    output: "Draft quote is created. Sending marks it as sent.",
+    check: "Quote total and PDF are correct.",
+  },
+  {
+    title: "Sales order",
+    input: "Customer, item, quantity, price, tax.",
+    output: "Draft order is created. Confirming accepts the order.",
+    check: "Confirmed order can be dispatched.",
+  },
+  {
+    title: "Dispatch or direct dispatch",
+    input: "Customer/order/job, warehouse, item, quantity, batch/serials.",
+    output: "Posting reduces stock. Serialized equipment can create equipment units.",
+    check: "Stock decreases and equipment ownership is correct.",
+  },
+  {
+    title: "Sales invoice",
+    input: "Customer, source document or manual lines, quantity, price, tax.",
+    output: "Posting creates AR.",
+    check: "Customer AR, aging report, and invoice PDF are correct.",
+  },
+  {
+    title: "Customer return",
+    input: "Customer, optional invoice, item, quantity, reason.",
+    output: "Posting returns stock and creates customer credit note.",
+    check: "Stock increases and credit note is visible in finance.",
+  },
+];
+
+const financeRows: FlowStep[] = [
+  {
+    title: "AR and AP",
+    input: "Open Finance -> AR or AP and filter by outstanding only if needed.",
+    output: "Shows customer receivables and supplier payables.",
+    check: "Posted sales invoices create AR. Posted supplier documents create AP.",
+  },
+  {
+    title: "Payments",
+    input: "Direction, counterparty type, counterparty, payment type, currency, rate, amount, notes.",
+    output: "Payment document is created and can be allocated.",
+    check: "Allocation reduces AR/AP outstanding. Creator is notified when another user allocates.",
+  },
+  {
+    title: "Credit notes",
+    input: "Counterparty type, counterparty, amount, reason.",
+    output: "Credit note is created and can be allocated to AR or AP.",
+    check: "Remaining credit amount reduces after allocation.",
+  },
+  {
+    title: "Debit notes",
+    input: "Counterparty type, counterparty, amount, reason.",
+    output: "Debit note is created.",
+    check: "PDF opens and related counterparty balance is reviewed.",
+  },
+  {
+    title: "Petty cash and IOUs",
+    input: "Fund code/name/currency/opening balance, or IOU job/amount/purpose.",
+    output: "Petty cash fund or IOU workflow is created.",
+    check: "Approvers receive IOU notifications. Top-ups, adjustments, releases, and settlements update balances.",
+  },
+];
+
+const serviceRows: FlowStep[] = [
+  {
+    title: "Equipment unit",
+    input: "Item/model, serial number, customer, warranty and service details.",
+    output: "Customer-owned equipment becomes selectable for jobs.",
+    check: "Warranty and contract entitlement are correct before job creation.",
+  },
+  {
+    title: "Job order",
+    input: "Equipment, customer, job type, complaint, responsible officer, expected date.",
+    output: "Job number is created and appears in service queues.",
+    check: "Entitlement, customer, equipment, and status are correct.",
+  },
+  {
+    title: "Daily field sheet",
+    input: "Work date, planned work, completed work, pending/issues, site condition.",
+    output: "Daily sheet card appears with staff, progress, material, expense, and IOU counts.",
+    check: "Create one sheet per working day. Approve or reject sheets before closeout.",
+  },
+  {
+    title: "Materials and MRN",
+    input: "Service job, warehouse, item, quantity.",
+    output: "Draft MRN is created. Posting issues stock to the job.",
+    check: "Draft does not reduce stock. Posted MRN reduces stock and updates job cost.",
+  },
+  {
+    title: "Billing and closeout",
+    input: "Handover, estimate/invoice decision, cost review, closeout action.",
+    output: "Job can be completed and closed when blockers are cleared.",
+    check: "Closeout readiness must show no open blockers.",
+  },
+];
+
+const adminRows: FlowStep[] = [
+  {
+    title: "Create user",
+    input: "Company, email, password, display name, and roles.",
+    output: "User can sign in with assigned broad roles.",
+    check: "User sees only expected sidebar modules.",
+  },
+  {
+    title: "Set permissions",
+    input: "Open user access permissions and tick exact rights: view, create, edit, approve, post, allocate, settle.",
+    output: "Effective permissions control menus and action buttons.",
+    check: "Backend blocks unauthorized actions even if the user opens a URL manually.",
+  },
+  {
+    title: "Notifications",
+    input: "Submit, approve, post, allocate, release, or settle a workflow document.",
+    output: "The correct user or approver group receives an in-app notification.",
+    check: "Notification link opens the correct document and can be marked read.",
+  },
+];
+
+const reportRows: Row[] = [
+  { left: "Stock Ledger", right: "Check every receipt, issue, adjustment, and transfer." },
+  { left: "Aging", right: "Check customer AR and supplier AP outstanding." },
+  { left: "Tax Summary", right: "Check tax totals from posted documents." },
+  { left: "Service KPIs", right: "Check service performance and job statistics." },
+  { left: "Sales Analysis", right: "Check customer and item sales totals." },
+  { left: "Purchase Analysis", right: "Check supplier and item purchase totals." },
+  { left: "Supplier Performance", right: "Check supplier activity and delivery/purchase view." },
+  { left: "Costing", right: "Check inventory value and cost." },
+];
+
+const checks: Row[] = [
+  { left: "Create", right: "Document number is generated and document appears in the list." },
+  { left: "Edit", right: "Draft document can be changed; posted document is locked or corrected through a proper transaction." },
+  { left: "Permission", right: "Unauthorized user cannot view or perform restricted actions." },
+  { left: "Approval", right: "Approver receives notification and status changes correctly." },
+  { left: "Post", right: "Stock, AR, AP, reports, and audit update only after posting." },
+  { left: "PDF", right: "PDF opens or downloads for the business document." },
+  { left: "Audit", right: "Audit log shows the user action." },
+  { left: "Report", right: "Related report matches the posted result." },
+];
+
+const endToEndStock = [
+  "Create or confirm item, supplier, customer, warehouse, tax, and currency.",
+  "Create and approve a purchase order for quantity 10.",
+  "Create and post a GRN from the PO.",
+  "Check inventory increased by 10.",
+  "Create and confirm a sales order for quantity 4.",
+  "Create and post dispatch.",
+  "Check inventory reduced by 4.",
+  "Create and post sales invoice.",
+  "Check AR increased.",
+  "Create incoming payment and allocate it to AR.",
+  "Check AR outstanding reduced.",
+  "Check stock ledger, aging, costing, PDFs, notifications, and audit logs.",
+];
+
+const endToEndService = [
+  "Create or confirm equipment unit.",
+  "Create job order and start the job.",
+  "Create daily field sheet.",
+  "Add daily staff and progress.",
+  "Request IOU or expense claim if needed.",
+  "Create and post MRN if parts are used.",
+  "Create work order labour and approve it.",
+  "Create estimate if customer approval is needed.",
+  "Complete the job and create service handover.",
+  "Review billing, costs, and closeout readiness.",
+  "Clear blockers and close the job.",
+];
+
+function Section({ id, title, children }: { id: string; title: string; children: ReactNode }) {
   return (
     <section id={id} className="scroll-mt-20">
-      <Card className="space-y-3 p-4">
+      <Card className="space-y-4 p-4">
         <h2 className="text-lg font-semibold tracking-tight text-[var(--foreground)]">{title}</h2>
-        <div className="space-y-3 text-[14px] leading-6 text-[var(--foreground)]/90">{children}</div>
+        <div className="space-y-4 text-[14px] leading-6 text-[var(--foreground)]/90">{children}</div>
       </Card>
     </section>
-  );
-}
-
-function BulletList({ items }: { items: string[] }) {
-  return (
-    <ul className="list-disc space-y-1 pl-5">
-      {items.map((item) => (
-        <li key={item}>{item}</li>
-      ))}
-    </ul>
-  );
-}
-
-function NumberedList({ items }: { items: string[] }) {
-  return (
-    <ol className="list-decimal space-y-1 pl-5">
-      {items.map((item) => (
-        <li key={item}>{item}</li>
-      ))}
-    </ol>
   );
 }
 
@@ -191,26 +318,47 @@ function ManualImage({ src, alt }: { src: string; alt: string }) {
   );
 }
 
-function TwoColumnTable({ rows }: { rows: TableRow[] }) {
+function FlowTable({ rows }: { rows: FlowStep[] }) {
   return (
     <div className="overflow-x-auto rounded-lg border border-[var(--card-border)]">
       <Table>
         <thead>
           <tr>
-            <th className="w-56 border-b border-[var(--card-border)] bg-[var(--surface-soft)] px-3 py-2 text-left text-[12px] font-semibold uppercase text-[var(--muted-foreground)]">
-              Area
-            </th>
-            <th className="border-b border-[var(--card-border)] bg-[var(--surface-soft)] px-3 py-2 text-left text-[12px] font-semibold uppercase text-[var(--muted-foreground)]">
-              User purpose
-            </th>
+            <th className="w-52 border-b border-[var(--card-border)] bg-[var(--surface-soft)] px-3 py-2 text-left text-[12px] font-semibold uppercase text-[var(--muted-foreground)]">Step</th>
+            <th className="border-b border-[var(--card-border)] bg-[var(--surface-soft)] px-3 py-2 text-left text-[12px] font-semibold uppercase text-[var(--muted-foreground)]">What to input</th>
+            <th className="border-b border-[var(--card-border)] bg-[var(--surface-soft)] px-3 py-2 text-left text-[12px] font-semibold uppercase text-[var(--muted-foreground)]">Output</th>
+            <th className="border-b border-[var(--card-border)] bg-[var(--surface-soft)] px-3 py-2 text-left text-[12px] font-semibold uppercase text-[var(--muted-foreground)]">What to check</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((row) => (
+            <tr key={row.title}>
+              <td className="border-b border-[var(--card-border)] px-3 py-2 align-top font-semibold">{row.title}</td>
+              <td className="border-b border-[var(--card-border)] px-3 py-2 align-top">{row.input}</td>
+              <td className="border-b border-[var(--card-border)] px-3 py-2 align-top">{row.output}</td>
+              <td className="border-b border-[var(--card-border)] px-3 py-2 align-top">{row.check}</td>
+            </tr>
+          ))}
+        </tbody>
+      </Table>
+    </div>
+  );
+}
+
+function TwoColumnTable({ rows, left = "Area", right = "Purpose / check" }: { rows: Row[]; left?: string; right?: string }) {
+  return (
+    <div className="overflow-x-auto rounded-lg border border-[var(--card-border)]">
+      <Table>
+        <thead>
+          <tr>
+            <th className="w-56 border-b border-[var(--card-border)] bg-[var(--surface-soft)] px-3 py-2 text-left text-[12px] font-semibold uppercase text-[var(--muted-foreground)]">{left}</th>
+            <th className="border-b border-[var(--card-border)] bg-[var(--surface-soft)] px-3 py-2 text-left text-[12px] font-semibold uppercase text-[var(--muted-foreground)]">{right}</th>
           </tr>
         </thead>
         <tbody>
           {rows.map((row) => (
             <tr key={row.left}>
-              <td className="border-b border-[var(--card-border)] px-3 py-2 align-top font-semibold">
-                {row.left}
-              </td>
+              <td className="border-b border-[var(--card-border)] px-3 py-2 align-top font-semibold">{row.left}</td>
               <td className="border-b border-[var(--card-border)] px-3 py-2 align-top">{row.right}</td>
             </tr>
           ))}
@@ -220,38 +368,39 @@ function TwoColumnTable({ rows }: { rows: TableRow[] }) {
   );
 }
 
+function NumberedList({ items }: { items: string[] }) {
+  return (
+    <ol className="list-decimal space-y-1 pl-5">
+      {items.map((item) => (
+        <li key={item}>{item}</li>
+      ))}
+    </ol>
+  );
+}
+
 export default function HelpPage() {
   return (
     <div className="space-y-4">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight text-[var(--foreground)]">Help</h1>
+          <h1 className="text-2xl font-semibold tracking-tight text-[var(--foreground)]">ISS ERP Help</h1>
           <p className="text-sm text-[var(--muted-foreground)]">
-            Service Job Section User Manual with screenshots and simple user guidance.
+            Simple full-system tutorial: what to enter, what output to expect, and what to check.
           </p>
         </div>
         <div className="rounded-full border border-[var(--card-border)] bg-[var(--surface-soft)] px-3 py-1 text-[12px] font-semibold text-[var(--muted-foreground)]">
-          Service module guide
+          Full system guide
         </div>
       </div>
 
       <Card className="space-y-3 p-4">
         <div>
-          <h2 className="text-lg font-semibold tracking-tight text-[var(--foreground)]">
-            Service Job Section User Manual
-          </h2>
+          <h2 className="text-lg font-semibold tracking-tight text-[var(--foreground)]">Start with this rule</h2>
           <p className="mt-1 text-[14px] leading-6 text-[var(--foreground)]/90">
-            This guide explains equipment units, command center, dispatch board, technician workbench, job
-            orders, daily field sheets, job sheets/work orders, materials, expenses, estimates, service
-            handover, billing, costs, files, and closeout.
+            Draft documents are preparation. Posting, approval, confirmation, allocation, settlement, or closeout is what changes stock, AR, AP, reports, notifications, and audit logs.
           </p>
         </div>
-        <div className="rounded-lg border border-[var(--card-border)] bg-[var(--surface-soft)] px-3 py-2 text-[14px] font-medium text-[var(--foreground)]">
-          Main rule: look at the list or status first, then open a form only when you need to add or edit
-          something. Create and edit forms open in modal dialogs where possible so users do not lose the page
-          they are working on.
-        </div>
-        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-5">
           {quickLinks.map((link) => (
             <a
               key={link.href}
@@ -264,448 +413,81 @@ export default function HelpPage() {
         </div>
       </Card>
 
-      <Section id="service-menu" title="1. Main Service Menu Areas">
-        <p>The Service module contains several screens. Each screen has a different purpose.</p>
-        <TwoColumnTable rows={serviceAreas} />
+      <Section id="start" title="1. Login, Dashboard, And Menu Map">
+        <ManualImage src="/help/system/login-page.png" alt="Login page" />
+        <p>Enter your email and password. After login, the dashboard opens and the sidebar shows only the modules you can access.</p>
+        <ManualImage src="/help/system/dashboard.png" alt="Dashboard" />
+        <TwoColumnTable rows={moduleRows} />
       </Section>
 
-      <Section id="equipment-units" title="2. Equipment Units">
-        <p>Use Service -&gt; Equipment Units to register customer equipment before opening a job.</p>
-        <p>An equipment unit normally contains:</p>
-        <BulletList
-          items={[
-            "Serial number",
-            "Linked item or machine model",
-            "Customer",
-            "Site/location information",
-            "Warranty coverage where applicable",
-          ]}
-        />
-        <p>
-          When a job is opened, select the equipment unit first. The system uses the equipment unit to default
-          or validate the customer and to check warranty or contract entitlement.
-        </p>
-        <p>Use equipment units when:</p>
-        <BulletList
-          items={[
-            "A customer sends a machine for repair.",
-            "A technician visits installed customer equipment.",
-            "Warranty or service-contract coverage must be checked.",
-          ]}
-        />
+      <Section id="master-data" title="2. Master Data">
+        <ManualImage src="/help/system/master-data-currencies.png" alt="Master data currencies" />
+        <p>Set up master data before entering transactions. Recommended order: currencies, taxes, payment types, warehouses, UoMs, items, suppliers, customers, and reorder settings.</p>
+        <FlowTable rows={masterDataRows} />
       </Section>
 
-      <Section id="command-center" title="3. Command Center">
-        <p>Use Service -&gt; Command Center as the supervisor or coordinator first screen.</p>
-        <p>The command center is not for entering job details. It is for seeing what needs attention.</p>
-        <p>Use it to find:</p>
-        <BulletList
-          items={[
-            "Active jobs",
-            "Overdue jobs",
-            "Jobs without today's daily sheet",
-            "Jobs without today's progress update",
-            "Pending daily sheets",
-            "Pending IOUs and expense claims",
-            "Billing-ready jobs",
-            "Jobs blocked from closeout",
-          ]}
-        />
-        <p>From command center cards or queue rows, open the related job or working area.</p>
+      <Section id="procurement" title="3. Procurement">
+        <ManualImage src="/help/system/procurement-purchase-orders.png" alt="Procurement purchase orders" />
+        <p>Procurement controls purchase requests, supplier quotations, purchase orders, receipts, supplier invoices, and supplier returns.</p>
+        <FlowTable rows={procurementRows} />
       </Section>
 
-      <Section id="dispatch-board" title="4. Dispatch Board">
-        <p>Use Service -&gt; Dispatch Board to view jobs by operational lane.</p>
-        <p>Typical lanes are:</p>
-        <BulletList items={["Unassigned", "Assigned / Active", "Waiting", "Completed"]} />
-        <p>
-          Use this page when a coordinator needs to see which jobs are not assigned, which jobs are being
-          worked on, and which jobs are waiting for parts, customer approval, supplier response, or another
-          blocker.
-        </p>
+      <Section id="inventory" title="4. Inventory">
+        <p>Inventory screens are used to check stock and correct stock movement. Stock changes only after posting documents such as GRNs, dispatches, MRNs, adjustments, and transfers.</p>
+        <FlowTable rows={inventoryRows} />
       </Section>
 
-      <Section id="technician-workbench" title="5. Technician Workbench">
-        <p>Use Service -&gt; Technician Workbench for technician daily work.</p>
-        <p>It shows:</p>
-        <BulletList
-          items={[
-            "Today's assignments",
-            "Open daily sheets",
-            "Active jobs",
-            "Quick links for progress, material requests, IOU requests, and expenses",
-          ]}
-        />
-        <p>Technicians should normally work from this screen or from the relevant job&apos;s Daily Work tab.</p>
+      <Section id="sales" title="5. Sales">
+        <p>Sales controls quote to cash: quote, order, dispatch, invoice, payment, and return.</p>
+        <FlowTable rows={salesRows} />
       </Section>
 
-      <Section id="job-orders" title="6. Job Orders List">
-        <p>Go to Service -&gt; Job Orders.</p>
-        <ManualImage src="/help/job-orders/01-jobs-list.png" alt="Job Orders list" />
-        <p>The job list is the main place to open, view, or edit jobs.</p>
-        <BulletList
-          items={[
-            "Click the job number or View to open the full job detail page.",
-            "Click + New Job Order to create a new job in a modal dialog.",
-            "Click Edit on an editable job to open the job header edit modal directly from the list.",
-            "Jobs are normally editable while they are Draft, Open, or Reopened.",
-            "Once execution starts, the job header is locked and users should continue through daily sheets, work orders, materials, expenses, handover, and billing.",
-          ]}
-        />
-      </Section>
-
-      <Section id="create-job-order" title="7. Create A New Job Order">
-        <p>From the job list, click + New Job Order.</p>
-        <p>Enter:</p>
-        <BulletList
-          items={[
-            "Equipment unit",
-            "Customer",
-            "Job type: Service, Repair, PDI, Warranty, or Inspection",
-            "Site/location",
-            "Responsible officer",
-            "Customer complaint or service requirement",
-            "Job description and internal remarks if needed",
-          ]}
-        />
-        <p>
-          When the job is created, the system checks service contract and warranty entitlement. If contract or
-          warranty data is added later, open the job and click Refresh Entitlement.
-        </p>
-      </Section>
-
-      <Section id="job-overview" title="8. Job Overview">
-        <p>Open a job to see the compact header, cockpit, and process timeline.</p>
-        <ManualImage src="/help/job-orders/02-job-overview.png" alt="Job overview" />
-        <p>The overview shows:</p>
-        <BulletList
-          items={[
-            "Job number, status, type, equipment, customer, and responsible officer",
-            "Main job actions such as Start, Complete, Close, Reopen, and Refresh Entitlement",
-            "Job Cockpit summary cards",
-            "Process Timeline from intake to closeout",
-          ]}
-        />
-        <p>Use the process timeline to jump to the correct work area instead of scrolling through the full page.</p>
-      </Section>
-
-      <Section id="edit-job-header" title="9. Edit Job Header">
-        <p>There are two ways to edit a job header:</p>
-        <BulletList
-          items={[
-            "From Service -> Job Orders, click Edit in the row.",
-            "From job detail Overview, click Edit Job.",
-          ]}
-        />
-        <p>Both open the same edit modal.</p>
-        <p>Use this only for intake/header information, such as:</p>
-        <BulletList
-          items={[
-            "Equipment",
-            "Customer",
-            "Job type",
-            "Expected dates",
-            "Site/location",
-            "Responsible officer",
-            "Customer complaint",
-            "Problem/intake note",
-            "Internal remarks",
-          ]}
-        />
-        <p>Do not use header editing to record daily work, parts, labour, or billing. Those belong in their own tabs.</p>
-      </Section>
-
-      <Section id="plan" title="10. Plan Job Operations">
-        <p>Open the Plan tab.</p>
-        <ManualImage src="/help/job-orders/03-plan.png" alt="Plan tab" />
-        <p>Use this tab to plan major repair stages or sub-parts before doing the actual work.</p>
-        <p>Examples:</p>
-        <BulletList
-          items={[
-            "Diagnose hydraulic leak",
-            "Remove and inspect pump",
-            "Replace filter",
-            "Test under load",
-          ]}
-        />
-        <p>Important:</p>
-        <BulletList
-          items={[
-            "Planning does not reduce stock.",
-            "Planning does not create billable labour.",
-            "Actual parts are issued through MRNs.",
-            "Actual billable labour is entered through job sheets/work orders.",
-          ]}
-        />
-      </Section>
-
-      <Section id="daily-sheets" title="11. Daily Field Sheets">
-        <p>Open Daily Work -&gt; Daily Sheets.</p>
+      <Section id="service" title="6. Service">
+        <ManualImage src="/help/job-orders/01-jobs-list.png" alt="Service job list" />
+        <p>Service manages customer equipment, job orders, daily work, labour, parts, expenses, handover, billing, costs, and closeout.</p>
+        <FlowTable rows={serviceRows} />
+        <ManualImage src="/help/job-orders/02-job-overview.png" alt="Service job overview" />
         <ManualImage src="/help/job-orders/04-daily-sheets.png" alt="Daily sheets" />
-        <p>A daily field sheet is the daily record of what happened on a job.</p>
-        <p>Create one daily sheet for each working day.</p>
-        <p>Each daily sheet can show:</p>
-        <BulletList
-          items={[
-            "Date",
-            "Work planned",
-            "Work completed",
-            "Work pending",
-            "Site or weather condition",
-            "Staff count",
-            "Progress count",
-            "Material/MRN count",
-            "Return/damage count",
-            "Expense count",
-            "IOU count",
-            "Approval status",
-          ]}
-        />
-        <p>Use daily sheets for daily control and supervisor review.</p>
+        <ManualImage src="/help/job-orders/08-billing.png" alt="Billing and closeout" />
       </Section>
 
-      <Section id="daily-labour" title="12. Daily Staff / Labour">
-        <p>Open Daily Work -&gt; Staff / Labor.</p>
-        <ManualImage src="/help/job-orders/05-daily-labor.png" alt="Daily labour" />
-        <p>This area records who attended the job on a particular daily sheet.</p>
-        <p>Use it for:</p>
-        <BulletList
-          items={[
-            "Attendance",
-            "Daily assignment",
-            "What the person did that day",
-            "Normal and overtime hours for daily tracking",
-            "Supervisor review of who worked on site",
-          ]}
-        />
-        <p>
-          This is a daily operational record. It helps users understand who worked on a job on each day.
-        </p>
+      <Section id="finance" title="7. Finance">
+        <ManualImage src="/help/system/finance-ar.png" alt="Accounts receivable" />
+        <ManualImage src="/help/system/finance-ap.png" alt="Accounts payable" />
+        <p>Finance controls AR, AP, payments, credit notes, debit notes, petty cash, IOUs, allocations, release, and settlement.</p>
+        <FlowTable rows={financeRows} />
       </Section>
 
-      <Section id="work-order-labour" title="13. Job Sheets / Work Orders Labour">
-        <p>Use Service -&gt; Job Sheets / Work Orders for billable labour, time entries, and job-sheet labour costing.</p>
-        <p>This is different from daily staff/labour.</p>
-        <div className="overflow-x-auto rounded-lg border border-[var(--card-border)]">
-          <Table>
-            <thead>
-              <tr>
-                <th className="border-b border-[var(--card-border)] bg-[var(--surface-soft)] px-3 py-2 text-left text-[12px] font-semibold uppercase text-[var(--muted-foreground)]">
-                  Daily Staff / Labour
-                </th>
-                <th className="border-b border-[var(--card-border)] bg-[var(--surface-soft)] px-3 py-2 text-left text-[12px] font-semibold uppercase text-[var(--muted-foreground)]">
-                  Job Sheets / Work Orders Labour
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {dailyLabourComparison.map((row) => (
-                <tr key={row.daily}>
-                  <td className="border-b border-[var(--card-border)] px-3 py-2 align-top">{row.daily}</td>
-                  <td className="border-b border-[var(--card-border)] px-3 py-2 align-top">{row.workOrder}</td>
-                </tr>
-              ))}
-            </tbody>
-          </Table>
+      <Section id="admin" title="8. Admin, Access Permissions, And Notifications">
+        <ManualImage src="/help/system/admin-users.png" alt="Admin users" />
+        <p>Admin users can create users, assign roles, and set exact permissions. Permissions control both visible actions and backend authorization.</p>
+        <FlowTable rows={adminRows} />
+      </Section>
+
+      <Section id="reporting" title="9. Reporting">
+        <ManualImage src="/help/system/reporting-costing.png" alt="Reporting costing" />
+        <p>Reports are used to check the result of posted documents. Draft documents should not affect posted stock or finance reports.</p>
+        <TwoColumnTable rows={reportRows} left="Report" right="What to check" />
+      </Section>
+
+      <Section id="end-to-end" title="10. End-To-End Training Examples">
+        <div className="grid gap-4 lg:grid-cols-2">
+          <div className="rounded-lg border border-[var(--card-border)] bg-[var(--surface-soft)] p-3">
+            <h3 className="font-semibold">Stock purchase to customer payment</h3>
+            <NumberedList items={endToEndStock} />
+          </div>
+          <div className="rounded-lg border border-[var(--card-border)] bg-[var(--surface-soft)] p-3">
+            <h3 className="font-semibold">Service job from intake to closeout</h3>
+            <NumberedList items={endToEndService} />
+          </div>
         </div>
-        <p>Simple example:</p>
-        <BulletList
-          items={[
-            "Technician A attends the site today. Add Technician A in Daily Staff / Labor.",
-            "Technician A performs 3 billable repair hours. Add a time entry in Job Sheets / Work Orders.",
-            "The daily sheet shows attendance. The work order time entry supports costing and billing.",
-          ]}
-        />
-        <p>Use both when both daily attendance and billable labour are required.</p>
       </Section>
 
-      <Section id="daily-progress" title="14. Daily Progress">
-        <p>Open Daily Work -&gt; Progress.</p>
-        <p>Progress updates are recorded against a daily field sheet.</p>
-        <p>Use progress updates to record:</p>
-        <BulletList
-          items={[
-            "Work completed",
-            "Work pending",
-            "Problems found",
-            "Additional parts required",
-            "Additional labour required",
-            "Customer instructions",
-            "Site issues",
-            "Technician notes",
-            "Supervisor notes",
-          ]}
-        />
-        <p>Progress updates help supervisors understand the current job situation without calling the technician.</p>
-      </Section>
-
-      <Section id="materials" title="15. Materials And MRNs">
-        <p>Open the Materials tab.</p>
-        <ManualImage src="/help/job-orders/06-materials.png" alt="Materials tab" />
-        <p>Materials are handled through MRNs and material disposition.</p>
-        <p>Tabs:</p>
-        <BulletList items={["Issued MRNs", "Return Materials", "Damage Material"]} />
-        <p>Use + New MRN to create a draft material requisition for the job. Then open the MRN document, add item lines, and post it.</p>
-        <p>Important:</p>
-        <BulletList
-          items={[
-            "Draft MRNs do not reduce stock.",
-            "Posted MRNs reduce stock.",
-            "Posted MRNs appear in the job under Issued MRNs.",
-            "Unused, wrong, rejected, or damaged materials should be recorded through return/damage disposition.",
-          ]}
-        />
-        <p>Use material disposition before job closeout so the system knows what happened to every issued item.</p>
-      </Section>
-
-      <Section id="expenses" title="16. IOUs And Expenses">
-        <p>Open the Expenses tab.</p>
-        <ManualImage src="/help/job-orders/07-expenses.png" alt="Expenses tab" />
-        <p>There are three separate expense workflows.</p>
-        <h3 className="text-base font-semibold text-[var(--foreground)]">IOU Advances</h3>
-        <p>Use + Request IOU when a person needs a cash advance before expenses are finalized.</p>
-        <p>Example:</p>
-        <BulletList
-          items={[
-            "Technician needs cash for emergency job-related transport or a small purchase.",
-            "The IOU is requested from the job.",
-            "Finance approves, releases, and later settles the IOU.",
-          ]}
-        />
-        <p>The requester is the signed-in system user. After creation, the IOU remains visible in the job IOU register.</p>
-        <h3 className="text-base font-semibold text-[var(--foreground)]">Petty Cash Expenses</h3>
-        <p>Use + Petty Cash Voucher when company petty cash was used for the job.</p>
-        <p>Record:</p>
-        <BulletList
-          items={[
-            "Daily sheet",
-            "Voucher date",
-            "Merchant/vendor",
-            "Bill number issued by the accountant",
-            "Payment handover method: cash handover, bank deposit, or other",
-            "Notes",
-          ]}
-        />
-        <h3 className="text-base font-semibold text-[var(--foreground)]">Out-Of-Pocket Claims</h3>
+      <Section id="checks" title="11. What Testers Should Check">
+        <TwoColumnTable rows={checks} left="Check" right="Pass condition" />
         <p>
-          Use + Reimbursement Claim when an employee paid personally and needs reimbursement. The claim remains
-          visible in the job expense register and follows finance approval and settlement.
+          Trainer script: first set master data, then create draft documents, then post or approve them, then check stock, AR/AP, reports, notifications, PDFs, and audit logs.
         </p>
-      </Section>
-
-      <Section id="estimates" title="17. Service Estimates / Quotations">
-        <p>Use Service -&gt; Quotations or the job Billing area to manage service estimates.</p>
-        <p>Use estimates when the customer must approve a quoted repair or service amount before work continues.</p>
-        <p>Estimate lines can include:</p>
-        <BulletList items={["Parts", "Labour", "Billable expenses"]} />
-        <p>
-          Draft estimates can be edited. Once sent or approved, use change-order rules instead of silently
-          overwriting approved scope.
-        </p>
-      </Section>
-
-      <Section id="handover" title="18. Service Taken / Handover">
-        <p>Use Service -&gt; Service Taken / service handover when the repair or service is handed back to the customer.</p>
-        <p>The handover records:</p>
-        <BulletList
-          items={[
-            "Handover date",
-            "Customer acknowledgement",
-            "Returned items or notes",
-            "Post-service warranty if applicable",
-            "Final service confirmation",
-          ]}
-        />
-        <p>The handover is also part of the final invoice path where applicable.</p>
-      </Section>
-
-      <Section id="billing" title="19. Billing And Closeout">
-        <p>Open the Billing tab.</p>
-        <ManualImage src="/help/job-orders/08-billing.png" alt="Billing tab" />
-        <p>Billing includes:</p>
-        <BulletList
-          items={[
-            "Closeout readiness",
-            "Warranty/billing entitlement",
-            "Quotations and final invoices",
-          ]}
-        />
-        <p>Closeout readiness tells users what is blocking job closure.</p>
-        <p>Common blockers:</p>
-        <BulletList
-          items={[
-            "Draft or submitted daily sheets",
-            "Pending IOUs",
-            "Pending expense claims",
-            "Draft MRNs",
-            "Open labour entries",
-            "Unresolved material disposition",
-            "Missing final invoice decision",
-          ]}
-        />
-        <p>Clear the blockers before closing the job.</p>
-      </Section>
-
-      <Section id="costs" title="20. Costs">
-        <p>Open the Costs tab.</p>
-        <ManualImage src="/help/job-orders/09-costs.png" alt="Costs tab" />
-        <p>The cost view shows:</p>
-        <BulletList
-          items={[
-            "Actual cost",
-            "Quoted revenue",
-            "Posted invoice revenue",
-            "Uninvoiced billable labour",
-            "Material cost",
-            "Direct purchase cost",
-            "Approved labour cost",
-            "Approved claim cost",
-          ]}
-        />
-        <p>Use this tab before billing or closing to understand job profitability.</p>
-      </Section>
-
-      <Section id="files-notes" title="21. Files And Notes">
-        <p>Open Files &amp; Notes.</p>
-        <ManualImage src="/help/job-orders/10-files-notes.png" alt="Files and notes" />
-        <p>Use this area for:</p>
-        <BulletList
-          items={[
-            "Customer communication",
-            "Internal comments",
-            "Attachments",
-            "Approval notes",
-            "Supporting documents",
-          ]}
-        />
-      </Section>
-
-      <Section id="flow" title="22. Recommended End-To-End Job Flow">
-        <NumberedList
-          items={[
-            "Create or confirm the equipment unit.",
-            "Open the job order.",
-            "Review entitlement or refresh entitlement if needed.",
-            "Start the job.",
-            "Plan operations if the work has multiple stages.",
-            "Create a daily field sheet for each working day.",
-            "Record daily staff and progress against the daily sheet.",
-            "Issue materials through MRNs and post them.",
-            "Record unused/damaged/rejected material disposition.",
-            "Record IOUs and expenses where needed.",
-            "Record billable labour through job sheets/work orders.",
-            "Prepare estimate or change order if customer approval is needed.",
-            "Complete the job when work is finished.",
-            "Prepare service taken/handover.",
-            "Review billing, invoices, costs, and closeout readiness.",
-            "Clear all blockers.",
-            "Close the job.",
-          ]}
-        />
-      </Section>
-
-      <Section id="questions" title="23. Common User Questions">
-        <TwoColumnTable rows={commonQuestions} />
       </Section>
     </div>
   );
