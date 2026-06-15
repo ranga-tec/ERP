@@ -223,6 +223,128 @@ const serviceRows: FlowStep[] = [
   },
 ];
 
+const serviceMenuRows: Row[] = [
+  { left: "Command Center", right: "Supervisor view of active jobs, overdue jobs, missing daily sheets, pending approvals, finance blockers, billing readiness, and closeout blockers." },
+  { left: "Dispatch Board", right: "Operational lane view for unassigned, assigned/active, waiting, and completed jobs." },
+  { left: "Technician Workbench", right: "Daily technician view for today's assignments, open daily sheets, and quick actions." },
+  { left: "Equipment Units", right: "Customer-owned machines or equipment that can receive service jobs." },
+  { left: "Service Contracts", right: "AMC, SLA, warranty extension, and coverage information used for job entitlement." },
+  { left: "Job Orders", right: "Main service job record. Use it for intake, daily work, materials, expenses, billing, costs, files, and closeout." },
+  { left: "Job Sheets / Work Orders", right: "Billable or costed labour records and time entries. These support job costing and invoicing." },
+  { left: "MRN / Material Requisitions", right: "Stock issue documents used to consume spare parts and materials for jobs." },
+  { left: "Quotations / Estimates", right: "Customer quotation, approval, and change-order process." },
+  { left: "Service Taken / Handovers", right: "Customer handover, final service confirmation, returned-item notes, and invoice conversion path." },
+  { left: "Quality Checks", right: "Inspection or QC records linked to service work." },
+];
+
+const serviceDifferenceRows: Row[] = [
+  { left: "Purpose", right: "Daily sheets show what happened on a job on a particular day. Job sheets/work orders show costed or billable labour/time entries." },
+  { left: "When to create", right: "Create one daily sheet for each working day or site visit. Create job sheet/work-order labour when hours must be costed, approved, or billed." },
+  { left: "Main question answered", right: "Daily sheet: What happened today? Job sheet/work order: What labour cost or billing should be recorded?" },
+  { left: "Typical content", right: "Daily sheet has planned work, completed work, pending issues, site condition, staff, progress, material, IOU, and expense counts. Job sheet has technician, date, hours, cost rate, billing rate, approval status, and invoice status." },
+  { left: "Finance effect", right: "Daily staff/labour does not by itself create invoice labour. Approved billable work-order time entries can feed customer invoicing and job costing." },
+  { left: "Closeout effect", right: "Draft/submitted daily sheets block closeout. Open labour entries or uninvoiced billable work can also block billing or closeout decisions." },
+];
+
+const serviceDailySheetRows: FlowStep[] = [
+  {
+    title: "Create daily sheet",
+    input: "Work date, prepared by, planned work, completed work, pending/issues, site condition, and notes.",
+    output: "A daily sheet card appears under the job with status and related counts.",
+    check: "Create one sheet for each working day or site visit. Staff and progress should be linked to the correct sheet.",
+  },
+  {
+    title: "Add daily staff/labour",
+    input: "Daily sheet, technician/helper, work notes, normal hours, overtime hours, and attendance details.",
+    output: "The daily sheet staff count increases and supervisors can see who worked on the job that day.",
+    check: "This is attendance and supervision data. It does not automatically become customer invoice labour.",
+  },
+  {
+    title: "Add daily progress",
+    input: "Daily sheet, completed work, pending work, problems found, parts required, customer instructions, and supervisor notes.",
+    output: "Latest progress appears in the job cockpit and service queues.",
+    check: "Progress should be detailed enough for a supervisor to understand the current job condition without calling the technician.",
+  },
+  {
+    title: "Submit and approve",
+    input: "Submit the sheet after the daily records are complete. Supervisor approves or rejects.",
+    output: "Approved sheets become locked daily records. Rejected sheets return for correction.",
+    check: "Draft or submitted sheets must be approved or rejected before job closeout.",
+  },
+];
+
+const serviceWorkOrderRows: FlowStep[] = [
+  {
+    title: "Create job sheet/work order",
+    input: "Service job, work order description, technician, work date, hours, cost rate, billing rate, and notes.",
+    output: "Labour record is created for costing and billing review.",
+    check: "Technician default rates should fill correctly, but the user can adjust them before saving if allowed.",
+  },
+  {
+    title: "Submit and approve labour",
+    input: "Submit labour entry for approval. Approver approves or rejects.",
+    output: "Approved labour feeds job cost. Approved billable labour can be billed.",
+    check: "Rejected labour should not be billed. Warranty or contract coverage may reduce effective billing.",
+  },
+  {
+    title: "Invoice labour",
+    input: "Use billing or handover invoice path after labour is approved and billable.",
+    output: "Billable approved labour can move to invoice.",
+    check: "Uninvoiced billable labour should be reviewed before closeout.",
+  },
+];
+
+const serviceMaterialRows: FlowStep[] = [
+  {
+    title: "Plan parts",
+    input: "Optional operation plan with expected item, quantity, labour hours, and notes.",
+    output: "Planned operation appears in the job plan.",
+    check: "Planning does not reduce stock and does not create actual cost.",
+  },
+  {
+    title: "Issue materials with MRN",
+    input: "Job, warehouse/bin, item, quantity, batch, and serial where required.",
+    output: "Draft MRN is created. Posting reduces stock and updates job cost.",
+    check: "Draft MRN should not affect stock. Posted MRN must reduce the correct warehouse/bin.",
+  },
+  {
+    title: "Return, damage, or reject",
+    input: "Issued material, quantity, reason, and disposition notes.",
+    output: "Material disposition is recorded against the job.",
+    check: "Unused, damaged, rejected, or wrong materials should not remain unresolved at closeout.",
+  },
+];
+
+const serviceExpenseRows: FlowStep[] = [
+  {
+    title: "IOU / employee advance",
+    input: "Job, amount, purpose, requester, and notes.",
+    output: "IOU request is sent to users with approval rights. Finance can approve, release, and settle.",
+    check: "Requester and approvers receive notifications. Pending IOUs can block closeout.",
+  },
+  {
+    title: "Petty cash voucher",
+    input: "Job, petty cash fund, amount, expense reason, and support notes.",
+    output: "Petty cash expense follows finance review and settlement.",
+    check: "Voucher should update the correct fund/status after approval and settlement.",
+  },
+  {
+    title: "Out-of-pocket claim",
+    input: "Job, employee, claim lines, amounts, and receipt notes.",
+    output: "Claim follows approval and reimbursement settlement.",
+    check: "Approved/settled claim lines can feed job cost and billing decisions where applicable.",
+  },
+];
+
+const serviceCloseoutRows: Row[] = [
+  { left: "Daily sheets", right: "No draft or submitted daily sheets should remain. Approve or reject every sheet." },
+  { left: "Labour", right: "No open labour entries should remain. Approved billable labour must be billed or intentionally handled." },
+  { left: "Materials", right: "MRNs must be posted or cancelled, and issued material must be used, returned, damaged, or rejected correctly." },
+  { left: "Expenses and IOUs", right: "Pending advances, petty cash vouchers, and reimbursement claims must be cleared according to finance workflow." },
+  { left: "Estimate and invoice", right: "Customer approval, handover, and final invoice decision must be clear." },
+  { left: "Costs", right: "Material, labour, direct purchase, and claim costs should be reviewed before closeout." },
+];
+
 const adminRows: FlowStep[] = [
   {
     title: "Create user",
@@ -444,10 +566,92 @@ export default function HelpPage() {
 
       <Section id="service" title="6. Service">
         <ManualImage src="/help/job-orders/01-jobs-list.png" alt="Service job list" />
-        <p>Service manages customer equipment, job orders, daily work, labour, parts, expenses, handover, billing, costs, and closeout.</p>
+        <p>
+          Service manages customer equipment, job orders, daily work, labour, parts, expenses, handover, billing, costs, and closeout. The main rule is to open one job order for the customer equipment problem, then record every day of work and every cost against that job.
+        </p>
+        <p>
+          Start from the service lists and queues first. Use forms only when you need to create or edit a record. This keeps the job history visible while users add daily sheets, progress, labour, materials, IOUs, expenses, estimates, and handover records.
+        </p>
+
+        <h3 className="text-base font-semibold tracking-tight text-[var(--foreground)]">Service menu areas</h3>
+        <TwoColumnTable rows={serviceMenuRows} />
+
+        <h3 className="text-base font-semibold tracking-tight text-[var(--foreground)]">Core service records</h3>
         <FlowTable rows={serviceRows} />
+
         <ManualImage src="/help/job-orders/02-job-overview.png" alt="Service job overview" />
+
+        <h3 className="text-base font-semibold tracking-tight text-[var(--foreground)]">Job order and job detail</h3>
+        <p>
+          A job order is the main service document. It stores the equipment, customer, job type, complaint, expected date, responsible officer, entitlement, and status. Once the job is started, header editing is limited. Daily work, materials, labour, expenses, billing, and closeout must be entered in the correct job tabs.
+        </p>
+        <TwoColumnTable
+          left="Job tab"
+          right="What users do there"
+          rows={[
+            { left: "Overview", right: "Use the cockpit and process timeline to see last progress, staff today, cash/expense blockers, uninvoiced labour, material disposition, handover, invoice state, and job cost." },
+            { left: "Plan", right: "Plan operations or repair stages. Planning does not reduce stock and does not create labour cost." },
+            { left: "Daily Work", right: "Create daily sheets, add daily staff/labour attendance, and record daily progress." },
+            { left: "Materials", right: "Issue parts through MRNs, then record returns, damage, or rejection where needed." },
+            { left: "Expenses", right: "Request IOUs, enter petty cash vouchers, and record employee reimbursement claims." },
+            { left: "Billing", right: "Check closeout readiness, entitlement, quotations, handover, and invoices." },
+            { left: "Costs", right: "Review material cost, labour cost, expense cost, quoted revenue, invoice revenue, and profitability." },
+            { left: "Files & Notes", right: "Keep customer communication, internal notes, attachments, and support documents." },
+          ]}
+        />
+
         <ManualImage src="/help/job-orders/04-daily-sheets.png" alt="Daily sheets" />
+
+        <h3 className="text-base font-semibold tracking-tight text-[var(--foreground)]">Daily sheets</h3>
+        <p>
+          A daily sheet is the daily field record for one job on one working day or site visit. It explains what was planned, what was completed, what is pending, what site condition was found, and which related entries were created for that day.
+        </p>
+        <p>
+          Create one daily sheet for each working day. Staff/labour attendance and progress entries require a daily sheet first. Draft or submitted daily sheets must be approved or rejected before the job can be closed.
+        </p>
+        <FlowTable rows={serviceDailySheetRows} />
+
+        <h3 className="text-base font-semibold tracking-tight text-[var(--foreground)]">Daily sheets vs job sheets / work orders</h3>
+        <p>
+          This is the most important service difference. Daily sheets are for daily supervision and field history. Job sheets/work orders are for costed or billable labour.
+        </p>
+        <TwoColumnTable rows={serviceDifferenceRows} left="Difference" right="Explanation" />
+        <div className="rounded-lg border border-[var(--card-border)] bg-[var(--surface-soft)] p-3">
+          <h4 className="font-semibold">Simple example</h4>
+          <NumberedList
+            items={[
+              "Technician visits the customer today.",
+              "Create a daily sheet for today's visit.",
+              "Add the technician under Daily Staff / Labor so attendance is recorded.",
+              "Add progress explaining the fault, work done, and pending items.",
+              "If 3 hours should be costed or billed, create a job sheet/work-order time entry for those 3 hours.",
+            ]}
+          />
+        </div>
+
+        <h3 className="text-base font-semibold tracking-tight text-[var(--foreground)]">Job sheets / work orders</h3>
+        <p>
+          Use job sheets/work orders when labour must be costed, approved, or billed. They are separate from daily attendance. Approved labour feeds job cost, and approved billable labour can feed the final invoice.
+        </p>
+        <FlowTable rows={serviceWorkOrderRows} />
+
+        <h3 className="text-base font-semibold tracking-tight text-[var(--foreground)]">Materials, MRNs, returns, and damage</h3>
+        <p>
+          Materials are issued to a job through MRNs. Planning a part does not reduce stock. Only a posted MRN reduces stock and updates the job material cost. Unused, damaged, rejected, or wrongly issued materials must be recorded before closeout.
+        </p>
+        <FlowTable rows={serviceMaterialRows} />
+
+        <h3 className="text-base font-semibold tracking-tight text-[var(--foreground)]">IOUs, petty cash, and employee claims</h3>
+        <p>
+          Service expenses are separated so finance can control advances, company cash, and employee reimbursements correctly. Pending finance documents remain visible on the job and can block closeout until cleared.
+        </p>
+        <FlowTable rows={serviceExpenseRows} />
+
+        <h3 className="text-base font-semibold tracking-tight text-[var(--foreground)]">Estimates, handover, billing, and closeout</h3>
+        <p>
+          Use estimates when the customer must approve repair value or extra work. Use service taken/handover when the work is returned or confirmed with the customer. Before closing, open Billing and clear every closeout readiness blocker.
+        </p>
+        <TwoColumnTable rows={serviceCloseoutRows} left="Closeout area" right="What to check" />
         <ManualImage src="/help/job-orders/08-billing.png" alt="Billing and closeout" />
       </Section>
 

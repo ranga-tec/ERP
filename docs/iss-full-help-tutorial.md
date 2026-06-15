@@ -682,11 +682,82 @@ What to check:
 
 ## 8. Service Tutorial
 
-Service manages equipment, jobs, daily work, materials, labour, expenses, handover, and closeout.
+Service manages customer equipment, service jobs, daily work, labour, parts, expenses, estimates, handovers, billing, costs, and closeout.
 
-### 8.1 Service Job List
+The main rule is:
+
+**Create one job order for the customer equipment problem. Then record each day, each cost, each material issue, each customer approval, and each closeout action against that job.**
+
+### 8.1 Service Menu Areas
+
+| Screen | Purpose |
+| --- | --- |
+| Command Center | Supervisor view of active jobs, overdue jobs, missing daily sheets, pending approvals, finance blockers, billing readiness, and closeout blockers |
+| Dispatch Board | Lane view for unassigned, assigned/active, waiting, and completed jobs |
+| Technician Workbench | Technician daily view for assignments, open daily sheets, and quick actions |
+| Equipment Units | Customer-owned machines/equipment that can receive service jobs |
+| Service Contracts | AMC, SLA, warranty extension, and coverage information |
+| Job Orders | Main service job record |
+| Job Sheets / Work Orders | Costed or billable labour time records |
+| MRN / Material Requisitions | Stock issue documents for job materials |
+| Quotations / Estimates | Customer quotation and change-order process |
+| Service Taken / Handovers | Customer confirmation, final handover, and invoice path |
+| Quality Checks | Inspection or QC records |
+
+### 8.2 Equipment Units
+
+Use `Service -> Equipment Units` before opening a job.
+
+An equipment unit is one customer-owned machine or unit. It normally stores the item/model, serial number, customer owner, site/location, warranty date, coverage, service interval, and next service date.
+
+What to input:
+
+| Field | Example |
+| --- | --- |
+| Mode | Existing item or outside equipment |
+| Item/model | Generator, compressor, hydraulic machine |
+| Serial number | `GEN-001` |
+| Customer | Equipment owner |
+| Warranty/coverage | Labour, parts, or labour and parts |
+
+Output:
+
+- Equipment becomes selectable when creating a service job.
+
+What to check:
+
+- Serial number is correct and unique.
+- Customer ownership is correct.
+- Warranty and contract information is correct before opening the job.
+
+### 8.3 Service Contracts
+
+Use contracts for AMC, SLA, or warranty extension coverage.
+
+What to input:
+
+| Field | Example |
+| --- | --- |
+| Equipment unit | Customer machine |
+| Contract type | AMC, SLA, Warranty Extension |
+| Coverage | Inspection, Labor, Parts, Labor and Parts |
+| Start/end dates | Contract period |
+
+Output:
+
+- Job entitlement can be calculated from the active contract.
+
+What to check:
+
+- Contract period covers the job date.
+- Coverage type is correct.
+- If contract is added after job creation, click `Refresh Entitlement` on the job.
+
+### 8.4 Service Job List
 
 ![Service job list](../frontend/public/help/job-orders/01-jobs-list.png)
+
+Use `Service -> Jobs` as the main job register. Existing jobs appear first. Use `+ New Job Order` only when opening a new job.
 
 What to input when creating:
 
@@ -703,14 +774,16 @@ Output:
 
 - Job order is created.
 - Job number is generated.
+- Entitlement is checked from service contract first, then warranty.
 
 What to check:
 
 - Equipment and customer are correct.
 - Warranty/contract entitlement is correct.
 - Job appears in command center and job list.
+- Notifications go to the responsible users where configured.
 
-### 8.2 Job Overview
+### 8.5 Job Overview And Tabs
 
 ![Job overview](../frontend/public/help/job-orders/02-job-overview.png)
 
@@ -718,40 +791,86 @@ Output:
 
 - Shows job number, status, type, equipment, customer, dates, cockpit, and process timeline.
 
+Job tabs:
+
+| Tab | What users do there |
+| --- | --- |
+| Overview | Check cockpit summary and process timeline |
+| Plan | Plan repair operations or stages |
+| Daily Work | Create daily sheets, staff/labour attendance, and progress |
+| Materials | Issue MRNs, return materials, and record damage/rejection |
+| Expenses | IOUs, petty cash vouchers, and reimbursement claims |
+| Billing | Closeout readiness, entitlement, estimates, invoices |
+| Costs | Material, labour, expense, revenue, and margin review |
+| Files & Notes | Comments, attachments, and support documents |
+
 What to check:
 
 - Use timeline links to go to plan, daily work, materials, expenses, billing, costs, and files.
 - Header edit is available only while the job is editable.
+- Once job execution starts, operational work should be entered through tabs, not header edit.
 
-### 8.3 Daily Field Sheets
+### 8.6 Daily Field Sheets
 
 ![Daily sheets](../frontend/public/help/job-orders/04-daily-sheets.png)
+
+A daily sheet is the daily field record for one job on one working day or site visit.
+
+Use it to answer:
+
+- What was planned today?
+- What was completed today?
+- What is pending?
+- What problem or site condition was found?
+- Who worked on this job today?
+- Were materials, IOUs, expenses, or progress updates entered for this day?
 
 What to input:
 
 | Field | Example |
 | --- | --- |
-| Work date | Today |
+| Work date | Today or site visit date |
+| Prepared by | Supervisor or technician |
 | Planned work | What should be done |
 | Completed work | What was completed |
-| Pending/issues | What remains |
-| Site condition | Optional |
+| Pending/issues | What remains or blocks the job |
+| Site condition | Customer site/workshop condition |
+| Notes | Special instructions |
 
 Output:
 
 - Daily sheet card appears.
 - Staff, progress, material, IOU, and expense counts appear on the card.
+- Sheet can be submitted for supervisor approval.
 
 What to check:
 
-- Create one daily sheet per work day.
+- Create one daily sheet per working day.
+- Staff and progress require a daily sheet first.
+- Draft or submitted sheets block closeout.
 - Approve or reject submitted sheets before closeout.
 
-### 8.4 Daily Labour
+Daily sheet statuses:
+
+| Status | Meaning |
+| --- | --- |
+| Draft | Created but not submitted |
+| Submitted | Sent for supervisor review |
+| Approved | Accepted and locked |
+| Rejected | Returned for correction |
+
+### 8.7 Daily Staff / Labour
 
 ![Daily labour](../frontend/public/help/job-orders/05-daily-labor.png)
 
-Use daily labour to record attendance and daily work.
+Daily staff/labour records attendance and daily work allocation for a daily sheet.
+
+Use it to record:
+
+- who attended the job
+- what each person did
+- normal and overtime hours for daily supervision
+- technician/helper notes
 
 What to input:
 
@@ -765,13 +884,35 @@ What to input:
 Output:
 
 - Daily staff entry appears under the daily sheet.
+- Daily sheet staff count increases.
 
 What to check:
 
-- This records attendance/supervision.
+- This records attendance and supervision.
 - It does not by itself create final billable invoice labour.
 
-### 8.5 Work Orders / Job Sheets
+### 8.8 Daily Sheets Vs Job Sheets / Work Orders
+
+This is the most important service difference.
+
+| Daily Sheet / Daily Staff | Job Sheet / Work Order |
+| --- | --- |
+| Daily operational record | Billable/costed labour record |
+| One per working day or site visit | One or more per job/task depending on labour billing |
+| Shows what happened today | Shows work/time used for costing and invoicing |
+| Records attendance, progress, issues, materials, IOUs, and expenses for the day | Records technician, date, hours, cost rate, billing rate, approval, and invoice status |
+| Helps answer: "What happened today?" | Helps answer: "What labour should be costed or billed?" |
+| Does not by itself create final billable labour | Approved billable entries can feed invoices |
+
+Simple example:
+
+1. Technician visits customer today.
+2. Create a daily sheet for today's visit.
+3. Add the technician under daily staff/labour.
+4. Add progress explaining the fault and work done.
+5. If 3 hours should be billed or costed, create a job sheet/work-order time entry for those 3 hours.
+
+### 8.9 Work Orders / Job Sheets
 
 Use work orders for billable or costed labour time entries.
 
@@ -781,6 +922,7 @@ What to input:
 | --- | --- |
 | Service job | Related job |
 | Technician | Technician |
+| Work date | Labour date |
 | Hours | Billable/cost hours |
 | Cost rate | Internal cost |
 | Billing rate | Customer charge |
@@ -789,24 +931,31 @@ What to input:
 Output:
 
 - Time entry moves through Draft -> Submitted -> Approved/Rejected -> Invoiced.
+- Approved labour appears in job costing.
+- Billable approved labour can be invoiced.
 
 What to check:
 
-- Approved labour appears in costing.
-- Billable approved labour can be invoiced.
+- Technician rates are correct.
+- Warranty or contract coverage is applied where relevant.
+- Rejected labour is not billed.
+- Uninvoiced billable labour is reviewed before closeout.
 
-### 8.6 Materials / MRN
+### 8.10 Materials / MRN
 
 ![Materials](../frontend/public/help/job-orders/06-materials.png)
+
+Use MRNs to issue spare parts or materials from inventory to a job.
 
 What to input:
 
 | Field | Example |
 | --- | --- |
 | Service job | Related job |
-| Warehouse | Source warehouse |
+| Warehouse/bin | Source stock location |
 | Item | Spare part/material |
 | Quantity | Required quantity |
+| Batch/serial | Required for tracked items |
 
 Output:
 
@@ -815,12 +964,31 @@ Output:
 
 What to check:
 
+- Planning a part does not reduce stock.
 - Draft MRN does not reduce stock.
 - Posted MRN reduces stock.
 - Material cost appears in job costing.
-- Return/damage disposition is recorded before closeout.
+- Returned, damaged, rejected, or unused materials are recorded before closeout.
 
-### 8.7 Expenses
+### 8.11 Material Returns, Damage, And Rejection
+
+Use material disposition when issued items were not fully consumed.
+
+Examples:
+
+- unused part returned to stores
+- wrong item issued
+- customer rejected a part
+- part damaged during job
+- supplier/manufacturer issue found
+
+What to check:
+
+- Returned material goes back to stock only through the correct posted return flow.
+- Damaged/rejected material remains visible for job review.
+- Closeout should not allow unresolved material disposition.
+
+### 8.12 Expenses
 
 ![Expenses](../frontend/public/help/job-orders/07-expenses.png)
 
@@ -828,30 +996,79 @@ Expense types:
 
 | Type | Use when |
 | --- | --- |
-| IOU | User needs advance cash |
-| Petty cash expense | Company petty cash was used |
-| Out-of-pocket claim | Employee paid personally and needs reimbursement |
+| IOU / Employee Advance | User needs advance cash before final receipts are ready |
+| Petty Cash Voucher | Company petty cash was used |
+| Out-of-pocket Claim | Employee paid personally and needs reimbursement |
 
 What to check:
 
 - Submitted IOUs notify all users with approve rights.
-- Approved/rejected users receive status notifications.
-- Finance can settle approved claims.
-- Billable expense lines can be converted to estimates where allowed.
+- Requester receives status notifications.
+- Finance can approve, release, and settle IOUs.
+- Finance can approve and settle petty cash and reimbursement claims.
+- Pending finance documents remain visible on the job and can block closeout.
 
-### 8.8 Billing And Closeout
+### 8.13 Estimates / Quotations
 
-![Billing](../frontend/public/help/job-orders/08-billing.png)
+Use estimates when the customer must approve repair value or additional work before the job continues.
+
+Estimate lines can include:
+
+- parts
+- labour
+- billable expenses
 
 What to check:
 
-- Closeout readiness shows all blockers.
-- Draft/submitted daily sheets must be cleared.
-- Pending IOUs and expense claims must be cleared.
-- Draft MRNs and unresolved materials must be cleared.
-- Final invoice decision must be completed.
+- Draft estimate can be edited.
+- Sending marks customer approval as pending.
+- Customer approval or rejection is recorded.
+- If scope changes after approval, use a change order.
+- Warranty or contract coverage can make covered lines zero charge.
 
-### 8.9 Costs
+### 8.14 Service Taken / Handover
+
+Use service taken/handover when the repair or service is handed back to the customer.
+
+What to input:
+
+| Field | Example |
+| --- | --- |
+| Handover date | Completion date |
+| Customer acknowledgement | Customer confirmation |
+| Returned items | Items returned to customer |
+| Post-service warranty | Warranty months if applicable |
+| Notes | Final remarks |
+
+Output:
+
+- Handover record is linked to the job.
+- Final invoice path can continue where applicable.
+
+What to check:
+
+- Customer acknowledgement is captured.
+- Returned items are recorded.
+- Handover status is correct before closing.
+
+### 8.15 Billing And Closeout
+
+![Billing](../frontend/public/help/job-orders/08-billing.png)
+
+Open the Billing tab before closing the job.
+
+What to check:
+
+| Closeout area | What to check |
+| --- | --- |
+| Daily sheets | No draft or submitted daily sheets remain |
+| Labour | No open labour entries remain; approved billable labour is billed or intentionally handled |
+| Materials | MRNs are posted/cancelled and issued material is used, returned, damaged, or rejected |
+| Expenses/IOUs | Pending advances, vouchers, and claims are cleared |
+| Estimate/invoice | Customer approval, handover, and final invoice decision are clear |
+| Costs | Materials, labour, claims, and invoice revenue are reviewed |
+
+### 8.16 Costs
 
 ![Costs](../frontend/public/help/job-orders/09-costs.png)
 
@@ -861,8 +1078,33 @@ Output:
 
 What to check:
 
+- Posted MRNs are included.
+- Approved labour is included.
+- Approved/settled claims are included according to workflow.
 - Costs are reviewed before final billing.
 - Uninvoiced billable labour is checked before closing.
+
+### 8.17 Recommended End-To-End Service Flow
+
+1. Create or confirm the customer equipment unit.
+2. Create or confirm service contract/warranty.
+3. Create job order.
+4. Review entitlement or click `Refresh Entitlement`.
+5. Start the job.
+6. Plan operations if needed.
+7. Create a daily sheet for the first working day.
+8. Add daily staff/labour attendance.
+9. Add daily progress.
+10. Request IOU or enter expense if needed.
+11. Create and post MRN if parts are used.
+12. Record material return/damage/rejection if required.
+13. Create job sheet/work-order labour for billable/costed hours.
+14. Create estimate if customer approval is required.
+15. Complete the job when technical work is finished.
+16. Create service taken/handover.
+17. Review Billing and Costs.
+18. Clear closeout blockers.
+19. Close the job.
 
 ## 9. Reporting Tutorial
 
@@ -1076,4 +1318,3 @@ Say this to a new user:
 5. "Permissions control who can view, create, edit, approve, post, allocate, or settle."
 6. "Notifications tell the next responsible users what needs action."
 7. "Reports are where we check that the transaction result is correct."
-
