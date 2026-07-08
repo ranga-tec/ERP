@@ -37,14 +37,15 @@ export default async function GoodsReceiptsPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold">Goods Receipts (GRN)</h1>
-        <p className="mt-1 text-sm text-zinc-500">Receive PO items into a warehouse, then post.</p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-semibold">Goods Receipts (GRN)</h1>
+          <p className="mt-1 text-sm text-zinc-500">Receive PO items into a warehouse, then post.</p>
+        </div>
+        <AppFormModal title="Create Goods Receipt" description="Create a draft GRN for a purchase order." buttonLabel="+ New GRN">
+          <GoodsReceiptCreateForm purchaseOrders={pos} warehouses={warehouses} />
+        </AppFormModal>
       </div>
-
-      <AppFormModal title="Create Goods Receipt" description="Create a draft GRN for a purchase order." buttonLabel="+ New GRN">
-        <GoodsReceiptCreateForm purchaseOrders={pos} warehouses={warehouses} />
-      </AppFormModal>
 
       <Card>
         <div className="mb-3 text-sm font-semibold">List</div>
@@ -84,6 +85,8 @@ export default async function GoodsReceiptsPage() {
                     <ListViewEditActions
                       viewHref={`/procurement/goods-receipts/${g.id}`}
                       canEdit={g.status === 0}
+                      editInModal
+                      editModalTitle={`Edit Goods Receipt ${g.number}`}
                       auditTableName="GoodsReceipts"
                       auditRecordId={g.id}
                     />

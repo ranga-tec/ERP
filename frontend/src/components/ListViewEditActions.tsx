@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { AppFormModal } from "@/components/AppFormModal";
 import { AuditTrailButton } from "@/components/AuditTrailButton";
 
 const actionLinkClassName =
@@ -8,6 +9,8 @@ type ListViewEditActionsProps = {
   viewHref: string;
   editHref?: string;
   canEdit?: boolean;
+  editInModal?: boolean;
+  editModalTitle?: string;
   auditTableName?: string;
   auditRecordId?: string;
 };
@@ -20,6 +23,8 @@ export function ListViewEditActions({
   viewHref,
   editHref = buildDefaultEditHref(viewHref),
   canEdit = true,
+  editInModal = false,
+  editModalTitle = "Edit Document",
   auditTableName,
   auditRecordId,
 }: ListViewEditActionsProps) {
@@ -28,7 +33,13 @@ export function ListViewEditActions({
       <Link className={actionLinkClassName} href={viewHref}>
         View
       </Link>
-      {canEdit ? (
+      {canEdit && editInModal ? (
+        <AppFormModal title={editModalTitle} description="Edit this draft document without leaving the list." buttonLabel="Edit" variant="secondary" size="xl">
+          <div className="h-[72vh] overflow-hidden rounded-md border border-[var(--card-border)]">
+            <iframe title={editModalTitle} src={editHref} className="h-full w-full bg-[var(--page-bg)]" />
+          </div>
+        </AppFormModal>
+      ) : canEdit ? (
         <Link className={actionLinkClassName} href={editHref}>
           Edit
         </Link>

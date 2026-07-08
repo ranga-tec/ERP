@@ -33,14 +33,15 @@ export default async function RfqsPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold">RFQs</h1>
-        <p className="mt-1 text-sm text-zinc-500">Request for quotation workflow.</p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-semibold">RFQs</h1>
+          <p className="mt-1 text-sm text-zinc-500">Request for quotation workflow.</p>
+        </div>
+        <AppFormModal title="Create RFQ" description="Create a request for quotation." buttonLabel="+ New RFQ">
+          <RfqCreateForm suppliers={suppliers} />
+        </AppFormModal>
       </div>
-
-      <AppFormModal title="Create RFQ" description="Create a request for quotation." buttonLabel="+ New RFQ">
-        <RfqCreateForm suppliers={suppliers} />
-      </AppFormModal>
 
       <Card>
         <div className="mb-3 text-sm font-semibold">List</div>
@@ -79,6 +80,8 @@ export default async function RfqsPage() {
                     <ListViewEditActions
                       viewHref={`/procurement/rfqs/${r.id}`}
                       canEdit={r.status === 0}
+                      editInModal
+                      editModalTitle={`Edit RFQ ${r.number}`}
                       auditTableName="Rfqs"
                       auditRecordId={r.id}
                     />

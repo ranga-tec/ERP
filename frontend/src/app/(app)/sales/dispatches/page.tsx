@@ -38,14 +38,15 @@ export default async function DispatchesPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold">Dispatch Notes</h1>
-        <p className="mt-1 text-sm text-zinc-500">Pick sales order items from inventory, then post.</p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-semibold">Dispatch Notes</h1>
+          <p className="mt-1 text-sm text-zinc-500">Pick sales order items from inventory, then post.</p>
+        </div>
+        <AppFormModal title="Create Dispatch Note" description="Create a draft dispatch for a sales order." buttonLabel="+ New Dispatch">
+          <DispatchCreateForm salesOrders={orders} warehouses={warehouses} />
+        </AppFormModal>
       </div>
-
-      <AppFormModal title="Create Dispatch Note" description="Create a draft dispatch for a sales order." buttonLabel="+ New Dispatch">
-        <DispatchCreateForm salesOrders={orders} warehouses={warehouses} />
-      </AppFormModal>
 
       <Card>
         <div className="mb-3 text-sm font-semibold">List</div>
@@ -87,6 +88,8 @@ export default async function DispatchesPage() {
                     <ListViewEditActions
                       viewHref={`/sales/dispatches/${d.id}`}
                       canEdit={d.status === 0}
+                      editInModal
+                      editModalTitle={`Edit Dispatch ${d.number}`}
                       auditTableName="Dispatches"
                       auditRecordId={d.id}
                     />

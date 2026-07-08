@@ -45,16 +45,17 @@ export default async function DirectPurchasesPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold">Direct Purchases</h1>
-        <p className="mt-1 text-sm text-zinc-500">
-          Receive purchases without a PO. Link emergency outside buys to the relevant job order when needed.
-        </p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-semibold">Direct Purchases</h1>
+          <p className="mt-1 text-sm text-zinc-500">
+            Receive purchases without a PO. Link emergency outside buys to the relevant job order when needed.
+          </p>
+        </div>
+        <AppFormModal title="Create Direct Purchase" description="Create a draft direct purchase without a PO." buttonLabel="+ New Direct Purchase" size="xl">
+          <DirectPurchaseCreateForm suppliers={suppliers} warehouses={warehouses} serviceJobs={serviceJobs} />
+        </AppFormModal>
       </div>
-
-      <AppFormModal title="Create Direct Purchase" description="Create a draft direct purchase without a PO." buttonLabel="+ New Direct Purchase" size="xl">
-        <DirectPurchaseCreateForm suppliers={suppliers} warehouses={warehouses} serviceJobs={serviceJobs} />
-      </AppFormModal>
 
       <Card>
         <div className="mb-3 text-sm font-semibold">List</div>
@@ -105,6 +106,8 @@ export default async function DirectPurchasesPage() {
                     <ListViewEditActions
                       viewHref={`/procurement/direct-purchases/${r.id}`}
                       canEdit={r.status === 0}
+                      editInModal
+                      editModalTitle={`Edit Direct Purchase ${r.number}`}
                       auditTableName="DirectPurchases"
                       auditRecordId={r.id}
                     />

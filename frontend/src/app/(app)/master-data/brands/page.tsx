@@ -1,5 +1,6 @@
 import { backendFetchJson } from "@/lib/backend.server";
 import { AppFormModal } from "@/components/AppFormModal";
+import { TableSearchInput } from "@/components/TableSearchInput";
 import { Card, Table } from "@/components/ui";
 import { BrandCreateForm } from "./BrandCreateForm";
 import { BrandRow } from "./BrandRow";
@@ -11,17 +12,19 @@ export default async function BrandsPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold">Brands</h1>
-        <p className="mt-1 text-sm text-zinc-500">Master data for item brands.</p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-semibold">Brands</h1>
+          <p className="mt-1 text-sm text-zinc-500">Master data for item brands.</p>
+        </div>
+        <AppFormModal title="Create Brand" description="Add a new item brand." buttonLabel="+ New Brand">
+          <BrandCreateForm />
+        </AppFormModal>
       </div>
-
-      <AppFormModal title="Create Brand" description="Add a new item brand." buttonLabel="+ New Brand">
-        <BrandCreateForm />
-      </AppFormModal>
 
       <Card>
         <div className="mb-3 text-sm font-semibold">List</div>
+        <TableSearchInput placeholder="Search brands..." />
         <div className="overflow-auto">
           <Table>
             <thead>

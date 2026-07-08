@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { apiDeleteNoContent, apiPost, apiPut } from "@/lib/api-client";
 import { AppFormModal } from "@/components/AppFormModal";
+import { TableSearchInput } from "@/components/TableSearchInput";
 import { Button, Input, SecondaryButton, Select, Table } from "@/components/ui";
 
 type WarehouseDto = { id: string; code: string; name: string; isActive: boolean };
@@ -119,8 +120,9 @@ export function WarehouseBinsManager({ warehouses, bins }: { warehouses: Warehou
 
   return (
     <div className="space-y-4">
-      <AppFormModal title="Create Warehouse Bin" description="Add a rack, shelf, or bin location under a warehouse." buttonLabel="+ New Bin" onOpen={() => setDraft(emptyDraft)}>
-        <form onSubmit={createBin} className="space-y-3">
+      <div className="flex justify-end">
+        <AppFormModal title="Create Warehouse Bin" description="Add a rack, shelf, or bin location under a warehouse." buttonLabel="+ New Bin" onOpen={() => setDraft(emptyDraft)}>
+          <form onSubmit={createBin} className="space-y-3">
           <div className="grid gap-3 sm:grid-cols-2">
             <div>
               <label className="mb-1 block text-sm font-medium">Warehouse</label>
@@ -153,15 +155,17 @@ export function WarehouseBinsManager({ warehouses, bins }: { warehouses: Warehou
               <Input value={draft.shelf} onChange={(e) => setDraft((current) => ({ ...current, shelf: e.target.value }))} />
             </div>
           </div>
-          <Button type="submit" disabled={busy || !warehouseId}>
-            {busy ? "Saving..." : "Add Bin"}
-          </Button>
-        </form>
-      </AppFormModal>
+            <Button type="submit" disabled={busy || !warehouseId}>
+              {busy ? "Saving..." : "Add Bin"}
+            </Button>
+          </form>
+        </AppFormModal>
+      </div>
 
       {error ? <div className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-900">{error}</div> : null}
 
       <div className="overflow-auto">
+        <TableSearchInput placeholder="Search bins..." />
         <Table>
           <thead>
             <tr className="border-b border-zinc-200 text-left text-xs uppercase tracking-wide text-zinc-500 dark:border-zinc-800">

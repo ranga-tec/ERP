@@ -1,5 +1,6 @@
 import { backendFetchJson } from "@/lib/backend.server";
 import { AppFormModal } from "@/components/AppFormModal";
+import { TableSearchInput } from "@/components/TableSearchInput";
 import { Card, Table } from "@/components/ui";
 import { CustomerCreateForm } from "./CustomerCreateForm";
 import { CustomerRow } from "./CustomerRow";
@@ -19,17 +20,19 @@ export default async function CustomersPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold">Customers</h1>
-        <p className="mt-1 text-sm text-zinc-500">Customer master data.</p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-semibold">Customers</h1>
+          <p className="mt-1 text-sm text-zinc-500">Customer master data.</p>
+        </div>
+        <AppFormModal title="Create Customer" description="Add a customer master record." buttonLabel="+ New Customer">
+          <CustomerCreateForm />
+        </AppFormModal>
       </div>
-
-      <AppFormModal title="Create Customer" description="Add a customer master record." buttonLabel="+ New Customer">
-        <CustomerCreateForm />
-      </AppFormModal>
 
       <Card>
         <div className="mb-3 text-sm font-semibold">List</div>
+        <TableSearchInput placeholder="Search customers..." />
         <div className="overflow-auto">
           <Table>
             <thead>

@@ -34,14 +34,15 @@ export default async function SalesOrdersPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold">Sales Orders</h1>
-        <p className="mt-1 text-sm text-zinc-500">Draft -&gt; add lines -&gt; confirm -&gt; dispatch.</p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-semibold">Sales Orders</h1>
+          <p className="mt-1 text-sm text-zinc-500">Draft -&gt; add lines -&gt; confirm -&gt; dispatch.</p>
+        </div>
+        <AppFormModal title="Create Sales Order" description="Create a draft order before adding lines." buttonLabel="+ New Order">
+          <SalesOrderCreateForm customers={customers} />
+        </AppFormModal>
       </div>
-
-      <AppFormModal title="Create Sales Order" description="Create a draft order before adding lines." buttonLabel="+ New Order">
-        <SalesOrderCreateForm customers={customers} />
-      </AppFormModal>
 
       <Card>
         <div className="mb-3 text-sm font-semibold">List</div>
@@ -76,6 +77,8 @@ export default async function SalesOrdersPage() {
                     <ListViewEditActions
                       viewHref={`/sales/orders/${o.id}`}
                       canEdit={o.status === 0}
+                      editInModal
+                      editModalTitle={`Edit Order ${o.number}`}
                       auditTableName="SalesOrders"
                       auditRecordId={o.id}
                     />

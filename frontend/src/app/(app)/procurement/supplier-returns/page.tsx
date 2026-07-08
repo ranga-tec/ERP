@@ -37,14 +37,15 @@ export default async function SupplierReturnsPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold">Supplier Returns</h1>
-        <p className="mt-1 text-sm text-zinc-500">Return inventory back to a supplier, then post.</p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-semibold">Supplier Returns</h1>
+          <p className="mt-1 text-sm text-zinc-500">Return inventory back to a supplier, then post.</p>
+        </div>
+        <AppFormModal title="Create Supplier Return" description="Create a draft return to supplier." buttonLabel="+ New Supplier Return">
+          <SupplierReturnCreateForm suppliers={suppliers} warehouses={warehouses} />
+        </AppFormModal>
       </div>
-
-      <AppFormModal title="Create Supplier Return" description="Create a draft return to supplier." buttonLabel="+ New Supplier Return">
-        <SupplierReturnCreateForm suppliers={suppliers} warehouses={warehouses} />
-      </AppFormModal>
 
       <Card>
         <div className="mb-3 text-sm font-semibold">List</div>
@@ -82,6 +83,8 @@ export default async function SupplierReturnsPage() {
                     <ListViewEditActions
                       viewHref={`/procurement/supplier-returns/${r.id}`}
                       canEdit={r.status === 0}
+                      editInModal
+                      editModalTitle={`Edit Supplier Return ${r.number}`}
                       auditTableName="SupplierReturns"
                       auditRecordId={r.id}
                     />

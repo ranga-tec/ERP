@@ -1,5 +1,6 @@
 import { backendFetchJson } from "@/lib/backend.server";
 import { AppFormModal } from "@/components/AppFormModal";
+import { TableSearchInput } from "@/components/TableSearchInput";
 import { Card, Table } from "@/components/ui";
 import { TaxConversionCreateForm } from "./TaxConversionCreateForm";
 import { TaxConversionRow } from "./TaxConversionRow";
@@ -26,17 +27,19 @@ export default async function TaxConversionsPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold">Tax Conversions</h1>
-        <p className="mt-1 text-sm text-zinc-500">Map one tax regime amount to another using maintained multipliers.</p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-semibold">Tax Conversions</h1>
+          <p className="mt-1 text-sm text-zinc-500">Map one tax regime amount to another using maintained multipliers.</p>
+        </div>
+        <AppFormModal title="Create Tax Conversion" description="Add a conversion rule between two tax codes." buttonLabel="+ New Tax Conversion">
+          <TaxConversionCreateForm taxes={taxes} />
+        </AppFormModal>
       </div>
-
-      <AppFormModal title="Create Tax Conversion" description="Add a conversion rule between two tax codes." buttonLabel="+ New Tax Conversion">
-        <TaxConversionCreateForm taxes={taxes} />
-      </AppFormModal>
 
       <Card>
         <div className="mb-3 text-sm font-semibold">List</div>
+        <TableSearchInput placeholder="Search tax conversions..." />
         <div className="overflow-auto">
           <Table>
             <thead>

@@ -39,14 +39,15 @@ export default async function DirectDispatchesPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold">Advance of Dispatch (AOD)</h1>
-        <p className="mt-1 text-sm text-zinc-500">Immediate stock issue without a sales order (sales/service scenarios).</p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-semibold">Advance of Dispatch (AOD)</h1>
+          <p className="mt-1 text-sm text-zinc-500">Immediate stock issue without a sales order (sales/service scenarios).</p>
+        </div>
+        <AppFormModal title="Create AOD" description="Create an advance dispatch without a sales order." buttonLabel="+ New AOD">
+          <DirectDispatchCreateForm customers={customers} serviceJobs={jobs} warehouses={warehouses} />
+        </AppFormModal>
       </div>
-
-      <AppFormModal title="Create AOD" description="Create an advance dispatch without a sales order." buttonLabel="+ New AOD">
-        <DirectDispatchCreateForm customers={customers} serviceJobs={jobs} warehouses={warehouses} />
-      </AppFormModal>
 
       <Card>
         <div className="mb-3 text-sm font-semibold">List</div>
@@ -95,6 +96,8 @@ export default async function DirectDispatchesPage() {
                     <ListViewEditActions
                       viewHref={`/sales/direct-dispatches/${r.id}`}
                       canEdit={r.status === 0}
+                      editInModal
+                      editModalTitle={`Edit AOD ${r.number}`}
                       auditTableName="DirectDispatches"
                       auditRecordId={r.id}
                     />

@@ -1,5 +1,6 @@
 import { backendFetchJson } from "@/lib/backend.server";
 import { AppFormModal } from "@/components/AppFormModal";
+import { TableSearchInput } from "@/components/TableSearchInput";
 import { Card, Table } from "@/components/ui";
 import { CurrencyRateCreateForm } from "./CurrencyRateCreateForm";
 import { CurrencyRateRow } from "./CurrencyRateRow";
@@ -26,17 +27,19 @@ export default async function CurrencyRatesPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold">Currency Rates</h1>
-        <p className="mt-1 text-sm text-zinc-500">Maintain FX rates for currency conversion and valuation.</p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-semibold">Currency Rates</h1>
+          <p className="mt-1 text-sm text-zinc-500">Maintain FX rates for currency conversion and valuation.</p>
+        </div>
+        <AppFormModal title="Create Currency Rate" description="Add an exchange rate for a currency pair." buttonLabel="+ New Currency Rate">
+          <CurrencyRateCreateForm currencies={currencies} />
+        </AppFormModal>
       </div>
-
-      <AppFormModal title="Create Currency Rate" description="Add an exchange rate for a currency pair." buttonLabel="+ New Currency Rate">
-        <CurrencyRateCreateForm currencies={currencies} />
-      </AppFormModal>
 
       <Card>
         <div className="mb-3 text-sm font-semibold">List</div>
+        <TableSearchInput placeholder="Search currency rates..." />
         <div className="overflow-auto">
           <Table>
             <thead>

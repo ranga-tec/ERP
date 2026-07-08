@@ -30,16 +30,17 @@ export default async function PurchaseRequisitionsPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold">Purchase Requisitions</h1>
-        <p className="mt-1 text-sm text-zinc-500">
-          Internal purchase requests before RFQ/PO processing.
-        </p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-semibold">Purchase Requisitions</h1>
+          <p className="mt-1 text-sm text-zinc-500">
+            Internal purchase requests before RFQ/PO processing.
+          </p>
+        </div>
+        <AppFormModal title="Create Purchase Requisition" description="Create an internal purchase request." buttonLabel="+ New Purchase Req">
+          <PurchaseRequisitionCreateForm />
+        </AppFormModal>
       </div>
-
-      <AppFormModal title="Create Purchase Requisition" description="Create an internal purchase request." buttonLabel="+ New Purchase Req">
-        <PurchaseRequisitionCreateForm />
-      </AppFormModal>
 
       <Card>
         <div className="mb-3 text-sm font-semibold">List</div>
@@ -75,6 +76,8 @@ export default async function PurchaseRequisitionsPage() {
                     <ListViewEditActions
                       viewHref={`/procurement/purchase-requisitions/${pr.id}`}
                       canEdit={pr.status === 0}
+                      editInModal
+                      editModalTitle={`Edit Purchase Requisition ${pr.number}`}
                       auditTableName="PurchaseRequisitions"
                       auditRecordId={pr.id}
                     />

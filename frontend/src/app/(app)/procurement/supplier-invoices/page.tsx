@@ -91,19 +91,20 @@ export default async function SupplierInvoicesPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold">Supplier Invoices</h1>
-        <p className="mt-1 text-sm text-zinc-500">AP bills linked to PO/GRN/direct purchase or created standalone.</p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-semibold">Supplier Invoices</h1>
+          <p className="mt-1 text-sm text-zinc-500">AP bills linked to PO/GRN/direct purchase or created standalone.</p>
+        </div>
+        <AppFormModal title="Create Supplier Invoice" description="Create an AP bill from PO, GRN, direct purchase, or standalone details." buttonLabel="+ New Supplier Invoice" size="xl">
+          <SupplierInvoiceCreateForm
+            suppliers={suppliers}
+            purchaseOrders={purchaseOrders}
+            goodsReceipts={goodsReceipts}
+            directPurchases={directPurchases}
+          />
+        </AppFormModal>
       </div>
-
-      <AppFormModal title="Create Supplier Invoice" description="Create an AP bill from PO, GRN, direct purchase, or standalone details." buttonLabel="+ New Supplier Invoice" size="xl">
-        <SupplierInvoiceCreateForm
-          suppliers={suppliers}
-          purchaseOrders={purchaseOrders}
-          goodsReceipts={goodsReceipts}
-          directPurchases={directPurchases}
-        />
-      </AppFormModal>
 
       <Card>
         <div className="mb-3 text-sm font-semibold">List</div>
@@ -143,6 +144,8 @@ export default async function SupplierInvoicesPage() {
                     <ListViewEditActions
                       viewHref={`/procurement/supplier-invoices/${i.id}`}
                       canEdit={i.status === 0}
+                      editInModal
+                      editModalTitle={`Edit Supplier Invoice ${i.number}`}
                       auditTableName="SupplierInvoices"
                       auditRecordId={i.id}
                     />

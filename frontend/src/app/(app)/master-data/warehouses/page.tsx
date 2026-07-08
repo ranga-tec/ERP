@@ -1,5 +1,6 @@
 import { backendFetchJson } from "@/lib/backend.server";
 import { AppFormModal } from "@/components/AppFormModal";
+import { TableSearchInput } from "@/components/TableSearchInput";
 import { Card, Table } from "@/components/ui";
 import { WarehouseCreateForm } from "./WarehouseCreateForm";
 import { WarehouseRow } from "./WarehouseRow";
@@ -17,17 +18,19 @@ export default async function WarehousesPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold">Warehouses</h1>
-        <p className="mt-1 text-sm text-zinc-500">Maintain warehouse headers used by inventory, procurement, sales, and service documents.</p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-semibold">Warehouses</h1>
+          <p className="mt-1 text-sm text-zinc-500">Maintain warehouse headers used by inventory, procurement, sales, and service documents.</p>
+        </div>
+        <AppFormModal title="Create Warehouse" description="Add a warehouse header." buttonLabel="+ New Warehouse">
+          <WarehouseCreateForm />
+        </AppFormModal>
       </div>
-
-      <AppFormModal title="Create Warehouse" description="Add a warehouse header." buttonLabel="+ New Warehouse">
-        <WarehouseCreateForm />
-      </AppFormModal>
 
       <Card>
         <div className="mb-3 text-sm font-semibold">List</div>
+        <TableSearchInput placeholder="Search warehouses..." />
         <div className="overflow-auto">
           <Table>
             <thead>

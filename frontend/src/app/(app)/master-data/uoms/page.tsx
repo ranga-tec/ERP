@@ -1,5 +1,6 @@
 import { backendFetchJson } from "@/lib/backend.server";
 import { AppFormModal } from "@/components/AppFormModal";
+import { TableSearchInput } from "@/components/TableSearchInput";
 import { Card, Table } from "@/components/ui";
 import { UomCreateForm } from "./UomCreateForm";
 import { UomRow } from "./UomRow";
@@ -11,17 +12,19 @@ export default async function UomsPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold">Unit Of Measure</h1>
-        <p className="mt-1 text-sm text-zinc-500">Master list used for item UoM selection.</p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-semibold">Unit Of Measure</h1>
+          <p className="mt-1 text-sm text-zinc-500">Master list used for item UoM selection.</p>
+        </div>
+        <AppFormModal title="Create UoM" description="Add a new unit of measure." buttonLabel="+ New UoM">
+          <UomCreateForm />
+        </AppFormModal>
       </div>
-
-      <AppFormModal title="Create UoM" description="Add a new unit of measure." buttonLabel="+ New UoM">
-        <UomCreateForm />
-      </AppFormModal>
 
       <Card>
         <div className="mb-3 text-sm font-semibold">List</div>
+        <TableSearchInput placeholder="Search UoMs..." />
         <div className="overflow-auto">
           <Table>
             <thead>

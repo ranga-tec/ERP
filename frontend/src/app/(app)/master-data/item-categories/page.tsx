@@ -1,5 +1,6 @@
 import { backendFetchJson } from "@/lib/backend.server";
 import { AppFormModal } from "@/components/AppFormModal";
+import { TableSearchInput } from "@/components/TableSearchInput";
 import { Card, Table } from "@/components/ui";
 import { ItemCategoryCreateForm } from "./ItemCategoryCreateForm";
 import { ItemSubcategoryCreateForm } from "./ItemSubcategoryCreateForm";
@@ -33,25 +34,27 @@ export default async function ItemCategoriesPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold">Item Categories</h1>
-        <p className="mt-1 text-sm text-zinc-500">Category and subcategory masters used to classify items.</p>
-      </div>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-semibold">Item Categories</h1>
+          <p className="mt-1 text-sm text-zinc-500">Category and subcategory masters used to classify items.</p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <AppFormModal title="Create Category" description="Add a category used to classify item masters." buttonLabel="+ New Category">
+          <ItemCategoryCreateForm accountOptions={accountOptions} />
+          </AppFormModal>
 
-      <div className="flex flex-wrap gap-2">
-        <AppFormModal title="Create Category" description="Add a category used to classify item masters." buttonLabel="+ New Category">
-        <ItemCategoryCreateForm accountOptions={accountOptions} />
-        </AppFormModal>
-
-        <AppFormModal title="Create Subcategory" description="Add a subcategory under an item category." buttonLabel="+ New Subcategory">
-          <ItemSubcategoryCreateForm
-            categories={categories.map((category) => ({ id: category.id, code: category.code, name: category.name }))}
-          />
-        </AppFormModal>
+          <AppFormModal title="Create Subcategory" description="Add a subcategory under an item category." buttonLabel="+ New Subcategory">
+            <ItemSubcategoryCreateForm
+              categories={categories.map((category) => ({ id: category.id, code: category.code, name: category.name }))}
+            />
+          </AppFormModal>
+        </div>
       </div>
 
       <Card>
         <div className="mb-3 text-sm font-semibold">Categories</div>
+        <TableSearchInput placeholder="Search categories..." />
         <div className="overflow-auto">
           <Table>
             <thead>
@@ -94,6 +97,7 @@ export default async function ItemCategoriesPage() {
 
       <Card>
         <div className="mb-3 text-sm font-semibold">Subcategory List</div>
+        <TableSearchInput placeholder="Search subcategories..." />
         <div className="overflow-auto">
           <Table>
             <thead>

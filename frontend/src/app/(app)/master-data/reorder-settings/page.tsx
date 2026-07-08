@@ -1,6 +1,7 @@
 import { backendFetchJson } from "@/lib/backend.server";
 import { AppFormModal } from "@/components/AppFormModal";
 import { ItemInlineLink } from "@/components/InlineLink";
+import { TableSearchInput } from "@/components/TableSearchInput";
 import { Card, Table } from "@/components/ui";
 import { ReorderSettingUpsertForm } from "./ReorderSettingUpsertForm";
 import { ReorderSettingRow } from "./ReorderSettingRow";
@@ -27,20 +28,22 @@ export default async function ReorderSettingsPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold">Reorder Settings</h1>
-        <p className="mt-1 text-sm text-zinc-500">Reorder points and suggested reorder quantities per warehouse + item.</p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-semibold">Reorder Settings</h1>
+          <p className="mt-1 text-sm text-zinc-500">Reorder points and suggested reorder quantities per warehouse + item.</p>
+        </div>
+        <AppFormModal title="Save Reorder Setting" description="Create or update reorder levels for an item in a warehouse." buttonLabel="+ Reorder Setting" size="xl">
+          <ReorderSettingUpsertForm
+            warehouses={warehouses.map((warehouse) => ({ id: warehouse.id, code: warehouse.code, name: warehouse.name }))}
+            items={items.map((item) => ({ id: item.id, sku: item.sku, name: item.name }))}
+          />
+        </AppFormModal>
       </div>
-
-      <AppFormModal title="Save Reorder Setting" description="Create or update reorder levels for an item in a warehouse." buttonLabel="+ Reorder Setting" size="xl">
-        <ReorderSettingUpsertForm
-          warehouses={warehouses.map((warehouse) => ({ id: warehouse.id, code: warehouse.code, name: warehouse.name }))}
-          items={items.map((item) => ({ id: item.id, sku: item.sku, name: item.name }))}
-        />
-      </AppFormModal>
 
       <Card>
         <div className="mb-3 text-sm font-semibold">List</div>
+        <TableSearchInput placeholder="Search reorder settings..." />
         <div className="overflow-auto">
           <Table>
             <thead>

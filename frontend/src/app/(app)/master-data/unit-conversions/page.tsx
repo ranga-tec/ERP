@@ -1,5 +1,6 @@
 import { backendFetchJson } from "@/lib/backend.server";
 import { AppFormModal } from "@/components/AppFormModal";
+import { TableSearchInput } from "@/components/TableSearchInput";
 import { Card, Table } from "@/components/ui";
 import { UnitConversionCreateForm } from "./UnitConversionCreateForm";
 import { UnitConversionRow } from "./UnitConversionRow";
@@ -26,17 +27,19 @@ export default async function UnitConversionsPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold">UoM Conversions</h1>
-        <p className="mt-1 text-sm text-zinc-500">Maintain conversion factors between operational and base units.</p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-semibold">UoM Conversions</h1>
+          <p className="mt-1 text-sm text-zinc-500">Maintain conversion factors between operational and base units.</p>
+        </div>
+        <AppFormModal title="Create UoM Conversion" description="Maintain a conversion factor between two units." buttonLabel="+ New Conversion">
+          <UnitConversionCreateForm uoms={uoms} />
+        </AppFormModal>
       </div>
-
-      <AppFormModal title="Create UoM Conversion" description="Maintain a conversion factor between two units." buttonLabel="+ New Conversion">
-        <UnitConversionCreateForm uoms={uoms} />
-      </AppFormModal>
 
       <Card>
         <div className="mb-3 text-sm font-semibold">List</div>
+        <TableSearchInput placeholder="Search UoM conversions..." />
         <div className="overflow-auto">
           <Table>
             <thead>

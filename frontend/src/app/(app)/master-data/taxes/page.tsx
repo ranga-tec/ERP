@@ -1,5 +1,6 @@
 import { backendFetchJson } from "@/lib/backend.server";
 import { AppFormModal } from "@/components/AppFormModal";
+import { TableSearchInput } from "@/components/TableSearchInput";
 import { Card, Table } from "@/components/ui";
 import { TaxCreateForm } from "./TaxCreateForm";
 import { TaxRow } from "./TaxRow";
@@ -20,17 +21,19 @@ export default async function TaxesPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold">Tax Codes</h1>
-        <p className="mt-1 text-sm text-zinc-500">Centralized tax rates used by purchase/sales/service line entry.</p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-semibold">Tax Codes</h1>
+          <p className="mt-1 text-sm text-zinc-500">Centralized tax rates used by purchase/sales/service line entry.</p>
+        </div>
+        <AppFormModal title="Create Tax Code" description="Add a tax code for sales, purchase, or both." buttonLabel="+ New Tax Code">
+          <TaxCreateForm />
+        </AppFormModal>
       </div>
-
-      <AppFormModal title="Create Tax Code" description="Add a tax code for sales, purchase, or both." buttonLabel="+ New Tax Code">
-        <TaxCreateForm />
-      </AppFormModal>
 
       <Card>
         <div className="mb-3 text-sm font-semibold">List</div>
+        <TableSearchInput placeholder="Search tax codes..." />
         <div className="overflow-auto">
           <Table>
             <thead>

@@ -90,20 +90,21 @@ export default async function InvoicesPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold">Final Invoices</h1>
-        <p className="mt-1 text-sm text-zinc-500">Draft -&gt; add lines -&gt; post -&gt; pay (via payments).</p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-semibold">Final Invoices</h1>
+          <p className="mt-1 text-sm text-zinc-500">Draft -&gt; add lines -&gt; post -&gt; pay (via payments).</p>
+        </div>
+        {canManageInvoices ? (
+          <AppFormModal title="Create Final Invoice" description="Create a draft final invoice from customer, dispatch, or direct dispatch details." buttonLabel="+ New Invoice" size="xl">
+            <InvoiceCreateForm
+              customers={customers}
+              dispatches={postedDispatches}
+              directDispatches={postedDirectDispatches}
+            />
+          </AppFormModal>
+        ) : null}
       </div>
-
-      {canManageInvoices ? (
-        <AppFormModal title="Create Final Invoice" description="Create a draft final invoice from customer, dispatch, or direct dispatch details." buttonLabel="+ New Invoice" size="xl">
-          <InvoiceCreateForm
-            customers={customers}
-            dispatches={postedDispatches}
-            directDispatches={postedDirectDispatches}
-          />
-        </AppFormModal>
-      ) : null}
 
       <Card>
         <div className="mb-3 text-sm font-semibold">List</div>
@@ -142,6 +143,8 @@ export default async function InvoicesPage() {
                     <ListViewEditActions
                       viewHref={`/sales/invoices/${i.id}`}
                       canEdit={canManageInvoices && i.status === 0}
+                      editInModal
+                      editModalTitle={`Edit Invoice ${i.number}`}
                       auditTableName="SalesInvoices"
                       auditRecordId={i.id}
                     />

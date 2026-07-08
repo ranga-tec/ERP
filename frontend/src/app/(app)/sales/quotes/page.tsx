@@ -36,14 +36,15 @@ export default async function QuotesPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold">Sales Quotes</h1>
-        <p className="mt-1 text-sm text-zinc-500">Draft -&gt; add lines -&gt; mark sent.</p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-semibold">Sales Quotes</h1>
+          <p className="mt-1 text-sm text-zinc-500">Draft -&gt; add lines -&gt; mark sent.</p>
+        </div>
+        <AppFormModal title="Create Quote" description="Create a draft quote before adding lines." buttonLabel="+ New Quote">
+          <QuoteCreateForm customers={customers} />
+        </AppFormModal>
       </div>
-
-      <AppFormModal title="Create Quote" description="Create a draft quote before adding lines." buttonLabel="+ New Quote">
-        <QuoteCreateForm customers={customers} />
-      </AppFormModal>
 
       <Card>
         <div className="mb-3 text-sm font-semibold">List</div>
@@ -87,6 +88,8 @@ export default async function QuotesPage() {
                     <ListViewEditActions
                       viewHref={`/sales/quotes/${q.id}`}
                       canEdit={q.status === 0}
+                      editInModal
+                      editModalTitle={`Edit Quote ${q.number}`}
                       auditTableName="SalesQuotes"
                       auditRecordId={q.id}
                     />

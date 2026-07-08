@@ -41,14 +41,15 @@ export default async function PurchaseOrdersPage() {
 
   return (
     <div className="space-y-6">
-      <div>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
         <h1 className="text-2xl font-semibold">Purchase Orders</h1>
         <p className="mt-1 text-sm text-zinc-500">PO workflow: draft → approve → receive.</p>
+        </div>
+        <AppFormModal title="Create Purchase Order" description="Create a draft purchase order before adding lines." buttonLabel="+ New PO">
+          <PurchaseOrderCreateForm suppliers={suppliers} />
+        </AppFormModal>
       </div>
-
-      <AppFormModal title="Create Purchase Order" description="Create a draft purchase order before adding lines." buttonLabel="+ New PO">
-        <PurchaseOrderCreateForm suppliers={suppliers} />
-      </AppFormModal>
 
       <Card>
         <div className="mb-3 text-sm font-semibold">List</div>
@@ -83,6 +84,8 @@ export default async function PurchaseOrdersPage() {
                     <ListViewEditActions
                       viewHref={`/procurement/purchase-orders/${p.id}`}
                       canEdit={p.status === 0}
+                      editInModal
+                      editModalTitle={`Edit Purchase Order ${p.number}`}
                       auditTableName="PurchaseOrders"
                       auditRecordId={p.id}
                     />
