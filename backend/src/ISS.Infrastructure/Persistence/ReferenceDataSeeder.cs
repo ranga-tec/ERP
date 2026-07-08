@@ -1,4 +1,5 @@
 using ISS.Domain.MasterData;
+using Npgsql;
 using Microsoft.EntityFrameworkCore;
 
 namespace ISS.Infrastructure.Persistence;
@@ -90,7 +91,19 @@ public static class ReferenceDataSeeder
 
         if (await SeedCompaniesAsync(dbContext, cancellationToken))
         {
-            await dbContext.SaveChangesAsync(cancellationToken);
+            try
+            {
+                await dbContext.SaveChangesAsync(cancellationToken);
+            }
+            catch (DbUpdateException ex) when (IsCompanyPrimaryKeyCollision(ex))
+            {
+                foreach (var entry in dbContext.ChangeTracker.Entries<Company>()
+                             .Where(x => x.State == EntityState.Added)
+                             .ToList())
+                {
+                    entry.State = EntityState.Detached;
+                }
+            }
         }
 
         var currencies = await dbContext.Currencies.ToListAsync(cancellationToken);
@@ -117,38 +130,72 @@ public static class ReferenceDataSeeder
 
     private static async Task<bool> SeedCompaniesAsync(IssDbContext dbContext, CancellationToken cancellationToken)
     {
-        var existingCodes = (await dbContext.Companies
-            .Select(x => x.Code)
-            .ToListAsync(cancellationToken))
-            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var hasChanges = false;
 
-        var companies = new List<Company>();
-        if (!existingCodes.Contains(CompanyDefaults.DefaultCompanyCode))
+        hasChanges |= await EnsureCompanyAsync(
+            dbContext,
+            CompanyDefaults.DefaultCompanyId,
+            CompanyDefaults.DefaultCompanyCode,
+            CompanyDefaults.DefaultCompanyName,
+            cancellationToken);
+
+        hasChanges |= await EnsureCompanyAsync(
+            dbContext,
+            CompanyDefaults.CComCompanyId,
+            CompanyDefaults.CComCompanyCode,
+            CompanyDefaults.CComCompanyName,
+            cancellationToken);
+
+        return hasChanges;
+    }
+
+    private static async Task<bool> EnsureCompanyAsync(
+        IssDbContext dbContext,
+        Guid id,
+        string code,
+        string name,
+        CancellationToken cancellationToken)
+    {
+        var company = await dbContext.Companies.FirstOrDefaultAsync(
+            x => x.Id == id || x.Code == code,
+            cancellationToken);
+
+        if (company is null)
         {
-            var company = new Company(CompanyDefaults.DefaultCompanyCode, CompanyDefaults.DefaultCompanyName)
+            var exists = await dbContext.Companies.AnyAsync(
+                x => x.Id == id || x.Code == code,
+                cancellationToken);
+            if (exists)
             {
-                Id = CompanyDefaults.DefaultCompanyId
+                return false;
+            }
+
+            company = new Company(code, name)
+            {
+                Id = id
             };
-            companies.Add(company);
+            await dbContext.Companies.AddAsync(company, cancellationToken);
+            return true;
         }
 
-        if (!existingCodes.Contains(CompanyDefaults.CComCompanyCode))
-        {
-            var company = new Company(CompanyDefaults.CComCompanyCode, CompanyDefaults.CComCompanyName)
-            {
-                Id = CompanyDefaults.CComCompanyId
-            };
-            companies.Add(company);
-        }
-
-        if (companies.Count == 0)
+        if (company.Code.Equals(code, StringComparison.Ordinal)
+            && company.Name.Equals(name, StringComparison.Ordinal)
+            && company.IsActive)
         {
             return false;
         }
 
-        await dbContext.Companies.AddRangeAsync(companies, cancellationToken);
+        company.Update(code, name, isActive: true, company.EnforceAuthorizedSuppliersOnly);
         return true;
     }
+
+    private static bool IsCompanyPrimaryKeyCollision(DbUpdateException ex)
+        => ex.GetBaseException() is PostgresException
+        {
+            SqlState: PostgresErrorCodes.UniqueViolation,
+            TableName: "Companies",
+            ConstraintName: "PK_Companies"
+        };
 
     private static async Task<bool> SeedCurrenciesAsync(
         IssDbContext dbContext,

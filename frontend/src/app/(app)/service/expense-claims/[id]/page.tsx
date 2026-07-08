@@ -1,8 +1,9 @@
 import Link from "next/link";
 import { cookies } from "next/headers";
 import { backendFetchJson } from "@/lib/backend.server";
-import { ISS_TOKEN_COOKIE } from "@/lib/env";
+import { NEUEDGE_TOKEN_COOKIE } from "@/lib/env";
 import { sessionFromToken } from "@/lib/jwt";
+import { AppFormModal } from "@/components/AppFormModal";
 import { DocumentCollaborationPanel } from "@/components/DocumentCollaborationPanel";
 import { Card, SecondaryLink, Table } from "@/components/ui";
 import { TransactionLink } from "@/components/TransactionLink";
@@ -73,7 +74,7 @@ const fundingSourceLabel: Record<number, string> = {
 export default async function ServiceExpenseClaimDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const cookieStore = await cookies();
-  const token = cookieStore.get(ISS_TOKEN_COOKIE)?.value;
+  const token = cookieStore.get(NEUEDGE_TOKEN_COOKIE)?.value;
   const session = token ? sessionFromToken(token) : null;
   const roles = new Set(session?.roles ?? []);
   const isFinanceOrAdmin = roles.has("Admin") || roles.has("Finance");
@@ -197,8 +198,15 @@ export default async function ServiceExpenseClaimDetailPage({ params }: { params
 
       {isDraft && canEdit ? (
         <Card>
-          <div className="mb-3 text-sm font-semibold">Add line</div>
-          <ServiceExpenseClaimLineAddForm claimId={claim.id} items={items} />
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <div className="text-sm font-semibold">Voucher lines</div>
+              <div className="mt-1 text-xs text-zinc-500">Add expense, item, and billable details before submitting this voucher.</div>
+            </div>
+            <AppFormModal title="Add Voucher Line" description="Add an expense line to this draft petty cash voucher." buttonLabel="+ Add Line" variant="secondary">
+              <ServiceExpenseClaimLineAddForm claimId={claim.id} items={items} />
+            </AppFormModal>
+          </div>
         </Card>
       ) : null}
 

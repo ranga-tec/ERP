@@ -1,8 +1,10 @@
 import Link from "next/link";
 import { backendFetchJson } from "@/lib/backend.server";
+import { AppFormModal } from "@/components/AppFormModal";
 import { Card, SecondaryLink } from "@/components/ui";
 import { DocumentCollaborationPanel } from "@/components/DocumentCollaborationPanel";
 import { TransactionLink } from "@/components/TransactionLink";
+import { QualityCheckEditForm } from "../QualityCheckEditForm";
 
 type QualityCheckDto = {
   id: string;
@@ -49,13 +51,18 @@ export default async function QualityCheckDetailPage({ params }: { params: Promi
       <Card>
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="text-sm font-semibold">Actions</div>
-          <SecondaryLink
-            href={`/api/backend/service/quality-checks/${qc.id}/pdf`}
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Download PDF
-          </SecondaryLink>
+          <div className="flex flex-wrap items-center gap-2">
+            <AppFormModal title="Edit Inspection / QC" description="Correct the inspection result or notes for this quality check." buttonLabel="Edit QC" variant="secondary">
+              <QualityCheckEditForm qualityCheck={qc} />
+            </AppFormModal>
+            <SecondaryLink
+              href={`/api/backend/service/quality-checks/${qc.id}/pdf`}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Download PDF
+            </SecondaryLink>
+          </div>
         </div>
       </Card>
 

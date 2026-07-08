@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { backendFetchJson } from "@/lib/backend.server";
+import { AppFormModal } from "@/components/AppFormModal";
 import { Card } from "@/components/ui";
 import { DocumentCollaborationPanel } from "@/components/DocumentCollaborationPanel";
 import { ServiceContractEditForm } from "../ServiceContractEditForm";
@@ -98,8 +99,15 @@ export default async function ServiceContractDetailPage({ params }: { params: Pr
       </div>
 
       <Card>
-        <div className="mb-3 text-sm font-semibold">Contract Details</div>
-        <ServiceContractEditForm contract={contract} customers={customers} equipmentUnits={equipmentUnitOptions} />
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <div className="text-sm font-semibold">Contract Details</div>
+            <div className="mt-1 text-xs text-zinc-500">Update coverage, dates, active state, or linked equipment.</div>
+          </div>
+          <AppFormModal title="Edit Service Contract" description="Update coverage, dates, active state, or linked equipment." buttonLabel="Edit Contract" variant="secondary" size="xl">
+            <ServiceContractEditForm contract={contract} customers={customers} equipmentUnits={equipmentUnitOptions} />
+          </AppFormModal>
+        </div>
       </Card>
 
       {contract.notes ? (

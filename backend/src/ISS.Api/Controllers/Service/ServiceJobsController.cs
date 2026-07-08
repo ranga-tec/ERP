@@ -648,7 +648,10 @@ public sealed class ServiceJobsController(
             join job in dbContext.ServiceJobs.AsNoTracking() on sheet.ServiceJobId equals job.Id
             join customer in dbContext.Customers.AsNoTracking() on job.CustomerId equals customer.Id
             join unit in dbContext.EquipmentUnits.AsNoTracking() on job.EquipmentUnitId equals unit.Id
-            where sheet.Status != ServiceJobDailySheetStatus.Approved && job.Status != ServiceJobStatus.Closed && job.Status != ServiceJobStatus.Cancelled
+            where sheet.Status != ServiceJobDailySheetStatus.Approved
+                && sheet.Status != ServiceJobDailySheetStatus.Rejected
+                && job.Status != ServiceJobStatus.Closed
+                && job.Status != ServiceJobStatus.Cancelled
             orderby sheet.SheetDate descending
             select new ServiceTechnicianDailySheetDto(
                 sheet.Id,

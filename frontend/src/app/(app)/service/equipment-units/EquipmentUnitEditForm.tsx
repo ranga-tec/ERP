@@ -11,6 +11,9 @@ type EquipmentUnitDto = {
   purchasedAt?: string | null;
   warrantyUntil?: string | null;
   warrantyCoverage: number;
+  serviceIntervalDays?: number | null;
+  nextServiceDueAt?: string | null;
+  nextRepairDueAt?: string | null;
 };
 
 type CustomerRef = { id: string; code: string; name: string };
@@ -39,6 +42,9 @@ export function EquipmentUnitEditForm({
   const [purchasedAt, setPurchasedAt] = useState(toDateInput(unit.purchasedAt));
   const [warrantyUntil, setWarrantyUntil] = useState(toDateInput(unit.warrantyUntil));
   const [warrantyCoverage, setWarrantyCoverage] = useState(String(unit.warrantyCoverage));
+  const [serviceIntervalDays, setServiceIntervalDays] = useState(unit.serviceIntervalDays?.toString() ?? "");
+  const [nextServiceDueAt, setNextServiceDueAt] = useState(toDateInput(unit.nextServiceDueAt));
+  const [nextRepairDueAt, setNextRepairDueAt] = useState(toDateInput(unit.nextRepairDueAt));
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -61,6 +67,9 @@ export function EquipmentUnitEditForm({
         purchasedAt: purchasedAt ? new Date(purchasedAt).toISOString() : null,
         warrantyUntil: warrantyUntil ? new Date(warrantyUntil).toISOString() : null,
         warrantyCoverage: Number(warrantyCoverage),
+        serviceIntervalDays: serviceIntervalDays ? Number(serviceIntervalDays) : null,
+        nextServiceDueAt: nextServiceDueAt ? new Date(nextServiceDueAt).toISOString() : null,
+        nextRepairDueAt: nextRepairDueAt ? new Date(nextRepairDueAt).toISOString() : null,
       });
       router.refresh();
     } catch (err) {
@@ -102,7 +111,7 @@ export function EquipmentUnitEditForm({
         </div>
       </div>
 
-      <div className="grid gap-3 sm:grid-cols-2">
+      <div className="grid gap-3 sm:grid-cols-4">
         <div>
           <label className="mb-1 block text-sm font-medium">Warranty coverage</label>
           <Select value={warrantyCoverage} onChange={(event) => setWarrantyCoverage(event.target.value)}>
@@ -112,6 +121,18 @@ export function EquipmentUnitEditForm({
               </option>
             ))}
           </Select>
+        </div>
+        <div>
+          <label className="mb-1 block text-sm font-medium">Service interval days</label>
+          <Input min="1" type="number" value={serviceIntervalDays} onChange={(event) => setServiceIntervalDays(event.target.value)} />
+        </div>
+        <div>
+          <label className="mb-1 block text-sm font-medium">Next service date</label>
+          <Input type="date" value={nextServiceDueAt} onChange={(event) => setNextServiceDueAt(event.target.value)} />
+        </div>
+        <div>
+          <label className="mb-1 block text-sm font-medium">Next repair date</label>
+          <Input type="date" value={nextRepairDueAt} onChange={(event) => setNextRepairDueAt(event.target.value)} />
         </div>
       </div>
 

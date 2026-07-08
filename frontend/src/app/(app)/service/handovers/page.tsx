@@ -1,7 +1,9 @@
 import Link from "next/link";
 import { backendFetchJson } from "@/lib/backend.server";
+import { AppFormModal } from "@/components/AppFormModal";
+import { SearchableRow, SearchableTable } from "@/components/SearchableTable";
 import { TransactionLink } from "@/components/TransactionLink";
-import { Card, Table } from "@/components/ui";
+import { Card } from "@/components/ui";
 import { ListViewEditActions } from "@/components/ListViewEditActions";
 import { ServiceHandoverCreateForm } from "./ServiceHandoverCreateForm";
 
@@ -38,22 +40,25 @@ export default async function ServiceHandoversPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold">Service Taken / Delivery Confirmation</h1>
-        <p className="mt-1 text-sm text-zinc-500">
-          Record device/accessory return to the customer and close out delivery readiness.
-        </p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-semibold">Service Taken / Delivery Confirmation</h1>
+          <p className="mt-1 text-sm text-zinc-500">
+            Record device/accessory return to the customer and close out delivery readiness.
+          </p>
+        </div>
+        <AppFormModal title="Create Service Taken" description="Record customer delivery confirmation for a job order." buttonLabel="+ New Confirmation">
+          <ServiceHandoverCreateForm serviceJobs={jobs} customers={customers} />
+        </AppFormModal>
       </div>
 
       <Card>
-        <div className="mb-3 text-sm font-semibold">Create</div>
-        <ServiceHandoverCreateForm serviceJobs={jobs} customers={customers} />
-      </Card>
-
-      <Card>
         <div className="mb-3 text-sm font-semibold">List</div>
-        <div className="overflow-auto">
-          <Table>
+        <SearchableTable
+          placeholder="Search confirmation, job, customer, status..."
+          emptyMessage="No service handovers yet."
+          emptyColSpan={7}
+          headers={
             <thead>
               <tr className="border-b border-zinc-200 text-left text-xs uppercase tracking-wide text-zinc-500 dark:border-zinc-800">
                 <th className="py-2 pr-3">Confirmation</th>
@@ -65,11 +70,26 @@ export default async function ServiceHandoversPage() {
                 <th className="py-2 pr-3">Actions</th>
               </tr>
             </thead>
-            <tbody>
+          }
+        >
               {rows.map((r) => {
                 const job = jobById.get(r.serviceJobId);
                 const customer = job ? customerById.get(job.customerId) : null;
+                const status = statusLabel[r.status] ?? String(r.status);
                 return (
+                  <SearchableRow
+                    key={r.id}
+                    searchText={[
+                      r.number,
+                      job?.number,
+                      customer?.code,
+                      customer?.name,
+                      status,
+                      r.itemsReturned,
+                      r.customerAcknowledgement,
+                      r.notes,
+                    ].filter(Boolean).join(" ")}
+                  >
                   <tr key={r.id} className="border-b border-zinc-100 dark:border-zinc-900">
                     <td className="py-2 pr-3 font-mono text-xs">
                       <Link className="hover:underline" href={`/service/handovers/${r.id}`}>
@@ -96,18 +116,10 @@ export default async function ServiceHandoversPage() {
                       />
                     </td>
                   </tr>
+                  </SearchableRow>
                 );
               })}
-              {rows.length === 0 ? (
-                <tr>
-                  <td className="py-6 text-sm text-zinc-500" colSpan={7}>
-                    No service handovers yet.
-                  </td>
-                </tr>
-              ) : null}
-            </tbody>
-          </Table>
-        </div>
+        </SearchableTable>
       </Card>
     </div>
   );

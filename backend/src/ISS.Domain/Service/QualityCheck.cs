@@ -18,5 +18,10 @@ public sealed class QualityCheck : AuditableEntity
     public DateTimeOffset CheckedAt { get; private set; }
     public bool Passed { get; private set; }
     public string? Notes { get; private set; }
-}
 
+    public void UpdateResult(bool passed, string? notes)
+    {
+        Passed = passed;
+        Notes = notes?.Trim();
+    }
+}

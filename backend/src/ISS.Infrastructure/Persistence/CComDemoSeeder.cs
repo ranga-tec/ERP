@@ -13,10 +13,18 @@ internal static class CComDemoSeeder
         var hasChanges = false;
 
         var company = await dbContext.Companies.FirstOrDefaultAsync(
-            x => x.Code == CompanyDefaults.CComCompanyCode,
+            x => x.Id == CompanyDefaults.CComCompanyId || x.Code == CompanyDefaults.CComCompanyCode,
             cancellationToken);
         if (company is null)
         {
+            var exists = await dbContext.Companies.AnyAsync(
+                x => x.Id == CompanyDefaults.CComCompanyId || x.Code == CompanyDefaults.CComCompanyCode,
+                cancellationToken);
+            if (exists)
+            {
+                return hasChanges;
+            }
+
             company = new Company(CompanyDefaults.CComCompanyCode, CompanyDefaults.CComCompanyName)
             {
                 Id = CompanyDefaults.CComCompanyId

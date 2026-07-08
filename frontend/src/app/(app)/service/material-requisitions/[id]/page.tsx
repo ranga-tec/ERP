@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { backendFetchJson } from "@/lib/backend.server";
+import { AppFormModal } from "@/components/AppFormModal";
 import { ItemInlineLink } from "@/components/InlineLink";
 import { TransactionLink } from "@/components/TransactionLink";
 import { Card, SecondaryLink, Table } from "@/components/ui";
@@ -102,8 +103,15 @@ export default async function MaterialRequisitionDetailPage({
             <DocumentDirectEditNotice addLineHref={`/service/material-requisitions/${mr.id}`} />
           ) : (
             <Card>
-              <div className="mb-3 text-sm font-semibold">Add line</div>
-              <MaterialRequisitionLineAddForm requisitionId={mr.id} items={items} warehouses={warehouses} warehouseId={mr.warehouseId} />
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <div className="text-sm font-semibold">Material request lines</div>
+                  <div className="mt-1 text-xs text-zinc-500">Add stock, batch, or serial-controlled material before posting this MRN.</div>
+                </div>
+                <AppFormModal title="Add MRN Line" description="Add a material line to this draft requisition." buttonLabel="+ Add Line" variant="secondary">
+                  <MaterialRequisitionLineAddForm requisitionId={mr.id} items={items} warehouses={warehouses} warehouseId={mr.warehouseId} />
+                </AppFormModal>
+              </div>
             </Card>
           )}
 

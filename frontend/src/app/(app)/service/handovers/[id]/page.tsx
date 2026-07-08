@@ -1,8 +1,9 @@
 import Link from "next/link";
 import { cookies } from "next/headers";
 import { backendFetchJson } from "@/lib/backend.server";
-import { ISS_TOKEN_COOKIE } from "@/lib/env";
+import { NEUEDGE_TOKEN_COOKIE } from "@/lib/env";
 import { sessionFromToken } from "@/lib/jwt";
+import { AppFormModal } from "@/components/AppFormModal";
 import { Card, SecondaryLink } from "@/components/ui";
 import { DocumentCollaborationPanel } from "@/components/DocumentCollaborationPanel";
 import { TransactionLink } from "@/components/TransactionLink";
@@ -59,7 +60,7 @@ export default async function ServiceHandoverDetailPage({
   const { mode } = await searchParams;
   const startInEditMode = mode === "edit";
   const cookieStore = await cookies();
-  const token = cookieStore.get(ISS_TOKEN_COOKIE)?.value;
+  const token = cookieStore.get(NEUEDGE_TOKEN_COOKIE)?.value;
   const session = token ? sessionFromToken(token) : null;
   const roles = new Set(session?.roles ?? []);
   const canOpenSalesInvoice = roles.has("Admin") || roles.has("Sales") || roles.has("Finance");
@@ -126,8 +127,15 @@ export default async function ServiceHandoverDetailPage({
 
       {isDraft && startInEditMode ? (
         <Card>
-          <div className="mb-3 text-sm font-semibold">Edit Service Taken</div>
-          <ServiceHandoverEditForm handover={handover} />
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <div className="text-sm font-semibold">Draft Service Taken</div>
+              <div className="mt-1 text-xs text-zinc-500">Update delivery confirmation details before completing the handover.</div>
+            </div>
+            <AppFormModal title="Edit Service Taken" description="Update delivery confirmation details." buttonLabel="Edit Service Taken" variant="secondary">
+              <ServiceHandoverEditForm handover={handover} />
+            </AppFormModal>
+          </div>
         </Card>
       ) : null}
 

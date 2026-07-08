@@ -2,8 +2,9 @@ import Link from "next/link";
 import { backendFetchJson } from "@/lib/backend.server";
 import { AppFormModal } from "@/components/AppFormModal";
 import { AuditTrailButton } from "@/components/AuditTrailButton";
+import { SearchableRow, SearchableTable } from "@/components/SearchableTable";
 import { TransactionLink } from "@/components/TransactionLink";
-import { Card, Table } from "@/components/ui";
+import { Card } from "@/components/ui";
 import { ServiceJobCreateForm } from "./ServiceJobCreateForm";
 import { ServiceJobEditForm } from "./ServiceJobEditForm";
 
@@ -112,8 +113,11 @@ export default async function ServiceJobsPage() {
 
       <Card>
         <div className="mb-3 text-sm font-semibold">Job Orders</div>
-        <div className="overflow-auto">
-          <Table>
+        <SearchableTable
+          placeholder="Search job, equipment, customer, status, responsible..."
+          emptyMessage="No job orders yet."
+          emptyColSpan={11}
+          headers={
             <thead>
               <tr className="border-b border-zinc-200 text-left text-xs uppercase tracking-wide text-zinc-500 dark:border-zinc-800">
                 <th className="py-2 pr-3">Number</th>
@@ -129,8 +133,33 @@ export default async function ServiceJobsPage() {
                 <th className="py-2 pr-3">Actions</th>
               </tr>
             </thead>
-            <tbody>
-              {jobs.map((j) => (
+          }
+        >
+              {jobs.map((j) => {
+                const unit = unitById.get(j.equipmentUnitId);
+                const customer = customerById.get(j.customerId);
+                const kind = kindLabel[j.kind] ?? String(j.kind);
+                const status = statusLabel[j.status] ?? String(j.status);
+                const entitlement = j.serviceContractNumber ?? entitlementSourceLabel[j.entitlementSource] ?? String(j.entitlementSource);
+                const billing = billingTreatmentLabel[j.customerBillingTreatment] ?? String(j.customerBillingTreatment);
+                return (
+                <SearchableRow
+                  key={j.id}
+                  searchText={[
+                    j.number,
+                    unit?.serialNumber,
+                    customer?.code,
+                    customer?.name,
+                    kind,
+                    status,
+                    entitlement,
+                    billing,
+                    j.responsibleOfficerName,
+                    j.problemDescription,
+                    j.jobDescription,
+                    j.customerComplaint,
+                  ].filter(Boolean).join(" ")}
+                >
                 <tr key={j.id} className="border-b border-zinc-100 dark:border-zinc-900">
                   <td className="py-2 pr-3 font-mono text-xs">
                     <Link className="hover:underline" href={`/service/jobs/${j.id}`}>
@@ -181,17 +210,10 @@ export default async function ServiceJobsPage() {
                     </div>
                   </td>
                 </tr>
-              ))}
-              {jobs.length === 0 ? (
-                <tr>
-                  <td className="py-6 text-sm text-zinc-500" colSpan={11}>
-                    No job orders yet.
-                  </td>
-                </tr>
-              ) : null}
-            </tbody>
-          </Table>
-        </div>
+                </SearchableRow>
+              );
+              })}
+        </SearchableTable>
       </Card>
     </div>
   );

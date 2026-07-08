@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { backendFetchJson } from "@/lib/backend.server";
+import { AppFormModal } from "@/components/AppFormModal";
 import { ItemInlineLink } from "@/components/InlineLink";
 import { Card } from "@/components/ui";
 import { DocumentCollaborationPanel } from "@/components/DocumentCollaborationPanel";
@@ -13,6 +14,9 @@ type EquipmentUnitDto = {
   purchasedAt?: string | null;
   warrantyUntil?: string | null;
   warrantyCoverage: number;
+  serviceIntervalDays?: number | null;
+  nextServiceDueAt?: string | null;
+  nextRepairDueAt?: string | null;
   hasActiveWarranty: boolean;
 };
 
@@ -77,13 +81,23 @@ export default async function EquipmentUnitDetailPage({ params }: { params: Prom
           <div>Purchased: {unit.purchasedAt ? new Date(unit.purchasedAt).toLocaleDateString() : "-"}</div>
           <div>Warranty: {unit.warrantyUntil ? new Date(unit.warrantyUntil).toLocaleDateString() : "-"}</div>
           <div>Coverage: {coverageLabel[unit.warrantyCoverage] ?? unit.warrantyCoverage}</div>
+          <div>Interval: {unit.serviceIntervalDays ? `${unit.serviceIntervalDays} days` : "-"}</div>
+          <div>Next Service: {unit.nextServiceDueAt ? new Date(unit.nextServiceDueAt).toLocaleDateString() : "-"}</div>
+          <div>Next Repair: {unit.nextRepairDueAt ? new Date(unit.nextRepairDueAt).toLocaleDateString() : "-"}</div>
           <div>Active Warranty: {unit.hasActiveWarranty ? "Yes" : "No"}</div>
         </div>
       </div>
 
       <Card>
-        <div className="mb-3 text-sm font-semibold">Unit Details</div>
-        <EquipmentUnitEditForm unit={unit} customers={customers} />
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <div className="text-sm font-semibold">Unit Details</div>
+            <div className="mt-1 text-xs text-zinc-500">Update customer, warranty, service interval, and next service or repair dates.</div>
+          </div>
+          <AppFormModal title="Edit Equipment Unit" description="Update customer, warranty, service interval, and next due dates." buttonLabel="Edit Unit" variant="secondary">
+            <EquipmentUnitEditForm unit={unit} customers={customers} />
+          </AppFormModal>
+        </div>
       </Card>
 
       <Card>

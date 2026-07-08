@@ -802,7 +802,8 @@ export default async function ServiceJobDetailPage({
   const canEditHeader = job.status === 0 || job.status === 1 || job.status === 13;
   const canAddJobActivity = job.status !== 12 && job.status !== 14;
   const nextOperationSequence = operations.length > 0 ? Math.max(...operations.map((operation) => operation.sequence)) + 10 : 10;
-  const selectedDailySheet = dailySheets.find((sheet) => sheet.id === resolvedSearchParams?.dailySheetId) ?? dailySheets[0] ?? null;
+  const activeDailySheets = dailySheets.filter((sheet) => sheet.status !== 3);
+  const selectedDailySheet = activeDailySheets.find((sheet) => sheet.id === resolvedSearchParams?.dailySheetId) ?? activeDailySheets[0] ?? null;
   const selectedDailySheets = selectedDailySheet ? [selectedDailySheet] : [];
   const selectedAssignments = selectedDailySheet
     ? assignments.filter((assignment) => assignment.serviceJobDailySheetId === selectedDailySheet.id)
@@ -868,7 +869,7 @@ export default async function ServiceJobDetailPage({
   const completedOperations = operations.filter((operation) => operation.status === 2).length;
   const activeOperations = operations.filter((operation) => operation.status === 1).length;
   const approvedDailySheets = dailySheets.filter((sheet) => sheet.status === 2).length;
-  const pendingDailySheets = dailySheets.filter((sheet) => sheet.status !== 2).length;
+  const pendingDailySheets = dailySheets.filter((sheet) => sheet.status !== 2 && sheet.status !== 3).length;
   const approvedAssignments = assignments.filter((assignment) => assignment.approvalStatus === 1).length;
   const pendingAssignments = assignments.filter((assignment) => assignment.approvalStatus === 0).length;
   const latestProgressDate = latestProgress ? new Date(latestProgress.progressDate).toLocaleDateString() : "-";
@@ -1555,7 +1556,7 @@ export default async function ServiceJobDetailPage({
             <div className="mt-4 border-t border-[var(--card-border)] pt-3">
               <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-zinc-500">Select Daily Sheet</div>
               <div className="flex flex-wrap gap-2">
-                {dailySheets.map((sheet) => {
+                {activeDailySheets.map((sheet) => {
                   const active = sheet.id === selectedDailySheet.id;
                   return (
                     <Link
@@ -1575,6 +1576,11 @@ export default async function ServiceJobDetailPage({
                     </Link>
                   );
                 })}
+                {activeDailySheets.length === 0 ? (
+                  <div className="rounded-md border border-[var(--card-border)] px-3 py-2 text-xs text-zinc-500">
+                    No active daily sheets. Rejected sheets stay in the Daily Sheets history and are not available for new staff or progress entries.
+                  </div>
+                ) : null}
               </div>
             </div>
           </Card>
@@ -2339,8 +2345,8 @@ export default async function ServiceJobDetailPage({
 
       {activeTab === "billing" ? (
       <CollapsibleCard
-        title="Quotations & Final Invoices"
-        summary="Linked service estimates and final sales invoices."
+        title="Billing Documents"
+        summary="Final sales invoices can be created directly from a completed service taken record, with or without a quotation."
         meta={`${costing.estimates.length} estimates / ${costing.invoices.length} invoices`}
       >
         <div className="grid gap-4 lg:grid-cols-2">

@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { backendFetchJson } from "@/lib/backend.server";
+import { AppFormModal } from "@/components/AppFormModal";
 import { Card, SecondaryLink, Table } from "@/components/ui";
 import { DocumentCollaborationPanel } from "@/components/DocumentCollaborationPanel";
 import { TransactionLink } from "@/components/TransactionLink";
@@ -138,8 +139,17 @@ export default async function WorkOrderDetailPage({ params }: { params: Promise<
       </Card>
 
       <Card>
-        <div className="mb-3 text-sm font-semibold">Add Labor Entry</div>
-        <WorkOrderTimeEntryAddForm workOrderId={wo.id} technicians={technicians} disabled={!canAddLabor} />
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <div className="text-sm font-semibold">Labor capture</div>
+            <div className="mt-1 text-xs text-zinc-500">
+              Add draft labor entries from the technician master, then submit and approve them from the table.
+            </div>
+          </div>
+          <AppFormModal title="Add Labor Entry" description="Record technician hours, cost rate, billing rate, and billable coverage for this job sheet." buttonLabel="+ Add Labor" variant="secondary" disabled={!canAddLabor}>
+            <WorkOrderTimeEntryAddForm workOrderId={wo.id} technicians={technicians} disabled={!canAddLabor} />
+          </AppFormModal>
+        </div>
         <div className="mt-3 text-xs text-zinc-500">
           New labor entries are saved as Draft. Use the row actions below to Submit the entry, then Approve it. Warranty or contract coverage can reduce approved labor billing to zero even when the technician entry is marked billable.
         </div>

@@ -132,6 +132,24 @@ export default async function ServiceTechnicianWorkbenchPage() {
         <div className="text-xs text-zinc-500">Updated {dateText(workbench.generatedAt)}</div>
       </div>
 
+      <div className="grid gap-4 sm:grid-cols-3">
+        <Card>
+          <div className="text-xs uppercase tracking-wide text-zinc-500">Today&apos;s Assignments</div>
+          <div className="mt-2 text-2xl font-semibold">{workbench.todayAssignments.length}</div>
+          <div className="mt-1 text-xs text-zinc-500">Technician labour tasks due today</div>
+        </Card>
+        <Card>
+          <div className="text-xs uppercase tracking-wide text-zinc-500">Active Daily Sheets</div>
+          <div className="mt-2 text-2xl font-semibold">{workbench.openDailySheets.length}</div>
+          <div className="mt-1 text-xs text-zinc-500">Draft or submitted sheets needing action</div>
+        </Card>
+        <Card>
+          <div className="text-xs uppercase tracking-wide text-zinc-500">Active Jobs</div>
+          <div className="mt-2 text-2xl font-semibold">{workbench.activeJobs.length}</div>
+          <div className="mt-1 text-xs text-zinc-500">Open, assigned, in-progress, or reopened jobs</div>
+        </Card>
+      </div>
+
       <Card>
         <div className="mb-3 text-sm font-semibold">Today&apos;s Assignments</div>
         <div className="overflow-auto">
@@ -180,7 +198,7 @@ export default async function ServiceTechnicianWorkbenchPage() {
 
       <div className="grid gap-4 xl:grid-cols-2">
         <Card>
-          <div className="mb-3 text-sm font-semibold">Open Daily Sheets</div>
+          <div className="mb-3 text-sm font-semibold">Active Daily Sheets</div>
           <div className="space-y-3">
             {workbench.openDailySheets.map((sheet) => (
               <div key={sheet.id} className="rounded-lg border border-[var(--card-border)] p-3">
@@ -199,7 +217,7 @@ export default async function ServiceTechnicianWorkbenchPage() {
                 <div className="mt-3">{actionLinks(sheet)}</div>
               </div>
             ))}
-            {workbench.openDailySheets.length === 0 ? <div className="text-sm text-zinc-500">No open daily sheets.</div> : null}
+            {workbench.openDailySheets.length === 0 ? <div className="text-sm text-zinc-500">No active daily sheets.</div> : null}
           </div>
         </Card>
 

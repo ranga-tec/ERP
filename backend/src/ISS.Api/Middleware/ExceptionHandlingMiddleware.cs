@@ -3,6 +3,7 @@ using ISS.Domain.Common;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Hosting;
+using Npgsql;
 
 namespace ISS.Api.Middleware;
 
@@ -48,6 +49,16 @@ public sealed class ExceptionHandlingMiddleware(RequestDelegate next, ILogger<Ex
                 Detail = detail
             });
         }
+        catch (DbUpdateException ex) when (ex.GetBaseException() is PostgresException { SqlState: PostgresErrorCodes.UniqueViolation } pgEx)
+        {
+            context.Response.StatusCode = StatusCodes.Status409Conflict;
+            await context.Response.WriteAsJsonAsync(new ProblemDetails
+            {
+                Status = StatusCodes.Status409Conflict,
+                Title = "Duplicate Record",
+                Detail = DuplicateMessage(pgEx)
+            });
+        }
         catch (Exception ex)
         {
             logger.LogError(ex, "Unhandled exception");
@@ -61,4 +72,11 @@ public sealed class ExceptionHandlingMiddleware(RequestDelegate next, ILogger<Ex
             });
         }
     }
+
+    private static string DuplicateMessage(PostgresException ex)
+        => ex.ConstraintName switch
+        {
+            "IX_EquipmentUnits_SerialNumber" => "An equipment unit with this serial number already exists.",
+            _ => "A record with the same unique value already exists."
+        };
 }

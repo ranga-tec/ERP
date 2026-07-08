@@ -46,7 +46,36 @@ public sealed class ServiceManagementService(
         DateTimeOffset? nextRepairDueAt = null,
         CancellationToken cancellationToken = default)
     {
-        var unit = new EquipmentUnit(itemId, serialNumber, customerId, purchasedAt, warrantyUntil, warrantyCoverage, serviceIntervalDays, nextServiceDueAt, nextRepairDueAt);
+        var normalizedSerialNumber = serialNumber?.Trim() ?? "";
+        if (string.IsNullOrWhiteSpace(normalizedSerialNumber))
+        {
+            throw new DomainValidationException("Serial number is required.");
+        }
+
+        var item = await dbContext.Items.AsNoTracking()
+            .FirstOrDefaultAsync(x => x.Id == itemId, cancellationToken)
+            ?? throw new DomainValidationException("Selected equipment item does not exist.");
+
+        if (item.Type != ItemType.Equipment)
+        {
+            throw new DomainValidationException("Selected item must be an equipment item.");
+        }
+
+        var customerExists = await dbContext.Customers.AsNoTracking()
+            .AnyAsync(x => x.Id == customerId, cancellationToken);
+        if (!customerExists)
+        {
+            throw new DomainValidationException("Selected customer does not exist.");
+        }
+
+        var serialExists = await dbContext.EquipmentUnits.AsNoTracking()
+            .AnyAsync(x => x.SerialNumber == normalizedSerialNumber, cancellationToken);
+        if (serialExists)
+        {
+            throw new DomainValidationException("An equipment unit with this serial number already exists.");
+        }
+
+        var unit = new EquipmentUnit(itemId, normalizedSerialNumber, customerId, purchasedAt, warrantyUntil, warrantyCoverage, serviceIntervalDays, nextServiceDueAt, nextRepairDueAt);
         await dbContext.EquipmentUnits.AddAsync(unit, cancellationToken);
         await dbContext.SaveChangesAsync(cancellationToken);
         return unit.Id;

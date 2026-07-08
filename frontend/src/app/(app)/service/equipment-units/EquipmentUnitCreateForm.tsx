@@ -52,6 +52,7 @@ export function EquipmentUnitCreateForm({
     e.preventDefault();
     setError(null);
     setBusy(true);
+    let shouldReleaseBusy = true;
     try {
       if (entryMode === "existing" && !itemId) {
         throw new Error("Equipment item is required.");
@@ -93,11 +94,14 @@ export function EquipmentUnitCreateForm({
               itemId,
             });
 
+      shouldReleaseBusy = false;
       router.push(`/service/equipment-units/${unit.id}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
-      setBusy(false);
+      if (shouldReleaseBusy) {
+        setBusy(false);
+      }
     }
   }
 

@@ -1,8 +1,10 @@
 import Link from "next/link";
 import { backendFetchJson } from "@/lib/backend.server";
+import { AppFormModal } from "@/components/AppFormModal";
 import { ListViewEditActions } from "@/components/ListViewEditActions";
+import { SearchableRow, SearchableTable } from "@/components/SearchableTable";
 import { TransactionLink } from "@/components/TransactionLink";
-import { Card, Table } from "@/components/ui";
+import { Card } from "@/components/ui";
 import { ServiceEstimateCreateForm } from "./ServiceEstimateCreateForm";
 
 type ServiceEstimateSummaryDto = {
@@ -51,22 +53,25 @@ export default async function ServiceEstimatesPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold">Quotations</h1>
-        <p className="mt-1 text-sm text-zinc-500">
-          Prepare customer quotations for job orders, then create a revision if extra findings appear after approval.
-        </p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-semibold">Quotations</h1>
+          <p className="mt-1 text-sm text-zinc-500">
+            Prepare customer quotations for job orders, then create a revision if extra findings appear after approval.
+          </p>
+        </div>
+        <AppFormModal title="Create Quotation" description="Create a draft quotation for a job order." buttonLabel="+ New Quotation">
+          <ServiceEstimateCreateForm serviceJobs={jobs} customers={customers} />
+        </AppFormModal>
       </div>
 
       <Card>
-        <div className="mb-3 text-sm font-semibold">Create</div>
-        <ServiceEstimateCreateForm serviceJobs={jobs} customers={customers} />
-      </Card>
-
-      <Card>
         <div className="mb-3 text-sm font-semibold">List</div>
-        <div className="overflow-auto">
-          <Table>
+        <SearchableTable
+          placeholder="Search quotation, job, customer, status, approval..."
+          emptyMessage="No service estimates yet."
+          emptyColSpan={9}
+          headers={
             <thead>
               <tr className="border-b border-zinc-200 text-left text-xs uppercase tracking-wide text-zinc-500 dark:border-zinc-800">
                 <th className="py-2 pr-3">Estimate</th>
@@ -80,11 +85,27 @@ export default async function ServiceEstimatesPage() {
                 <th className="py-2 pr-3">Actions</th>
               </tr>
             </thead>
-            <tbody>
+          }
+        >
               {estimates.map((e) => {
                 const job = jobById.get(e.serviceJobId);
                 const customer = job ? customerById.get(job.customerId) : null;
+                const status = statusLabel[e.status] ?? String(e.status);
+                const approval = approvalLabel[e.customerApprovalStatus] ?? String(e.customerApprovalStatus);
                 return (
+                  <SearchableRow
+                    key={e.id}
+                    searchText={[
+                      e.number,
+                      e.revisionNumber > 0 ? `R${e.revisionNumber}` : "",
+                      job?.number,
+                      customer?.code,
+                      customer?.name,
+                      status,
+                      approval,
+                      e.total.toFixed(2),
+                    ].filter(Boolean).join(" ")}
+                  >
                   <tr key={e.id} className="border-b border-zinc-100 dark:border-zinc-900">
                     <td className="py-2 pr-3 font-mono text-xs">
                       <Link className="hover:underline" href={`/service/estimates/${e.id}`}>
@@ -119,18 +140,10 @@ export default async function ServiceEstimatesPage() {
                       />
                     </td>
                   </tr>
+                  </SearchableRow>
                 );
               })}
-              {estimates.length === 0 ? (
-                <tr>
-                  <td className="py-6 text-sm text-zinc-500" colSpan={9}>
-                    No service estimates yet.
-                  </td>
-                </tr>
-              ) : null}
-            </tbody>
-          </Table>
-        </div>
+        </SearchableTable>
       </Card>
     </div>
   );

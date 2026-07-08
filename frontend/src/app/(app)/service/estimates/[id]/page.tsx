@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { backendFetchJson } from "@/lib/backend.server";
+import { AppFormModal } from "@/components/AppFormModal";
 import { ItemInlineLink } from "@/components/InlineLink";
 import { TransactionLink } from "@/components/TransactionLink";
 import { Card, SecondaryLink, Table } from "@/components/ui";
@@ -149,11 +150,17 @@ export default async function ServiceEstimateDetailPage({
 
       {isDraft ? (
         <Card>
-          <div className="mb-3 text-sm font-semibold">Edit Estimate</div>
-          <ServiceEstimateEditForm estimate={estimate} />
-          <div className="mt-3 text-xs text-zinc-500">
-            Editing a sent draft estimate clears the pending customer-approval state. Resend it after the change so the customer
-            approves the latest scope.
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <div className="text-sm font-semibold">Draft Quotation</div>
+              <div className="mt-1 text-xs text-zinc-500">
+                Editing a sent draft estimate clears the pending customer-approval state. Resend it after the change so the customer
+                approves the latest scope.
+              </div>
+            </div>
+            <AppFormModal title="Edit Quotation" description="Update quotation header details." buttonLabel="Edit Quotation" variant="secondary">
+              <ServiceEstimateEditForm estimate={estimate} />
+            </AppFormModal>
           </div>
         </Card>
       ) : null}
@@ -195,8 +202,15 @@ export default async function ServiceEstimateDetailPage({
           <DocumentDirectEditNotice addLineHref={`/service/estimates/${estimate.id}`} />
         ) : (
           <Card>
-            <div className="mb-3 text-sm font-semibold">Add line</div>
-            <ServiceEstimateLineAddForm estimateId={estimate.id} items={items} taxes={taxes} />
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <div className="text-sm font-semibold">Quotation lines</div>
+                <div className="mt-1 text-xs text-zinc-500">Add labour, part, or expense lines before sending or approving this quotation.</div>
+              </div>
+              <AppFormModal title="Add Quotation Line" description="Add a labour, part, or expense line to this draft quotation." buttonLabel="+ Add Line" variant="secondary">
+                <ServiceEstimateLineAddForm estimateId={estimate.id} items={items} taxes={taxes} />
+              </AppFormModal>
+            </div>
           </Card>
         )
       ) : null}

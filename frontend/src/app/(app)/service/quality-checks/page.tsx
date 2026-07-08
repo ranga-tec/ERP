@@ -1,7 +1,9 @@
 import Link from "next/link";
 import { backendFetchJson } from "@/lib/backend.server";
+import { AppFormModal } from "@/components/AppFormModal";
+import { SearchableRow, SearchableTable } from "@/components/SearchableTable";
 import { TransactionLink } from "@/components/TransactionLink";
-import { Card, Table } from "@/components/ui";
+import { Card } from "@/components/ui";
 import { QualityCheckCreateForm } from "./QualityCheckCreateForm";
 
 type QualityCheckDto = {
@@ -24,20 +26,23 @@ export default async function QualityChecksPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold">Inspection / QC</h1>
-        <p className="mt-1 text-sm text-zinc-500">Record inspection and quality-check results for a job order.</p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-semibold">Inspection / QC</h1>
+          <p className="mt-1 text-sm text-zinc-500">Record inspection and quality-check results for a job order.</p>
+        </div>
+        <AppFormModal title="Create Inspection / QC" description="Record inspection and quality-check results for a job order." buttonLabel="+ New QC">
+          <QualityCheckCreateForm serviceJobs={jobs} />
+        </AppFormModal>
       </div>
 
       <Card>
-        <div className="mb-3 text-sm font-semibold">Create</div>
-        <QualityCheckCreateForm serviceJobs={jobs} />
-      </Card>
-
-      <Card>
         <div className="mb-3 text-sm font-semibold">List</div>
-        <div className="overflow-auto">
-          <Table>
+        <SearchableTable
+          placeholder="Search QC, job, result, notes..."
+          emptyMessage="No quality checks yet."
+          emptyColSpan={4}
+          headers={
             <thead>
               <tr className="border-b border-zinc-200 text-left text-xs uppercase tracking-wide text-zinc-500 dark:border-zinc-800">
                 <th className="py-2 pr-3">Checked</th>
@@ -46,8 +51,16 @@ export default async function QualityChecksPage() {
                 <th className="py-2 pr-3">Notes</th>
               </tr>
             </thead>
-            <tbody>
-              {qcs.map((q) => (
+          }
+        >
+          {qcs.map((q) => {
+            const job = jobById.get(q.serviceJobId);
+            const result = q.passed ? "Passed" : "Failed";
+            return (
+              <SearchableRow
+                key={q.id}
+                searchText={[job?.number, result, q.notes, new Date(q.checkedAt).toLocaleString()].filter(Boolean).join(" ")}
+              >
                 <tr key={q.id} className="border-b border-zinc-100 dark:border-zinc-900">
                   <td className="py-2 pr-3 text-zinc-500">
                     <Link className="hover:underline" href={`/service/quality-checks/${q.id}`}>
@@ -56,23 +69,16 @@ export default async function QualityChecksPage() {
                   </td>
                   <td className="py-2 pr-3 font-mono text-xs text-zinc-600 dark:text-zinc-400">
                     <TransactionLink referenceType="SJ" referenceId={q.serviceJobId} monospace>
-                      {jobById.get(q.serviceJobId)?.number ?? q.serviceJobId}
+                      {job?.number ?? q.serviceJobId}
                     </TransactionLink>
                   </td>
-                  <td className="py-2 pr-3">{q.passed ? "Passed" : "Failed"}</td>
-                  <td className="py-2 pr-3 text-zinc-500">{q.notes ?? "—"}</td>
+                  <td className="py-2 pr-3">{result}</td>
+                  <td className="py-2 pr-3 text-zinc-500">{q.notes ?? "-"}</td>
                 </tr>
-              ))}
-              {qcs.length === 0 ? (
-                <tr>
-                  <td className="py-6 text-sm text-zinc-500" colSpan={4}>
-                    No quality checks yet.
-                  </td>
-                </tr>
-              ) : null}
-            </tbody>
-          </Table>
-        </div>
+              </SearchableRow>
+            );
+          })}
+        </SearchableTable>
       </Card>
     </div>
   );

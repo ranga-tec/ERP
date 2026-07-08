@@ -160,6 +160,7 @@ export function WorkOrderTimeEntryRow({
     try {
       await apiDeleteNoContent(`service/work-orders/${workOrderId}/time-entries/${entry.id}`);
       router.refresh();
+      setBusy(false);
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
       setBusy(false);
@@ -172,6 +173,7 @@ export function WorkOrderTimeEntryRow({
     try {
       await apiPostNoContent(`service/work-orders/${workOrderId}/time-entries/${entry.id}/submit`, {});
       router.refresh();
+      setBusy(false);
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
       setBusy(false);
@@ -184,6 +186,7 @@ export function WorkOrderTimeEntryRow({
     try {
       await apiPostNoContent(`service/work-orders/${workOrderId}/time-entries/${entry.id}/approve`, {});
       router.refresh();
+      setBusy(false);
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
       setBusy(false);
@@ -201,6 +204,7 @@ export function WorkOrderTimeEntryRow({
         rejectionReason: rejectionReason.trim() || null,
       });
       router.refresh();
+      setBusy(false);
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
       setBusy(false);

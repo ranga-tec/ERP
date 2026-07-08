@@ -1,5 +1,7 @@
 import { backendFetchJson } from "@/lib/backend.server";
-import { Card, Table } from "@/components/ui";
+import { AppFormModal } from "@/components/AppFormModal";
+import { SearchableRow, SearchableTable } from "@/components/SearchableTable";
+import { Card } from "@/components/ui";
 import { ServiceTechnicianCreateForm } from "./ServiceTechnicianCreateForm";
 import { ServiceTechnicianRow } from "./ServiceTechnicianRow";
 
@@ -19,20 +21,23 @@ export default async function ServiceTechniciansPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold">Technicians</h1>
-        <p className="mt-1 text-sm text-zinc-500">Maintain service technicians used on job detail labor entries.</p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-semibold">Technicians</h1>
+          <p className="mt-1 text-sm text-zinc-500">Maintain service technicians used on job detail labor entries.</p>
+        </div>
+        <AppFormModal title="Create Technician" description="Add a technician with default cost and billing rates for labour entries." buttonLabel="+ New Technician">
+          <ServiceTechnicianCreateForm />
+        </AppFormModal>
       </div>
 
       <Card>
-        <div className="mb-3 text-sm font-semibold">Create</div>
-        <ServiceTechnicianCreateForm />
-      </Card>
-
-      <Card>
         <div className="mb-3 text-sm font-semibold">List</div>
-        <div className="overflow-auto">
-          <Table>
+        <SearchableTable
+          placeholder="Search technician code, name, phone, notes..."
+          emptyMessage="No technicians yet."
+          emptyColSpan={8}
+          headers={
             <thead>
               <tr className="border-b border-zinc-200 text-left text-xs uppercase tracking-wide text-zinc-500 dark:border-zinc-800">
                 <th className="py-2 pr-3">Code</th>
@@ -45,20 +50,23 @@ export default async function ServiceTechniciansPage() {
                 <th className="py-2 pr-3">Actions</th>
               </tr>
             </thead>
-            <tbody>
+          }
+        >
               {technicians.map((technician) => (
+                <SearchableRow
+                  key={technician.id}
+                  searchText={[
+                    technician.code,
+                    technician.name,
+                    technician.phone,
+                    technician.notes,
+                    technician.isActive ? "active" : "inactive",
+                  ].filter(Boolean).join(" ")}
+                >
                 <ServiceTechnicianRow key={technician.id} technician={technician} />
+                </SearchableRow>
               ))}
-              {technicians.length === 0 ? (
-                <tr>
-                  <td className="py-6 text-sm text-zinc-500" colSpan={8}>
-                    No technicians yet.
-                  </td>
-                </tr>
-              ) : null}
-            </tbody>
-          </Table>
-        </div>
+        </SearchableTable>
       </Card>
     </div>
   );

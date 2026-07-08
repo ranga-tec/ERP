@@ -22,7 +22,7 @@ type ItemRef = {
 type TaxRef = { id: string; code: string; name: string; ratePercent: number; isActive: boolean };
 
 type ConvertResponse = { salesInvoiceId: string };
-type InvoiceMode = "estimate" | "manual";
+type InvoiceMode = "direct" | "estimate";
 type ManualLineKind = "labor" | "item" | "sundries";
 type ManualLineDraft = {
   key: string;
@@ -66,7 +66,7 @@ export function ServiceHandoverConvertInvoiceForm({
   redirectToSalesInvoice?: boolean;
 }) {
   const router = useRouter();
-  const [invoiceMode, setInvoiceMode] = useState<InvoiceMode>("manual");
+  const [invoiceMode, setInvoiceMode] = useState<InvoiceMode>("direct");
   const [serviceEstimateId, setServiceEstimateId] = useState("");
   const [laborItemId, setLaborItemId] = useState("");
   const [expenseItemId, setExpenseItemId] = useState("");
@@ -140,9 +140,9 @@ export function ServiceHandoverConvertInvoiceForm({
     setError(null);
     setBusy(true);
     try {
-      const manualInvoiceLines = invoiceMode === "manual" ? parseManualLines() : [];
-      if (invoiceMode === "manual" && manualInvoiceLines.length === 0) {
-        throw new Error("Add at least one labour, item, or sundries line.");
+      const manualInvoiceLines = invoiceMode === "direct" ? parseManualLines() : [];
+      if (invoiceMode === "direct" && manualInvoiceLines.length === 0) {
+        throw new Error("Add at least one direct invoice line.");
       }
 
       const result = await apiPost<ConvertResponse>(`service/handovers/${handoverId}/convert-to-sales-invoice`, {
@@ -176,14 +176,19 @@ export function ServiceHandoverConvertInvoiceForm({
 
   return (
     <div className="space-y-3 rounded-lg border border-zinc-200 p-3 dark:border-zinc-800">
-      <div className="text-sm font-medium">Convert to Sales Invoice</div>
+      <div>
+        <div className="text-sm font-medium">Create Sales Invoice Draft</div>
+        <div className="mt-1 text-xs text-zinc-500">
+          Direct job invoicing does not require a quotation. Use estimate billing only when the client approved a quotation.
+        </div>
+      </div>
 
       <div className="grid gap-3 sm:grid-cols-3">
         <div>
           <label className="mb-1 block text-sm font-medium">Invoice Source</label>
           <Select value={invoiceMode} onChange={(e) => setInvoiceMode(e.target.value as InvoiceMode)} disabled={disabled || busy}>
-            <option value="manual">Custom service invoice</option>
-            <option value="estimate">Approved estimate / timesheets</option>
+            <option value="direct">Direct job invoice - no quotation required</option>
+            <option value="estimate">Use approved quotation / timesheets</option>
           </Select>
         </div>
         <div>
@@ -202,7 +207,7 @@ export function ServiceHandoverConvertInvoiceForm({
         <div>
           <label className="mb-1 block text-sm font-medium">Approved Estimate</label>
           <Select value={serviceEstimateId} onChange={(e) => setServiceEstimateId(e.target.value)} disabled={disabled || busy}>
-            <option value="">Latest approved (auto)</option>
+            <option value="">Latest approved quotation (auto)</option>
             {approvedEstimates.map((e) => (
               <option key={e.id} value={e.id}>
                 {e.number} ({e.total.toFixed(2)})
@@ -357,7 +362,7 @@ export function ServiceHandoverConvertInvoiceForm({
           {busy ? "Converting..." : "Create Sales Invoice Draft"}
         </SecondaryButton>
         <div className="text-xs text-zinc-500">
-          Custom service invoices do not require an approved estimate. Use a service item for labour and a sundries item/category for grease, lubricants, and consumables.
+          Direct job invoices do not require an approved quotation. Use a service item for labour and a sundries item/category for grease, lubricants, and consumables.
         </div>
       </div>
 

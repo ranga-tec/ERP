@@ -1,7 +1,9 @@
 import Link from "next/link";
 import { backendFetchJson } from "@/lib/backend.server";
+import { AppFormModal } from "@/components/AppFormModal";
+import { SearchableRow, SearchableTable } from "@/components/SearchableTable";
 import { TransactionLink } from "@/components/TransactionLink";
-import { Card, Table } from "@/components/ui";
+import { Card } from "@/components/ui";
 import { ListViewEditActions } from "@/components/ListViewEditActions";
 import { MaterialRequisitionCreateForm } from "./MaterialRequisitionCreateForm";
 
@@ -41,22 +43,25 @@ export default async function MaterialRequisitionsPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold">Material Request Note (MRN)</h1>
-        <p className="mt-1 text-sm text-zinc-500">Request and issue materials to a job order from a warehouse.</p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-semibold">Material Request Note (MRN)</h1>
+          <p className="mt-1 text-sm text-zinc-500">Request and issue materials to a job order from a warehouse.</p>
+        </div>
+        {canCreate ? (
+          <AppFormModal title="Create MRN" description="Create a draft material request note under a job order." buttonLabel="+ New MRN">
+            <MaterialRequisitionCreateForm serviceJobs={jobs} warehouses={warehouses} />
+          </AppFormModal>
+        ) : null}
       </div>
-
-      {canCreate ? (
-        <Card>
-          <div className="mb-3 text-sm font-semibold">Create</div>
-          <MaterialRequisitionCreateForm serviceJobs={jobs} warehouses={warehouses} />
-        </Card>
-      ) : null}
 
       <Card>
         <div className="mb-3 text-sm font-semibold">List</div>
-        <div className="overflow-auto">
-          <Table>
+        <SearchableTable
+          placeholder="Search MRN, job, warehouse, status..."
+          emptyMessage="No material requisitions yet."
+          emptyColSpan={7}
+          headers={
             <thead>
               <tr className="border-b border-zinc-200 text-left text-xs uppercase tracking-wide text-zinc-500 dark:border-zinc-800">
                 <th className="py-2 pr-3">Number</th>
@@ -68,8 +73,17 @@ export default async function MaterialRequisitionsPage() {
                 <th className="py-2 pr-3">Actions</th>
               </tr>
             </thead>
-            <tbody>
-              {mrs.map((m) => (
+          }
+        >
+              {mrs.map((m) => {
+                const job = jobById.get(m.serviceJobId);
+                const warehouse = warehouseById.get(m.warehouseId);
+                const status = statusLabel[m.status] ?? String(m.status);
+                return (
+                <SearchableRow
+                  key={m.id}
+                  searchText={[m.number, job?.number, warehouse?.code, warehouse?.name, status, String(m.lineCount)].filter(Boolean).join(" ")}
+                >
                 <tr key={m.id} className="border-b border-zinc-100 dark:border-zinc-900">
                   <td className="py-2 pr-3 font-mono text-xs">
                     <Link className="hover:underline" href={`/service/material-requisitions/${m.id}`}>
@@ -94,17 +108,10 @@ export default async function MaterialRequisitionsPage() {
                     />
                   </td>
                 </tr>
-              ))}
-              {mrs.length === 0 ? (
-                <tr>
-                  <td className="py-6 text-sm text-zinc-500" colSpan={7}>
-                    No material requisitions yet.
-                  </td>
-                </tr>
-              ) : null}
-            </tbody>
-          </Table>
-        </div>
+                </SearchableRow>
+              );
+              })}
+        </SearchableTable>
       </Card>
     </div>
   );

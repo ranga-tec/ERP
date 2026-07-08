@@ -16,6 +16,7 @@ public sealed class QualityChecksController(IIssDbContext dbContext, ServiceMana
 {
     public sealed record QualityCheckDto(Guid Id, Guid ServiceJobId, DateTimeOffset CheckedAt, bool Passed, string? Notes);
     public sealed record AddQualityCheckRequest(Guid ServiceJobId, bool Passed, string? Notes);
+    public sealed record UpdateQualityCheckRequest(bool Passed, string? Notes);
 
     [HttpGet]
     public async Task<ActionResult<IReadOnlyList<QualityCheckDto>>> List([FromQuery] int skip = 0, [FromQuery] int take = 100, CancellationToken cancellationToken = default)
@@ -60,5 +61,20 @@ public sealed class QualityChecksController(IIssDbContext dbContext, ServiceMana
             .Select(x => new QualityCheckDto(x.Id, x.ServiceJobId, x.CheckedAt, x.Passed, x.Notes))
             .FirstAsync(cancellationToken);
         return Ok(qc);
+    }
+
+    [HttpPut("{id:guid}")]
+    public async Task<ActionResult<QualityCheckDto>> Update(Guid id, UpdateQualityCheckRequest request, CancellationToken cancellationToken)
+    {
+        var qc = await dbContext.QualityChecks.FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
+        if (qc is null)
+        {
+            return NotFound();
+        }
+
+        qc.UpdateResult(request.Passed, request.Notes);
+        await dbContext.SaveChangesAsync(cancellationToken);
+
+        return Ok(new QualityCheckDto(qc.Id, qc.ServiceJobId, qc.CheckedAt, qc.Passed, qc.Notes));
     }
 }

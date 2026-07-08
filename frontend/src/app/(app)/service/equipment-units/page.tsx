@@ -1,7 +1,9 @@
 import Link from "next/link";
 import { backendFetchJson } from "@/lib/backend.server";
+import { AppFormModal } from "@/components/AppFormModal";
 import { ItemInlineLink } from "@/components/InlineLink";
-import { Card, Table } from "@/components/ui";
+import { SearchableRow, SearchableTable } from "@/components/SearchableTable";
+import { Card } from "@/components/ui";
 import { EquipmentUnitCreateForm } from "./EquipmentUnitCreateForm";
 
 type EquipmentUnitDto = {
@@ -39,20 +41,23 @@ export default async function EquipmentUnitsPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold">Equipment Units</h1>
-        <p className="mt-1 text-sm text-zinc-500">Track sold equipment by serial number for job orders.</p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-semibold">Equipment Units</h1>
+          <p className="mt-1 text-sm text-zinc-500">Track sold and outside equipment by serial number for job orders.</p>
+        </div>
+        <AppFormModal title="Create Equipment Unit" description="Register a customer asset with warranty, service interval, and next due dates." buttonLabel="+ New Equipment Unit" size="xl">
+          <EquipmentUnitCreateForm equipmentItems={equipmentItems} customers={customers} />
+        </AppFormModal>
       </div>
 
       <Card>
-        <div className="mb-3 text-sm font-semibold">Create</div>
-        <EquipmentUnitCreateForm equipmentItems={equipmentItems} customers={customers} />
-      </Card>
-
-      <Card>
         <div className="mb-3 text-sm font-semibold">List</div>
-        <div className="overflow-auto">
-          <Table>
+        <SearchableTable
+          placeholder="Search serial, item, customer, warranty..."
+          emptyMessage="No equipment units yet."
+          emptyColSpan={8}
+          headers={
             <thead>
               <tr className="border-b border-zinc-200 text-left text-xs uppercase tracking-wide text-zinc-500 dark:border-zinc-800">
                 <th className="py-2 pr-3">Serial</th>
@@ -65,8 +70,25 @@ export default async function EquipmentUnitsPage() {
                 <th className="py-2 pr-3">Actions</th>
               </tr>
             </thead>
-            <tbody>
-              {units.map((unit) => (
+          }
+        >
+              {units.map((unit) => {
+                const item = itemById.get(unit.itemId);
+                const customer = customerById.get(unit.customerId);
+                const coverage = coverageLabel[unit.warrantyCoverage] ?? String(unit.warrantyCoverage);
+                return (
+                <SearchableRow
+                  key={unit.id}
+                  searchText={[
+                    unit.serialNumber,
+                    item?.sku,
+                    item?.name,
+                    customer?.code,
+                    customer?.name,
+                    coverage,
+                    unit.hasActiveWarranty ? "active warranty yes" : "inactive warranty no",
+                  ].filter(Boolean).join(" ")}
+                >
                 <tr key={unit.id} className="border-b border-zinc-100 dark:border-zinc-900">
                   <td className="py-2 pr-3 font-mono text-xs">
                     <Link className="hover:underline" href={`/service/equipment-units/${unit.id}`}>
@@ -98,17 +120,10 @@ export default async function EquipmentUnitsPage() {
                     </div>
                   </td>
                 </tr>
-              ))}
-              {units.length === 0 ? (
-                <tr>
-                  <td className="py-6 text-sm text-zinc-500" colSpan={8}>
-                    No equipment units yet.
-                  </td>
-                </tr>
-              ) : null}
-            </tbody>
-          </Table>
-        </div>
+                </SearchableRow>
+              );
+              })}
+        </SearchableTable>
       </Card>
     </div>
   );

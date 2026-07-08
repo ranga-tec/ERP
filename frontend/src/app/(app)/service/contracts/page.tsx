@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { backendFetchJson } from "@/lib/backend.server";
-import { Card, Table } from "@/components/ui";
+import { AppFormModal } from "@/components/AppFormModal";
+import { SearchableRow, SearchableTable } from "@/components/SearchableTable";
+import { Card } from "@/components/ui";
 import { ServiceContractCreateForm } from "./ServiceContractCreateForm";
 
 type CustomerDto = { id: string; code: string; name: string };
@@ -57,22 +59,25 @@ export default async function ServiceContractsPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold">Service Contracts</h1>
-        <p className="mt-1 text-sm text-zinc-500">
-          Track asset-level AMC, SLA, and warranty-extension coverage that can drive service-job entitlement.
-        </p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-semibold">Service Contracts</h1>
+          <p className="mt-1 text-sm text-zinc-500">
+            Track asset-level AMC, SLA, and warranty-extension coverage that can drive service-job entitlement.
+          </p>
+        </div>
+        <AppFormModal title="Create Service Contract" description="Create asset-level service coverage for a customer equipment unit." buttonLabel="+ New Contract" size="xl">
+          <ServiceContractCreateForm customers={customers} equipmentUnits={equipmentUnitOptions} />
+        </AppFormModal>
       </div>
 
       <Card>
-        <div className="mb-3 text-sm font-semibold">Create Contract</div>
-        <ServiceContractCreateForm customers={customers} equipmentUnits={equipmentUnitOptions} />
-      </Card>
-
-      <Card>
         <div className="mb-3 text-sm font-semibold">Contracts</div>
-        <div className="overflow-auto">
-          <Table>
+        <SearchableTable
+          placeholder="Search contract, equipment, customer, type, coverage..."
+          emptyMessage="No service contracts yet."
+          emptyColSpan={8}
+          headers={
             <thead>
               <tr className="border-b border-zinc-200 text-left text-xs uppercase tracking-wide text-zinc-500 dark:border-zinc-800">
                 <th className="py-2 pr-3">Number</th>
@@ -85,8 +90,27 @@ export default async function ServiceContractsPage() {
                 <th className="py-2 pr-3">Actions</th>
               </tr>
             </thead>
-            <tbody>
-              {contracts.map((contract) => (
+          }
+        >
+              {contracts.map((contract) => {
+                const unit = unitById.get(contract.equipmentUnitId);
+                const customer = customerById.get(contract.customerId);
+                const type = contractTypeLabel[contract.contractType] ?? String(contract.contractType);
+                const coverage = coverageLabel[contract.coverage] ?? String(contract.coverage);
+                return (
+                <SearchableRow
+                  key={contract.id}
+                  searchText={[
+                    contract.number,
+                    unit?.serialNumber,
+                    customer?.code,
+                    customer?.name,
+                    type,
+                    coverage,
+                    contract.currentState,
+                    contract.isActive ? "active" : "inactive",
+                  ].filter(Boolean).join(" ")}
+                >
                 <tr key={contract.id} className="border-b border-zinc-100 dark:border-zinc-900">
                   <td className="py-2 pr-3 font-mono text-xs">
                     <Link className="hover:underline" href={`/service/contracts/${contract.id}`}>
@@ -114,17 +138,10 @@ export default async function ServiceContractsPage() {
                     </div>
                   </td>
                 </tr>
-              ))}
-              {contracts.length === 0 ? (
-                <tr>
-                  <td className="py-6 text-sm text-zinc-500" colSpan={8}>
-                    No service contracts yet.
-                  </td>
-                </tr>
-              ) : null}
-            </tbody>
-          </Table>
-        </div>
+                </SearchableRow>
+              );
+              })}
+        </SearchableTable>
       </Card>
     </div>
   );
