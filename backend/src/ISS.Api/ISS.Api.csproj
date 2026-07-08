@@ -23,6 +23,7 @@
   <ItemGroup>
     <ProjectReference Include="..\ISS.Application\ISS.Application.csproj" />
     <ProjectReference Include="..\ISS.Infrastructure\ISS.Infrastructure.csproj" />
+    <ProjectReference Include="..\ISS.DocumentIntelligence\ISS.DocumentIntelligence.csproj" />
   </ItemGroup>
 
 </Project>

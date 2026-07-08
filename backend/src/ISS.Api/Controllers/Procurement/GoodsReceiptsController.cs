@@ -4,6 +4,7 @@ using ISS.Application.Abstractions;
 using ISS.Application.Common;
 using ISS.Application.Persistence;
 using ISS.Application.Services;
+using ISS.DocumentIntelligence.ReceiptDocuments;
 using ISS.Domain.Procurement;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -19,7 +20,9 @@ public sealed class GoodsReceiptsController(
     ProcurementService procurementService,
     IDocumentPdfService pdfService,
     AccessControlService accessControl,
-    NotificationService notificationService) : ControllerBase
+    NotificationService notificationService,
+    IReceiptDocumentAnalyzer receiptDocumentAnalyzer,
+    IReceiptDocumentMatcher receiptDocumentMatcher) : ControllerBase
 {
     public sealed record GoodsReceiptSummaryDto(Guid Id, string Number, Guid PurchaseOrderId, Guid WarehouseId, DateTimeOffset ReceivedAt, GoodsReceiptStatus Status);
     public sealed record GoodsReceiptDto(Guid Id, string Number, Guid PurchaseOrderId, Guid WarehouseId, DateTimeOffset ReceivedAt, GoodsReceiptStatus Status, IReadOnlyList<GoodsReceiptLineDto> Lines);
@@ -43,6 +46,11 @@ public sealed class GoodsReceiptsController(
     public sealed record UpdateGoodsReceiptLineRequest(decimal Quantity, decimal UnitCost, string? BatchNumber, IReadOnlyList<string>? Serials);
     public sealed record UpdateGoodsReceiptReceiptPlanRequest(IReadOnlyList<UpdateGoodsReceiptReceiptPlanLineRequest> Lines);
     public sealed record UpdateGoodsReceiptReceiptPlanLineRequest(Guid PurchaseOrderLineId, decimal Quantity, decimal UnitCost, string? BatchNumber, IReadOnlyList<string>? Serials);
+    public sealed class AnalyzeGoodsReceiptDocumentRequest
+    {
+        public IFormFile? File { get; set; }
+        public string? Text { get; set; }
+    }
 
     [HttpGet]
     public async Task<ActionResult<IReadOnlyList<GoodsReceiptSummaryDto>>> List([FromQuery] int skip = 0, [FromQuery] int take = 100, CancellationToken cancellationToken = default)
@@ -135,6 +143,61 @@ public sealed class GoodsReceiptsController(
 
         var doc = await pdfService.RenderAsync(PdfDocumentType.GoodsReceipt, id, cancellationToken);
         return File(doc.Content, doc.ContentType, doc.FileName);
+    }
+
+    [HttpPost("{id:guid}/document-suggestions")]
+    [RequestSizeLimit(10 * 1024 * 1024)]
+    public async Task<ActionResult<ReceiptDocumentSuggestion>> AnalyzeDocument(
+        Guid id,
+        [FromForm] AnalyzeGoodsReceiptDocumentRequest request,
+        CancellationToken cancellationToken)
+    {
+        if (!await HasPermissionAsync(AppPermissions.ProcurementGoodsReceiptEdit, cancellationToken))
+        {
+            return Forbid();
+        }
+
+        if (request.File is null && string.IsNullOrWhiteSpace(request.Text))
+        {
+            return BadRequest(new ProblemDetails
+            {
+                Title = "Document or text is required.",
+                Detail = "Upload a receipt/invoice file or paste OCR text for analysis."
+            });
+        }
+
+        var grn = await dbContext.GoodsReceipts.AsNoTracking()
+            .FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
+        if (grn is null)
+        {
+            return NotFound();
+        }
+
+        if (grn.Status != GoodsReceiptStatus.Draft)
+        {
+            return BadRequest(new ProblemDetails
+            {
+                Title = "Only draft GRNs can be analyzed.",
+                Detail = "OCR suggestions can only be applied before the GRN is posted."
+            });
+        }
+
+        var context = await BuildReceiptDocumentContextAsync(grn, cancellationToken);
+        if (context is null)
+        {
+            return NotFound();
+        }
+
+        await using var fileStream = request.File is null ? Stream.Null : request.File.OpenReadStream();
+        var extraction = await receiptDocumentAnalyzer.AnalyzeAsync(
+            new ReceiptDocumentInput(
+                request.File?.FileName ?? "pasted-text.txt",
+                request.File?.ContentType ?? "text/plain",
+                fileStream,
+                request.Text),
+            cancellationToken);
+
+        return Ok(receiptDocumentMatcher.Match(extraction, context));
     }
 
     [HttpPost("{id:guid}/lines")]
@@ -318,5 +381,66 @@ public sealed class GoodsReceiptsController(
         }
 
         return new GoodsReceiptReceiptPlanDto(lines);
+    }
+
+    private async Task<ReceiptDocumentContext?> BuildReceiptDocumentContextAsync(GoodsReceipt grn, CancellationToken cancellationToken)
+    {
+        var po = await dbContext.PurchaseOrders.AsNoTracking()
+            .Include(x => x.Lines)
+            .FirstOrDefaultAsync(x => x.Id == grn.PurchaseOrderId, cancellationToken);
+        if (po is null)
+        {
+            return null;
+        }
+
+        var supplierIds = new[] { po.SupplierId };
+        var suppliers = await dbContext.Suppliers.AsNoTracking()
+            .Where(x => supplierIds.Contains(x.Id))
+            .Select(x => new ReceiptSupplierReference(x.Id, x.Code, x.Name))
+            .ToListAsync(cancellationToken);
+
+        var supplier = suppliers.FirstOrDefault(x => x.Id == po.SupplierId);
+        var purchaseOrders = new List<ReceiptPurchaseOrderReference>
+        {
+            new(
+                po.Id,
+                po.Number,
+                po.SupplierId,
+                supplier?.Code ?? po.SupplierId.ToString(),
+                supplier?.Name ?? po.SupplierId.ToString())
+        };
+
+        var itemIds = po.Lines.Select(x => x.ItemId).Distinct().ToList();
+        var itemById = await dbContext.Items.AsNoTracking()
+            .Where(x => itemIds.Contains(x.Id))
+            .ToDictionaryAsync(x => x.Id, cancellationToken);
+
+        var reservedInOtherDrafts = await dbContext.GoodsReceipts.AsNoTracking()
+            .Where(x => x.PurchaseOrderId == po.Id && x.Status == GoodsReceiptStatus.Draft && x.Id != grn.Id)
+            .SelectMany(x => x.Lines)
+            .Where(x => x.PurchaseOrderLineId != null)
+            .GroupBy(x => x.PurchaseOrderLineId!.Value)
+            .Select(x => new { PurchaseOrderLineId = x.Key, Quantity = x.Sum(y => y.Quantity) })
+            .ToDictionaryAsync(x => x.PurchaseOrderLineId, x => x.Quantity, cancellationToken);
+
+        var lines = po.Lines.Select(line =>
+        {
+            var item = itemById.GetValueOrDefault(line.ItemId);
+            var reservedQuantity = reservedInOtherDrafts.GetValueOrDefault(line.Id);
+            var availableQuantity = Math.Max(0m, line.OrderedQuantity - line.ReceivedQuantity - reservedQuantity);
+
+            return new ReceiptPurchaseOrderLineReference(
+                line.Id,
+                line.ItemId,
+                item?.Sku ?? line.ItemId.ToString(),
+                item?.Name ?? line.ItemId.ToString(),
+                line.OrderedQuantity,
+                line.ReceivedQuantity,
+                reservedQuantity,
+                availableQuantity,
+                line.UnitPrice);
+        }).ToList();
+
+        return new ReceiptDocumentContext(purchaseOrders, suppliers, lines);
     }
 }

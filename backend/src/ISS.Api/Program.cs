@@ -2,6 +2,7 @@ using ISS.Application;
 using ISS.Application.Common;
 using ISS.Application.Abstractions;
 using ISS.Application.Options;
+using ISS.DocumentIntelligence.ReceiptDocuments;
 using ISS.Infrastructure;
 using ISS.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -110,6 +111,8 @@ builder.Services.AddHttpClient<ISS.Api.Assistant.AssistantProviderGateway>(clien
 });
 builder.Services.AddScoped<ISS.Api.Assistant.AssistantSettingsService>();
 builder.Services.AddScoped<ISS.Api.Assistant.AssistantCoordinator>();
+builder.Services.AddScoped<IReceiptDocumentAnalyzer, HeuristicReceiptDocumentAnalyzer>();
+builder.Services.AddSingleton<IReceiptDocumentMatcher, ReceiptDocumentMatcher>();
 
 builder.Services.AddControllers();
 builder.Services.AddHealthChecks()

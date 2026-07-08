@@ -2,7 +2,7 @@
 
 import { useDeferredValue, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { apiPostNoContent, apiPut } from "@/lib/api-client";
+import { apiPostForm, apiPostNoContent, apiPut } from "@/lib/api-client";
 import {
   EditableDataTable,
   formatGridMoney,
@@ -55,6 +55,35 @@ type ReceiptPlanLinePayload = {
   unitCost: number;
   batchNumber: string | null;
   serials: string[];
+};
+
+type ReceiptDocumentSuggestion = {
+  extraction: {
+    supplierName?: string | null;
+    purchaseOrderNumber?: string | null;
+    documentNumber?: string | null;
+    documentDate?: string | null;
+    warnings: string[];
+  };
+  purchaseOrder?: { id: string; number: string; confidence: number; reason: string } | null;
+  supplier?: { id: string; code: string; name: string; confidence: number; reason: string } | null;
+  lines: {
+    sourceLineNumber: number;
+    extractedItemCode?: string | null;
+    extractedDescription?: string | null;
+    extractedQuantity?: number | null;
+    extractedUnitCost?: number | null;
+    purchaseOrderLineId?: string | null;
+    itemId?: string | null;
+    itemSku?: string | null;
+    itemName?: string | null;
+    suggestedQuantity: number;
+    suggestedUnitCost?: number | null;
+    confidence: number;
+    status: string;
+    reason: string;
+  }[];
+  warnings: string[];
 };
 
 const TRACKING_SERIAL = 1;
@@ -150,6 +179,10 @@ export function GoodsReceiptReceiptPlanForm({
   const [draftLines, setDraftLines] = useState<EditableReceiptPlanLine[]>(() => toEditableLines(lines));
   const [search, setSearch] = useState("");
   const [busy, setBusy] = useState(false);
+  const [analyzingDocument, setAnalyzingDocument] = useState(false);
+  const [documentText, setDocumentText] = useState("");
+  const [documentFile, setDocumentFile] = useState<File | null>(null);
+  const [documentSuggestion, setDocumentSuggestion] = useState<ReceiptDocumentSuggestion | null>(null);
   const [error, setError] = useState<string | null>(null);
   const deferredSearch = useDeferredValue(search);
 
@@ -255,6 +288,63 @@ export function GoodsReceiptReceiptPlanForm({
     } finally {
       setBusy(false);
     }
+  }
+
+  async function analyzeDocument() {
+    setError(null);
+    setAnalyzingDocument(true);
+    setDocumentSuggestion(null);
+
+    try {
+      if (!documentFile && !documentText.trim()) {
+        throw new Error("Upload a receipt/invoice file or paste recognized text first.");
+      }
+
+      const form = new FormData();
+      if (documentFile) {
+        form.append("file", documentFile);
+      }
+      if (documentText.trim()) {
+        form.append("text", documentText.trim());
+      }
+
+      const suggestion = await apiPostForm<ReceiptDocumentSuggestion>(
+        `procurement/goods-receipts/${goodsReceiptId}/document-suggestions`,
+        form,
+      );
+      setDocumentSuggestion(suggestion);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setAnalyzingDocument(false);
+    }
+  }
+
+  function applyDocumentSuggestion() {
+    if (!documentSuggestion) {
+      return;
+    }
+
+    const suggestionsByPoLine = new Map(
+      documentSuggestion.lines
+        .filter((line) => line.purchaseOrderLineId && line.suggestedQuantity > 0)
+        .map((line) => [line.purchaseOrderLineId!, line]),
+    );
+
+    setDraftLines((current) =>
+      current.map((line) => {
+        const suggestion = suggestionsByPoLine.get(line.purchaseOrderLineId);
+        if (!suggestion) {
+          return line;
+        }
+
+        return {
+          ...line,
+          quantity: suggestion.suggestedQuantity.toString(),
+          unitCost: (suggestion.suggestedUnitCost ?? Number(line.unitCost || 0)).toString(),
+        };
+      }),
+    );
   }
 
   const filteredLines = useMemo(() => {
@@ -425,6 +515,99 @@ export function GoodsReceiptReceiptPlanForm({
         <span className="rounded-full bg-emerald-100 px-2.5 py-1 text-emerald-900 dark:bg-emerald-500/15 dark:text-emerald-200">
           Green: fully received on this line
         </span>
+      </div>
+
+      <div className="rounded-md border border-[var(--card-border)] bg-[var(--surface-soft)] p-3">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+          <div>
+            <div className="text-sm font-semibold">Scan Receipt / Supplier Invoice</div>
+            <p className="mt-1 max-w-3xl text-sm text-zinc-500">
+              Upload a supplier receipt or paste recognized OCR text. The system suggests PO-line quantities only; review and save the grid before posting.
+            </p>
+          </div>
+          <Button type="button" onClick={() => void analyzeDocument()} disabled={busy || analyzingDocument}>
+            {analyzingDocument ? "Analyzing..." : "Analyze document"}
+          </Button>
+        </div>
+
+        <div className="mt-3 grid gap-3 lg:grid-cols-2">
+          <div>
+            <label className="mb-1 block text-sm font-medium">Receipt / invoice file</label>
+            <Input
+              type="file"
+              accept="image/*,.pdf,.txt,.csv"
+              onChange={(event) => setDocumentFile(event.target.files?.[0] ?? null)}
+            />
+          </div>
+          <div>
+            <label className="mb-1 block text-sm font-medium">OCR text override</label>
+            <textarea
+              value={documentText}
+              onChange={(event) => setDocumentText(event.target.value)}
+              className="min-h-24 w-full rounded-md border border-[var(--input-border)] bg-[var(--input-bg)] px-3 py-2 text-sm"
+              placeholder="Paste text from a receipt/invoice if image OCR is not configured yet."
+            />
+          </div>
+        </div>
+
+        {documentSuggestion ? (
+          <div className="mt-4 space-y-3">
+            <div className="grid gap-2 text-sm md:grid-cols-3">
+              <div>
+                <div className="text-xs font-semibold uppercase text-zinc-500">PO</div>
+                <div>{documentSuggestion.purchaseOrder?.number ?? documentSuggestion.extraction.purchaseOrderNumber ?? "Not matched"}</div>
+              </div>
+              <div>
+                <div className="text-xs font-semibold uppercase text-zinc-500">Supplier</div>
+                <div>{documentSuggestion.supplier ? `${documentSuggestion.supplier.code} - ${documentSuggestion.supplier.name}` : documentSuggestion.extraction.supplierName ?? "Not matched"}</div>
+              </div>
+              <div>
+                <div className="text-xs font-semibold uppercase text-zinc-500">Document</div>
+                <div>{documentSuggestion.extraction.documentNumber ?? "-"}</div>
+              </div>
+            </div>
+
+            {documentSuggestion.warnings.length > 0 ? (
+              <div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-900/40 dark:bg-amber-950/30 dark:text-amber-100">
+                {documentSuggestion.warnings.join(" ")}
+              </div>
+            ) : null}
+
+            <div className="overflow-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-zinc-200 text-left text-xs uppercase text-zinc-500 dark:border-zinc-800">
+                    <th className="py-2 pr-3">Extracted</th>
+                    <th className="py-2 pr-3">Matched PO Line</th>
+                    <th className="py-2 pr-3">Qty</th>
+                    <th className="py-2 pr-3">Confidence</th>
+                    <th className="py-2 pr-3">Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {documentSuggestion.lines.map((line) => (
+                    <tr key={`${line.sourceLineNumber}-${line.extractedDescription ?? ""}`} className="border-b border-zinc-100 dark:border-zinc-900">
+                      <td className="py-2 pr-3">
+                        <div className="font-medium">{line.extractedItemCode ?? "-"}</div>
+                        <div className="text-zinc-500">{line.extractedDescription ?? "-"}</div>
+                      </td>
+                      <td className="py-2 pr-3">{line.itemSku ? `${line.itemSku} - ${line.itemName}` : "-"}</td>
+                      <td className="py-2 pr-3">{line.suggestedQuantity}</td>
+                      <td className="py-2 pr-3">{Math.round(line.confidence * 100)}%</td>
+                      <td className="py-2 pr-3 text-zinc-500">{line.reason}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            <div className="flex justify-end">
+              <Button type="button" onClick={applyDocumentSuggestion} disabled={busy}>
+                Apply matched quantities to grid
+              </Button>
+            </div>
+          </div>
+        ) : null}
       </div>
 
       <div className="flex flex-wrap items-center justify-between gap-3">
