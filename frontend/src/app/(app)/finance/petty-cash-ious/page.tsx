@@ -1,4 +1,6 @@
 import { backendFetchJson } from "@/lib/backend.server";
+import { AppFormModal } from "@/components/AppFormModal";
+import { TableSearchInput } from "@/components/TableSearchInput";
 import { Card, Table } from "@/components/ui";
 import { PettyCashIouActions } from "./PettyCashIouActions";
 import { PettyCashIouCreateForm } from "./PettyCashIouCreateForm";
@@ -43,20 +45,21 @@ export default async function PettyCashIousPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold">Petty Cash IOUs</h1>
-        <p className="mt-1 text-sm text-zinc-500">Approved cash advances linked to job order numbers.</p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-semibold">Petty Cash IOUs</h1>
+          <p className="mt-1 text-sm text-zinc-500">Approved cash advances linked to job order numbers.</p>
+        </div>
+        {canCreate ? (
+          <AppFormModal title="Create Petty Cash IOU" description="Request a petty cash advance against a job order." buttonLabel="+ New IOU">
+            <PettyCashIouCreateForm serviceJobs={jobs.filter((job) => job.status !== 3 && job.status !== 4)} />
+          </AppFormModal>
+        ) : null}
       </div>
-
-      {canCreate ? (
-        <Card>
-          <div className="mb-3 text-sm font-semibold">Create IOU</div>
-          <PettyCashIouCreateForm serviceJobs={jobs.filter((job) => job.status !== 3 && job.status !== 4)} />
-        </Card>
-      ) : null}
 
       <Card>
         <div className="mb-3 text-sm font-semibold">IOUs</div>
+        <TableSearchInput placeholder="Search petty cash IOUs..." />
         <div className="overflow-auto">
           <Table>
             <thead>

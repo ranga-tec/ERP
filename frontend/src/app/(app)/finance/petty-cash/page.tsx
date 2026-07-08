@@ -1,7 +1,9 @@
 import Link from "next/link";
 import { backendFetchJson } from "@/lib/backend.server";
+import { AppFormModal } from "@/components/AppFormModal";
 import { ListViewEditActions } from "@/components/ListViewEditActions";
-import { Card, Table } from "@/components/ui";
+import { SearchableRow, SearchableTable } from "@/components/SearchableTable";
+import { Card } from "@/components/ui";
 import { PettyCashFundCreateForm } from "./PettyCashFundCreateForm";
 
 type CurrencyDto = { code: string; name: string; isBase: boolean; isActive: boolean };
@@ -31,24 +33,27 @@ export default async function PettyCashFundsPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold">Petty Cash</h1>
-        <p className="mt-1 text-sm text-zinc-500">
-          Manage petty cash floats, replenishments, adjustments, and service-claim settlements against controlled funds.
-        </p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-semibold">Petty Cash</h1>
+          <p className="mt-1 text-sm text-zinc-500">
+            Manage petty cash floats, replenishments, adjustments, and service-claim settlements against controlled funds.
+          </p>
+        </div>
+        {canCreate ? (
+          <AppFormModal title="Create Petty Cash Fund" description="Create a controlled petty cash float." buttonLabel="+ New Fund">
+            <PettyCashFundCreateForm currencies={currencies} />
+          </AppFormModal>
+        ) : null}
       </div>
-
-      {canCreate ? (
-        <Card>
-          <div className="mb-3 text-sm font-semibold">Create Fund</div>
-          <PettyCashFundCreateForm currencies={currencies} />
-        </Card>
-      ) : null}
 
       <Card>
         <div className="mb-3 text-sm font-semibold">Funds</div>
-        <div className="overflow-auto">
-          <Table>
+        <SearchableTable
+          placeholder="Search petty cash funds..."
+          emptyMessage="No petty cash funds yet."
+          emptyColSpan={9}
+          headers={
             <thead>
               <tr className="border-b border-zinc-200 text-left text-xs uppercase tracking-wide text-zinc-500 dark:border-zinc-800">
                 <th className="py-2 pr-3">Code</th>
@@ -62,8 +67,13 @@ export default async function PettyCashFundsPage() {
                 <th className="py-2 pr-3">Actions</th>
               </tr>
             </thead>
-            <tbody>
-              {funds.map((fund) => (
+          }
+        >
+          {funds.map((fund) => (
+            <SearchableRow
+              key={fund.id}
+              searchText={`${fund.code} ${fund.name} ${fund.currencyCode} ${fund.custodianName ?? ""} ${fund.balance} ${fund.isActive ? "Active" : "Inactive"}`}
+            >
                 <tr key={fund.id} className="border-b border-zinc-100 dark:border-zinc-900">
                   <td className="py-2 pr-3 font-mono text-xs">
                     <Link className="hover:underline" href={`/finance/petty-cash/${fund.id}`}>
@@ -80,20 +90,17 @@ export default async function PettyCashFundsPage() {
                   </td>
                   <td className="py-2 pr-3">{fund.isActive ? "Active" : "Inactive"}</td>
                   <td className="py-2 pr-3">
-                    <ListViewEditActions viewHref={`/finance/petty-cash/${fund.id}`} canEdit={canEdit} />
+                    <ListViewEditActions
+                      viewHref={`/finance/petty-cash/${fund.id}`}
+                      canEdit={canEdit}
+                      editInModal
+                      editModalTitle={`Edit Petty Cash Fund ${fund.code}`}
+                    />
                   </td>
                 </tr>
-              ))}
-              {funds.length === 0 ? (
-                <tr>
-                  <td className="py-6 text-sm text-zinc-500" colSpan={9}>
-                    No petty cash funds yet.
-                  </td>
-                </tr>
-              ) : null}
-            </tbody>
-          </Table>
-        </div>
+            </SearchableRow>
+          ))}
+        </SearchableTable>
       </Card>
     </div>
   );

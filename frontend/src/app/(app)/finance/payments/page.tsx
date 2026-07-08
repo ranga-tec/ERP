@@ -1,7 +1,9 @@
 import Link from "next/link";
 import { backendFetchJson } from "@/lib/backend.server";
+import { AppFormModal } from "@/components/AppFormModal";
 import { ListViewEditActions } from "@/components/ListViewEditActions";
-import { Card, Table } from "@/components/ui";
+import { SearchableRow, SearchableTable } from "@/components/SearchableTable";
+import { Card } from "@/components/ui";
 import { PaymentCreateForm } from "./PaymentCreateForm";
 
 type PaymentDto = {
@@ -53,27 +55,30 @@ export default async function PaymentsPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold">Payment Receipts</h1>
-        <p className="mt-1 text-sm text-zinc-500">Record incoming/outgoing payments and allocate to AR/AP.</p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-semibold">Payment Receipts</h1>
+          <p className="mt-1 text-sm text-zinc-500">Record incoming/outgoing payments and allocate to AR/AP.</p>
+        </div>
+        {canCreate ? (
+          <AppFormModal title="Create Payment Receipt" description="Record an incoming or outgoing payment and allocate it to open AR/AP entries." buttonLabel="+ New Payment" size="xl">
+            <PaymentCreateForm
+              customers={customers}
+              suppliers={suppliers}
+              paymentTypes={paymentTypes}
+              currencies={currencies}
+            />
+          </AppFormModal>
+        ) : null}
       </div>
-
-      {canCreate ? (
-        <Card>
-          <div className="mb-3 text-sm font-semibold">Create</div>
-          <PaymentCreateForm
-            customers={customers}
-            suppliers={suppliers}
-            paymentTypes={paymentTypes}
-            currencies={currencies}
-          />
-        </Card>
-      ) : null}
 
       <Card>
         <div className="mb-3 text-sm font-semibold">List</div>
-        <div className="overflow-auto">
-          <Table>
+        <SearchableTable
+          placeholder="Search payments..."
+          emptyMessage="No payments yet."
+          emptyColSpan={10}
+          headers={
             <thead>
               <tr className="border-b border-zinc-200 text-left text-xs uppercase tracking-wide text-zinc-500 dark:border-zinc-800">
                 <th className="py-2 pr-3">Reference</th>
@@ -88,8 +93,13 @@ export default async function PaymentsPage() {
                 <th className="py-2 pr-3">Actions</th>
               </tr>
             </thead>
-            <tbody>
-              {payments.map((p) => (
+          }
+        >
+          {payments.map((p) => (
+            <SearchableRow
+              key={p.id}
+              searchText={`${p.referenceNumber} ${directionLabel[p.direction] ?? p.direction} ${counterpartyCode(p.counterpartyType, p.counterpartyId)} ${p.paymentTypeCode ?? ""} ${p.paymentTypeName ?? ""} ${p.currencyCode} ${p.amount} ${p.baseAmount} ${p.notes ?? ""}`}
+            >
                 <tr key={p.id} className="border-b border-zinc-100 dark:border-zinc-900">
                   <td className="py-2 pr-3 font-mono text-xs">
                     <Link className="hover:underline" href={`/finance/payments/${p.id}`}>
@@ -115,17 +125,9 @@ export default async function PaymentsPage() {
                     <ListViewEditActions viewHref={`/finance/payments/${p.id}`} canEdit={false} />
                   </td>
                 </tr>
-              ))}
-              {payments.length === 0 ? (
-                <tr>
-                  <td className="py-6 text-sm text-zinc-500" colSpan={10}>
-                    No payments yet.
-                  </td>
-                </tr>
-              ) : null}
-            </tbody>
-          </Table>
-        </div>
+            </SearchableRow>
+          ))}
+        </SearchableTable>
       </Card>
     </div>
   );

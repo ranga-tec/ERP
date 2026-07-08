@@ -1,6 +1,9 @@
 import Link from "next/link";
 import { backendFetchJson } from "@/lib/backend.server";
-import { Card, Table } from "@/components/ui";
+import { AppFormModal } from "@/components/AppFormModal";
+import { ListViewEditActions } from "@/components/ListViewEditActions";
+import { SearchableRow, SearchableTable } from "@/components/SearchableTable";
+import { Card } from "@/components/ui";
 import { StockTransferCreateForm } from "./StockTransferCreateForm";
 
 type StockTransferSummaryDto = {
@@ -30,20 +33,23 @@ export default async function StockTransfersPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold">Stock Transfers</h1>
-        <p className="mt-1 text-sm text-zinc-500">Move stock between warehouses.</p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-semibold">Stock Transfers</h1>
+          <p className="mt-1 text-sm text-zinc-500">Move stock between warehouses.</p>
+        </div>
+        <AppFormModal title="Create Stock Transfer" description="Create a draft transfer before adding stock lines." buttonLabel="+ New Transfer">
+          <StockTransferCreateForm warehouses={warehouses} />
+        </AppFormModal>
       </div>
 
       <Card>
-        <div className="mb-3 text-sm font-semibold">Create</div>
-        <StockTransferCreateForm warehouses={warehouses} />
-      </Card>
-
-      <Card>
         <div className="mb-3 text-sm font-semibold">List</div>
-        <div className="overflow-auto">
-          <Table>
+        <SearchableTable
+          placeholder="Search stock transfers..."
+          emptyMessage="No stock transfers yet."
+          emptyColSpan={6}
+          headers={
             <thead>
               <tr className="border-b border-zinc-200 text-left text-xs uppercase tracking-wide text-zinc-500 dark:border-zinc-800">
                 <th className="py-2 pr-3">Number</th>
@@ -51,10 +57,16 @@ export default async function StockTransfersPage() {
                 <th className="py-2 pr-3">To</th>
                 <th className="py-2 pr-3">Date</th>
                 <th className="py-2 pr-3">Status</th>
+                <th className="py-2 pr-3">Actions</th>
               </tr>
             </thead>
-            <tbody>
-              {transfers.map((t) => (
+          }
+        >
+          {transfers.map((t) => (
+            <SearchableRow
+              key={t.id}
+              searchText={`${t.number} ${warehouseById.get(t.fromWarehouseId)?.code ?? t.fromWarehouseId} ${warehouseById.get(t.toWarehouseId)?.code ?? t.toWarehouseId} ${statusLabel[t.status] ?? t.status}`}
+            >
                 <tr key={t.id} className="border-b border-zinc-100 dark:border-zinc-900">
                   <td className="py-2 pr-3 font-mono text-xs">
                     <Link className="hover:underline" href={`/inventory/stock-transfers/${t.id}`}>
@@ -65,20 +77,19 @@ export default async function StockTransfersPage() {
                   <td className="py-2 pr-3">{warehouseById.get(t.toWarehouseId)?.code ?? t.toWarehouseId}</td>
                   <td className="py-2 pr-3 text-zinc-500">{new Date(t.transferDate).toLocaleString()}</td>
                   <td className="py-2 pr-3">{statusLabel[t.status] ?? t.status}</td>
-                </tr>
-              ))}
-              {transfers.length === 0 ? (
-                <tr>
-                  <td className="py-6 text-sm text-zinc-500" colSpan={5}>
-                    No stock transfers yet.
+                  <td className="py-2 pr-3">
+                    <ListViewEditActions
+                      viewHref={`/inventory/stock-transfers/${t.id}`}
+                      canEdit={t.status === 0}
+                      editInModal
+                      editModalTitle={`Edit Stock Transfer ${t.number}`}
+                    />
                   </td>
                 </tr>
-              ) : null}
-            </tbody>
-          </Table>
-        </div>
+            </SearchableRow>
+          ))}
+        </SearchableTable>
       </Card>
     </div>
   );
 }
-

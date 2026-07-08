@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { apiDeleteNoContent, apiPut } from "@/lib/api-client";
 import { Button, Input, SecondaryButton, Select } from "@/components/ui";
+import { LedgerAccountEditModal } from "./LedgerAccountEditModal";
 import { type LedgerAccountDto, ledgerAccountTypeLabel, ledgerAccountTypeOptions } from "./types";
 
 const actionButtonClass = "px-2.5 py-1.5 text-xs";
@@ -245,17 +246,9 @@ export function LedgerAccountRow({
               </SecondaryButton>
             </>
           ) : (
-            <SecondaryButton
-              type="button"
-              className={actionButtonClass}
-              onClick={(event) => {
-                event.stopPropagation();
-                beginEdit();
-              }}
-              disabled={busy}
-            >
-              Edit
-            </SecondaryButton>
+            <div className={actionButtonClass} onClick={(event) => event.stopPropagation()}>
+              <LedgerAccountEditModal account={account} accounts={accounts} />
+            </div>
           )}
           <SecondaryButton
             type="button"

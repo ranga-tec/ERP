@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { backendFetchJson } from "@/lib/backend.server";
 import { ListViewEditActions } from "@/components/ListViewEditActions";
+import { TableSearchInput } from "@/components/TableSearchInput";
 import { TransactionLink } from "@/components/TransactionLink";
 import { Button, Card, Select, Table } from "@/components/ui";
 import { buildReferenceRouteMap, resolveReferenceHref } from "@/lib/reference-routing";
@@ -69,6 +70,7 @@ export default async function AccountsReceivablePage({ searchParams }: { searchP
 
       <Card>
         <div className="mb-3 text-sm font-semibold">Entries</div>
+        <TableSearchInput placeholder="Search accounts receivable..." />
         <div className="overflow-auto">
           <Table>
             <thead>
@@ -125,6 +127,7 @@ export default async function AccountsReceivablePage({ searchParams }: { searchP
 
       <Card>
         <div className="mb-3 text-sm font-semibold">Customer Credit Notes</div>
+        <TableSearchInput placeholder="Search customer credit notes..." />
         <div className="overflow-auto">
           <Table>
             <thead>

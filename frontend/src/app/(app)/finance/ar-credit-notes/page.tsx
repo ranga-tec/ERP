@@ -1,4 +1,5 @@
 import { backendFetchJson } from "@/lib/backend.server";
+import { AppFormModal } from "@/components/AppFormModal";
 import { Card } from "@/components/ui";
 import { CreditNoteCreateForm } from "../credit-notes/CreditNoteCreateForm";
 import { CreditNoteListTable, type CreditNoteListDto } from "../credit-notes/CreditNoteListTable";
@@ -17,24 +18,24 @@ export default async function ArCreditNotesPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold">A/R Credit Notes</h1>
-        <p className="mt-1 text-sm text-zinc-500">
-          Customer credit notes reduce accounts receivable balances and can be based on customer returns.
-        </p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-semibold">A/R Credit Notes</h1>
+          <p className="mt-1 text-sm text-zinc-500">
+            Customer credit notes reduce accounts receivable balances and can be based on customer returns.
+          </p>
+        </div>
+        {canCreate ? (
+          <AppFormModal title="Create A/R Credit Note" description="Create a customer credit note and allocate it against AR." buttonLabel="+ New A/R Credit Note" size="xl">
+            <CreditNoteCreateForm
+              customers={customers}
+              suppliers={[]}
+              fixedCounterpartyType="1"
+              submitLabel="Create A/R Credit Note"
+            />
+          </AppFormModal>
+        ) : null}
       </div>
-
-      {canCreate ? (
-        <Card>
-          <div className="mb-3 text-sm font-semibold">Create A/R Credit Note</div>
-          <CreditNoteCreateForm
-            customers={customers}
-            suppliers={[]}
-            fixedCounterpartyType="1"
-            submitLabel="Create A/R Credit Note"
-          />
-        </Card>
-      ) : null}
 
       <Card>
         <div className="mb-3 text-sm font-semibold">A/R Credit Notes</div>

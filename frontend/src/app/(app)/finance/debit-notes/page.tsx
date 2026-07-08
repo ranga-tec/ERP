@@ -1,8 +1,10 @@
 import Link from "next/link";
 import { backendFetchJson } from "@/lib/backend.server";
+import { AppFormModal } from "@/components/AppFormModal";
 import { ListViewEditActions } from "@/components/ListViewEditActions";
+import { SearchableRow, SearchableTable } from "@/components/SearchableTable";
 import { TransactionLink } from "@/components/TransactionLink";
-import { Card, Table } from "@/components/ui";
+import { Card } from "@/components/ui";
 import { DebitNoteCreateForm } from "./DebitNoteCreateForm";
 
 type DebitNoteDto = {
@@ -43,22 +45,25 @@ export default async function DebitNotesPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold">Debit Notes</h1>
-        <p className="mt-1 text-sm text-zinc-500">Issue additional charges to customers/suppliers (AR/AP).</p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-semibold">Debit Notes</h1>
+          <p className="mt-1 text-sm text-zinc-500">Issue additional charges to customers/suppliers (AR/AP).</p>
+        </div>
+        {canCreate ? (
+          <AppFormModal title="Create Debit Note" description="Issue an additional charge to a customer or supplier." buttonLabel="+ New Debit Note" size="xl">
+            <DebitNoteCreateForm customers={customers} suppliers={suppliers} />
+          </AppFormModal>
+        ) : null}
       </div>
-
-      {canCreate ? (
-        <Card>
-          <div className="mb-3 text-sm font-semibold">Create</div>
-          <DebitNoteCreateForm customers={customers} suppliers={suppliers} />
-        </Card>
-      ) : null}
 
       <Card>
         <div className="mb-3 text-sm font-semibold">List</div>
-        <div className="overflow-auto">
-          <Table>
+        <SearchableTable
+          placeholder="Search debit notes..."
+          emptyMessage="No debit notes yet."
+          emptyColSpan={7}
+          headers={
             <thead>
               <tr className="border-b border-zinc-200 text-left text-xs uppercase tracking-wide text-zinc-500 dark:border-zinc-800">
                 <th className="py-2 pr-3">Reference</th>
@@ -70,8 +75,13 @@ export default async function DebitNotesPage() {
                 <th className="py-2 pr-3">Actions</th>
               </tr>
             </thead>
-            <tbody>
-              {notes.map((note) => (
+          }
+        >
+          {notes.map((note) => (
+            <SearchableRow
+              key={note.id}
+              searchText={`${note.referenceNumber} ${counterpartyLabel[note.counterpartyType] ?? note.counterpartyType} ${counterpartyCode(note.counterpartyType, note.counterpartyId)} ${note.amount} ${note.sourceReferenceType ?? ""} ${note.notes ?? ""}`}
+            >
                 <tr key={note.id} className="border-b border-zinc-100 dark:border-zinc-900">
                   <td className="py-2 pr-3 font-mono text-xs">
                     <Link className="hover:underline" href={`/finance/debit-notes/${note.id}`}>
@@ -98,17 +108,9 @@ export default async function DebitNotesPage() {
                     <ListViewEditActions viewHref={`/finance/debit-notes/${note.id}`} canEdit={false} />
                   </td>
                 </tr>
-              ))}
-              {notes.length === 0 ? (
-                <tr>
-                  <td className="py-6 text-sm text-zinc-500" colSpan={7}>
-                    No debit notes yet.
-                  </td>
-                </tr>
-              ) : null}
-            </tbody>
-          </Table>
-        </div>
+            </SearchableRow>
+          ))}
+        </SearchableTable>
       </Card>
     </div>
   );

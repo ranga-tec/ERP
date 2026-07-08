@@ -1,7 +1,6 @@
 "use client";
 
 import { Card, Table } from "@/components/ui";
-import { LedgerAccountCreateForm } from "./LedgerAccountCreateForm";
 import { LedgerAccountRow } from "./LedgerAccountRow";
 import { type LedgerAccountDto, ledgerAccountTypeLabel } from "./types";
 
@@ -14,21 +13,6 @@ export function LedgerAccountsClassicView({
 }) {
   return (
     <div className="space-y-6">
-      <Card>
-        <div className="mb-3 flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
-          <div>
-            <div className="text-sm font-semibold text-[var(--foreground)]">Create Account</div>
-            <p className="mt-1 max-w-2xl text-sm text-[var(--muted-foreground)]">
-              Traditional ERP workflow: create accounts in a dedicated form, then click a row below or use Edit to update it.
-            </p>
-          </div>
-          <div className="rounded-full border border-[var(--input-border)] bg-[var(--surface)] px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--muted-foreground)]">
-            Classic workspace
-          </div>
-        </div>
-        <LedgerAccountCreateForm accounts={accounts} />
-      </Card>
-
       <Card>
         <div className="mb-3 flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
           <div>

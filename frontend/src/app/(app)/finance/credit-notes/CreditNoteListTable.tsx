@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { ListViewEditActions } from "@/components/ListViewEditActions";
+import { SearchableRow, SearchableTable } from "@/components/SearchableTable";
 import { TransactionLink } from "@/components/TransactionLink";
-import { Table } from "@/components/ui";
 
 export type CreditNoteListDto = {
   id: string;
@@ -31,8 +31,11 @@ export function CreditNoteListTable({
   const counterpartyById = new Map(counterparties.map((counterparty) => [counterparty.id, counterparty]));
 
   return (
-    <div className="overflow-auto">
-      <Table>
+    <SearchableTable
+      placeholder="Search credit notes..."
+      emptyMessage={emptyText}
+      emptyColSpan={8}
+      headers={
         <thead>
           <tr className="border-b border-zinc-200 text-left text-xs uppercase tracking-wide text-zinc-500 dark:border-zinc-800">
             <th className="py-2 pr-3">Reference</th>
@@ -45,8 +48,13 @@ export function CreditNoteListTable({
             <th className="py-2 pr-3">Actions</th>
           </tr>
         </thead>
-        <tbody>
-          {notes.map((note) => (
+      }
+    >
+      {notes.map((note) => (
+        <SearchableRow
+          key={note.id}
+          searchText={`${note.referenceNumber} ${counterpartyById.get(note.counterpartyId)?.code ?? note.counterpartyId} ${note.amount} ${note.remainingAmount} ${note.notes ?? ""} ${note.sourceReferenceNumber ?? ""}`}
+        >
             <tr key={note.id} className="border-b border-zinc-100 dark:border-zinc-900">
               <td className="py-2 pr-3 font-mono text-xs">
                 <Link className="hover:underline" href={`/finance/credit-notes/${note.id}`}>
@@ -73,16 +81,8 @@ export function CreditNoteListTable({
                 <ListViewEditActions viewHref={`/finance/credit-notes/${note.id}`} canEdit={false} />
               </td>
             </tr>
-          ))}
-          {notes.length === 0 ? (
-            <tr>
-              <td className="py-6 text-sm text-zinc-500" colSpan={8}>
-                {emptyText}
-              </td>
-            </tr>
-          ) : null}
-        </tbody>
-      </Table>
-    </div>
+        </SearchableRow>
+      ))}
+    </SearchableTable>
   );
 }

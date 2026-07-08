@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
-import { Button, Card, Table } from "@/components/ui";
-import { LedgerAccountCreateRow } from "./LedgerAccountCreateRow";
+import { AppFormModal } from "@/components/AppFormModal";
+import { Card, Table } from "@/components/ui";
+import { LedgerAccountCreateForm } from "./LedgerAccountCreateForm";
 import { LedgerAccountRow } from "./LedgerAccountRow";
 import { type LedgerAccountDto } from "./types";
 
@@ -13,8 +13,6 @@ export function LedgerAccountsGrid({
   accounts: LedgerAccountDto[];
   filteredAccounts: LedgerAccountDto[];
 }) {
-  const [showCreateRow, setShowCreateRow] = useState(false);
-
   return (
     <Card className="overflow-hidden p-0">
       <div className="border-b border-[var(--card-border)] bg-[linear-gradient(180deg,rgba(255,255,255,0.62),rgba(255,255,255,0.24))] p-4 dark:bg-[linear-gradient(180deg,rgba(148,163,184,0.06),rgba(148,163,184,0.02))]">
@@ -30,9 +28,9 @@ export function LedgerAccountsGrid({
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
-            <Button type="button" onClick={() => setShowCreateRow((value) => !value)}>
-              {showCreateRow ? "Hide New Row" : "New Account"}
-            </Button>
+            <AppFormModal title="Create Account" description="Add a new ledger account to the chart of accounts." buttonLabel="+ New Account" size="xl">
+              <LedgerAccountCreateForm accounts={accounts} />
+            </AppFormModal>
             <div className="rounded-full border border-[var(--input-border)] bg-[var(--surface)] px-3 py-1 text-xs font-medium text-[var(--muted-foreground)]">
               {filteredAccounts.length} visible
             </div>
@@ -55,8 +53,6 @@ export function LedgerAccountsGrid({
             </tr>
           </thead>
           <tbody>
-            {showCreateRow ? <LedgerAccountCreateRow accounts={accounts} onCancel={() => setShowCreateRow(false)} /> : null}
-
             {filteredAccounts.map((account) => (
               <LedgerAccountRow key={account.id} account={account} accounts={accounts} variant="priority" />
             ))}
