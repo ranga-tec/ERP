@@ -4,6 +4,7 @@ import { AppFormModal } from "@/components/AppFormModal";
 import { SearchableRow, SearchableTable } from "@/components/SearchableTable";
 import { Card } from "@/components/ui";
 import { ServiceContractCreateForm } from "./ServiceContractCreateForm";
+import { ServiceContractEditForm } from "./ServiceContractEditForm";
 
 type CustomerDto = { id: string; code: string; name: string };
 type EquipmentUnitDto = { id: string; serialNumber: string; itemId: string; customerId: string };
@@ -17,6 +18,7 @@ type ServiceContractSummaryDto = {
   coverage: number;
   startDate: string;
   endDate: string;
+  notes?: string | null;
   isActive: boolean;
   currentState: string;
 };
@@ -132,9 +134,9 @@ export default async function ServiceContractsPage() {
                       <Link className="font-semibold text-[var(--link)] underline underline-offset-2" href={`/service/contracts/${contract.id}`}>
                         View
                       </Link>
-                      <Link className="font-semibold text-[var(--link)] underline underline-offset-2" href={`/service/contracts/${contract.id}`}>
-                        Edit
-                      </Link>
+                      <AppFormModal title={`Edit Service Contract ${contract.number}`} description="Update coverage, dates, active state, or linked equipment." buttonLabel="Edit" variant="secondary" size="xl">
+                        <ServiceContractEditForm contract={contract} customers={customers} equipmentUnits={equipmentUnitOptions} />
+                      </AppFormModal>
                     </div>
                   </td>
                 </tr>

@@ -1,11 +1,12 @@
 import Link from "next/link";
 import { backendFetchJson } from "@/lib/backend.server";
+import { AuditTrailButton } from "@/components/AuditTrailButton";
 import { AppFormModal } from "@/components/AppFormModal";
 import { SearchableRow, SearchableTable } from "@/components/SearchableTable";
 import { TransactionLink } from "@/components/TransactionLink";
 import { Card } from "@/components/ui";
-import { ListViewEditActions } from "@/components/ListViewEditActions";
 import { ServiceHandoverCreateForm } from "./ServiceHandoverCreateForm";
+import { ServiceHandoverEditForm } from "./ServiceHandoverEditForm";
 
 type ServiceHandoverDto = {
   id: string;
@@ -108,12 +109,19 @@ export default async function ServiceHandoversPage() {
                     </td>
                     <td className="py-2 pr-3">{statusLabel[r.status] ?? r.status}</td>
                     <td className="py-2 pr-3">
-                      <ListViewEditActions
-                        viewHref={`/service/handovers/${r.id}`}
-                        canEdit={r.status === 0}
-                        auditTableName="ServiceHandovers"
-                        auditRecordId={r.id}
-                      />
+                      <div className="flex flex-wrap items-center gap-3 text-xs">
+                        <Link className="font-semibold text-[var(--link)] underline underline-offset-2" href={`/service/handovers/${r.id}`}>
+                          View
+                        </Link>
+                        {r.status === 0 ? (
+                          <AppFormModal title={`Edit Service Taken ${r.number}`} description="Update delivery confirmation details." buttonLabel="Edit" variant="secondary">
+                            <ServiceHandoverEditForm handover={r} />
+                          </AppFormModal>
+                        ) : (
+                          <span className="text-zinc-400">Edit</span>
+                        )}
+                        <AuditTrailButton tableName="ServiceHandovers" recordId={r.id} />
+                      </div>
                     </td>
                   </tr>
                   </SearchableRow>

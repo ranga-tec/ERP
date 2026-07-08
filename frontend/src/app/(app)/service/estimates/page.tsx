@@ -1,11 +1,12 @@
 import Link from "next/link";
 import { backendFetchJson } from "@/lib/backend.server";
+import { AuditTrailButton } from "@/components/AuditTrailButton";
 import { AppFormModal } from "@/components/AppFormModal";
-import { ListViewEditActions } from "@/components/ListViewEditActions";
 import { SearchableRow, SearchableTable } from "@/components/SearchableTable";
 import { TransactionLink } from "@/components/TransactionLink";
 import { Card } from "@/components/ui";
 import { ServiceEstimateCreateForm } from "./ServiceEstimateCreateForm";
+import { ServiceEstimateEditForm } from "./ServiceEstimateEditForm";
 
 type ServiceEstimateSummaryDto = {
   id: string;
@@ -132,12 +133,19 @@ export default async function ServiceEstimatesPage() {
                     </td>
                     <td className="py-2 pr-3">{e.total.toFixed(2)}</td>
                     <td className="py-2 pr-3">
-                      <ListViewEditActions
-                        viewHref={`/service/estimates/${e.id}`}
-                        canEdit={e.status === 0}
-                        auditTableName="ServiceEstimates"
-                        auditRecordId={e.id}
-                      />
+                      <div className="flex flex-wrap items-center gap-3 text-xs">
+                        <Link className="font-semibold text-[var(--link)] underline underline-offset-2" href={`/service/estimates/${e.id}`}>
+                          View
+                        </Link>
+                        {e.status === 0 ? (
+                          <AppFormModal title={`Edit Quotation ${e.number}`} description="Update quotation header details." buttonLabel="Edit" variant="secondary">
+                            <ServiceEstimateEditForm estimate={e} />
+                          </AppFormModal>
+                        ) : (
+                          <span className="text-zinc-400">Edit</span>
+                        )}
+                        <AuditTrailButton tableName="ServiceEstimates" recordId={e.id} />
+                      </div>
                     </td>
                   </tr>
                   </SearchableRow>

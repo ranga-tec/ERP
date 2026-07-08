@@ -34,6 +34,16 @@ public sealed class MaterialRequisition : AuditableEntity
 
     public List<MaterialRequisitionLine> Lines { get; private set; } = new();
 
+    public void UpdateHeader(Guid serviceJobId, Guid warehouseId, string? purpose, Guid? serviceJobDailySheetId = null)
+    {
+        EnsureDraftEditable();
+
+        ServiceJobId = serviceJobId;
+        ServiceJobDailySheetId = serviceJobDailySheetId;
+        WarehouseId = warehouseId;
+        Purpose = NormalizeOptional(purpose, nameof(purpose), 512);
+    }
+
     public MaterialRequisitionLine AddLine(Guid itemId, decimal quantity, string? batchNumber)
     {
         EnsureDraftEditable();

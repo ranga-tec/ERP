@@ -4,8 +4,9 @@ import { AppFormModal } from "@/components/AppFormModal";
 import { SearchableRow, SearchableTable } from "@/components/SearchableTable";
 import { TransactionLink } from "@/components/TransactionLink";
 import { Card } from "@/components/ui";
-import { ListViewEditActions } from "@/components/ListViewEditActions";
 import { MaterialRequisitionCreateForm } from "./MaterialRequisitionCreateForm";
+import { MaterialRequisitionEditForm } from "./MaterialRequisitionEditForm";
+import { AuditTrailButton } from "@/components/AuditTrailButton";
 
 type MaterialRequisitionSummaryDto = {
   id: string;
@@ -100,12 +101,19 @@ export default async function MaterialRequisitionsPage() {
                   <td className="py-2 pr-3">{statusLabel[m.status] ?? m.status}</td>
                   <td className="py-2 pr-3">{m.lineCount}</td>
                   <td className="py-2 pr-3">
-                    <ListViewEditActions
-                      viewHref={`/service/material-requisitions/${m.id}`}
-                      canEdit={m.status === 0 && canEdit}
-                      auditTableName="MaterialRequisitions"
-                      auditRecordId={m.id}
-                    />
+                    <div className="flex flex-wrap items-center gap-3 text-xs">
+                      <Link className="font-semibold text-[var(--link)] underline underline-offset-2" href={`/service/material-requisitions/${m.id}`}>
+                        View
+                      </Link>
+                      {m.status === 0 && canEdit ? (
+                        <AppFormModal title={`Edit MRN ${m.number}`} description="Update draft MRN job, warehouse, or purpose." buttonLabel="Edit" variant="secondary">
+                          <MaterialRequisitionEditForm requisition={m} serviceJobs={jobs} warehouses={warehouses} />
+                        </AppFormModal>
+                      ) : (
+                        <span className="text-zinc-400">Edit</span>
+                      )}
+                      <AuditTrailButton tableName="MaterialRequisitions" recordId={m.id} />
+                    </div>
                   </td>
                 </tr>
                 </SearchableRow>

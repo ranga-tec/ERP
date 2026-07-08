@@ -1,10 +1,12 @@
 import Link from "next/link";
 import { backendFetchJson } from "@/lib/backend.server";
+import { AuditTrailButton } from "@/components/AuditTrailButton";
 import { AppFormModal } from "@/components/AppFormModal";
 import { SearchableRow, SearchableTable } from "@/components/SearchableTable";
 import { TransactionLink } from "@/components/TransactionLink";
 import { Card } from "@/components/ui";
 import { QualityCheckCreateForm } from "./QualityCheckCreateForm";
+import { QualityCheckEditForm } from "./QualityCheckEditForm";
 
 type QualityCheckDto = {
   id: string;
@@ -41,7 +43,7 @@ export default async function QualityChecksPage() {
         <SearchableTable
           placeholder="Search QC, job, result, notes..."
           emptyMessage="No quality checks yet."
-          emptyColSpan={4}
+          emptyColSpan={5}
           headers={
             <thead>
               <tr className="border-b border-zinc-200 text-left text-xs uppercase tracking-wide text-zinc-500 dark:border-zinc-800">
@@ -49,6 +51,7 @@ export default async function QualityChecksPage() {
                 <th className="py-2 pr-3">Job</th>
                 <th className="py-2 pr-3">Result</th>
                 <th className="py-2 pr-3">Notes</th>
+                <th className="py-2 pr-3">Actions</th>
               </tr>
             </thead>
           }
@@ -74,6 +77,17 @@ export default async function QualityChecksPage() {
                   </td>
                   <td className="py-2 pr-3">{result}</td>
                   <td className="py-2 pr-3 text-zinc-500">{q.notes ?? "-"}</td>
+                  <td className="py-2 pr-3">
+                    <div className="flex flex-wrap items-center gap-3 text-xs">
+                      <Link className="font-semibold text-[var(--link)] underline underline-offset-2" href={`/service/quality-checks/${q.id}`}>
+                        View
+                      </Link>
+                      <AppFormModal title="Edit Inspection / QC" description="Correct the inspection result or notes for this quality check." buttonLabel="Edit" variant="secondary">
+                        <QualityCheckEditForm qualityCheck={q} />
+                      </AppFormModal>
+                      <AuditTrailButton tableName="QualityChecks" recordId={q.id} />
+                    </div>
+                  </td>
                 </tr>
               </SearchableRow>
             );

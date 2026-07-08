@@ -1637,6 +1637,24 @@ public sealed class ServiceManagementService(
         return mr.Id;
     }
 
+    public async Task UpdateMaterialRequisitionAsync(
+        Guid materialRequisitionId,
+        Guid serviceJobId,
+        Guid warehouseId,
+        string? purpose = null,
+        Guid? serviceJobDailySheetId = null,
+        CancellationToken cancellationToken = default)
+    {
+        await EnsureServiceJobAcceptsNewCostsAsync(serviceJobId, cancellationToken);
+        await EnsureDailySheetBelongsToJobAsync(serviceJobId, serviceJobDailySheetId, cancellationToken);
+
+        var mr = await dbContext.MaterialRequisitions.FirstOrDefaultAsync(x => x.Id == materialRequisitionId, cancellationToken)
+            ?? throw new NotFoundException("Material requisition not found.");
+
+        mr.UpdateHeader(serviceJobId, warehouseId, purpose, serviceJobDailySheetId);
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
     public async Task AddMaterialRequisitionLineAsync(
         Guid materialRequisitionId,
         Guid itemId,

@@ -24,6 +24,7 @@ public sealed class ServiceContractsController(
         ServiceCoverageScope Coverage,
         DateTimeOffset StartDate,
         DateTimeOffset EndDate,
+        string? Notes,
         bool IsActive,
         string CurrentState);
 
@@ -98,6 +99,7 @@ public sealed class ServiceContractsController(
             x.Coverage,
             x.StartDate,
             x.EndDate,
+            x.Notes,
             x.IsActive,
             DeriveState(x, now))).ToList());
     }

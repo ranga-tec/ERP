@@ -26,6 +26,7 @@ public sealed class MaterialRequisitionsController(
     public sealed record MaterialRequisitionLineDto(Guid Id, Guid ItemId, decimal Quantity, string? BatchNumber, IReadOnlyList<string> Serials);
 
     public sealed record CreateMaterialRequisitionRequest(Guid ServiceJobId, Guid WarehouseId, string? Purpose, Guid? ServiceJobDailySheetId);
+    public sealed record UpdateMaterialRequisitionRequest(Guid ServiceJobId, Guid WarehouseId, string? Purpose, Guid? ServiceJobDailySheetId);
     public sealed record AddMaterialRequisitionLineRequest(Guid ItemId, decimal Quantity, string? BatchNumber, IReadOnlyList<string>? Serials);
     public sealed record UpdateMaterialRequisitionLineRequest(decimal Quantity, string? BatchNumber, IReadOnlyList<string>? Serials);
 
@@ -66,6 +67,25 @@ public sealed class MaterialRequisitionsController(
 
         var id = await serviceManagementService.CreateMaterialRequisitionAsync(request.ServiceJobId, request.WarehouseId, request.Purpose, request.ServiceJobDailySheetId, cancellationToken);
         await NotifyMaterialRequisitionCreatedAsync(id, cancellationToken);
+        return await Get(id, cancellationToken);
+    }
+
+    [HttpPut("{id:guid}")]
+    public async Task<ActionResult<MaterialRequisitionDto>> Update(Guid id, UpdateMaterialRequisitionRequest request, CancellationToken cancellationToken)
+    {
+        if (!await HasPermissionAsync(AppPermissions.ServiceMaterialRequisitionEdit, cancellationToken))
+        {
+            return Forbid();
+        }
+
+        await serviceManagementService.UpdateMaterialRequisitionAsync(
+            id,
+            request.ServiceJobId,
+            request.WarehouseId,
+            request.Purpose,
+            request.ServiceJobDailySheetId,
+            cancellationToken);
+
         return await Get(id, cancellationToken);
     }
 

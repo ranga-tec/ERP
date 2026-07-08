@@ -5,6 +5,7 @@ import { ItemInlineLink } from "@/components/InlineLink";
 import { SearchableRow, SearchableTable } from "@/components/SearchableTable";
 import { Card } from "@/components/ui";
 import { EquipmentUnitCreateForm } from "./EquipmentUnitCreateForm";
+import { EquipmentUnitEditForm } from "./EquipmentUnitEditForm";
 
 type EquipmentUnitDto = {
   id: string;
@@ -14,6 +15,9 @@ type EquipmentUnitDto = {
   purchasedAt?: string | null;
   warrantyUntil?: string | null;
   warrantyCoverage: number;
+  serviceIntervalDays?: number | null;
+  nextServiceDueAt?: string | null;
+  nextRepairDueAt?: string | null;
   hasActiveWarranty: boolean;
 };
 
@@ -114,9 +118,9 @@ export default async function EquipmentUnitsPage() {
                       <Link className="font-semibold text-[var(--link)] underline underline-offset-2" href={`/service/equipment-units/${unit.id}`}>
                         View
                       </Link>
-                      <Link className="font-semibold text-[var(--link)] underline underline-offset-2" href={`/service/equipment-units/${unit.id}`}>
-                        Edit
-                      </Link>
+                      <AppFormModal title={`Edit Equipment Unit ${unit.serialNumber}`} description="Update customer, warranty, service interval, and next due dates." buttonLabel="Edit" variant="secondary">
+                        <EquipmentUnitEditForm unit={unit} customers={customers} />
+                      </AppFormModal>
                     </div>
                   </td>
                 </tr>
