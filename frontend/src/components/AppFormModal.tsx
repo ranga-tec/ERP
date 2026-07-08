@@ -21,18 +21,21 @@ export function AppFormModal({
   disabled = false,
   variant = "primary",
   size = "lg",
+  onOpen,
 }: {
   title: string;
   description?: string;
   buttonLabel: string;
-  children: ReactNode;
+  children: ReactNode | ((controls: { close: () => void }) => ReactNode);
   disabled?: boolean;
   variant?: AppFormModalVariant;
   size?: AppFormModalSize;
+  onOpen?: () => void;
 }) {
   const [open, setOpen] = useState(false);
   const titleId = useId();
   const Trigger = variant === "primary" ? Button : SecondaryButton;
+  const close = () => setOpen(false);
 
   useEffect(() => {
     if (!open) return;
@@ -49,12 +52,19 @@ export function AppFormModal({
 
   return (
     <>
-      <Trigger type="button" disabled={disabled} onClick={() => setOpen(true)}>
+      <Trigger
+        type="button"
+        disabled={disabled}
+        onClick={() => {
+          onOpen?.();
+          setOpen(true);
+        }}
+      >
         {buttonLabel}
       </Trigger>
 
       {open ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/55 p-4" onMouseDown={() => setOpen(false)}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/55 p-4" onMouseDown={close}>
           <div
             role="dialog"
             aria-modal="true"
@@ -72,11 +82,11 @@ export function AppFormModal({
                 </div>
                 {description ? <div className="mt-1 text-sm text-zinc-500">{description}</div> : null}
               </div>
-              <SecondaryButton type="button" aria-label="Close dialog" onClick={() => setOpen(false)}>
+              <SecondaryButton type="button" aria-label="Close dialog" onClick={close}>
                 Close
               </SecondaryButton>
             </div>
-            {children}
+            {typeof children === "function" ? children({ close }) : children}
           </div>
         </div>
       ) : null}

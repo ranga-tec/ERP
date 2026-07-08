@@ -5,8 +5,19 @@ import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { apiDeleteNoContent } from "@/lib/api-client";
 import { buildItemAnchorId } from "@/lib/item-routing";
+import { AppFormModal } from "@/components/AppFormModal";
 import { Input, SecondaryButton, SecondaryLink, Select, Table } from "@/components/ui";
-import { itemTypeLabel, trackingLabel, type BrandDto, type CategoryDto, type ItemDto } from "./item-definitions";
+import { ItemEditPanel } from "./ItemEditPanel";
+import {
+  itemTypeLabel,
+  trackingLabel,
+  type BrandDto,
+  type CategoryDto,
+  type ItemDto,
+  type LedgerAccountOptionDto,
+  type SubcategoryDto,
+  type UomDto,
+} from "./item-definitions";
 
 const actionLinkClassName = "text-xs font-semibold text-[var(--link)] underline underline-offset-2 transition-colors hover:text-[var(--link-hover)]";
 const actionButtonClass = "px-2 py-1 text-xs";
@@ -14,10 +25,20 @@ const actionButtonClass = "px-2 py-1 text-xs";
 function ItemListRow({
   item,
   brandCode,
+  brands,
+  uoms,
+  categories,
+  subcategories,
+  accountOptions,
   highlight,
 }: {
   item: ItemDto;
   brandCode: string;
+  brands: BrandDto[];
+  uoms: UomDto[];
+  categories: CategoryDto[];
+  subcategories: SubcategoryDto[];
+  accountOptions: LedgerAccountOptionDto[];
   highlight: boolean;
 }) {
   const router = useRouter();
@@ -96,9 +117,16 @@ function ItemListRow({
           <Link href={`/master-data/items/${item.id}`} className={actionLinkClassName}>
             View
           </Link>
-          <Link href={`/master-data/items/${item.id}/edit`} className={actionLinkClassName}>
-            Edit
-          </Link>
+          <AppFormModal title={`Edit Item ${item.sku}`} description="Update item master data and account mapping." buttonLabel="Edit" variant="secondary" size="xl">
+            <ItemEditPanel
+              item={item}
+              brands={brands}
+              uoms={uoms}
+              categories={categories}
+              subcategories={subcategories}
+              accountOptions={accountOptions}
+            />
+          </AppFormModal>
           <SecondaryButton type="button" className={actionButtonClass} onClick={() => void deleteItem()} disabled={busy}>
             {busy ? "Deleting..." : "Delete"}
           </SecondaryButton>
@@ -122,12 +150,18 @@ function ItemListRow({
 export function ItemListPanel({
   items,
   brands,
+  uoms,
   categories,
+  subcategories,
+  accountOptions,
   highlightItemId,
 }: {
   items: ItemDto[];
   brands: BrandDto[];
+  uoms: UomDto[];
   categories: CategoryDto[];
+  subcategories: SubcategoryDto[];
+  accountOptions: LedgerAccountOptionDto[];
   highlightItemId?: string;
 }) {
   const [query, setQuery] = useState("");
@@ -303,6 +337,11 @@ export function ItemListPanel({
                 key={item.id}
                 item={item}
                 brandCode={item.brandId ? brandById.get(item.brandId)?.code ?? "" : ""}
+                brands={brands}
+                uoms={uoms}
+                categories={categories}
+                subcategories={subcategories}
+                accountOptions={accountOptions}
                 highlight={highlightItemId === item.id}
               />
             ))}

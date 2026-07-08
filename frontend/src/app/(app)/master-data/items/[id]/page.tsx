@@ -1,16 +1,29 @@
 import Link from "next/link";
 import { backendFetchJson } from "@/lib/backend.server";
+import { AppFormModal } from "@/components/AppFormModal";
 import { Card, SecondaryLink } from "@/components/ui";
+import { ItemEditPanel } from "../ItemEditPanel";
 import { ItemManagementPanel } from "../ItemManagementPanel";
-import { itemTypeLabel, trackingLabel, type BrandDto, type ItemDto } from "../item-definitions";
-
-const primaryLinkClassName = "inline-flex items-center justify-center rounded-xl bg-[var(--accent)] px-3.5 py-2 text-sm font-semibold text-[var(--accent-contrast)] shadow-[var(--shadow-button)] transition-all duration-200 hover:-translate-y-px hover:bg-[var(--accent-hover)] hover:shadow-[var(--shadow-button)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring-accent)]";
+import {
+  itemTypeLabel,
+  trackingLabel,
+  type BrandDto,
+  type CategoryDto,
+  type ItemDto,
+  type LedgerAccountOptionDto,
+  type SubcategoryDto,
+  type UomDto,
+} from "../item-definitions";
 
 export default async function ItemDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const [item, brands] = await Promise.all([
+  const [item, brands, uoms, categories, subcategories, accountOptions] = await Promise.all([
     backendFetchJson<ItemDto>(`/items/${id}`),
     backendFetchJson<BrandDto[]>("/brands"),
+    backendFetchJson<UomDto[]>("/uoms"),
+    backendFetchJson<CategoryDto[]>("/item-categories"),
+    backendFetchJson<SubcategoryDto[]>("/item-subcategories"),
+    backendFetchJson<LedgerAccountOptionDto[]>("/items/account-options"),
   ]);
   const brand = item.brandId ? brands.find((entry) => entry.id === item.brandId) : null;
 
@@ -31,9 +44,16 @@ export default async function ItemDetailPage({ params }: { params: Promise<{ id:
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            <Link href={`/master-data/items/${item.id}/edit`} className={primaryLinkClassName}>
-              Edit Item
-            </Link>
+            <AppFormModal title="Edit Item" description="Update item master data and account mapping." buttonLabel="Edit Item" size="xl">
+              <ItemEditPanel
+                item={item}
+                brands={brands}
+                uoms={uoms}
+                categories={categories}
+                subcategories={subcategories}
+                accountOptions={accountOptions}
+              />
+            </AppFormModal>
             <SecondaryLink
               href={`/api/backend/items/${item.id}/label/pdf`}
               target="_blank"

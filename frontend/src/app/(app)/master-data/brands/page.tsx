@@ -1,4 +1,5 @@
 import { backendFetchJson } from "@/lib/backend.server";
+import { AppFormModal } from "@/components/AppFormModal";
 import { Card, Table } from "@/components/ui";
 import { BrandCreateForm } from "./BrandCreateForm";
 import { BrandRow } from "./BrandRow";
@@ -15,10 +16,9 @@ export default async function BrandsPage() {
         <p className="mt-1 text-sm text-zinc-500">Master data for item brands.</p>
       </div>
 
-      <Card>
-        <div className="mb-3 text-sm font-semibold">Create</div>
+      <AppFormModal title="Create Brand" description="Add a new item brand." buttonLabel="+ New Brand">
         <BrandCreateForm />
-      </Card>
+      </AppFormModal>
 
       <Card>
         <div className="mb-3 text-sm font-semibold">List</div>

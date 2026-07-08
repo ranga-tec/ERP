@@ -1,4 +1,5 @@
 import { backendFetchJson } from "@/lib/backend.server";
+import { AppFormModal } from "@/components/AppFormModal";
 import { Card, Table } from "@/components/ui";
 import { WarehouseCreateForm } from "./WarehouseCreateForm";
 import { WarehouseRow } from "./WarehouseRow";
@@ -21,10 +22,9 @@ export default async function WarehousesPage() {
         <p className="mt-1 text-sm text-zinc-500">Maintain warehouse headers used by inventory, procurement, sales, and service documents.</p>
       </div>
 
-      <Card>
-        <div className="mb-3 text-sm font-semibold">Create</div>
+      <AppFormModal title="Create Warehouse" description="Add a warehouse header." buttonLabel="+ New Warehouse">
         <WarehouseCreateForm />
-      </Card>
+      </AppFormModal>
 
       <Card>
         <div className="mb-3 text-sm font-semibold">List</div>

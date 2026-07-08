@@ -1,4 +1,5 @@
 import { backendFetchJson } from "@/lib/backend.server";
+import { AppFormModal } from "@/components/AppFormModal";
 import { Card, Table } from "@/components/ui";
 import { CurrencyCreateForm } from "./CurrencyCreateForm";
 import { CurrencyRow } from "./CurrencyRow";
@@ -23,10 +24,9 @@ export default async function CurrenciesPage() {
         <p className="mt-1 text-sm text-zinc-500">Currency master for transactions and costing valuation.</p>
       </div>
 
-      <Card>
-        <div className="mb-3 text-sm font-semibold">Create</div>
+      <AppFormModal title="Create Currency" description="Add a currency master record." buttonLabel="+ New Currency">
         <CurrencyCreateForm />
-      </Card>
+      </AppFormModal>
 
       <Card>
         <div className="mb-3 text-sm font-semibold">List</div>

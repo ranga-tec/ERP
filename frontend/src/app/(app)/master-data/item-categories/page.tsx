@@ -1,4 +1,5 @@
 import { backendFetchJson } from "@/lib/backend.server";
+import { AppFormModal } from "@/components/AppFormModal";
 import { Card, Table } from "@/components/ui";
 import { ItemCategoryCreateForm } from "./ItemCategoryCreateForm";
 import { ItemSubcategoryCreateForm } from "./ItemSubcategoryCreateForm";
@@ -37,17 +38,17 @@ export default async function ItemCategoriesPage() {
         <p className="mt-1 text-sm text-zinc-500">Category and subcategory masters used to classify items.</p>
       </div>
 
-      <Card>
-        <div className="mb-3 text-sm font-semibold">Create Category</div>
+      <div className="flex flex-wrap gap-2">
+        <AppFormModal title="Create Category" description="Add a category used to classify item masters." buttonLabel="+ New Category">
         <ItemCategoryCreateForm accountOptions={accountOptions} />
-      </Card>
+        </AppFormModal>
 
-      <Card>
-        <div className="mb-3 text-sm font-semibold">Create Subcategory</div>
-        <ItemSubcategoryCreateForm
-          categories={categories.map((category) => ({ id: category.id, code: category.code, name: category.name }))}
-        />
-      </Card>
+        <AppFormModal title="Create Subcategory" description="Add a subcategory under an item category." buttonLabel="+ New Subcategory">
+          <ItemSubcategoryCreateForm
+            categories={categories.map((category) => ({ id: category.id, code: category.code, name: category.name }))}
+          />
+        </AppFormModal>
+      </div>
 
       <Card>
         <div className="mb-3 text-sm font-semibold">Categories</div>

@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { apiDeleteNoContent, apiPost, apiPut } from "@/lib/api-client";
+import { AppFormModal } from "@/components/AppFormModal";
 import { Button, Input, SecondaryButton, Select, Table } from "@/components/ui";
 
 type WarehouseDto = { id: string; code: string; name: string; isActive: boolean };
@@ -36,7 +37,6 @@ export function WarehouseBinsManager({ warehouses, bins }: { warehouses: Warehou
   const router = useRouter();
   const [warehouseId, setWarehouseId] = useState(warehouses[0]?.id ?? "");
   const [draft, setDraft] = useState<Draft>(emptyDraft);
-  const [editingId, setEditingId] = useState<string | null>(null);
   const [editDraft, setEditDraft] = useState<Draft>(emptyDraft);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -72,7 +72,6 @@ export function WarehouseBinsManager({ warehouses, bins }: { warehouses: Warehou
 
   function beginEdit(bin: WarehouseBinDto) {
     setError(null);
-    setEditingId(bin.id);
     setEditDraft({
       code: bin.code,
       name: bin.name,
@@ -83,7 +82,7 @@ export function WarehouseBinsManager({ warehouses, bins }: { warehouses: Warehou
     });
   }
 
-  async function saveEdit(bin: WarehouseBinDto) {
+  async function saveEdit(bin: WarehouseBinDto, close: () => void) {
     setError(null);
     setBusy(true);
     try {
@@ -95,7 +94,7 @@ export function WarehouseBinsManager({ warehouses, bins }: { warehouses: Warehou
         shelf: editDraft.shelf.trim() || null,
         isActive: editDraft.isActive === "true",
       });
-      setEditingId(null);
+      close();
       router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
@@ -120,47 +119,45 @@ export function WarehouseBinsManager({ warehouses, bins }: { warehouses: Warehou
 
   return (
     <div className="space-y-4">
-      <form onSubmit={createBin} className="space-y-3">
-        <div className="grid gap-3 md:grid-cols-6">
-          <div className="md:col-span-2">
-            <label className="mb-1 block text-sm font-medium">Warehouse</label>
-            <Select value={warehouseId} onChange={(e) => setWarehouseId(e.target.value)} required>
-              {warehouses.map((warehouse) => (
-                <option key={warehouse.id} value={warehouse.id}>
-                  {warehouse.code} - {warehouse.name}
-                </option>
-              ))}
-            </Select>
+      <AppFormModal title="Create Warehouse Bin" description="Add a rack, shelf, or bin location under a warehouse." buttonLabel="+ New Bin" onOpen={() => setDraft(emptyDraft)}>
+        <form onSubmit={createBin} className="space-y-3">
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div>
+              <label className="mb-1 block text-sm font-medium">Warehouse</label>
+              <Select value={warehouseId} onChange={(e) => setWarehouseId(e.target.value)} required>
+                {warehouses.map((warehouse) => (
+                  <option key={warehouse.id} value={warehouse.id}>
+                    {warehouse.code} - {warehouse.name}
+                  </option>
+                ))}
+              </Select>
+            </div>
+            <div>
+              <label className="mb-1 block text-sm font-medium">Bin Code</label>
+              <Input value={draft.code} onChange={(e) => setDraft((current) => ({ ...current, code: e.target.value }))} required />
+            </div>
+            <div>
+              <label className="mb-1 block text-sm font-medium">Name</label>
+              <Input value={draft.name} onChange={(e) => setDraft((current) => ({ ...current, name: e.target.value }))} required />
+            </div>
+            <div>
+              <label className="mb-1 block text-sm font-medium">Zone</label>
+              <Input value={draft.zone} onChange={(e) => setDraft((current) => ({ ...current, zone: e.target.value }))} />
+            </div>
+            <div>
+              <label className="mb-1 block text-sm font-medium">Rack</label>
+              <Input value={draft.rack} onChange={(e) => setDraft((current) => ({ ...current, rack: e.target.value }))} />
+            </div>
+            <div>
+              <label className="mb-1 block text-sm font-medium">Shelf</label>
+              <Input value={draft.shelf} onChange={(e) => setDraft((current) => ({ ...current, shelf: e.target.value }))} />
+            </div>
           </div>
-          <div>
-            <label className="mb-1 block text-sm font-medium">Bin Code</label>
-            <Input value={draft.code} onChange={(e) => setDraft((current) => ({ ...current, code: e.target.value }))} required />
-          </div>
-          <div>
-            <label className="mb-1 block text-sm font-medium">Name</label>
-            <Input value={draft.name} onChange={(e) => setDraft((current) => ({ ...current, name: e.target.value }))} required />
-          </div>
-          <div>
-            <label className="mb-1 block text-sm font-medium">Rack</label>
-            <Input value={draft.rack} onChange={(e) => setDraft((current) => ({ ...current, rack: e.target.value }))} />
-          </div>
-          <div>
-            <label className="mb-1 block text-sm font-medium">Shelf</label>
-            <Input value={draft.shelf} onChange={(e) => setDraft((current) => ({ ...current, shelf: e.target.value }))} />
-          </div>
-        </div>
-        <div className="grid gap-3 md:grid-cols-6">
-          <div>
-            <label className="mb-1 block text-sm font-medium">Zone</label>
-            <Input value={draft.zone} onChange={(e) => setDraft((current) => ({ ...current, zone: e.target.value }))} />
-          </div>
-          <div className="flex items-end">
-            <Button type="submit" disabled={busy || !warehouseId}>
-              {busy ? "Saving..." : "Add bin"}
-            </Button>
-          </div>
-        </div>
-      </form>
+          <Button type="submit" disabled={busy || !warehouseId}>
+            {busy ? "Saving..." : "Add Bin"}
+          </Button>
+        </form>
+      </AppFormModal>
 
       {error ? <div className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-900">{error}</div> : null}
 
@@ -178,55 +175,30 @@ export function WarehouseBinsManager({ warehouses, bins }: { warehouses: Warehou
           </thead>
           <tbody>
             {displayedBins.map((bin) => {
-              const editing = editingId === bin.id;
               return (
                 <tr key={bin.id} className="border-b border-zinc-100 align-top dark:border-zinc-900">
                   <td className="py-2 pr-3">{warehouseById.get(bin.warehouseId)?.code ?? bin.warehouseId}</td>
-                  <td className="py-2 pr-3 font-mono text-xs">
-                    {editing ? <Input value={editDraft.code} onChange={(e) => setEditDraft((current) => ({ ...current, code: e.target.value }))} /> : bin.code}
-                  </td>
-                  <td className="py-2 pr-3">
-                    {editing ? <Input value={editDraft.name} onChange={(e) => setEditDraft((current) => ({ ...current, name: e.target.value }))} /> : bin.name}
-                  </td>
-                  <td className="py-2 pr-3 text-zinc-500">
-                    {editing ? (
-                      <div className="grid min-w-64 gap-2 sm:grid-cols-3">
-                        <Input value={editDraft.zone} onChange={(e) => setEditDraft((current) => ({ ...current, zone: e.target.value }))} placeholder="Zone" />
-                        <Input value={editDraft.rack} onChange={(e) => setEditDraft((current) => ({ ...current, rack: e.target.value }))} placeholder="Rack" />
-                        <Input value={editDraft.shelf} onChange={(e) => setEditDraft((current) => ({ ...current, shelf: e.target.value }))} placeholder="Shelf" />
-                      </div>
-                    ) : (
-                      binLabel(bin)
-                    )}
-                  </td>
-                  <td className="py-2 pr-3">
-                    {editing ? (
-                      <Select value={editDraft.isActive} onChange={(e) => setEditDraft((current) => ({ ...current, isActive: e.target.value }))}>
-                        <option value="true">Yes</option>
-                        <option value="false">No</option>
-                      </Select>
-                    ) : bin.isActive ? (
-                      "Yes"
-                    ) : (
-                      "No"
-                    )}
-                  </td>
+                  <td className="py-2 pr-3 font-mono text-xs">{bin.code}</td>
+                  <td className="py-2 pr-3">{bin.name}</td>
+                  <td className="py-2 pr-3 text-zinc-500">{binLabel(bin)}</td>
+                  <td className="py-2 pr-3">{bin.isActive ? "Yes" : "No"}</td>
                   <td className="py-2 pr-3">
                     <div className="flex flex-wrap gap-2">
-                      {editing ? (
-                        <>
-                          <Button type="button" className="px-2 py-1 text-xs" onClick={() => saveEdit(bin)} disabled={busy}>
-                            Save
-                          </Button>
-                          <SecondaryButton type="button" className="px-2 py-1 text-xs" onClick={() => setEditingId(null)} disabled={busy}>
-                            Cancel
-                          </SecondaryButton>
-                        </>
-                      ) : (
-                        <SecondaryButton type="button" className="px-2 py-1 text-xs" onClick={() => beginEdit(bin)} disabled={busy}>
-                          Edit
-                        </SecondaryButton>
-                      )}
+                      <AppFormModal title={`Edit Bin ${bin.code}`} description="Update bin code, name, location, or active state." buttonLabel="Edit" variant="secondary" onOpen={() => beginEdit(bin)}>
+                        {({ close }) => (
+                          <form className="space-y-3" onSubmit={(event) => { event.preventDefault(); void saveEdit(bin, close); }}>
+                            <div className="grid gap-3 sm:grid-cols-2">
+                              <div><label className="mb-1 block text-sm font-medium">Bin Code</label><Input value={editDraft.code} onChange={(e) => setEditDraft((current) => ({ ...current, code: e.target.value }))} required /></div>
+                              <div><label className="mb-1 block text-sm font-medium">Name</label><Input value={editDraft.name} onChange={(e) => setEditDraft((current) => ({ ...current, name: e.target.value }))} required /></div>
+                              <div><label className="mb-1 block text-sm font-medium">Zone</label><Input value={editDraft.zone} onChange={(e) => setEditDraft((current) => ({ ...current, zone: e.target.value }))} /></div>
+                              <div><label className="mb-1 block text-sm font-medium">Rack</label><Input value={editDraft.rack} onChange={(e) => setEditDraft((current) => ({ ...current, rack: e.target.value }))} /></div>
+                              <div><label className="mb-1 block text-sm font-medium">Shelf</label><Input value={editDraft.shelf} onChange={(e) => setEditDraft((current) => ({ ...current, shelf: e.target.value }))} /></div>
+                              <div><label className="mb-1 block text-sm font-medium">Active</label><Select value={editDraft.isActive} onChange={(e) => setEditDraft((current) => ({ ...current, isActive: e.target.value }))}><option value="true">Yes</option><option value="false">No</option></Select></div>
+                            </div>
+                            <Button type="submit" disabled={busy}>{busy ? "Saving..." : "Save Bin"}</Button>
+                          </form>
+                        )}
+                      </AppFormModal>
                       <SecondaryButton type="button" className="px-2 py-1 text-xs" onClick={() => deleteBin(bin)} disabled={busy}>
                         Delete
                       </SecondaryButton>

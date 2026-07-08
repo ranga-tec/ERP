@@ -1,4 +1,5 @@
 import { backendFetchJson } from "@/lib/backend.server";
+import { AppFormModal } from "@/components/AppFormModal";
 import { Card, Table } from "@/components/ui";
 import { TaxCreateForm } from "./TaxCreateForm";
 import { TaxRow } from "./TaxRow";
@@ -24,10 +25,9 @@ export default async function TaxesPage() {
         <p className="mt-1 text-sm text-zinc-500">Centralized tax rates used by purchase/sales/service line entry.</p>
       </div>
 
-      <Card>
-        <div className="mb-3 text-sm font-semibold">Create</div>
+      <AppFormModal title="Create Tax Code" description="Add a tax code for sales, purchase, or both." buttonLabel="+ New Tax Code">
         <TaxCreateForm />
-      </Card>
+      </AppFormModal>
 
       <Card>
         <div className="mb-3 text-sm font-semibold">List</div>

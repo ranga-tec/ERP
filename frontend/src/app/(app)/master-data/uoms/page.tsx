@@ -1,4 +1,5 @@
 import { backendFetchJson } from "@/lib/backend.server";
+import { AppFormModal } from "@/components/AppFormModal";
 import { Card, Table } from "@/components/ui";
 import { UomCreateForm } from "./UomCreateForm";
 import { UomRow } from "./UomRow";
@@ -15,10 +16,9 @@ export default async function UomsPage() {
         <p className="mt-1 text-sm text-zinc-500">Master list used for item UoM selection.</p>
       </div>
 
-      <Card>
-        <div className="mb-3 text-sm font-semibold">Create</div>
+      <AppFormModal title="Create UoM" description="Add a new unit of measure." buttonLabel="+ New UoM">
         <UomCreateForm />
-      </Card>
+      </AppFormModal>
 
       <Card>
         <div className="mb-3 text-sm font-semibold">List</div>

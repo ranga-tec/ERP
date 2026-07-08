@@ -1,10 +1,9 @@
-import Link from "next/link";
 import { backendFetchJson } from "@/lib/backend.server";
+import { AppFormModal } from "@/components/AppFormModal";
 import { Card } from "@/components/ui";
+import { ItemCreateForm } from "./ItemCreateForm";
 import { ItemListPanel } from "./ItemListPanel";
-import type { BrandDto, CategoryDto, ItemDto } from "./item-definitions";
-
-const primaryLinkClassName = "inline-flex items-center justify-center rounded-xl bg-[var(--accent)] px-3.5 py-2 text-sm font-semibold text-[var(--accent-contrast)] shadow-[var(--shadow-button)] transition-all duration-200 hover:-translate-y-px hover:bg-[var(--accent-hover)] hover:shadow-[var(--shadow-button)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring-accent)]";
+import type { BrandDto, CategoryDto, ItemDto, LedgerAccountOptionDto, SubcategoryDto, UomDto } from "./item-definitions";
 
 export default async function ItemsPage({
   searchParams,
@@ -12,10 +11,13 @@ export default async function ItemsPage({
   searchParams?: Promise<{ itemId?: string }>;
 }) {
   const sp = await searchParams;
-  const [items, brands, categories] = await Promise.all([
+  const [items, brands, uoms, categories, subcategories, accountOptions] = await Promise.all([
     backendFetchJson<ItemDto[]>("/items"),
     backendFetchJson<BrandDto[]>("/brands"),
+    backendFetchJson<UomDto[]>("/uoms"),
     backendFetchJson<CategoryDto[]>("/item-categories"),
+    backendFetchJson<SubcategoryDto[]>("/item-subcategories"),
+    backendFetchJson<LedgerAccountOptionDto[]>("/items/account-options"),
   ]);
   const requestedItemId = sp?.itemId?.trim() ?? "";
   const initialSelectedItemId = items.some((item) => item.id === requestedItemId)
@@ -31,9 +33,15 @@ export default async function ItemsPage({
             Search the full item master and open separate view and edit screens from the grid.
           </p>
         </div>
-        <Link href="/master-data/items/create" className={primaryLinkClassName}>
-          Create Item
-        </Link>
+        <AppFormModal title="Create Item" description="Add a new item, equipment record, or service master." buttonLabel="+ New Item" size="xl">
+          <ItemCreateForm
+            brands={brands}
+            uoms={uoms}
+            categories={categories}
+            subcategories={subcategories}
+            accountOptions={accountOptions}
+          />
+        </AppFormModal>
       </div>
 
       <Card id="item-list">
@@ -41,7 +49,10 @@ export default async function ItemsPage({
         <ItemListPanel
           items={items}
           brands={brands}
+          uoms={uoms}
           categories={categories}
+          subcategories={subcategories}
+          accountOptions={accountOptions}
           highlightItemId={initialSelectedItemId}
         />
       </Card>

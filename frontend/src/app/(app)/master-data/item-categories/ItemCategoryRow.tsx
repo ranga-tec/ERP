@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { apiDeleteNoContent, apiPut } from "@/lib/api-client";
+import { AppFormModal } from "@/components/AppFormModal";
 import { Button, Input, SecondaryButton, Select } from "@/components/ui";
 import { formatLedgerAccountOptionLabel, type CategoryDto, type LedgerAccountOptionDto } from "../items/item-definitions";
 type SubcategoryDto = { id: string; code: string; name: string };
@@ -19,7 +20,6 @@ export function ItemCategoryRow({
   subcategories: SubcategoryDto[];
 }) {
   const router = useRouter();
-  const [isEditing, setIsEditing] = useState(false);
   const [code, setCode] = useState(category.code);
   const [name, setName] = useState(category.name);
   const [revenueAccountId, setRevenueAccountId] = useState(category.revenueAccountId ?? "");
@@ -44,10 +44,9 @@ export function ItemCategoryRow({
     setRevenueAccountId(category.revenueAccountId ?? "");
     setExpenseAccountId(category.expenseAccountId ?? "");
     setIsActive(category.isActive ? "true" : "false");
-    setIsEditing(true);
   }
 
-  async function saveEdit() {
+  async function saveEdit(close: () => void) {
     setError(null);
     setBusy(true);
     try {
@@ -58,7 +57,7 @@ export function ItemCategoryRow({
         expenseAccountId: expenseAccountId || null,
         isActive: isActive === "true",
       });
-      setIsEditing(false);
+      close();
       router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
@@ -83,39 +82,17 @@ export function ItemCategoryRow({
 
   return (
     <tr className="border-b border-zinc-100 align-top dark:border-zinc-900">
-      <td className="py-2 pr-3 font-mono text-xs">
-        {isEditing ? <Input value={code} onChange={(e) => setCode(e.target.value)} className="min-w-24" /> : category.code}
-      </td>
+      <td className="py-2 pr-3 font-mono text-xs">{category.code}</td>
+      <td className="py-2 pr-3">{category.name}</td>
       <td className="py-2 pr-3">
-        {isEditing ? <Input value={name} onChange={(e) => setName(e.target.value)} className="min-w-32" /> : category.name}
-      </td>
-      <td className="py-2 pr-3">
-        {isEditing ? (
-          <Select value={revenueAccountId} onChange={(e) => setRevenueAccountId(e.target.value)} className="min-w-52">
-            <option value="">(None)</option>
-            {revenueAccountOptions.map((account) => (
-              <option key={account.id} value={account.id}>
-                {formatLedgerAccountOptionLabel(account)}
-              </option>
-            ))}
-          </Select>
-        ) : category.revenueAccountCode ? (
+        {category.revenueAccountCode ? (
           <span className="text-sm">{`${category.revenueAccountCode} - ${category.revenueAccountName ?? ""}`}</span>
         ) : (
           <span className="text-zinc-500">-</span>
         )}
       </td>
       <td className="py-2 pr-3">
-        {isEditing ? (
-          <Select value={expenseAccountId} onChange={(e) => setExpenseAccountId(e.target.value)} className="min-w-52">
-            <option value="">(None)</option>
-            {expenseAccountOptions.map((account) => (
-              <option key={account.id} value={account.id}>
-                {formatLedgerAccountOptionLabel(account)}
-              </option>
-            ))}
-          </Select>
-        ) : category.expenseAccountCode ? (
+        {category.expenseAccountCode ? (
           <span className="text-sm">{`${category.expenseAccountCode} - ${category.expenseAccountName ?? ""}`}</span>
         ) : (
           <span className="text-zinc-500">-</span>
@@ -134,42 +111,24 @@ export function ItemCategoryRow({
           <span className="text-zinc-500">None</span>
         )}
       </td>
-      <td className="py-2 pr-3">
-        {isEditing ? (
-          <Select value={isActive} onChange={(e) => setIsActive(e.target.value)} className="min-w-20">
-            <option value="true">Yes</option>
-            <option value="false">No</option>
-          </Select>
-        ) : category.isActive ? (
-          "Yes"
-        ) : (
-          "No"
-        )}
-      </td>
+      <td className="py-2 pr-3">{category.isActive ? "Yes" : "No"}</td>
       <td className="py-2 pr-3">
         <div className="flex flex-wrap items-center gap-2">
-          {isEditing ? (
-            <>
-              <Button type="button" className={actionButtonClass} onClick={saveEdit} disabled={busy}>
-                {busy ? "Saving..." : "Save"}
-              </Button>
-              <SecondaryButton
-                type="button"
-                className={actionButtonClass}
-                onClick={() => {
-                  setError(null);
-                  setIsEditing(false);
-                }}
-                disabled={busy}
-              >
-                Cancel
-              </SecondaryButton>
-            </>
-          ) : (
-            <SecondaryButton type="button" className={actionButtonClass} onClick={beginEdit} disabled={busy}>
-              Edit
-            </SecondaryButton>
-          )}
+          <AppFormModal title={`Edit Category ${category.code}`} description="Update category accounts and active state." buttonLabel="Edit" variant="secondary" size="lg" onOpen={beginEdit}>
+            {({ close }) => (
+              <form className="space-y-3" onSubmit={(event) => { event.preventDefault(); void saveEdit(close); }}>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div><label className="mb-1 block text-sm font-medium">Code</label><Input value={code} onChange={(e) => setCode(e.target.value)} required /></div>
+                  <div><label className="mb-1 block text-sm font-medium">Name</label><Input value={name} onChange={(e) => setName(e.target.value)} required /></div>
+                  <div><label className="mb-1 block text-sm font-medium">Income Account</label><Select value={revenueAccountId} onChange={(e) => setRevenueAccountId(e.target.value)}><option value="">(None)</option>{revenueAccountOptions.map((account) => <option key={account.id} value={account.id}>{formatLedgerAccountOptionLabel(account)}</option>)}</Select></div>
+                  <div><label className="mb-1 block text-sm font-medium">Expense Account</label><Select value={expenseAccountId} onChange={(e) => setExpenseAccountId(e.target.value)}><option value="">(None)</option>{expenseAccountOptions.map((account) => <option key={account.id} value={account.id}>{formatLedgerAccountOptionLabel(account)}</option>)}</Select></div>
+                  <div><label className="mb-1 block text-sm font-medium">Active</label><Select value={isActive} onChange={(e) => setIsActive(e.target.value)}><option value="true">Yes</option><option value="false">No</option></Select></div>
+                </div>
+                {error ? <div className="text-sm text-red-700 dark:text-red-300">{error}</div> : null}
+                <Button type="submit" disabled={busy}>{busy ? "Saving..." : "Save Category"}</Button>
+              </form>
+            )}
+          </AppFormModal>
           <SecondaryButton type="button" className={actionButtonClass} onClick={deleteRow} disabled={busy}>
             Delete
           </SecondaryButton>

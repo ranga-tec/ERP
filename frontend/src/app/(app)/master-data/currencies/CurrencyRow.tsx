@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { apiDeleteNoContent, apiPut } from "@/lib/api-client";
+import { AppFormModal } from "@/components/AppFormModal";
 import { AuditTrailButton } from "@/components/AuditTrailButton";
 import { Button, Input, SecondaryButton, Select } from "@/components/ui";
 
@@ -20,7 +21,6 @@ const actionButtonClass = "px-2 py-1 text-xs";
 
 export function CurrencyRow({ currency }: { currency: CurrencyDto }) {
   const router = useRouter();
-  const [isEditing, setIsEditing] = useState(false);
   const [code, setCode] = useState(currency.code);
   const [name, setName] = useState(currency.name);
   const [symbol, setSymbol] = useState(currency.symbol);
@@ -38,10 +38,9 @@ export function CurrencyRow({ currency }: { currency: CurrencyDto }) {
     setMinorUnits(currency.minorUnits.toString());
     setIsBase(currency.isBase ? "true" : "false");
     setIsActive(currency.isActive ? "true" : "false");
-    setIsEditing(true);
   }
 
-  async function saveEdit() {
+  async function saveEdit(close: () => void) {
     setError(null);
     setBusy(true);
     try {
@@ -53,7 +52,7 @@ export function CurrencyRow({ currency }: { currency: CurrencyDto }) {
         isBase: isBase === "true",
         isActive: isActive === "true",
       });
-      setIsEditing(false);
+      close();
       router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
@@ -78,70 +77,30 @@ export function CurrencyRow({ currency }: { currency: CurrencyDto }) {
 
   return (
     <tr className="border-b border-zinc-100 align-top dark:border-zinc-900">
-      <td className="py-2 pr-3 font-mono text-xs">
-        {isEditing ? <Input value={code} onChange={(e) => setCode(e.target.value)} className="min-w-20" /> : currency.code}
-      </td>
-      <td className="py-2 pr-3">
-        {isEditing ? <Input value={name} onChange={(e) => setName(e.target.value)} className="min-w-32" /> : currency.name}
-      </td>
-      <td className="py-2 pr-3">
-        {isEditing ? <Input value={symbol} onChange={(e) => setSymbol(e.target.value)} className="min-w-20" /> : currency.symbol}
-      </td>
-      <td className="py-2 pr-3">
-        {isEditing ? (
-          <Input value={minorUnits} onChange={(e) => setMinorUnits(e.target.value)} inputMode="numeric" className="min-w-16" />
-        ) : (
-          currency.minorUnits
-        )}
-      </td>
-      <td className="py-2 pr-3">
-        {isEditing ? (
-          <Select value={isBase} onChange={(e) => setIsBase(e.target.value)} className="min-w-20">
-            <option value="false">No</option>
-            <option value="true">Yes</option>
-          </Select>
-        ) : currency.isBase ? (
-          "Yes"
-        ) : (
-          "No"
-        )}
-      </td>
-      <td className="py-2 pr-3">
-        {isEditing ? (
-          <Select value={isActive} onChange={(e) => setIsActive(e.target.value)} className="min-w-20">
-            <option value="true">Yes</option>
-            <option value="false">No</option>
-          </Select>
-        ) : currency.isActive ? (
-          "Yes"
-        ) : (
-          "No"
-        )}
-      </td>
+      <td className="py-2 pr-3 font-mono text-xs">{currency.code}</td>
+      <td className="py-2 pr-3">{currency.name}</td>
+      <td className="py-2 pr-3">{currency.symbol}</td>
+      <td className="py-2 pr-3">{currency.minorUnits}</td>
+      <td className="py-2 pr-3">{currency.isBase ? "Yes" : "No"}</td>
+      <td className="py-2 pr-3">{currency.isActive ? "Yes" : "No"}</td>
       <td className="py-2 pr-3">
         <div className="flex flex-wrap items-center gap-2">
-          {isEditing ? (
-            <>
-              <Button type="button" className={actionButtonClass} onClick={saveEdit} disabled={busy}>
-                {busy ? "Saving..." : "Save"}
-              </Button>
-              <SecondaryButton
-                type="button"
-                className={actionButtonClass}
-                onClick={() => {
-                  setError(null);
-                  setIsEditing(false);
-                }}
-                disabled={busy}
-              >
-                Cancel
-              </SecondaryButton>
-            </>
-          ) : (
-            <SecondaryButton type="button" className={actionButtonClass} onClick={beginEdit} disabled={busy}>
-              Edit
-            </SecondaryButton>
-          )}
+          <AppFormModal title={`Edit Currency ${currency.code}`} description="Update currency identity and active state." buttonLabel="Edit" variant="secondary" onOpen={beginEdit}>
+            {({ close }) => (
+              <form className="space-y-3" onSubmit={(event) => { event.preventDefault(); void saveEdit(close); }}>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div><label className="mb-1 block text-sm font-medium">Code</label><Input value={code} onChange={(e) => setCode(e.target.value)} required /></div>
+                  <div><label className="mb-1 block text-sm font-medium">Name</label><Input value={name} onChange={(e) => setName(e.target.value)} required /></div>
+                  <div><label className="mb-1 block text-sm font-medium">Symbol</label><Input value={symbol} onChange={(e) => setSymbol(e.target.value)} required /></div>
+                  <div><label className="mb-1 block text-sm font-medium">Minor Units</label><Input value={minorUnits} onChange={(e) => setMinorUnits(e.target.value)} inputMode="numeric" required /></div>
+                  <div><label className="mb-1 block text-sm font-medium">Base</label><Select value={isBase} onChange={(e) => setIsBase(e.target.value)}><option value="false">No</option><option value="true">Yes</option></Select></div>
+                  <div><label className="mb-1 block text-sm font-medium">Active</label><Select value={isActive} onChange={(e) => setIsActive(e.target.value)}><option value="true">Yes</option><option value="false">No</option></Select></div>
+                </div>
+                {error ? <div className="text-sm text-red-700 dark:text-red-300">{error}</div> : null}
+                <Button type="submit" disabled={busy}>{busy ? "Saving..." : "Save Currency"}</Button>
+              </form>
+            )}
+          </AppFormModal>
           <SecondaryButton type="button" className={actionButtonClass} onClick={deleteRow} disabled={busy}>
             Delete
           </SecondaryButton>

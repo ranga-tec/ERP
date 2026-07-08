@@ -1,4 +1,5 @@
 import { backendFetchJson } from "@/lib/backend.server";
+import { AppFormModal } from "@/components/AppFormModal";
 import { Card, Table } from "@/components/ui";
 import { TaxConversionCreateForm } from "./TaxConversionCreateForm";
 import { TaxConversionRow } from "./TaxConversionRow";
@@ -30,10 +31,9 @@ export default async function TaxConversionsPage() {
         <p className="mt-1 text-sm text-zinc-500">Map one tax regime amount to another using maintained multipliers.</p>
       </div>
 
-      <Card>
-        <div className="mb-3 text-sm font-semibold">Create</div>
+      <AppFormModal title="Create Tax Conversion" description="Add a conversion rule between two tax codes." buttonLabel="+ New Tax Conversion">
         <TaxConversionCreateForm taxes={taxes} />
-      </Card>
+      </AppFormModal>
 
       <Card>
         <div className="mb-3 text-sm font-semibold">List</div>

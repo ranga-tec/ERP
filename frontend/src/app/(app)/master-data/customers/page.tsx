@@ -1,4 +1,5 @@
 import { backendFetchJson } from "@/lib/backend.server";
+import { AppFormModal } from "@/components/AppFormModal";
 import { Card, Table } from "@/components/ui";
 import { CustomerCreateForm } from "./CustomerCreateForm";
 import { CustomerRow } from "./CustomerRow";
@@ -23,10 +24,9 @@ export default async function CustomersPage() {
         <p className="mt-1 text-sm text-zinc-500">Customer master data.</p>
       </div>
 
-      <Card>
-        <div className="mb-3 text-sm font-semibold">Create</div>
+      <AppFormModal title="Create Customer" description="Add a customer master record." buttonLabel="+ New Customer">
         <CustomerCreateForm />
-      </Card>
+      </AppFormModal>
 
       <Card>
         <div className="mb-3 text-sm font-semibold">List</div>

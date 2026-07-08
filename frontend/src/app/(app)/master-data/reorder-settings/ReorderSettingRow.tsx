@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState, type ReactNode } from "react";
 import { apiDeleteNoContent, apiPost } from "@/lib/api-client";
+import { AppFormModal } from "@/components/AppFormModal";
 import { Button, Input, SecondaryButton } from "@/components/ui";
 
 type ReorderSettingDto = {
@@ -25,7 +26,6 @@ export function ReorderSettingRow({
   itemLabel: ReactNode;
 }) {
   const router = useRouter();
-  const [isEditing, setIsEditing] = useState(false);
   const [reorderPoint, setReorderPoint] = useState(setting.reorderPoint.toString());
   const [reorderQuantity, setReorderQuantity] = useState(setting.reorderQuantity.toString());
   const [busy, setBusy] = useState(false);
@@ -35,10 +35,9 @@ export function ReorderSettingRow({
     setError(null);
     setReorderPoint(setting.reorderPoint.toString());
     setReorderQuantity(setting.reorderQuantity.toString());
-    setIsEditing(true);
   }
 
-  async function saveEdit() {
+  async function saveEdit(close: () => void) {
     setError(null);
     setBusy(true);
     try {
@@ -48,7 +47,7 @@ export function ReorderSettingRow({
         reorderPoint: Number(reorderPoint),
         reorderQuantity: Number(reorderQuantity),
       });
-      setIsEditing(false);
+      close();
       router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
@@ -75,44 +74,22 @@ export function ReorderSettingRow({
     <tr className="border-b border-zinc-100 align-top dark:border-zinc-900">
       <td className="py-2 pr-3">{warehouseLabel}</td>
       <td className="py-2 pr-3">{itemLabel}</td>
-      <td className="py-2 pr-3">
-        {isEditing ? (
-          <Input value={reorderPoint} onChange={(e) => setReorderPoint(e.target.value)} inputMode="decimal" className="min-w-24" />
-        ) : (
-          setting.reorderPoint
-        )}
-      </td>
-      <td className="py-2 pr-3">
-        {isEditing ? (
-          <Input value={reorderQuantity} onChange={(e) => setReorderQuantity(e.target.value)} inputMode="decimal" className="min-w-24" />
-        ) : (
-          setting.reorderQuantity
-        )}
-      </td>
+      <td className="py-2 pr-3">{setting.reorderPoint}</td>
+      <td className="py-2 pr-3">{setting.reorderQuantity}</td>
       <td className="py-2 pr-3">
         <div className="flex flex-wrap items-center gap-2">
-          {isEditing ? (
-            <>
-              <Button type="button" className={actionButtonClass} onClick={saveEdit} disabled={busy}>
-                {busy ? "Saving..." : "Save"}
-              </Button>
-              <SecondaryButton
-                type="button"
-                className={actionButtonClass}
-                onClick={() => {
-                  setError(null);
-                  setIsEditing(false);
-                }}
-                disabled={busy}
-              >
-                Cancel
-              </SecondaryButton>
-            </>
-          ) : (
-            <SecondaryButton type="button" className={actionButtonClass} onClick={beginEdit} disabled={busy}>
-              Edit
-            </SecondaryButton>
-          )}
+          <AppFormModal title="Edit Reorder Setting" description="Update reorder point and reorder quantity." buttonLabel="Edit" variant="secondary" onOpen={beginEdit}>
+            {({ close }) => (
+              <form className="space-y-3" onSubmit={(event) => { event.preventDefault(); void saveEdit(close); }}>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div><label className="mb-1 block text-sm font-medium">Reorder Point</label><Input value={reorderPoint} onChange={(e) => setReorderPoint(e.target.value)} inputMode="decimal" required /></div>
+                  <div><label className="mb-1 block text-sm font-medium">Reorder Quantity</label><Input value={reorderQuantity} onChange={(e) => setReorderQuantity(e.target.value)} inputMode="decimal" required /></div>
+                </div>
+                {error ? <div className="text-sm text-red-700 dark:text-red-300">{error}</div> : null}
+                <Button type="submit" disabled={busy}>{busy ? "Saving..." : "Save Reorder Setting"}</Button>
+              </form>
+            )}
+          </AppFormModal>
           <SecondaryButton type="button" className={actionButtonClass} onClick={deleteRow} disabled={busy}>
             Delete
           </SecondaryButton>

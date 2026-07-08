@@ -1,4 +1,5 @@
 import { backendFetchJson } from "@/lib/backend.server";
+import { AppFormModal } from "@/components/AppFormModal";
 import { ItemInlineLink } from "@/components/InlineLink";
 import { Card, Table } from "@/components/ui";
 import { ReorderSettingUpsertForm } from "./ReorderSettingUpsertForm";
@@ -31,13 +32,12 @@ export default async function ReorderSettingsPage() {
         <p className="mt-1 text-sm text-zinc-500">Reorder points and suggested reorder quantities per warehouse + item.</p>
       </div>
 
-      <Card>
-        <div className="mb-3 text-sm font-semibold">Upsert</div>
+      <AppFormModal title="Save Reorder Setting" description="Create or update reorder levels for an item in a warehouse." buttonLabel="+ Reorder Setting" size="xl">
         <ReorderSettingUpsertForm
           warehouses={warehouses.map((warehouse) => ({ id: warehouse.id, code: warehouse.code, name: warehouse.name }))}
           items={items.map((item) => ({ id: item.id, sku: item.sku, name: item.name }))}
         />
-      </Card>
+      </AppFormModal>
 
       <Card>
         <div className="mb-3 text-sm font-semibold">List</div>

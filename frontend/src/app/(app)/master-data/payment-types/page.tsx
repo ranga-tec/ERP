@@ -1,4 +1,5 @@
 import { backendFetchJson } from "@/lib/backend.server";
+import { AppFormModal } from "@/components/AppFormModal";
 import { Card, Table } from "@/components/ui";
 import { PaymentTypeCreateForm } from "./PaymentTypeCreateForm";
 import { PaymentTypeRow } from "./PaymentTypeRow";
@@ -21,10 +22,9 @@ export default async function PaymentTypesPage() {
         <p className="mt-1 text-sm text-zinc-500">Master list for cash/bank/card and other payment methods.</p>
       </div>
 
-      <Card>
-        <div className="mb-3 text-sm font-semibold">Create</div>
+      <AppFormModal title="Create Payment Type" description="Add a new payment method type." buttonLabel="+ New Payment Type">
         <PaymentTypeCreateForm />
-      </Card>
+      </AppFormModal>
 
       <Card>
         <div className="mb-3 text-sm font-semibold">List</div>

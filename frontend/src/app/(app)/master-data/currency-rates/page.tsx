@@ -1,4 +1,5 @@
 import { backendFetchJson } from "@/lib/backend.server";
+import { AppFormModal } from "@/components/AppFormModal";
 import { Card, Table } from "@/components/ui";
 import { CurrencyRateCreateForm } from "./CurrencyRateCreateForm";
 import { CurrencyRateRow } from "./CurrencyRateRow";
@@ -30,10 +31,9 @@ export default async function CurrencyRatesPage() {
         <p className="mt-1 text-sm text-zinc-500">Maintain FX rates for currency conversion and valuation.</p>
       </div>
 
-      <Card>
-        <div className="mb-3 text-sm font-semibold">Create</div>
+      <AppFormModal title="Create Currency Rate" description="Add an exchange rate for a currency pair." buttonLabel="+ New Currency Rate">
         <CurrencyRateCreateForm currencies={currencies} />
-      </Card>
+      </AppFormModal>
 
       <Card>
         <div className="mb-3 text-sm font-semibold">List</div>

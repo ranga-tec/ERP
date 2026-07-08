@@ -1,4 +1,5 @@
 import { backendFetchJson } from "@/lib/backend.server";
+import { AppFormModal } from "@/components/AppFormModal";
 import { Card, Table } from "@/components/ui";
 import { UnitConversionCreateForm } from "./UnitConversionCreateForm";
 import { UnitConversionRow } from "./UnitConversionRow";
@@ -30,10 +31,9 @@ export default async function UnitConversionsPage() {
         <p className="mt-1 text-sm text-zinc-500">Maintain conversion factors between operational and base units.</p>
       </div>
 
-      <Card>
-        <div className="mb-3 text-sm font-semibold">Create</div>
+      <AppFormModal title="Create UoM Conversion" description="Maintain a conversion factor between two units." buttonLabel="+ New Conversion">
         <UnitConversionCreateForm uoms={uoms} />
-      </Card>
+      </AppFormModal>
 
       <Card>
         <div className="mb-3 text-sm font-semibold">List</div>
