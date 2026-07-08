@@ -1,10 +1,12 @@
 import Link from "next/link";
 import { cookies } from "next/headers";
 import { backendFetchJson } from "@/lib/backend.server";
-import { ISS_TOKEN_COOKIE } from "@/lib/env";
+import { NEUEDGE_TOKEN_COOKIE } from "@/lib/env";
 import { sessionFromToken } from "@/lib/jwt";
+import { AppFormModal } from "@/components/AppFormModal";
 import { ListViewEditActions } from "@/components/ListViewEditActions";
-import { Card, Table } from "@/components/ui";
+import { SearchableRow, SearchableTable } from "@/components/SearchableTable";
+import { Card } from "@/components/ui";
 import { InvoiceCreateForm } from "./InvoiceCreateForm";
 
 type CustomerDto = { id: string; code: string; name: string };
@@ -49,7 +51,7 @@ const statusLabel: Record<number, string> = {
 
 export default async function InvoicesPage() {
   const cookieStore = await cookies();
-  const token = cookieStore.get(ISS_TOKEN_COOKIE)?.value;
+  const token = cookieStore.get(NEUEDGE_TOKEN_COOKIE)?.value;
   const session = token ? sessionFromToken(token) : null;
   const roles = new Set(session?.roles ?? []);
   const canManageInvoices = roles.has("Admin") || roles.has("Sales") || roles.has("Finance");
@@ -94,20 +96,18 @@ export default async function InvoicesPage() {
       </div>
 
       {canManageInvoices ? (
-        <Card>
-          <div className="mb-3 text-sm font-semibold">Create</div>
+        <AppFormModal title="Create Final Invoice" description="Create a draft final invoice from customer, dispatch, or direct dispatch details." buttonLabel="+ New Invoice" size="xl">
           <InvoiceCreateForm
             customers={customers}
             dispatches={postedDispatches}
             directDispatches={postedDirectDispatches}
           />
-        </Card>
+        </AppFormModal>
       ) : null}
 
       <Card>
         <div className="mb-3 text-sm font-semibold">List</div>
-        <div className="overflow-auto">
-          <Table>
+        <SearchableTable placeholder="Search invoices..." emptyMessage="No invoices yet." emptyColSpan={7} headers={
             <thead>
               <tr className="border-b border-zinc-200 text-left text-xs uppercase tracking-wide text-zinc-500 dark:border-zinc-800">
                 <th className="py-2 pr-3">Number</th>
@@ -119,20 +119,24 @@ export default async function InvoicesPage() {
                 <th className="py-2 pr-3">Actions</th>
               </tr>
             </thead>
-            <tbody>
-              {invoices.map((i) => (
+          }>
+              {invoices.map((i) => {
+                const customer = customerById.get(i.customerId)?.code ?? i.customerId;
+                const status = statusLabel[i.status] ?? String(i.status);
+                return (
+                <SearchableRow key={i.id} searchText={[i.number, customer, status, i.total].join(" ")}>
                 <tr key={i.id} className="border-b border-zinc-100 dark:border-zinc-900">
                   <td className="py-2 pr-3 font-mono text-xs">
                     <Link className="hover:underline" href={`/sales/invoices/${i.id}`}>
                       {i.number}
                     </Link>
                   </td>
-                  <td className="py-2 pr-3">{customerById.get(i.customerId)?.code ?? i.customerId}</td>
+                  <td className="py-2 pr-3">{customer}</td>
                   <td className="py-2 pr-3 text-zinc-500">{new Date(i.invoiceDate).toLocaleString()}</td>
                   <td className="py-2 pr-3 text-zinc-500">
                     {i.dueDate ? new Date(i.dueDate).toLocaleDateString() : "-"}
                   </td>
-                  <td className="py-2 pr-3">{statusLabel[i.status] ?? i.status}</td>
+                  <td className="py-2 pr-3">{status}</td>
                   <td className="py-2 pr-3">{i.total}</td>
                   <td className="py-2 pr-3">
                     <ListViewEditActions
@@ -143,17 +147,10 @@ export default async function InvoicesPage() {
                     />
                   </td>
                 </tr>
-              ))}
-              {invoices.length === 0 ? (
-                <tr>
-                  <td className="py-6 text-sm text-zinc-500" colSpan={7}>
-                    No invoices yet.
-                  </td>
-                </tr>
-              ) : null}
-            </tbody>
-          </Table>
-        </div>
+                </SearchableRow>
+                );
+              })}
+        </SearchableTable>
       </Card>
     </div>
   );

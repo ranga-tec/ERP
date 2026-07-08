@@ -1,7 +1,9 @@
 import Link from "next/link";
 import { backendFetchJson } from "@/lib/backend.server";
+import { AppFormModal } from "@/components/AppFormModal";
 import { ListViewEditActions } from "@/components/ListViewEditActions";
-import { Card, Table } from "@/components/ui";
+import { SearchableRow, SearchableTable } from "@/components/SearchableTable";
+import { Card } from "@/components/ui";
 import { QuoteCreateForm } from "./QuoteCreateForm";
 
 type CustomerDto = { id: string; code: string; name: string };
@@ -39,15 +41,17 @@ export default async function QuotesPage() {
         <p className="mt-1 text-sm text-zinc-500">Draft -&gt; add lines -&gt; mark sent.</p>
       </div>
 
-      <Card>
-        <div className="mb-3 text-sm font-semibold">Create</div>
+      <AppFormModal title="Create Quote" description="Create a draft quote before adding lines." buttonLabel="+ New Quote">
         <QuoteCreateForm customers={customers} />
-      </Card>
+      </AppFormModal>
 
       <Card>
         <div className="mb-3 text-sm font-semibold">List</div>
-        <div className="overflow-auto">
-          <Table>
+        <SearchableTable
+          placeholder="Search quotes..."
+          emptyMessage="No quotes yet."
+          emptyColSpan={7}
+          headers={
             <thead>
               <tr className="border-b border-zinc-200 text-left text-xs uppercase tracking-wide text-zinc-500 dark:border-zinc-800">
                 <th className="py-2 pr-3">Number</th>
@@ -59,20 +63,25 @@ export default async function QuotesPage() {
                 <th className="py-2 pr-3">Actions</th>
               </tr>
             </thead>
-            <tbody>
-              {quotes.map((q) => (
+          }
+        >
+              {quotes.map((q) => {
+                const customer = customerById.get(q.customerId)?.code ?? q.customerId;
+                const status = statusLabel[q.status] ?? String(q.status);
+                return (
+                <SearchableRow key={q.id} searchText={[q.number, customer, status, q.total].join(" ")}>
                 <tr key={q.id} className="border-b border-zinc-100 dark:border-zinc-900">
                   <td className="py-2 pr-3 font-mono text-xs">
                     <Link className="hover:underline" href={`/sales/quotes/${q.id}`}>
                       {q.number}
                     </Link>
                   </td>
-                  <td className="py-2 pr-3">{customerById.get(q.customerId)?.code ?? q.customerId}</td>
+                  <td className="py-2 pr-3">{customer}</td>
                   <td className="py-2 pr-3 text-zinc-500">{new Date(q.quoteDate).toLocaleString()}</td>
                   <td className="py-2 pr-3 text-zinc-500">
                     {q.validUntil ? new Date(q.validUntil).toLocaleDateString() : "-"}
                   </td>
-                  <td className="py-2 pr-3">{statusLabel[q.status] ?? q.status}</td>
+                  <td className="py-2 pr-3">{status}</td>
                   <td className="py-2 pr-3">{q.total}</td>
                   <td className="py-2 pr-3">
                     <ListViewEditActions
@@ -83,17 +92,10 @@ export default async function QuotesPage() {
                     />
                   </td>
                 </tr>
-              ))}
-              {quotes.length === 0 ? (
-                <tr>
-                  <td className="py-6 text-sm text-zinc-500" colSpan={7}>
-                    No quotes yet.
-                  </td>
-                </tr>
-              ) : null}
-            </tbody>
-          </Table>
-        </div>
+                </SearchableRow>
+                );
+              })}
+        </SearchableTable>
       </Card>
     </div>
   );

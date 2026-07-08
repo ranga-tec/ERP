@@ -1,8 +1,10 @@
 import Link from "next/link";
 import { backendFetchJson } from "@/lib/backend.server";
+import { AppFormModal } from "@/components/AppFormModal";
 import { ListViewEditActions } from "@/components/ListViewEditActions";
+import { SearchableRow, SearchableTable } from "@/components/SearchableTable";
 import { TransactionLink } from "@/components/TransactionLink";
-import { Card, Table } from "@/components/ui";
+import { Card } from "@/components/ui";
 import { DirectPurchaseCreateForm } from "./DirectPurchaseCreateForm";
 
 type DirectPurchaseSummaryDto = {
@@ -50,15 +52,13 @@ export default async function DirectPurchasesPage() {
         </p>
       </div>
 
-      <Card>
-        <div className="mb-3 text-sm font-semibold">Create</div>
+      <AppFormModal title="Create Direct Purchase" description="Create a draft direct purchase without a PO." buttonLabel="+ New Direct Purchase" size="xl">
         <DirectPurchaseCreateForm suppliers={suppliers} warehouses={warehouses} serviceJobs={serviceJobs} />
-      </Card>
+      </AppFormModal>
 
       <Card>
         <div className="mb-3 text-sm font-semibold">List</div>
-        <div className="overflow-auto">
-          <Table>
+        <SearchableTable placeholder="Search direct purchases..." emptyMessage="No direct purchases yet." emptyColSpan={9} headers={
             <thead>
               <tr className="border-b border-zinc-200 text-left text-xs uppercase tracking-wide text-zinc-500 dark:border-zinc-800">
                 <th className="py-2 pr-3">Number</th>
@@ -72,27 +72,33 @@ export default async function DirectPurchasesPage() {
                 <th className="py-2 pr-3">Actions</th>
               </tr>
             </thead>
-            <tbody>
-              {rows.map((r) => (
+          }>
+              {rows.map((r) => {
+                const supplier = supplierById.get(r.supplierId)?.code ?? r.supplierId;
+                const warehouse = warehouseById.get(r.warehouseId)?.code ?? r.warehouseId;
+                const job = r.serviceJobId ? jobById.get(r.serviceJobId)?.number ?? r.serviceJobId : "-";
+                const status = statusLabel[r.status] ?? String(r.status);
+                return (
+                <SearchableRow key={r.id} searchText={[r.number, supplier, warehouse, job, status, r.remarks ?? "", r.grandTotal].join(" ")}>
                 <tr key={r.id} className="border-b border-zinc-100 dark:border-zinc-900">
                   <td className="py-2 pr-3 font-mono text-xs">
                     <Link className="hover:underline" href={`/procurement/direct-purchases/${r.id}`}>
                       {r.number}
                     </Link>
                   </td>
-                  <td className="py-2 pr-3">{supplierById.get(r.supplierId)?.code ?? r.supplierId}</td>
-                  <td className="py-2 pr-3">{warehouseById.get(r.warehouseId)?.code ?? r.warehouseId}</td>
+                  <td className="py-2 pr-3">{supplier}</td>
+                  <td className="py-2 pr-3">{warehouse}</td>
                   <td className="py-2 pr-3 font-mono text-xs text-zinc-600 dark:text-zinc-400">
                     {r.serviceJobId ? (
                       <TransactionLink referenceType="SJ" referenceId={r.serviceJobId} monospace>
-                        {jobById.get(r.serviceJobId)?.number ?? r.serviceJobId}
+                        {job}
                       </TransactionLink>
                     ) : (
                       "-"
                     )}
                   </td>
                   <td className="py-2 pr-3 text-zinc-500">{new Date(r.purchasedAt).toLocaleString()}</td>
-                  <td className="py-2 pr-3">{statusLabel[r.status] ?? r.status}</td>
+                  <td className="py-2 pr-3">{status}</td>
                   <td className="py-2 pr-3">{r.grandTotal.toFixed(2)}</td>
                   <td className="py-2 pr-3 text-zinc-500">{r.remarks ?? "-"}</td>
                   <td className="py-2 pr-3">
@@ -104,17 +110,10 @@ export default async function DirectPurchasesPage() {
                     />
                   </td>
                 </tr>
-              ))}
-              {rows.length === 0 ? (
-                <tr>
-                  <td className="py-6 text-sm text-zinc-500" colSpan={9}>
-                    No direct purchases yet.
-                  </td>
-                </tr>
-              ) : null}
-            </tbody>
-          </Table>
-        </div>
+                </SearchableRow>
+                );
+              })}
+        </SearchableTable>
       </Card>
     </div>
   );

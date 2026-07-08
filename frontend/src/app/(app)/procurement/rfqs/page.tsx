@@ -1,7 +1,9 @@
 import Link from "next/link";
 import { backendFetchJson } from "@/lib/backend.server";
+import { AppFormModal } from "@/components/AppFormModal";
 import { ListViewEditActions } from "@/components/ListViewEditActions";
-import { Card, Table } from "@/components/ui";
+import { SearchableRow, SearchableTable } from "@/components/SearchableTable";
+import { Card } from "@/components/ui";
 import { RfqCreateForm } from "./RfqCreateForm";
 
 type SupplierDto = { id: string; code: string; name: string };
@@ -36,15 +38,13 @@ export default async function RfqsPage() {
         <p className="mt-1 text-sm text-zinc-500">Request for quotation workflow.</p>
       </div>
 
-      <Card>
-        <div className="mb-3 text-sm font-semibold">Create</div>
+      <AppFormModal title="Create RFQ" description="Create a request for quotation." buttonLabel="+ New RFQ">
         <RfqCreateForm suppliers={suppliers} />
-      </Card>
+      </AppFormModal>
 
       <Card>
         <div className="mb-3 text-sm font-semibold">List</div>
-        <div className="overflow-auto">
-          <Table>
+        <SearchableTable placeholder="Search RFQs..." emptyMessage="No RFQs yet." emptyColSpan={6} headers={
             <thead>
               <tr className="border-b border-zinc-200 text-left text-xs uppercase tracking-wide text-zinc-500 dark:border-zinc-800">
                 <th className="py-2 pr-3">Number</th>
@@ -55,8 +55,12 @@ export default async function RfqsPage() {
                 <th className="py-2 pr-3">Actions</th>
               </tr>
             </thead>
-            <tbody>
-              {rfqs.map((r) => (
+          }>
+              {rfqs.map((r) => {
+                const supplier = supplierById.get(r.supplierId)?.code ?? r.supplierId;
+                const status = statusLabel[r.status] ?? String(r.status);
+                return (
+                <SearchableRow key={r.id} searchText={[r.number, supplier, status, r.lineCount].join(" ")}>
                 <tr key={r.id} className="border-b border-zinc-100 dark:border-zinc-900">
                   <td className="py-2 pr-3 font-mono text-xs">
                     <Link className="hover:underline" href={`/procurement/rfqs/${r.id}`}>
@@ -64,12 +68,12 @@ export default async function RfqsPage() {
                     </Link>
                   </td>
                   <td className="py-2 pr-3">
-                    {supplierById.get(r.supplierId)?.code ?? r.supplierId}
+                    {supplier}
                   </td>
                   <td className="py-2 pr-3 text-zinc-500">
                     {new Date(r.requestedAt).toLocaleString()}
                   </td>
-                  <td className="py-2 pr-3">{statusLabel[r.status] ?? r.status}</td>
+                  <td className="py-2 pr-3">{status}</td>
                   <td className="py-2 pr-3">{r.lineCount}</td>
                   <td className="py-2 pr-3">
                     <ListViewEditActions
@@ -80,17 +84,10 @@ export default async function RfqsPage() {
                     />
                   </td>
                 </tr>
-              ))}
-              {rfqs.length === 0 ? (
-                <tr>
-                  <td className="py-6 text-sm text-zinc-500" colSpan={6}>
-                    No RFQs yet.
-                  </td>
-                </tr>
-              ) : null}
-            </tbody>
-          </Table>
-        </div>
+                </SearchableRow>
+                );
+              })}
+        </SearchableTable>
       </Card>
     </div>
   );

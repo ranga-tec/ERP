@@ -1,7 +1,9 @@
 import Link from "next/link";
 import { backendFetchJson } from "@/lib/backend.server";
+import { AppFormModal } from "@/components/AppFormModal";
 import { ListViewEditActions } from "@/components/ListViewEditActions";
-import { Card, Table } from "@/components/ui";
+import { SearchableRow, SearchableTable } from "@/components/SearchableTable";
+import { Card } from "@/components/ui";
 import { SalesOrderCreateForm } from "./SalesOrderCreateForm";
 
 type CustomerDto = { id: string; code: string; name: string };
@@ -37,15 +39,13 @@ export default async function SalesOrdersPage() {
         <p className="mt-1 text-sm text-zinc-500">Draft -&gt; add lines -&gt; confirm -&gt; dispatch.</p>
       </div>
 
-      <Card>
-        <div className="mb-3 text-sm font-semibold">Create</div>
+      <AppFormModal title="Create Sales Order" description="Create a draft order before adding lines." buttonLabel="+ New Order">
         <SalesOrderCreateForm customers={customers} />
-      </Card>
+      </AppFormModal>
 
       <Card>
         <div className="mb-3 text-sm font-semibold">List</div>
-        <div className="overflow-auto">
-          <Table>
+        <SearchableTable placeholder="Search orders..." emptyMessage="No sales orders yet." emptyColSpan={6} headers={
             <thead>
               <tr className="border-b border-zinc-200 text-left text-xs uppercase tracking-wide text-zinc-500 dark:border-zinc-800">
                 <th className="py-2 pr-3">Number</th>
@@ -56,17 +56,21 @@ export default async function SalesOrdersPage() {
                 <th className="py-2 pr-3">Actions</th>
               </tr>
             </thead>
-            <tbody>
-              {orders.map((o) => (
+          }>
+              {orders.map((o) => {
+                const customer = customerById.get(o.customerId)?.code ?? o.customerId;
+                const status = statusLabel[o.status] ?? String(o.status);
+                return (
+                <SearchableRow key={o.id} searchText={[o.number, customer, status, o.total].join(" ")}>
                 <tr key={o.id} className="border-b border-zinc-100 dark:border-zinc-900">
                   <td className="py-2 pr-3 font-mono text-xs">
                     <Link className="hover:underline" href={`/sales/orders/${o.id}`}>
                       {o.number}
                     </Link>
                   </td>
-                  <td className="py-2 pr-3">{customerById.get(o.customerId)?.code ?? o.customerId}</td>
+                  <td className="py-2 pr-3">{customer}</td>
                   <td className="py-2 pr-3 text-zinc-500">{new Date(o.orderDate).toLocaleString()}</td>
-                  <td className="py-2 pr-3">{statusLabel[o.status] ?? o.status}</td>
+                  <td className="py-2 pr-3">{status}</td>
                   <td className="py-2 pr-3">{o.total}</td>
                   <td className="py-2 pr-3">
                     <ListViewEditActions
@@ -77,17 +81,10 @@ export default async function SalesOrdersPage() {
                     />
                   </td>
                 </tr>
-              ))}
-              {orders.length === 0 ? (
-                <tr>
-                  <td className="py-6 text-sm text-zinc-500" colSpan={6}>
-                    No sales orders yet.
-                  </td>
-                </tr>
-              ) : null}
-            </tbody>
-          </Table>
-        </div>
+                </SearchableRow>
+                );
+              })}
+        </SearchableTable>
       </Card>
     </div>
   );

@@ -1,8 +1,10 @@
 import Link from "next/link";
 import { backendFetchJson } from "@/lib/backend.server";
+import { AppFormModal } from "@/components/AppFormModal";
 import { ListViewEditActions } from "@/components/ListViewEditActions";
+import { SearchableRow, SearchableTable } from "@/components/SearchableTable";
 import { TransactionLink } from "@/components/TransactionLink";
-import { Card, Table } from "@/components/ui";
+import { Card } from "@/components/ui";
 import { GoodsReceiptCreateForm } from "./GoodsReceiptCreateForm";
 
 type GoodsReceiptSummaryDto = {
@@ -40,15 +42,13 @@ export default async function GoodsReceiptsPage() {
         <p className="mt-1 text-sm text-zinc-500">Receive PO items into a warehouse, then post.</p>
       </div>
 
-      <Card>
-        <div className="mb-3 text-sm font-semibold">Create</div>
+      <AppFormModal title="Create Goods Receipt" description="Create a draft GRN for a purchase order." buttonLabel="+ New GRN">
         <GoodsReceiptCreateForm purchaseOrders={pos} warehouses={warehouses} />
-      </Card>
+      </AppFormModal>
 
       <Card>
         <div className="mb-3 text-sm font-semibold">List</div>
-        <div className="overflow-auto">
-          <Table>
+        <SearchableTable placeholder="Search goods receipts..." emptyMessage="No GRNs yet." emptyColSpan={6} headers={
             <thead>
               <tr className="border-b border-zinc-200 text-left text-xs uppercase tracking-wide text-zinc-500 dark:border-zinc-800">
                 <th className="py-2 pr-3">Number</th>
@@ -59,8 +59,13 @@ export default async function GoodsReceiptsPage() {
                 <th className="py-2 pr-3">Actions</th>
               </tr>
             </thead>
-            <tbody>
-              {grns.map((g) => (
+          }>
+              {grns.map((g) => {
+                const po = poById.get(g.purchaseOrderId)?.number ?? g.purchaseOrderId;
+                const warehouse = warehouseById.get(g.warehouseId)?.code ?? g.warehouseId;
+                const status = statusLabel[g.status] ?? String(g.status);
+                return (
+                <SearchableRow key={g.id} searchText={[g.number, po, warehouse, status].join(" ")}>
                 <tr key={g.id} className="border-b border-zinc-100 dark:border-zinc-900">
                   <td className="py-2 pr-3 font-mono text-xs">
                     <Link className="hover:underline" href={`/procurement/goods-receipts/${g.id}`}>
@@ -69,12 +74,12 @@ export default async function GoodsReceiptsPage() {
                   </td>
                   <td className="py-2 pr-3 font-mono text-xs text-zinc-600 dark:text-zinc-400">
                     <TransactionLink referenceType="PO" referenceId={g.purchaseOrderId} monospace>
-                      {poById.get(g.purchaseOrderId)?.number ?? g.purchaseOrderId}
+                      {po}
                     </TransactionLink>
                   </td>
-                  <td className="py-2 pr-3">{warehouseById.get(g.warehouseId)?.code ?? g.warehouseId}</td>
+                  <td className="py-2 pr-3">{warehouse}</td>
                   <td className="py-2 pr-3 text-zinc-500">{new Date(g.receivedAt).toLocaleString()}</td>
-                  <td className="py-2 pr-3">{statusLabel[g.status] ?? g.status}</td>
+                  <td className="py-2 pr-3">{status}</td>
                   <td className="py-2 pr-3">
                     <ListViewEditActions
                       viewHref={`/procurement/goods-receipts/${g.id}`}
@@ -84,17 +89,10 @@ export default async function GoodsReceiptsPage() {
                     />
                   </td>
                 </tr>
-              ))}
-              {grns.length === 0 ? (
-                <tr>
-                  <td className="py-6 text-sm text-zinc-500" colSpan={6}>
-                    No GRNs yet.
-                  </td>
-                </tr>
-              ) : null}
-            </tbody>
-          </Table>
-        </div>
+                </SearchableRow>
+                );
+              })}
+        </SearchableTable>
       </Card>
     </div>
   );

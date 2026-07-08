@@ -1,8 +1,10 @@
 import Link from "next/link";
 import { backendFetchJson } from "@/lib/backend.server";
+import { AppFormModal } from "@/components/AppFormModal";
 import { ListViewEditActions } from "@/components/ListViewEditActions";
+import { SearchableRow, SearchableTable } from "@/components/SearchableTable";
 import { TransactionLink } from "@/components/TransactionLink";
-import { Card, Table } from "@/components/ui";
+import { Card } from "@/components/ui";
 import { CustomerReturnCreateForm } from "./CustomerReturnCreateForm";
 
 type CustomerReturnSummaryDto = {
@@ -49,8 +51,7 @@ export default async function CustomerReturnsPage() {
         <p className="mt-1 text-sm text-zinc-500">Receive returned goods, post stock-in, and auto-create customer credit notes.</p>
       </div>
 
-      <Card>
-        <div className="mb-3 text-sm font-semibold">Create</div>
+      <AppFormModal title="Create Customer Return" description="Create a draft return before receiving returned goods." buttonLabel="+ New Customer Return" size="xl">
           <CustomerReturnCreateForm
             customers={customers}
             warehouses={warehouses}
@@ -58,12 +59,11 @@ export default async function CustomerReturnsPage() {
             dispatches={returnableDispatches}
             salesOrders={orders}
           />
-      </Card>
+      </AppFormModal>
 
       <Card>
         <div className="mb-3 text-sm font-semibold">List</div>
-        <div className="overflow-auto">
-          <Table>
+        <SearchableTable placeholder="Search customer returns..." emptyMessage="No customer returns yet." emptyColSpan={8} headers={
             <thead>
               <tr className="border-b border-zinc-200 text-left text-xs uppercase tracking-wide text-zinc-500 dark:border-zinc-800">
                 <th className="py-2 pr-3">Number</th>
@@ -76,21 +76,28 @@ export default async function CustomerReturnsPage() {
                 <th className="py-2 pr-3">Actions</th>
               </tr>
             </thead>
-            <tbody>
-              {rows.map((r) => (
+          }>
+              {rows.map((r) => {
+                const customer = customerById.get(r.customerId)?.code ?? r.customerId;
+                const warehouse = warehouseById.get(r.warehouseId)?.code ?? r.warehouseId;
+                const invoice = r.salesInvoiceId ? invoiceById.get(r.salesInvoiceId)?.number ?? r.salesInvoiceId : "-";
+                const dispatch = r.dispatchNoteId ? dispatchById.get(r.dispatchNoteId)?.number ?? r.dispatchNoteId : "-";
+                const status = statusLabel[r.status] ?? String(r.status);
+                return (
+                <SearchableRow key={r.id} searchText={[r.number, customer, warehouse, invoice, dispatch, status, r.reason ?? ""].join(" ")}>
                 <tr key={r.id} className="border-b border-zinc-100 dark:border-zinc-900">
                   <td className="py-2 pr-3 font-mono text-xs">
                     <Link className="hover:underline" href={`/sales/customer-returns/${r.id}`}>
                       {r.number}
                     </Link>
                   </td>
-                  <td className="py-2 pr-3">{customerById.get(r.customerId)?.code ?? r.customerId}</td>
-                  <td className="py-2 pr-3">{warehouseById.get(r.warehouseId)?.code ?? r.warehouseId}</td>
+                  <td className="py-2 pr-3">{customer}</td>
+                  <td className="py-2 pr-3">{warehouse}</td>
                   <td className="py-2 pr-3 text-zinc-500">{new Date(r.returnDate).toLocaleString()}</td>
                   <td className="py-2 pr-3 font-mono text-xs">
                     {r.salesInvoiceId ? (
                       <TransactionLink referenceType="INV" referenceId={r.salesInvoiceId} monospace>
-                        {invoiceById.get(r.salesInvoiceId)?.number ?? r.salesInvoiceId}
+                        {invoice}
                       </TransactionLink>
                     ) : (
                       "-"
@@ -99,13 +106,13 @@ export default async function CustomerReturnsPage() {
                   <td className="py-2 pr-3 font-mono text-xs">
                     {r.dispatchNoteId ? (
                       <TransactionLink referenceType="DN" referenceId={r.dispatchNoteId} monospace>
-                        {dispatchById.get(r.dispatchNoteId)?.number ?? r.dispatchNoteId}
+                        {dispatch}
                       </TransactionLink>
                     ) : (
                       "-"
                     )}
                   </td>
-                  <td className="py-2 pr-3">{statusLabel[r.status] ?? r.status}</td>
+                  <td className="py-2 pr-3">{status}</td>
                   <td className="py-2 pr-3">
                     <ListViewEditActions
                       viewHref={`/sales/customer-returns/${r.id}`}
@@ -115,17 +122,10 @@ export default async function CustomerReturnsPage() {
                     />
                   </td>
                 </tr>
-              ))}
-              {rows.length === 0 ? (
-                <tr>
-                  <td className="py-6 text-sm text-zinc-500" colSpan={8}>
-                    No customer returns yet.
-                  </td>
-                </tr>
-              ) : null}
-            </tbody>
-          </Table>
-        </div>
+                </SearchableRow>
+                );
+              })}
+        </SearchableTable>
       </Card>
     </div>
   );

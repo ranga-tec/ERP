@@ -1,8 +1,10 @@
 import Link from "next/link";
 import { backendFetchJson } from "@/lib/backend.server";
+import { AppFormModal } from "@/components/AppFormModal";
 import { ListViewEditActions } from "@/components/ListViewEditActions";
+import { SearchableRow, SearchableTable } from "@/components/SearchableTable";
 import { TransactionLink } from "@/components/TransactionLink";
-import { Card, Table } from "@/components/ui";
+import { Card } from "@/components/ui";
 import { DirectDispatchCreateForm } from "./DirectDispatchCreateForm";
 
 type DirectDispatchSummaryDto = {
@@ -42,15 +44,13 @@ export default async function DirectDispatchesPage() {
         <p className="mt-1 text-sm text-zinc-500">Immediate stock issue without a sales order (sales/service scenarios).</p>
       </div>
 
-      <Card>
-        <div className="mb-3 text-sm font-semibold">Create</div>
+      <AppFormModal title="Create AOD" description="Create an advance dispatch without a sales order." buttonLabel="+ New AOD">
         <DirectDispatchCreateForm customers={customers} serviceJobs={jobs} warehouses={warehouses} />
-      </Card>
+      </AppFormModal>
 
       <Card>
         <div className="mb-3 text-sm font-semibold">List</div>
-        <div className="overflow-auto">
-          <Table>
+        <SearchableTable placeholder="Search AOD..." emptyMessage="No direct dispatches yet." emptyColSpan={8} headers={
             <thead>
               <tr className="border-b border-zinc-200 text-left text-xs uppercase tracking-wide text-zinc-500 dark:border-zinc-800">
                 <th className="py-2 pr-3">Number</th>
@@ -63,15 +63,21 @@ export default async function DirectDispatchesPage() {
                 <th className="py-2 pr-3">Actions</th>
               </tr>
             </thead>
-            <tbody>
-              {rows.map((r) => (
+          }>
+              {rows.map((r) => {
+                const customer = r.customerId ? customerById.get(r.customerId)?.code ?? r.customerId : "-";
+                const job = r.serviceJobId ? jobById.get(r.serviceJobId)?.number ?? r.serviceJobId : "-";
+                const warehouse = warehouseById.get(r.warehouseId)?.code ?? r.warehouseId;
+                const status = statusLabel[r.status] ?? String(r.status);
+                return (
+                <SearchableRow key={r.id} searchText={[r.number, customer, job, warehouse, status, r.reason ?? ""].join(" ")}>
                 <tr key={r.id} className="border-b border-zinc-100 dark:border-zinc-900">
                   <td className="py-2 pr-3 font-mono text-xs">
                     <Link className="hover:underline" href={`/sales/direct-dispatches/${r.id}`}>
                       {r.number}
                     </Link>
                   </td>
-                  <td className="py-2 pr-3">{r.customerId ? customerById.get(r.customerId)?.code ?? r.customerId : "-"}</td>
+                  <td className="py-2 pr-3">{customer}</td>
                   <td className="py-2 pr-3 font-mono text-xs">
                     {r.serviceJobId ? (
                       <TransactionLink referenceType="SJ" referenceId={r.serviceJobId} monospace>
@@ -81,9 +87,9 @@ export default async function DirectDispatchesPage() {
                       "-"
                     )}
                   </td>
-                  <td className="py-2 pr-3">{warehouseById.get(r.warehouseId)?.code ?? r.warehouseId}</td>
+                  <td className="py-2 pr-3">{warehouse}</td>
                   <td className="py-2 pr-3 text-zinc-500">{new Date(r.dispatchedAt).toLocaleString()}</td>
-                  <td className="py-2 pr-3">{statusLabel[r.status] ?? r.status}</td>
+                  <td className="py-2 pr-3">{status}</td>
                   <td className="py-2 pr-3">{r.lineCount}</td>
                   <td className="py-2 pr-3">
                     <ListViewEditActions
@@ -94,17 +100,10 @@ export default async function DirectDispatchesPage() {
                     />
                   </td>
                 </tr>
-              ))}
-              {rows.length === 0 ? (
-                <tr>
-                  <td className="py-6 text-sm text-zinc-500" colSpan={8}>
-                    No direct dispatches yet.
-                  </td>
-                </tr>
-              ) : null}
-            </tbody>
-          </Table>
-        </div>
+                </SearchableRow>
+                );
+              })}
+        </SearchableTable>
       </Card>
     </div>
   );

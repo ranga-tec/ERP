@@ -1,7 +1,9 @@
 import Link from "next/link";
 import { backendFetchJson } from "@/lib/backend.server";
+import { AppFormModal } from "@/components/AppFormModal";
 import { ListViewEditActions } from "@/components/ListViewEditActions";
-import { Card, Table } from "@/components/ui";
+import { SearchableRow, SearchableTable } from "@/components/SearchableTable";
+import { Card } from "@/components/ui";
 import { SupplierReturnCreateForm } from "./SupplierReturnCreateForm";
 
 type SupplierReturnSummaryDto = {
@@ -40,15 +42,13 @@ export default async function SupplierReturnsPage() {
         <p className="mt-1 text-sm text-zinc-500">Return inventory back to a supplier, then post.</p>
       </div>
 
-      <Card>
-        <div className="mb-3 text-sm font-semibold">Create</div>
+      <AppFormModal title="Create Supplier Return" description="Create a draft return to supplier." buttonLabel="+ New Supplier Return">
         <SupplierReturnCreateForm suppliers={suppliers} warehouses={warehouses} />
-      </Card>
+      </AppFormModal>
 
       <Card>
         <div className="mb-3 text-sm font-semibold">List</div>
-        <div className="overflow-auto">
-          <Table>
+        <SearchableTable placeholder="Search supplier returns..." emptyMessage="No supplier returns yet." emptyColSpan={7} headers={
             <thead>
               <tr className="border-b border-zinc-200 text-left text-xs uppercase tracking-wide text-zinc-500 dark:border-zinc-800">
                 <th className="py-2 pr-3">Number</th>
@@ -60,18 +60,23 @@ export default async function SupplierReturnsPage() {
                 <th className="py-2 pr-3">Actions</th>
               </tr>
             </thead>
-            <tbody>
-              {returns.map((r) => (
+          }>
+              {returns.map((r) => {
+                const supplier = supplierById.get(r.supplierId)?.code ?? r.supplierId;
+                const warehouse = warehouseById.get(r.warehouseId)?.code ?? r.warehouseId;
+                const status = statusLabel[r.status] ?? String(r.status);
+                return (
+                <SearchableRow key={r.id} searchText={[r.number, supplier, warehouse, status, r.reason ?? ""].join(" ")}>
                 <tr key={r.id} className="border-b border-zinc-100 dark:border-zinc-900">
                   <td className="py-2 pr-3 font-mono text-xs">
                     <Link className="hover:underline" href={`/procurement/supplier-returns/${r.id}`}>
                       {r.number}
                     </Link>
                   </td>
-                  <td className="py-2 pr-3">{supplierById.get(r.supplierId)?.code ?? r.supplierId}</td>
-                  <td className="py-2 pr-3">{warehouseById.get(r.warehouseId)?.code ?? r.warehouseId}</td>
+                  <td className="py-2 pr-3">{supplier}</td>
+                  <td className="py-2 pr-3">{warehouse}</td>
                   <td className="py-2 pr-3 text-zinc-500">{new Date(r.returnDate).toLocaleString()}</td>
-                  <td className="py-2 pr-3">{statusLabel[r.status] ?? r.status}</td>
+                  <td className="py-2 pr-3">{status}</td>
                   <td className="py-2 pr-3 text-zinc-500">{r.reason ?? "-"}</td>
                   <td className="py-2 pr-3">
                     <ListViewEditActions
@@ -82,17 +87,10 @@ export default async function SupplierReturnsPage() {
                     />
                   </td>
                 </tr>
-              ))}
-              {returns.length === 0 ? (
-                <tr>
-                  <td className="py-6 text-sm text-zinc-500" colSpan={7}>
-                    No supplier returns yet.
-                  </td>
-                </tr>
-              ) : null}
-            </tbody>
-          </Table>
-        </div>
+                </SearchableRow>
+                );
+              })}
+        </SearchableTable>
       </Card>
     </div>
   );

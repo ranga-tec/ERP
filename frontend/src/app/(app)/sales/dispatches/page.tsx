@@ -1,8 +1,10 @@
 import Link from "next/link";
 import { backendFetchJson } from "@/lib/backend.server";
+import { AppFormModal } from "@/components/AppFormModal";
 import { ListViewEditActions } from "@/components/ListViewEditActions";
+import { SearchableRow, SearchableTable } from "@/components/SearchableTable";
 import { TransactionLink } from "@/components/TransactionLink";
-import { Card, Table } from "@/components/ui";
+import { Card } from "@/components/ui";
 import { DispatchCreateForm } from "./DispatchCreateForm";
 
 type DispatchSummaryDto = {
@@ -41,15 +43,13 @@ export default async function DispatchesPage() {
         <p className="mt-1 text-sm text-zinc-500">Pick sales order items from inventory, then post.</p>
       </div>
 
-      <Card>
-        <div className="mb-3 text-sm font-semibold">Create</div>
+      <AppFormModal title="Create Dispatch Note" description="Create a draft dispatch for a sales order." buttonLabel="+ New Dispatch">
         <DispatchCreateForm salesOrders={orders} warehouses={warehouses} />
-      </Card>
+      </AppFormModal>
 
       <Card>
         <div className="mb-3 text-sm font-semibold">List</div>
-        <div className="overflow-auto">
-          <Table>
+        <SearchableTable placeholder="Search dispatches..." emptyMessage="No dispatch notes yet." emptyColSpan={7} headers={
             <thead>
               <tr className="border-b border-zinc-200 text-left text-xs uppercase tracking-wide text-zinc-500 dark:border-zinc-800">
                 <th className="py-2 pr-3">Number</th>
@@ -61,8 +61,13 @@ export default async function DispatchesPage() {
                 <th className="py-2 pr-3">Actions</th>
               </tr>
             </thead>
-            <tbody>
-              {dispatches.map((d) => (
+          }>
+              {dispatches.map((d) => {
+                const order = orderById.get(d.salesOrderId)?.number ?? d.salesOrderId;
+                const warehouse = warehouseById.get(d.warehouseId)?.code ?? d.warehouseId;
+                const status = statusLabel[d.status] ?? String(d.status);
+                return (
+                <SearchableRow key={d.id} searchText={[d.number, order, warehouse, status, d.lineCount].join(" ")}>
                 <tr key={d.id} className="border-b border-zinc-100 dark:border-zinc-900">
                   <td className="py-2 pr-3 font-mono text-xs">
                     <Link className="hover:underline" href={`/sales/dispatches/${d.id}`}>
@@ -74,9 +79,9 @@ export default async function DispatchesPage() {
                       {orderById.get(d.salesOrderId)?.number ?? d.salesOrderId}
                     </TransactionLink>
                   </td>
-                  <td className="py-2 pr-3">{warehouseById.get(d.warehouseId)?.code ?? d.warehouseId}</td>
+                  <td className="py-2 pr-3">{warehouse}</td>
                   <td className="py-2 pr-3 text-zinc-500">{new Date(d.dispatchedAt).toLocaleString()}</td>
-                  <td className="py-2 pr-3">{statusLabel[d.status] ?? d.status}</td>
+                  <td className="py-2 pr-3">{status}</td>
                   <td className="py-2 pr-3">{d.lineCount}</td>
                   <td className="py-2 pr-3">
                     <ListViewEditActions
@@ -87,17 +92,10 @@ export default async function DispatchesPage() {
                     />
                   </td>
                 </tr>
-              ))}
-              {dispatches.length === 0 ? (
-                <tr>
-                  <td className="py-6 text-sm text-zinc-500" colSpan={7}>
-                    No dispatch notes yet.
-                  </td>
-                </tr>
-              ) : null}
-            </tbody>
-          </Table>
-        </div>
+                </SearchableRow>
+                );
+              })}
+        </SearchableTable>
       </Card>
     </div>
   );

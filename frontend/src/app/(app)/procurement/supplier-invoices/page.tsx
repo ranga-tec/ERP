@@ -1,8 +1,10 @@
 import Link from "next/link";
 import { backendFetchJson } from "@/lib/backend.server";
+import { AppFormModal } from "@/components/AppFormModal";
 import { ListViewEditActions } from "@/components/ListViewEditActions";
+import { SearchableRow, SearchableTable } from "@/components/SearchableTable";
 import { TransactionLink } from "@/components/TransactionLink";
-import { Card, Table } from "@/components/ui";
+import { Card } from "@/components/ui";
 import { SupplierInvoiceCreateForm } from "./SupplierInvoiceCreateForm";
 
 type SupplierInvoiceDto = {
@@ -80,6 +82,13 @@ export default async function SupplierInvoicesPage() {
     return "-";
   }
 
+  function sourceText(invoice: SupplierInvoiceDto) {
+    if (invoice.directPurchaseId) return `DP ${dpById.get(invoice.directPurchaseId)?.number ?? invoice.directPurchaseId}`;
+    if (invoice.goodsReceiptId) return `GRN ${grnById.get(invoice.goodsReceiptId)?.number ?? invoice.goodsReceiptId}`;
+    if (invoice.purchaseOrderId) return `PO ${poById.get(invoice.purchaseOrderId)?.number ?? invoice.purchaseOrderId}`;
+    return "-";
+  }
+
   return (
     <div className="space-y-6">
       <div>
@@ -87,20 +96,18 @@ export default async function SupplierInvoicesPage() {
         <p className="mt-1 text-sm text-zinc-500">AP bills linked to PO/GRN/direct purchase or created standalone.</p>
       </div>
 
-      <Card>
-        <div className="mb-3 text-sm font-semibold">Create</div>
+      <AppFormModal title="Create Supplier Invoice" description="Create an AP bill from PO, GRN, direct purchase, or standalone details." buttonLabel="+ New Supplier Invoice" size="xl">
         <SupplierInvoiceCreateForm
           suppliers={suppliers}
           purchaseOrders={purchaseOrders}
           goodsReceipts={goodsReceipts}
           directPurchases={directPurchases}
         />
-      </Card>
+      </AppFormModal>
 
       <Card>
         <div className="mb-3 text-sm font-semibold">List</div>
-        <div className="overflow-auto">
-          <Table>
+        <SearchableTable placeholder="Search supplier invoices..." emptyMessage="No supplier invoices yet." emptyColSpan={8} headers={
             <thead>
               <tr className="border-b border-zinc-200 text-left text-xs uppercase tracking-wide text-zinc-500 dark:border-zinc-800">
                 <th className="py-2 pr-3">Doc No</th>
@@ -113,8 +120,13 @@ export default async function SupplierInvoicesPage() {
                 <th className="py-2 pr-3">Actions</th>
               </tr>
             </thead>
-            <tbody>
-              {invoices.map((i) => (
+          }>
+              {invoices.map((i) => {
+                const supplier = supplierById.get(i.supplierId)?.code ?? i.supplierId;
+                const status = statusLabel[i.status] ?? String(i.status);
+                const source = sourceText(i);
+                return (
+                <SearchableRow key={i.id} searchText={[i.number, i.invoiceNumber, supplier, source, status, i.notes ?? "", i.grandTotal].join(" ")}>
                 <tr key={i.id} className="border-b border-zinc-100 dark:border-zinc-900">
                   <td className="py-2 pr-3 font-mono text-xs">
                     <Link className="hover:underline" href={`/procurement/supplier-invoices/${i.id}`}>
@@ -122,11 +134,11 @@ export default async function SupplierInvoicesPage() {
                     </Link>
                   </td>
                   <td className="py-2 pr-3 font-mono text-xs">{i.invoiceNumber}</td>
-                  <td className="py-2 pr-3">{supplierById.get(i.supplierId)?.code ?? i.supplierId}</td>
+                  <td className="py-2 pr-3">{supplier}</td>
                   <td className="py-2 pr-3 text-zinc-500">{new Date(i.invoiceDate).toLocaleDateString()}</td>
                   <td className="py-2 pr-3 text-zinc-500">{sourceLabel(i)}</td>
                   <td className="py-2 pr-3">{i.grandTotal.toFixed(2)}</td>
-                  <td className="py-2 pr-3">{statusLabel[i.status] ?? i.status}</td>
+                  <td className="py-2 pr-3">{status}</td>
                   <td className="py-2 pr-3">
                     <ListViewEditActions
                       viewHref={`/procurement/supplier-invoices/${i.id}`}
@@ -136,17 +148,10 @@ export default async function SupplierInvoicesPage() {
                     />
                   </td>
                 </tr>
-              ))}
-              {invoices.length === 0 ? (
-                <tr>
-                  <td className="py-6 text-sm text-zinc-500" colSpan={8}>
-                    No supplier invoices yet.
-                  </td>
-                </tr>
-              ) : null}
-            </tbody>
-          </Table>
-        </div>
+                </SearchableRow>
+                );
+              })}
+        </SearchableTable>
       </Card>
     </div>
   );

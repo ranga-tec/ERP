@@ -1,7 +1,9 @@
 import Link from "next/link";
 import { backendFetchJson } from "@/lib/backend.server";
+import { AppFormModal } from "@/components/AppFormModal";
 import { ListViewEditActions } from "@/components/ListViewEditActions";
-import { Card, Table } from "@/components/ui";
+import { SearchableRow, SearchableTable } from "@/components/SearchableTable";
+import { Card } from "@/components/ui";
 import { PurchaseOrderCreateForm } from "./PurchaseOrderCreateForm";
 
 type SupplierDto = { id: string; code: string; name: string };
@@ -44,15 +46,13 @@ export default async function PurchaseOrdersPage() {
         <p className="mt-1 text-sm text-zinc-500">PO workflow: draft → approve → receive.</p>
       </div>
 
-      <Card>
-        <div className="mb-3 text-sm font-semibold">Create</div>
+      <AppFormModal title="Create Purchase Order" description="Create a draft purchase order before adding lines." buttonLabel="+ New PO">
         <PurchaseOrderCreateForm suppliers={suppliers} />
-      </Card>
+      </AppFormModal>
 
       <Card>
         <div className="mb-3 text-sm font-semibold">List</div>
-        <div className="overflow-auto">
-          <Table>
+        <SearchableTable placeholder="Search purchase orders..." emptyMessage="No purchase orders yet." emptyColSpan={6} headers={
             <thead>
               <tr className="border-b border-zinc-200 text-left text-xs uppercase tracking-wide text-zinc-500 dark:border-zinc-800">
                 <th className="py-2 pr-3">Number</th>
@@ -63,17 +63,21 @@ export default async function PurchaseOrdersPage() {
                 <th className="py-2 pr-3">Actions</th>
               </tr>
             </thead>
-            <tbody>
-              {pos.map((p) => (
+          }>
+              {pos.map((p) => {
+                const supplier = supplierLabel(p);
+                const status = statusLabel[p.status] ?? String(p.status);
+                return (
+                <SearchableRow key={p.id} searchText={[p.number, supplier, status, p.total].join(" ")}>
                 <tr key={p.id} className="border-b border-zinc-100 dark:border-zinc-900">
                   <td className="py-2 pr-3 font-mono text-xs">
                     <Link className="hover:underline" href={`/procurement/purchase-orders/${p.id}`}>
                       {p.number}
                     </Link>
                   </td>
-                  <td className="py-2 pr-3">{supplierLabel(p)}</td>
+                  <td className="py-2 pr-3">{supplier}</td>
                   <td className="py-2 pr-3 text-zinc-500">{new Date(p.orderDate).toLocaleString()}</td>
-                  <td className="py-2 pr-3">{statusLabel[p.status] ?? p.status}</td>
+                  <td className="py-2 pr-3">{status}</td>
                   <td className="py-2 pr-3">{p.total}</td>
                   <td className="py-2 pr-3">
                     <ListViewEditActions
@@ -84,17 +88,10 @@ export default async function PurchaseOrdersPage() {
                     />
                   </td>
                 </tr>
-              ))}
-              {pos.length === 0 ? (
-                <tr>
-                  <td className="py-6 text-sm text-zinc-500" colSpan={6}>
-                    No purchase orders yet.
-                  </td>
-                </tr>
-              ) : null}
-            </tbody>
-          </Table>
-        </div>
+                </SearchableRow>
+                );
+              })}
+        </SearchableTable>
       </Card>
     </div>
   );
