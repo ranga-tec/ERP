@@ -136,22 +136,33 @@ test in this module and the one most likely to catch a regression.
 
 ## 4. Test Data
 
-Create this once. Later sections assume these codes.
+Create this once, **in this order** — later rows depend on earlier ones.
 
-| Record | Value |
-| --- | --- |
-| Customer | `CUS-SVC` |
-| Warehouse | `MAIN` |
-| Equipment item (serial-tracked) | `EQ-GEN01`, type `Equipment`, tracking `Serial` |
-| Spare part item | `SP-FILT`, type `SparePart`, tracking `None`, cost `500` |
-| Sundries item | `SP-GREASE`, type `SparePart`, category `SUNDRIES` |
-| Labour item | `LAB-SVC`, type `Service` |
-| Equipment unit serial | `SN-GEN-0001` |
-| Technician | `TECH1`, cost rate `10`, billing rate `25` |
-| Opening stock at `MAIN` | `SP-FILT` qty `50`, `SP-GREASE` qty `20` |
+| # | Record | Value |
+| --- | --- | --- |
+| 1 | Unit of measure | `PCS` — every item requires one, so create it first |
+| 2 | Warehouse | `MAIN` — must exist before any stock can be placed |
+| 3 | Customer | `CUS-SVC` |
+| 4 | Item category | `SUNDRIES` |
+| 5 | Equipment item (serial-tracked) | `EQ-GEN01`, type `Equipment`, tracking `Serial` |
+| 6 | Spare part item | `SP-FILT`, type `SparePart`, tracking `None`, cost `500` |
+| 7 | Sundries item | `SP-GREASE`, type `SparePart`, category `SUNDRIES` |
+| 8 | Labour item | `LAB-SVC`, type `Service` |
+| 9 | Equipment unit serial | `SN-GEN-0001`, on `EQ-GEN01`, owned by `CUS-SVC` |
+| 10 | Technician | `TECH1`, cost rate `10`, billing rate `25` |
+| 11 | Opening stock at `MAIN` | `SP-FILT` qty `50`, `SP-GREASE` qty `20` |
 
 Item `Type` accepts only `Equipment`, `SparePart`, `Service`. Tracking accepts only `None`, `Serial`,
 `Batch`. There is no "Stock", "Expense", or "Batch + Serial" option.
+
+Create the opening stock as a **posted stock adjustment** at `MAIN` (`Inventory -> Stock Adjustments`,
+counted quantity `50` and `20`) rather than by editing the database. That produces a real stock-ledger
+movement, which sections 9.1 and 11 later reconcile against.
+
+> **Seed this on a local environment only.** The Railway production database already holds C-COM's real
+> item catalogue and supplier list. Adding these test records there pollutes live master data, and the
+> opening-stock adjustment creates real inventory value. Never create a shared-password test admin in
+> production.
 
 ---
 
