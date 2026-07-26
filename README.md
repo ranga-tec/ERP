@@ -9,6 +9,7 @@ neuedge is a NeurAlsEdge business operations platform for privacy-first inventor
 
 ## Docs
 - Branding (C-COM logo, letterhead, UI assets): `docs/branding.md`
+- Service module test plan (statuses, closeout blockers, permissions): `docs/service-module-test-plan.md`
 - Gap checklist (proposal mapping): `docs/gap-checklist.md`
 - Tester + trainer handbook: `docs/iss-tester-trainer-handbook.md`
 - Role-based test checklists: `docs/role-based-test-checklists.md`

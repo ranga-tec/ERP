@@ -66,7 +66,6 @@ not, treat that as a defect rather than retrying.
 From the repo root:
 
 ```powershell
-docker compose up -d
 dotnet run --project backend/src/ISS.Api/ISS.Api.csproj
 cd frontend
 copy .env.example .env.local
@@ -74,15 +73,19 @@ npm install
 npm run dev
 ```
 
+This assumes a local PostgreSQL on `localhost:5432` with database `iss` and credentials
+`pgadmin / vesper`, which is what `appsettings.Development.json` points at. Verified working on
+2026-07-26.
+
 Expected:
 
 - frontend opens at `http://localhost:3000`
 - backend health is available at `http://localhost:5257/health`
 
-> **Database mismatch to expect.** `docker compose up -d` starts Postgres as database `neuedge` on host
-> port **5433**, but `appsettings.Development.json` points at database `iss` on port `5432`. If the API
-> fails to start or `/health` reports the database as unhealthy, reconcile those two before logging a
-> defect. See `docs/iss-tester-trainer-handbook.md` section 6 for both options.
+> **Do not run `docker compose up -d` for this.** The compose file serves database `neuedge` on port
+> **5433**, which the dev connection string does not use, and 5433 is already taken by another local
+> PostgreSQL service. Starting it produces `password authentication failed for user "pgadmin"` rather
+> than a working database. See `docs/iss-tester-trainer-handbook.md` section 6.
 
 ### Recommended role for this workflow
 

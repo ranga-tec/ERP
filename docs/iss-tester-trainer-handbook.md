@@ -140,18 +140,25 @@ From the repo root:
 
 ### Database
 
-The backend's development connection string (`backend/src/ISS.Api/appsettings.Development.json`) expects:
+The backend's development connection string (`backend/src/ISS.Api/appsettings.Development.json`) expects a
+PostgreSQL server you provide yourself:
 
 - PostgreSQL on `localhost:5432`
 - database `iss`
 - credentials `pgadmin / vesper`
 
-> **Heads-up:** `docker compose up -d` at the repo root does *not* match that. The compose file starts
-> Postgres 16 as database `neuedge` published on host port **5433**, with the same `pgadmin / vesper`
-> credentials. So the compose database and the dev connection string currently disagree. Either point
-> `ConnectionStrings__Default` at `Host=localhost;Port=5433;Database=neuedge;Username=pgadmin;Password=vesper`,
-> or run your own Postgres on 5432 with a database named `iss`. Confirm which one your environment uses
-> before reporting a startup failure as a defect.
+This is the configuration that works on the current development machine, verified on 2026-07-26: the API
+starts and `/health` reports the database as healthy against it.
+
+> **Do not use `docker compose up -d` for the dev database on that machine.** The compose file at the repo
+> root starts Postgres as database `neuedge` on host port **5433**, which does not match the connection
+> string above, and port 5433 is already held by a second local PostgreSQL service that rejects the
+> `pgadmin / vesper` credentials. Bringing compose up therefore does not give you a usable database and
+> the API fails with `password authentication failed for user "pgadmin"`.
+>
+> Treat the compose file as a convenience for machines with no local PostgreSQL. If you do use it, point
+> `ConnectionStrings__Default` at `Host=localhost;Port=5433;Database=neuedge;Username=pgadmin;Password=vesper`
+> and make sure nothing else is listening on 5433 first.
 
 Integration tests use Testcontainers by default. To run them against an existing database instead, set
 `ISS_INTEGRATIONTESTS_CONNECTION_STRING` (see `docs/deployment.md` for the fallback notes).
