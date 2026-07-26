@@ -307,7 +307,8 @@ daily assignment must not create a billable time entry.
 | 9.1.3 | Check the stock ledger | An issue movement is recorded against the job |
 | 9.1.4 | Try to post more than on hand | Rejected with a clear message |
 | 9.1.5 | For a serial item, post without selecting a serial | Rejected by serial validation |
-| 9.1.6 | Void a posted MRN | Stock returns; status `Voided` |
+| 9.1.6 | Void a **draft** MRN | Status `Voided`; no stock ever moved, so nothing to reverse |
+| 9.1.6b | Try to void a **posted** MRN | Rejected: *"Only draft material requisitions can be voided."* Issued material is reversed through the disposition flow in 9.2 (`UnusedReturned`), not by voiding |
 | 9.1.7 | Leave one MRN in `Draft` | Needed for closeout blocker 5 in section 10 |
 
 ### 9.2 Disposition

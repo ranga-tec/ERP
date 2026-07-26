@@ -675,6 +675,20 @@ const expenseViews: { key: ExpenseViewKey; label: string }[] = [
   { key: "reimbursements", label: "Out-of-Pocket Claims" },
 ];
 
+const materialRequisitionStatusLabel: Record<number, string> = { 0: "Draft", 1: "Posted", 2: "Voided" };
+
+type MaterialRequisitionSummaryDto = {
+  id: string;
+  number: string;
+  status: number;
+  requestedAt: string;
+  purpose?: string | null;
+  lineCount: number;
+  requestedQuantity: number;
+  dispatchedQuantity: number;
+  fulfilment: string;
+};
+
 function resolveJobTab(value?: string): JobTabKey {
   return jobTabs.some((tab) => tab.key === value) ? (value as JobTabKey) : "overview";
 }
@@ -756,6 +770,7 @@ export default async function ServiceJobDetailPage({
     pettyCashIous,
     expenseClaims,
     handovers,
+    jobRequisitions,
   ] = await Promise.all([
     backendFetchJson<ServiceJobDto>(`/service/jobs/${id}`),
     backendFetchJson<EquipmentUnitDto[]>("/service/equipment-units?take=2000"),
@@ -773,6 +788,7 @@ export default async function ServiceJobDetailPage({
     backendFetchJson<PettyCashIouDto[]>(`/finance/petty-cash-ious?serviceJobId=${id}&take=100`),
     backendFetchJson<ServiceExpenseClaimSummaryDto[]>(`/service/expense-claims?serviceJobId=${id}&take=100`),
     backendFetchJson<ServiceHandoverDto[]>("/service/handovers?take=500"),
+    backendFetchJson<MaterialRequisitionSummaryDto[]>(`/service/material-requisitions?serviceJobId=${id}&take=200`),
   ]);
 
   const selectedUnit =
@@ -1916,6 +1932,64 @@ export default async function ServiceJobDetailPage({
       </div>
 
       {activeMaterialView === "issues" ? (
+        <>
+        <Card>
+          <div className="mb-3">
+            <div className="text-sm font-semibold">Requests & Dispatch Status</div>
+            <div className="mt-1 text-xs text-zinc-500">
+              Every material requisition raised on this job and how much of it has actually gone out on a
+              posted AOD. Requisitions never dispatched show as Requested.
+            </div>
+          </div>
+          <div className="overflow-auto">
+            <Table>
+              <thead>
+                <tr className="border-b border-zinc-200 text-left text-xs uppercase tracking-wide text-zinc-500 dark:border-zinc-800">
+                  <th className="py-2 pr-3">MRN</th>
+                  <th className="py-2 pr-3">Raised</th>
+                  <th className="py-2 pr-3">MRN Status</th>
+                  <th className="py-2 pr-3 text-right">Requested</th>
+                  <th className="py-2 pr-3 text-right">Dispatched</th>
+                  <th className="py-2 pr-3">Fulfilment</th>
+                </tr>
+              </thead>
+              <tbody>
+                {jobRequisitions.map((mrn) => {
+                  const tone =
+                    mrn.fulfilment === "Issued" || mrn.fulfilment === "Issued from store"
+                      ? "bg-emerald-100 text-emerald-900 dark:bg-emerald-500/20 dark:text-emerald-100"
+                      : mrn.fulfilment === "Partially issued"
+                        ? "bg-amber-100 text-amber-900 dark:bg-amber-500/20 dark:text-amber-100"
+                        : "bg-zinc-200 text-zinc-700 dark:bg-zinc-700 dark:text-zinc-100";
+                  return (
+                    <tr key={mrn.id} className="border-b border-zinc-100 dark:border-zinc-900">
+                      <td className="py-2 pr-3 font-mono text-xs">
+                        <TransactionLink referenceType="MR" referenceId={mrn.id} monospace>
+                          {mrn.number}
+                        </TransactionLink>
+                      </td>
+                      <td className="py-2 pr-3 text-zinc-500">{new Date(mrn.requestedAt).toLocaleString()}</td>
+                      <td className="py-2 pr-3">{materialRequisitionStatusLabel[mrn.status] ?? mrn.status}</td>
+                      <td className="py-2 pr-3 text-right">{mrn.requestedQuantity}</td>
+                      <td className="py-2 pr-3 text-right">{mrn.dispatchedQuantity}</td>
+                      <td className="py-2 pr-3">
+                        <span className={`rounded px-1.5 py-0.5 text-[11px] font-medium ${tone}`}>{mrn.fulfilment}</span>
+                      </td>
+                    </tr>
+                  );
+                })}
+                {jobRequisitions.length === 0 ? (
+                  <tr>
+                    <td className="py-6 text-sm text-zinc-500" colSpan={6}>
+                      No material requisitions raised on this job yet.
+                    </td>
+                  </tr>
+                ) : null}
+              </tbody>
+            </Table>
+          </div>
+        </Card>
+
         <Card>
           <div className="mb-3">
             <div className="text-sm font-semibold">Issued MRNs</div>
@@ -1991,6 +2065,7 @@ export default async function ServiceJobDetailPage({
             </Table>
           </div>
         </Card>
+        </>
       ) : null}
 
       {activeMaterialView === "issues" ? (

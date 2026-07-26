@@ -21,7 +21,19 @@ public sealed class MaterialRequisitionsController(
     AccessControlService accessControl,
     NotificationService notificationService) : ControllerBase
 {
-    public sealed record MaterialRequisitionSummaryDto(Guid Id, string Number, Guid ServiceJobId, Guid? ServiceJobDailySheetId, Guid WarehouseId, DateTimeOffset RequestedAt, string? Purpose, MaterialRequisitionStatus Status, int LineCount);
+    public sealed record MaterialRequisitionSummaryDto(
+        Guid Id,
+        string Number,
+        Guid ServiceJobId,
+        Guid? ServiceJobDailySheetId,
+        Guid WarehouseId,
+        DateTimeOffset RequestedAt,
+        string? Purpose,
+        MaterialRequisitionStatus Status,
+        int LineCount,
+        decimal RequestedQuantity,
+        decimal DispatchedQuantity,
+        string Fulfilment);
     public sealed record MaterialRequisitionDto(Guid Id, string Number, Guid ServiceJobId, Guid? ServiceJobDailySheetId, Guid WarehouseId, DateTimeOffset RequestedAt, string? Purpose, MaterialRequisitionStatus Status, IReadOnlyList<MaterialRequisitionLineDto> Lines);
     public sealed record MaterialRequisitionLineDto(Guid Id, Guid ItemId, decimal Quantity, string? BatchNumber, IReadOnlyList<string> Serials);
 
@@ -47,12 +59,56 @@ public sealed class MaterialRequisitionsController(
             query = query.Where(x => x.ServiceJobId == serviceJobId.Value);
         }
 
-        var requisitions = await query
+        var rows = await query
             .OrderByDescending(x => x.RequestedAt)
             .Skip(skip)
             .Take(take)
-            .Select(x => new MaterialRequisitionSummaryDto(x.Id, x.Number, x.ServiceJobId, x.ServiceJobDailySheetId, x.WarehouseId, x.RequestedAt, x.Purpose, x.Status, x.Lines.Count))
+            .Select(x => new
+            {
+                x.Id,
+                x.Number,
+                x.ServiceJobId,
+                x.ServiceJobDailySheetId,
+                x.WarehouseId,
+                x.RequestedAt,
+                x.Purpose,
+                x.Status,
+                LineCount = x.Lines.Count,
+                RequestedQuantity = x.Lines.Sum(l => (decimal?)l.Quantity) ?? 0m,
+            })
             .ToListAsync(cancellationToken);
+
+        // how much of each requisition has actually gone out on a dispatch
+        var ids = rows.Select(x => x.Id).ToList();
+        var dispatched = ids.Count == 0
+            ? new Dictionary<Guid, decimal>()
+            : await dbContext.DirectDispatches.AsNoTracking()
+                .Where(d => d.MaterialRequisitionId != null
+                            && ids.Contains(d.MaterialRequisitionId!.Value)
+                            && d.Status == ISS.Domain.Sales.DirectDispatchStatus.Posted)
+                .SelectMany(d => d.Lines.Select(l => new { RequisitionId = d.MaterialRequisitionId!.Value, l.Quantity }))
+                .GroupBy(x => x.RequisitionId)
+                .Select(g => new { RequisitionId = g.Key, Quantity = g.Sum(x => x.Quantity) })
+                .ToDictionaryAsync(x => x.RequisitionId, x => x.Quantity, cancellationToken);
+
+        var requisitions = rows.Select(x =>
+        {
+            var out_ = dispatched.GetValueOrDefault(x.Id);
+
+            // Two routes take material out: posting the requisition consumes it straight from the
+            // store, or an AOD dispatches against it. Report whichever applies rather than calling a
+            // posted requisition "Requested" just because no dispatch was involved.
+            var fulfilment =
+                x.Status == MaterialRequisitionStatus.Voided ? "Voided"
+                : x.Status == MaterialRequisitionStatus.Posted ? "Issued from store"
+                : out_ <= 0 ? "Requested"
+                : out_ >= x.RequestedQuantity ? "Issued" : "Partially issued";
+
+            return new MaterialRequisitionSummaryDto(
+                x.Id, x.Number, x.ServiceJobId, x.ServiceJobDailySheetId, x.WarehouseId,
+                x.RequestedAt, x.Purpose, x.Status, x.LineCount,
+                x.RequestedQuantity, out_, fulfilment);
+        }).ToList();
 
         return Ok(requisitions);
     }
