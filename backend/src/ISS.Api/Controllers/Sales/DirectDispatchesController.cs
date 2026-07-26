@@ -56,6 +56,8 @@ public sealed class DirectDispatchesController(
     public sealed record CreateDirectDispatchRequest(Guid WarehouseId, Guid? CustomerId, Guid? ServiceJobId, string? Reason, DateTimeOffset? WarrantyUntil, ServiceCoverageScope? WarrantyCoverage, int? ServiceIntervalDays, DateTimeOffset? NextServiceDueAt);
     public sealed record AddDirectDispatchLineRequest(Guid ItemId, decimal Quantity, string? BatchNumber, IReadOnlyList<string>? Serials);
     public sealed record UpdateDirectDispatchLineRequest(decimal Quantity, string? BatchNumber, IReadOnlyList<string>? Serials);
+    public sealed record LoadFromMrnRequest(Guid MaterialRequisitionId);
+    public sealed record LoadFromMrnResultDto(string RequisitionNumber, int LinesAdded, int LinesSkipped);
 
     [HttpGet]
     public async Task<ActionResult<IReadOnlyList<DirectDispatchSummaryDto>>> List([FromQuery] int skip = 0, [FromQuery] int take = 100, CancellationToken cancellationToken = default)
@@ -168,6 +170,74 @@ public sealed class DirectDispatchesController(
 
         await salesService.AddDirectDispatchLineAsync(id, request.ItemId, request.Quantity, request.BatchNumber, request.Serials, cancellationToken);
         return NoContent();
+    }
+
+    /// <summary>
+    /// Copies the requested lines of a material requisition onto this draft dispatch, so the
+    /// items asked for on the job do not have to be re-keyed - the equivalent of receiving a
+    /// goods receipt straight from its purchase order.
+    /// Items already on the dispatch are skipped rather than duplicated.
+    /// </summary>
+    [HttpPost("{id:guid}/load-from-mrn")]
+    public async Task<ActionResult<LoadFromMrnResultDto>> LoadFromMrn(Guid id, LoadFromMrnRequest request, CancellationToken cancellationToken)
+    {
+        if (!await HasPermissionAsync(AppPermissions.SalesDirectDispatchEdit, cancellationToken))
+        {
+            return Forbid();
+        }
+
+        var dispatch = await dbContext.DirectDispatches.AsNoTracking()
+            .Include(x => x.Lines)
+            .FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
+        if (dispatch is null)
+        {
+            return NotFound();
+        }
+
+        if (dispatch.Status != DirectDispatchStatus.Draft)
+        {
+            return BadRequest("Lines can only be loaded onto a draft dispatch.");
+        }
+
+        var requisition = await dbContext.MaterialRequisitions.AsNoTracking()
+            .Include(x => x.Lines)
+            .FirstOrDefaultAsync(x => x.Id == request.MaterialRequisitionId, cancellationToken);
+        if (requisition is null)
+        {
+            return BadRequest("Selected material requisition does not exist.");
+        }
+
+        if (dispatch.ServiceJobId is { } jobId && requisition.ServiceJobId != jobId)
+        {
+            return BadRequest("That material requisition belongs to a different job order.");
+        }
+
+        var existingItemIds = dispatch.Lines.Select(x => x.ItemId).ToHashSet();
+        var added = 0;
+        var skipped = 0;
+
+        foreach (var line in requisition.Lines)
+        {
+            if (existingItemIds.Contains(line.ItemId))
+            {
+                skipped++;
+                continue;
+            }
+
+            var serials = line.Serials.Select(x => x.SerialNumber).ToList();
+            await salesService.AddDirectDispatchLineAsync(
+                id,
+                line.ItemId,
+                line.Quantity,
+                line.BatchNumber,
+                serials.Count > 0 ? serials : null,
+                cancellationToken);
+
+            existingItemIds.Add(line.ItemId);
+            added++;
+        }
+
+        return Ok(new LoadFromMrnResultDto(requisition.Number, added, skipped));
     }
 
     [HttpPut("{id:guid}/lines/{lineId:guid}")]

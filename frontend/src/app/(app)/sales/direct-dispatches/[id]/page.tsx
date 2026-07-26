@@ -6,6 +6,7 @@ import { Card, SecondaryLink } from "@/components/ui";
 import { DirectDispatchActions } from "../DirectDispatchActions";
 import { DirectDispatchLineAddForm } from "../DirectDispatchLineAddForm";
 import { DirectDispatchLinesEditor } from "../DirectDispatchLinesEditor";
+import { DirectDispatchLoadFromMrnForm } from "../DirectDispatchLoadFromMrnForm";
 import { DocumentCollaborationPanel } from "@/components/DocumentCollaborationPanel";
 import { StockAvailabilityExplorer } from "@/components/StockAvailabilityExplorer";
 import { DocumentDirectEditNotice } from "@/components/DocumentDirectEditNotice";
@@ -109,6 +110,13 @@ export default async function DirectDispatchDetailPage({
         </div>
         <DirectDispatchActions directDispatchId={dispatch.id} canPost={isDraft && dispatch.lines.length > 0} />
       </Card>
+
+      {isDraft && dispatch.serviceJobId ? (
+        <Card>
+          <div className="mb-3 text-sm font-semibold">Load From MRN</div>
+          <DirectDispatchLoadFromMrnForm directDispatchId={dispatch.id} serviceJobId={dispatch.serviceJobId} />
+        </Card>
+      ) : null}
 
       {isDraft ? (
         <>
