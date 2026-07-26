@@ -158,6 +158,8 @@ type ServiceJobCostingDto = {
   draftInvoiceTotal: number;
   postedInvoiceTotal: number;
   materialConsumedCost: number;
+  materialReturnedCredit: number;
+  netMaterialCost: number;
   directPurchaseCost: number;
   approvedLaborCost: number;
   pendingLaborCost: number;
@@ -184,6 +186,16 @@ type ServiceJobCostingDto = {
     itemId: string;
     itemSku: string;
     itemName: string;
+    quantity: number;
+    unitCost: number;
+    lineTotal: number;
+  }[];
+  materialReturnLines: {
+    dispositionId: string;
+    materialRequisitionNumber: string;
+    itemSku: string;
+    itemName: string;
+    kind: string;
     quantity: number;
     unitCost: number;
     lineTotal: number;
@@ -1023,8 +1035,11 @@ export default async function ServiceJobDetailPage({
   const actualCostBreakdown = [
     {
       label: "Materials",
-      amount: costing.materialConsumedCost,
-      detail: `${costing.materialLines.length} posted MRN line${costing.materialLines.length === 1 ? "" : "s"}`,
+      amount: costing.netMaterialCost,
+      detail:
+        costing.materialReturnedCredit > 0
+          ? `${money(costing.materialConsumedCost)} issued less ${money(costing.materialReturnedCredit)} returned`
+          : `${costing.materialLines.length} posted MRN line${costing.materialLines.length === 1 ? "" : "s"}`,
       href: "#job-cost-materials",
     },
     {
@@ -2547,6 +2562,42 @@ export default async function ServiceJobDetailPage({
               </tbody>
             </Table>
           </div>
+
+          {costing.materialReturnLines.length > 0 ? (
+            <div className="overflow-auto">
+              <div className="mb-2 text-sm font-medium">Material Returned To Store</div>
+              <div className="mb-2 text-xs text-zinc-500">
+                Issued material that came back into stock. Credited off the job so the cost reflects
+                what was actually consumed. Damaged material is not credited - it never returned.
+              </div>
+              <Table>
+                <thead>
+                  <tr className="border-b border-zinc-200 text-left text-xs uppercase tracking-wide text-zinc-500 dark:border-zinc-800">
+                    <th className="py-2 pr-3">Source</th>
+                    <th className="py-2 pr-3">Item</th>
+                    <th className="py-2 pr-3">Reason</th>
+                    <th className="py-2 pr-3 text-right">Qty</th>
+                    <th className="py-2 pr-3 text-right">Unit Cost</th>
+                    <th className="py-2 pr-3 text-right">Credit</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {costing.materialReturnLines.map((line) => (
+                    <tr key={line.dispositionId} className="border-b border-zinc-100 dark:border-zinc-900">
+                      <td className="py-2 pr-3 font-mono text-xs">{line.materialRequisitionNumber}</td>
+                      <td className="py-2 pr-3">{line.itemSku} - {line.itemName}</td>
+                      <td className="py-2 pr-3 text-zinc-500">{line.kind}</td>
+                      <td className="py-2 pr-3 text-right">{line.quantity}</td>
+                      <td className="py-2 pr-3 text-right">{money(line.unitCost)}</td>
+                      <td className="py-2 pr-3 text-right text-emerald-700 dark:text-emerald-300">
+                        -{money(line.lineTotal)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </Table>
+            </div>
+          ) : null}
 
           <div className="overflow-auto">
             <div id="job-cost-direct-purchases" className="mb-2 scroll-mt-24 text-sm font-medium">Direct Purchases</div>

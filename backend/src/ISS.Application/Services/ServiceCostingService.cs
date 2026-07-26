@@ -41,6 +41,20 @@ public sealed class ServiceCostingService(IIssDbContext dbContext)
         decimal UnitCost,
         decimal LineTotal);
 
+    /// <summary>Material issued to the job that came back into stock, credited off the job cost.</summary>
+    public sealed record MaterialReturnCreditLine(
+        DateTimeOffset OccurredAt,
+        Guid DispositionId,
+        Guid MaterialRequisitionId,
+        string MaterialRequisitionNumber,
+        Guid ItemId,
+        string ItemSku,
+        string ItemName,
+        string Kind,
+        decimal Quantity,
+        decimal UnitCost,
+        decimal LineTotal);
+
     public sealed record DirectPurchaseCostLine(
         DateTimeOffset PurchasedAt,
         Guid DirectPurchaseId,
@@ -99,6 +113,8 @@ public sealed class ServiceCostingService(IIssDbContext dbContext)
         decimal DraftInvoiceTotal,
         decimal PostedInvoiceTotal,
         decimal MaterialConsumedCost,
+        decimal MaterialReturnedCredit,
+        decimal NetMaterialCost,
         decimal DirectPurchaseCost,
         decimal ApprovedLaborCost,
         decimal PendingLaborCost,
@@ -114,6 +130,7 @@ public sealed class ServiceCostingService(IIssDbContext dbContext)
         IReadOnlyList<EstimateSnapshot> Estimates,
         IReadOnlyList<InvoiceSnapshot> Invoices,
         IReadOnlyList<MaterialCostLine> MaterialLines,
+        IReadOnlyList<MaterialReturnCreditLine> MaterialReturnLines,
         IReadOnlyList<DirectPurchaseCostLine> DirectPurchaseLines,
         IReadOnlyList<LaborTimeCostLine> LaborLines,
         IReadOnlyList<ExpenseClaimCostLine> ExpenseClaimLines);
@@ -296,7 +313,58 @@ public sealed class ServiceCostingService(IIssDbContext dbContext)
             .Where(x => x.Status is SalesInvoiceStatus.Posted or SalesInvoiceStatus.Paid)
             .Sum(x => x.Total);
 
+        // Posted dispositions that physically put stock back are credited off the job. Damaged
+        // material is not: it never returned, it was destroyed on the job.
+        var returnedKinds = new[]
+        {
+            ServiceJobMaterialDispositionKind.UnusedReturned,
+            ServiceJobMaterialDispositionKind.IncorrectReturned,
+            ServiceJobMaterialDispositionKind.RejectedSupplierReturn,
+        };
+
+        // IsPosted is computed, so filter on the mapped PostedAt column; Kind.ToString() is
+        // projected after materialising because EF cannot translate it.
+        var returnRows = await (
+            from disposition in dbContext.ServiceJobMaterialDispositions.AsNoTracking()
+            join requisition in dbContext.MaterialRequisitions.AsNoTracking() on disposition.MaterialRequisitionId equals requisition.Id
+            join item in dbContext.Items.AsNoTracking() on disposition.ItemId equals item.Id
+            where disposition.ServiceJobId == serviceJobId
+                  && disposition.PostedAt != null
+                  && !disposition.IsVoided
+                  && returnedKinds.Contains(disposition.Kind)
+            orderby disposition.CreatedAt descending
+            select new
+            {
+                disposition.CreatedAt,
+                DispositionId = disposition.Id,
+                RequisitionId = requisition.Id,
+                RequisitionNumber = requisition.Number,
+                ItemId = item.Id,
+                item.Sku,
+                item.Name,
+                disposition.Kind,
+                disposition.Quantity,
+                disposition.UnitCost,
+            }).ToListAsync(cancellationToken);
+
+        var materialReturnLines = returnRows
+            .Select(x => new MaterialReturnCreditLine(
+                x.CreatedAt,
+                x.DispositionId,
+                x.RequisitionId,
+                x.RequisitionNumber,
+                x.ItemId,
+                x.Sku,
+                x.Name,
+                x.Kind.ToString(),
+                x.Quantity,
+                x.UnitCost,
+                x.Quantity * x.UnitCost))
+            .ToList();
+
         var materialConsumedCost = materialLines.Sum(x => x.LineTotal);
+        var materialReturnedCredit = materialReturnLines.Sum(x => x.LineTotal);
+        var netMaterialCost = materialConsumedCost - materialReturnedCredit;
         var directPurchaseCost = directPurchaseLines.Sum(x => x.LineTotal);
         var approvedLaborCost = laborLines
             .Where(x => x.Status is WorkOrderTimeEntryStatus.Approved or WorkOrderTimeEntryStatus.Invoiced)
@@ -329,7 +397,7 @@ public sealed class ServiceCostingService(IIssDbContext dbContext)
                         && (x.Status is ServiceExpenseClaimStatus.Approved or ServiceExpenseClaimStatus.Settled))
             .Sum(x => x.LineTotal);
 
-        var totalActualCost = materialConsumedCost + directPurchaseCost + approvedLaborCost + approvedExpenseClaimCost;
+        var totalActualCost = netMaterialCost + directPurchaseCost + approvedLaborCost + approvedExpenseClaimCost;
         var quotedRevenue = latestApprovedEstimateTotal ?? latestDraftEstimateTotal;
         decimal? quotedGrossMargin = quotedRevenue is null ? null : quotedRevenue.Value - totalActualCost;
         var postedGrossMargin = postedInvoiceTotal - totalActualCost;
@@ -342,6 +410,8 @@ public sealed class ServiceCostingService(IIssDbContext dbContext)
             draftInvoiceTotal,
             postedInvoiceTotal,
             materialConsumedCost,
+            materialReturnedCredit,
+            netMaterialCost,
             directPurchaseCost,
             approvedLaborCost,
             pendingLaborCost,
@@ -357,6 +427,7 @@ public sealed class ServiceCostingService(IIssDbContext dbContext)
             estimates,
             invoices,
             materialLines,
+            materialReturnLines,
             directPurchaseLines,
             laborLines,
             expenseClaimLines);
