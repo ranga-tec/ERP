@@ -2,9 +2,11 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { apiPut } from "@/lib/api-client";
+import { apiGet, apiPut } from "@/lib/api-client";
 import { EquipmentUnitLookupField } from "@/components/EquipmentUnitLookupField";
 import { Button, Input, Select, Textarea } from "@/components/ui";
+
+type ResponsibleOfficer = { userId: string; name: string; email?: string | null; roles: string[] };
 
 type EquipmentUnitRef = {
   id: string;
@@ -58,6 +60,21 @@ export function ServiceJobEditForm({
   const [expectedCompletionAt, setExpectedCompletionAt] = useState(job.expectedCompletionAt?.slice(0, 10) ?? "");
   const [siteLocation, setSiteLocation] = useState(job.siteLocation ?? "");
   const [responsibleOfficerName, setResponsibleOfficerName] = useState(job.responsibleOfficerName ?? "");
+  const [officers, setOfficers] = useState<ResponsibleOfficer[]>([]);
+
+  useEffect(() => {
+    let cancelled = false;
+    apiGet<ResponsibleOfficer[]>("service/jobs/responsible-officers")
+      .then((result) => {
+        if (!cancelled) setOfficers(result);
+      })
+      .catch(() => {
+        if (!cancelled) setOfficers([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
   const [serviceRequirement, setServiceRequirement] = useState(job.customerComplaint ?? job.problemDescription);
   const [jobDescription, setJobDescription] = useState(job.jobDescription ?? "");
   const [internalRemarks, setInternalRemarks] = useState(job.internalRemarks ?? "");
@@ -156,7 +173,18 @@ export function ServiceJobEditForm({
         </div>
         <div>
           <label className="mb-1 block text-sm font-medium">Responsible officer / supervisor</label>
-          <Input value={responsibleOfficerName} onChange={(event) => setResponsibleOfficerName(event.target.value)} />
+          <Select value={responsibleOfficerName} onChange={(event) => setResponsibleOfficerName(event.target.value)}>
+            <option value="">Select...</option>
+            {/* keep a previously typed value selectable so older jobs still round-trip */}
+            {responsibleOfficerName && !officers.some((o) => o.name === responsibleOfficerName) ? (
+              <option value={responsibleOfficerName}>{responsibleOfficerName}</option>
+            ) : null}
+            {officers.map((officer) => (
+              <option key={officer.userId} value={officer.name}>
+                {officer.roles.length > 0 ? `${officer.name} — ${officer.roles.join(", ")}` : officer.name}
+              </option>
+            ))}
+          </Select>
         </div>
       </div>
 

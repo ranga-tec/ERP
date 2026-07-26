@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { apiPost } from "@/lib/api-client";
+import { apiGet, apiPost } from "@/lib/api-client";
 import { EquipmentUnitLookupField } from "@/components/EquipmentUnitLookupField";
 import { Button, Input, Select, Textarea } from "@/components/ui";
 
@@ -16,6 +16,7 @@ type EquipmentUnitRef = {
 };
 type CustomerRef = { id: string; code: string; name: string };
 type ServiceJobDto = { id: string; number: string };
+type ResponsibleOfficer = { userId: string; name: string; email?: string | null; roles: string[] };
 
 const KIND_SERVICE = "0";
 const KIND_REPAIR = "1";
@@ -35,6 +36,22 @@ export function ServiceJobCreateForm({
     () => customers.slice().sort((a, b) => a.code.localeCompare(b.code)),
     [customers],
   );
+
+  const [officers, setOfficers] = useState<ResponsibleOfficer[]>([]);
+
+  useEffect(() => {
+    let cancelled = false;
+    apiGet<ResponsibleOfficer[]>("service/jobs/responsible-officers")
+      .then((result) => {
+        if (!cancelled) setOfficers(result);
+      })
+      .catch(() => {
+        if (!cancelled) setOfficers([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const [equipmentUnitId, setEquipmentUnitId] = useState("");
   const [customerId, setCustomerId] = useState("");
@@ -133,7 +150,14 @@ export function ServiceJobCreateForm({
         </div>
         <div>
           <label className="mb-1 block text-sm font-medium">Responsible officer / supervisor</label>
-          <Input value={responsibleOfficerName} onChange={(e) => setResponsibleOfficerName(e.target.value)} placeholder="Supervisor or service advisor" />
+          <Select value={responsibleOfficerName} onChange={(e) => setResponsibleOfficerName(e.target.value)}>
+            <option value="">Select...</option>
+            {officers.map((officer) => (
+              <option key={officer.userId} value={officer.name}>
+                {officer.roles.length > 0 ? `${officer.name} — ${officer.roles.join(", ")}` : officer.name}
+              </option>
+            ))}
+          </Select>
         </div>
       </div>
 

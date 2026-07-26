@@ -6,7 +6,9 @@ using ISS.Application.Persistence;
 using ISS.Application.Services;
 using ISS.Domain.Finance;
 using ISS.Domain.Service;
+using ISS.Infrastructure.Identity;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -21,8 +23,11 @@ public sealed class ServiceJobsController(
     ServiceCostingService serviceCostingService,
     IDocumentPdfService pdfService,
     AccessControlService accessControl,
-    NotificationService notificationService) : ControllerBase
+    NotificationService notificationService,
+    UserManager<ApplicationUser> userManager) : ControllerBase
 {
+    public sealed record ResponsibleOfficerDto(Guid UserId, string Name, string? Email, IReadOnlyList<string> Roles);
+
     public sealed record ServiceJobDto(
         Guid Id,
         string Number,
@@ -359,6 +364,35 @@ public sealed class ServiceJobsController(
         IReadOnlyList<ServiceTechnicianAssignmentDto> TodayAssignments,
         IReadOnlyList<ServiceTechnicianDailySheetDto> OpenDailySheets,
         IReadOnlyList<ServiceDispatchJobDto> ActiveJobs);
+
+    /// <summary>
+    /// Users who can be named as responsible officer / supervisor on a job.
+    /// Lives here rather than under admin/users so Service and Sales can load it without
+    /// being granted the full user-administration endpoint.
+    /// </summary>
+    [HttpGet("responsible-officers")]
+    [Authorize(Roles = $"{Roles.Admin},{Roles.Service},{Roles.Sales}")]
+    public async Task<ActionResult<IReadOnlyList<ResponsibleOfficerDto>>> ResponsibleOfficers(CancellationToken cancellationToken)
+    {
+        var now = DateTimeOffset.UtcNow;
+        var users = await userManager.Users.AsNoTracking()
+            .Where(x => x.LockoutEnd == null || x.LockoutEnd <= now)
+            .OrderBy(x => x.DisplayName ?? x.Email)
+            .ToListAsync(cancellationToken);
+
+        var officers = new List<ResponsibleOfficerDto>(users.Count);
+        foreach (var user in users)
+        {
+            var roles = await userManager.GetRolesAsync(user);
+            officers.Add(new ResponsibleOfficerDto(
+                user.Id,
+                !string.IsNullOrWhiteSpace(user.DisplayName) ? user.DisplayName! : user.Email ?? user.UserName ?? user.Id.ToString(),
+                user.Email,
+                roles.ToList()));
+        }
+
+        return Ok(officers);
+    }
 
     [HttpGet]
     public async Task<ActionResult<IReadOnlyList<ServiceJobDto>>> List([FromQuery] int skip = 0, [FromQuery] int take = 100, CancellationToken cancellationToken = default)

@@ -70,7 +70,9 @@ export function AppFormModal({
             aria-modal="true"
             aria-labelledby={titleId}
             className={[
-              "max-h-[88vh] w-full overflow-auto rounded-lg border border-[var(--card-border)] bg-[var(--card-bg)] p-4 shadow-xl",
+              // min-h keeps short dialogs (two or three fields) from looking cramped;
+              // max-h keeps long ones on screen and scrollable
+              "flex max-h-[92vh] min-h-[18rem] w-full flex-col overflow-auto rounded-lg border border-[var(--card-border)] bg-[var(--card-bg)] p-4 shadow-xl",
               sizeClass[size],
             ].join(" ")}
             onMouseDown={(event) => event.stopPropagation()}

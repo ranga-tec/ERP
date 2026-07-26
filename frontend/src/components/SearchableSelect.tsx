@@ -4,8 +4,10 @@ import {
   Children,
   Fragment,
   isValidElement,
+  useCallback,
   useEffect,
   useId,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -15,6 +17,12 @@ import {
   type KeyboardEvent,
   type ReactNode,
 } from "react";
+import { createPortal } from "react-dom";
+
+const MAX_MENU_HEIGHT = 256;
+const MENU_GAP = 4;
+
+type MenuPosition = { top: number; left: number; width: number; maxHeight: number };
 
 type SearchableSelectProps = Omit<ComponentProps<"select">, "multiple" | "size">;
 
@@ -172,7 +180,45 @@ export function Select({
   const [activeIndex, setActiveIndex] = useState(0);
   const wrapperRef = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
+  const listboxRef = useRef<HTMLDivElement | null>(null);
   const listboxId = useId();
+  const [menuPosition, setMenuPosition] = useState<MenuPosition | null>(null);
+
+  // The menu is portalled to <body> because any scrollable ancestor - a modal
+  // dialog, a table wrapper - would otherwise clip an absolutely positioned menu.
+  const updateMenuPosition = useCallback(() => {
+    const anchor = inputRef.current;
+    if (!anchor) return;
+
+    const rect = anchor.getBoundingClientRect();
+    const spaceBelow = window.innerHeight - rect.bottom - MENU_GAP;
+    const spaceAbove = rect.top - MENU_GAP;
+    const openUpwards = spaceBelow < Math.min(MAX_MENU_HEIGHT, 160) && spaceAbove > spaceBelow;
+    const maxHeight = Math.max(120, Math.min(MAX_MENU_HEIGHT, openUpwards ? spaceAbove : spaceBelow));
+
+    setMenuPosition({
+      top: openUpwards ? rect.top - MENU_GAP - maxHeight : rect.bottom + MENU_GAP,
+      left: rect.left,
+      width: rect.width,
+      maxHeight,
+    });
+  }, []);
+
+  useLayoutEffect(() => {
+    if (!open) {
+      setMenuPosition(null);
+      return;
+    }
+
+    updateMenuPosition();
+    // capture:true so the menu follows the anchor inside scrolling containers too
+    window.addEventListener("scroll", updateMenuPosition, true);
+    window.addEventListener("resize", updateMenuPosition);
+    return () => {
+      window.removeEventListener("scroll", updateMenuPosition, true);
+      window.removeEventListener("resize", updateMenuPosition);
+    };
+  }, [open, updateMenuPosition]);
 
   useEffect(() => {
     setQuery(selectedLabel);
@@ -197,7 +243,9 @@ export function Select({
 
   useEffect(() => {
     function handlePointerDown(event: MouseEvent) {
-      if (!wrapperRef.current?.contains(event.target as Node)) {
+      const target = event.target as Node;
+      // the menu is portalled outside the wrapper, so check it separately
+      if (!wrapperRef.current?.contains(target) && !listboxRef.current?.contains(target)) {
         setOpen(false);
         setQuery(selectedLabel);
         inputRef.current?.setCustomValidity("");
@@ -332,13 +380,20 @@ export function Select({
         ))}
       </select>
 
-      {open ? (
+      {open && menuPosition && typeof document !== "undefined" ? createPortal(
         <div
+          ref={listboxRef}
           id={listboxId}
           role="listbox"
-          className="absolute z-30 mt-1 w-full overflow-hidden rounded-md border border-[var(--input-border)] bg-[var(--surface)] shadow-[var(--shadow-card)]"
+          style={{
+            position: "fixed",
+            top: menuPosition.top,
+            left: menuPosition.left,
+            width: menuPosition.width,
+          }}
+          className="z-[60] overflow-hidden rounded-md border border-[var(--input-border)] bg-[var(--surface)] shadow-[var(--shadow-card)]"
         >
-          <div className="max-h-64 overflow-auto py-1">
+          <div className="overflow-auto py-1" style={{ maxHeight: menuPosition.maxHeight }}>
             {filteredOptions.length > 0 ? (
               filteredOptions.map((option, index) => {
                 const active = index === clampedActiveIndex;
@@ -368,7 +423,8 @@ export function Select({
               <div className="px-2.5 py-1.5 text-[13px] text-[var(--muted-foreground)]">No results found.</div>
             )}
           </div>
-        </div>
+        </div>,
+        document.body,
       ) : null}
     </div>
   );
