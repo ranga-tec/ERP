@@ -14,7 +14,7 @@ public sealed partial class DocumentPdfService
         var item = await _dbContext.Items.AsNoTracking().FirstOrDefaultAsync(x => x.Id == id, cancellationToken)
                    ?? throw new NotFoundException("Item not found.");
 
-        var qr = QrPngBytes($"ISS:ITEM:{item.Id}");
+        var qr = QrPngBytes($"NEUEDGE:ITEM:{item.Id}");
         var barcode = string.IsNullOrWhiteSpace(item.Barcode) ? null : BarcodePngBytes(item.Barcode.Trim(), width: 420, height: 110);
 
         var pdfBytes = Document.Create(container =>
@@ -24,9 +24,10 @@ public sealed partial class DocumentPdfService
                 page.Size(PageSizes.A4);
                 page.Margin(30);
                 page.DefaultTextStyle(x => x.FontSize(12));
-                page.Content().Column(col =>
+                page.Header().Element(Letterhead);
+                page.Content().PaddingTop(14).Column(col =>
                 {
-                    col.Item().Text("Item Label").FontSize(18).SemiBold();
+                    col.Item().Text("Item Label").FontSize(18).SemiBold().FontColor(DocumentBranding.Ink);
                     col.Item().Text($"{item.Sku} — {item.Name}");
                     col.Item().PaddingTop(12).Row(row =>
                     {
@@ -47,6 +48,7 @@ public sealed partial class DocumentPdfService
                         col.Item().PaddingTop(16).Height(110).Image(barcode, ImageScaling.FitArea);
                     }
                 });
+                page.Footer().Element(Footer);
             });
         }).GeneratePdf();
 

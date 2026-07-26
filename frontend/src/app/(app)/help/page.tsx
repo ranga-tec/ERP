@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import Image from "next/image";
 import { Card, Table } from "@/components/ui";
+import { company } from "@/lib/company";
 
 type LinkItem = { href: string; label: string };
 type Row = { left: string; right: string };
@@ -505,7 +506,7 @@ export default function HelpPage() {
     <div className="space-y-4">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight text-[var(--foreground)]">ISS ERP Help</h1>
+          <h1 className="text-2xl font-semibold tracking-tight text-[var(--foreground)]">{company.shortName} ERP Help</h1>
           <p className="text-sm text-[var(--muted-foreground)]">
             Simple full-system tutorial: what to enter, what output to expect, and what to check.
           </p>

@@ -2,6 +2,8 @@
 
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useMemo, useState } from "react";
+import { BrandLogo } from "@/components/BrandLogo";
+import { company } from "@/lib/company";
 
 type Mode = "login" | "register";
 
@@ -13,7 +15,8 @@ type AuthCapabilities = {
 };
 
 const defaultSelfRegistrationEnabled = (() => {
-  const configured = process.env.NEXT_PUBLIC_ISS_ALLOW_SELF_REGISTRATION;
+  const configured =
+    process.env.NEXT_PUBLIC_NEUEDGE_ALLOW_SELF_REGISTRATION;
   if (configured === "true") return true;
   if (configured === "false") return false;
   return process.env.NODE_ENV !== "production";
@@ -117,15 +120,16 @@ function LoginPageInner() {
 
       <div className="relative w-full max-w-md rounded-3xl border border-[var(--card-border)] bg-[var(--card-bg)] p-7 shadow-[var(--shadow-card)] backdrop-blur-xl sm:p-8">
         <div className="mb-6">
-          <div className="mb-1 inline-flex rounded-full border border-[var(--input-border)] bg-[var(--accent-muted)] px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--link)]">
-            ISS ERP Portal
+          <BrandLogo className="h-14 w-auto" priority />
+          <div className="mb-1 mt-3 inline-flex rounded-full border border-[var(--input-border)] bg-[var(--accent-muted)] px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--link)]">
+            {company.tagline}
           </div>
           <h1 className="text-2xl font-semibold tracking-tight">
             {mode === "login" ? "Sign in" : "Create account"}
           </h1>
           <p className="mt-1 text-sm text-[var(--muted-foreground)]">
             {mode === "login"
-              ? "Use your ISS ERP credentials."
+              ? `Use your ${company.shortName} credentials for inventory, service, finance, and reporting workflows.`
               : bootstrapRegistrationOnly
                 ? "Create the first admin account for this system."
                 : "Create your account."}
@@ -218,6 +222,22 @@ function LoginPageInner() {
           ) : (
             <span>Account registration is disabled.</span>
           )}
+        </div>
+
+        <div className="mt-6 border-t border-[var(--card-border)] pt-4 text-center text-[11px] leading-relaxed text-[var(--muted-foreground)]">
+          <div className="font-semibold text-[var(--foreground)]">{company.name}</div>
+          <div>{company.addressLine}</div>
+          <div>
+            {company.phone} · {company.email} ·{" "}
+            <a
+              href={company.websiteUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="text-[var(--link)] transition-colors hover:text-[var(--link-hover)]"
+            >
+              {company.website}
+            </a>
+          </div>
         </div>
       </div>
     </div>

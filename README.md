@@ -1,4 +1,6 @@
-# ISS ERP System
+# neuedge
+
+neuedge is a NeurAlsEdge business operations platform for privacy-first inventory, service, procurement, sales, finance, and reporting workflows. It is positioned for private, self-hosted, or cloud deployment with full ownership and no subscription lock-in.
 
 ## Stack
 - Backend: ASP.NET Core (.NET 8) + PostgreSQL
@@ -6,6 +8,7 @@
 - Production deployment baseline: single Ubuntu VPS using Docker Compose from `deploy/`
 
 ## Docs
+- Branding (C-COM logo, letterhead, UI assets): `docs/branding.md`
 - Gap checklist (proposal mapping): `docs/gap-checklist.md`
 - Tester + trainer handbook: `docs/iss-tester-trainer-handbook.md`
 - Role-based test checklists: `docs/role-based-test-checklists.md`
@@ -96,7 +99,7 @@
 Use a local PostgreSQL server on the machine running the app.
 
 - PostgreSQL: `localhost:5432`
-- Main database: `iss`
+- Main database: `neuedge`
 - Integration-test database: `iss_integration_local`
 - User: `pgadmin`
 - Password: `vesper`

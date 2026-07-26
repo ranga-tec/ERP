@@ -74,34 +74,86 @@ public sealed partial class DocumentPdfService(IIssDbContext dbContext) : IDocum
                 page.Margin(30);
                 page.DefaultTextStyle(x => x.FontSize(10));
 
-                page.Header().Row(row =>
+                page.Header().Column(header =>
                 {
-                    row.RelativeItem().Column(col =>
-                    {
-                        col.Item().Text(title).FontSize(18).SemiBold();
-                        col.Item().Text(referenceNumber).FontSize(11).FontColor(Colors.Grey.Darken1);
-                        col.Item().PaddingTop(10).Element(c => MetaTable(c, meta));
-                    });
+                    header.Item().Element(Letterhead);
 
-                    row.ConstantItem(170).Column(col =>
+                    header.Item().PaddingTop(12).Row(row =>
                     {
-                        col.Item().AlignRight().Width(110).Height(110).Image(qr, ImageScaling.FitArea);
-                        col.Item().PaddingTop(8).AlignRight().Height(45).Image(barcode, ImageScaling.FitWidth);
+                        row.RelativeItem().Column(col =>
+                        {
+                            col.Item().Text(title).FontSize(17).SemiBold().FontColor(DocumentBranding.Ink);
+                            col.Item().Text(referenceNumber).FontSize(11).FontColor(Colors.Grey.Darken1);
+                            col.Item().PaddingTop(10).Element(c => MetaTable(c, meta));
+                        });
+
+                        row.ConstantItem(170).Column(col =>
+                        {
+                            col.Item().AlignRight().Width(110).Height(110).Image(qr, ImageScaling.FitArea);
+                            col.Item().PaddingTop(8).AlignRight().Height(45).Image(barcode, ImageScaling.FitWidth);
+                        });
                     });
                 });
 
                 page.Content().PaddingTop(16).Column(content);
 
-                page.Footer().AlignCenter().Text(t =>
-                {
-                    t.DefaultTextStyle(x => x.FontSize(8).FontColor(Colors.Grey.Darken1));
-                    t.Span("Generated ");
-                    t.Span(DateTimeOffset.UtcNow.ToString("u"));
-                });
+                page.Footer().Element(Footer);
             });
         }).GeneratePdf();
 
         return new PdfDocument(fileName, pdfBytes);
+    }
+
+    /// <summary>Company logo on the left, registered contact details on the right, closed by a brand rule.</summary>
+    private static void Letterhead(IContainer container)
+    {
+        container.Column(col =>
+        {
+            col.Item().Row(row =>
+            {
+                row.ConstantItem(150).Height(52).AlignLeft().AlignMiddle()
+                    .Image(DocumentBranding.Logo, ImageScaling.FitArea);
+
+                row.RelativeItem().PaddingLeft(14).AlignRight().AlignMiddle().Column(info =>
+                {
+                    info.Item().AlignRight().Text(DocumentBranding.CompanyName)
+                        .FontSize(12).SemiBold().FontColor(DocumentBranding.Ink);
+                    info.Item().AlignRight().Text(DocumentBranding.AddressLine)
+                        .FontSize(8.5f).FontColor(Colors.Grey.Darken1);
+                    info.Item().AlignRight().Text(DocumentBranding.ContactLine)
+                        .FontSize(8.5f).FontColor(Colors.Grey.Darken1);
+                });
+            });
+
+            col.Item().PaddingTop(8).LineHorizontal(1.5f).LineColor(DocumentBranding.Accent);
+        });
+    }
+
+    /// <summary>Repeated on every page: brand rule, contact strip, then generation stamp and page numbers.</summary>
+    private static void Footer(IContainer container)
+    {
+        container.Column(col =>
+        {
+            col.Item().PaddingBottom(4).LineHorizontal(0.75f).LineColor(Colors.Grey.Lighten2);
+
+            col.Item().AlignCenter().Text(t =>
+            {
+                t.DefaultTextStyle(x => x.FontSize(8).FontColor(Colors.Grey.Darken1));
+                t.Span(DocumentBranding.CompanyName).SemiBold().FontColor(DocumentBranding.Ink);
+                t.Span($"  ·  {DocumentBranding.AddressLine}  ·  {DocumentBranding.ContactLine}");
+            });
+
+            col.Item().PaddingTop(2).AlignCenter().Text(t =>
+            {
+                t.DefaultTextStyle(x => x.FontSize(7.5f).FontColor(Colors.Grey.Darken1));
+                t.Span("Generated ");
+                t.Span(DateTimeOffset.UtcNow.ToString("u"));
+                t.Span("  ·  Page ");
+                t.CurrentPageNumber();
+                t.Span(" of ");
+                t.TotalPages();
+            });
+        });
     }
 
     private static void MetaTable(IContainer container, IReadOnlyList<(string Label, string Value)> meta)

@@ -3,12 +3,14 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { usePathname } from "next/navigation";
+import { BrandLogo } from "@/components/BrandLogo";
 import { canAccessPathWithPermissions } from "@/lib/route-access";
+import { company } from "@/lib/company";
 
 type NavItem = { href: string; label: string };
 type NavSection = { title: string; items: NavItem[] };
 
-const SIDEBAR_SECTION_STORAGE_KEY = "iss_sidebar_sections_v1";
+const SIDEBAR_SECTION_STORAGE_KEY = "neuedge_sidebar_sections_v1";
 
 const sections: NavSection[] = [
   {
@@ -276,14 +278,22 @@ export function Sidebar({ roles, permissions = null, collapsed = false, onNaviga
         collapsed ? "w-[4.5rem]" : "w-[17rem]",
       ].join(" ")}
     >
-      <div className="mb-3 flex shrink-0 items-start justify-between gap-2">
-        <div>
-          <div className="text-[13px] font-semibold tracking-tight text-[var(--foreground)]">
-            {collapsed ? "ISS" : "ISS ERP"}
-          </div>
-          {!collapsed ? (
-            <div className="text-[11px] text-[var(--muted-foreground)]">Service + Inventory + Sales</div>
-          ) : null}
+      <div
+        className={[
+          "mb-3 flex shrink-0 gap-2",
+          // the collapsed rail is too narrow for logo and pin side by side
+          collapsed ? "flex-col items-center" : "items-start justify-between",
+        ].join(" ")}
+      >
+        <div className="min-w-0">
+          {collapsed ? (
+            <BrandLogo variant="mark" className="h-7 w-auto" priority />
+          ) : (
+            <>
+              <BrandLogo variant="horizontal" className="h-9" priority />
+              <div className="mt-1.5 truncate text-[11px] text-[var(--muted-foreground)]">{company.tagline}</div>
+            </>
+          )}
         </div>
         {canToggle ? (
           <button

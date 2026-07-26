@@ -10,7 +10,11 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="MailKit" Version="4.15.0" />
+    <EmbeddedResource Include="Assets\company-logo.png" LogicalName="ISS.Infrastructure.Assets.CompanyLogo.png" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="MailKit" Version="4.17.0" />
     <PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="8.0.12" />
     <PackageReference Include="Microsoft.EntityFrameworkCore" Version="8.0.12" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="8.0.12">
@@ -18,9 +22,12 @@
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
     <PackageReference Include="Microsoft.Extensions.Http" Version="8.0.0" />
+    <PackageReference Include="MimeKit" Version="4.17.0" />
     <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="8.0.11" />
     <PackageReference Include="QRCoder" Version="1.7.0" />
     <PackageReference Include="QuestPDF" Version="2022.8.2" />
+    <PackageReference Include="SkiaSharp" Version="4.148.0" />
+    <PackageReference Include="SkiaSharp.HarfBuzz" Version="4.148.0" />
     <PackageReference Include="ZXing.Net" Version="0.16.11" />
   </ItemGroup>
 

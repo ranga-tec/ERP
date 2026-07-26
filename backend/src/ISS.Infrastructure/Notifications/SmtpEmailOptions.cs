@@ -8,6 +8,5 @@ public sealed class SmtpEmailOptions
     public string Password { get; init; } = "";
     public bool UseStartTls { get; init; } = true;
     public string FromEmail { get; init; } = "";
-    public string FromName { get; init; } = "ISS ERP";
+    public string FromName { get; init; } = "C-COM Equipment (Pvt) Ltd";
 }
-

@@ -2,13 +2,14 @@
 
 import { useEffect, useState, type ReactNode } from "react";
 import { usePathname, useRouter } from "next/navigation";
+import { BrandLogo } from "@/components/BrandLogo";
 import { LogoutButton } from "@/components/LogoutButton";
 import { NotificationBell } from "@/components/NotificationBell";
 import { Sidebar } from "@/components/Sidebar";
 import { AssistantPanel } from "@/components/assistant/AssistantPanel";
 import { apiGet } from "@/lib/api-client";
 
-const SIDEBAR_COLLAPSED_STORAGE_KEY = "iss_sidebar_collapsed_v2";
+const SIDEBAR_COLLAPSED_STORAGE_KEY = "neuedge_sidebar_collapsed_v2";
 
 type AppShellProps = {
   children: ReactNode;
@@ -128,6 +129,7 @@ export function AppShell({ children, email, roles }: AppShellProps) {
               >
                 Menu
               </button>
+              <BrandLogo variant="mark" className="h-7 w-auto lg:hidden" />
               <div className="min-w-0">
                 <div className="truncate text-[13px] font-semibold">{email}</div>
                 <div className="truncate text-[11px] text-[var(--muted-foreground)]">

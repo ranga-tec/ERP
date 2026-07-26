@@ -52,5 +52,6 @@ Modification reqs/
 SS/
 data/
 image.png
+!Logo/image.png
 docs/testing-input-output-checklist.pdf
 frontend/iss_pw*.cjs
