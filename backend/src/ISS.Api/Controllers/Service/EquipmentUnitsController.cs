@@ -5,7 +5,9 @@ using ISS.Application.Services;
 using ISS.Domain.Common;
 using ISS.Domain.MasterData;
 using ISS.Domain.Service;
+using ISS.Infrastructure.Identity;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -17,7 +19,8 @@ namespace ISS.Api.Controllers.Service;
 public sealed class EquipmentUnitsController(
     IIssDbContext dbContext,
     ServiceManagementService serviceManagementService,
-    ICurrentUser currentUser) : ControllerBase
+    ICurrentUser currentUser,
+    UserManager<ApplicationUser> userManager) : ControllerBase
 {
     public sealed record EquipmentUnitDto(
         Guid Id,
@@ -30,7 +33,11 @@ public sealed class EquipmentUnitsController(
         int? ServiceIntervalDays,
         DateTimeOffset? NextServiceDueAt,
         DateTimeOffset? NextRepairDueAt,
-        bool HasActiveWarranty);
+        bool HasActiveWarranty,
+        DateTimeOffset CreatedAt,
+        string? CreatedByName,
+        DateTimeOffset? LastModifiedAt,
+        string? LastModifiedByName);
 
     public sealed record CreateEquipmentUnitRequest(
         Guid ItemId,
@@ -71,23 +78,17 @@ public sealed class EquipmentUnitsController(
         skip = Math.Max(0, skip);
         take = Math.Clamp(take, 1, 5000);
 
-        var units = await dbContext.EquipmentUnits.AsNoTracking()
+        var rows = await dbContext.EquipmentUnits.AsNoTracking()
             .OrderBy(x => x.SerialNumber)
             .Skip(skip)
             .Take(take)
-            .Select(x => new EquipmentUnitDto(
-                x.Id,
-                x.ItemId,
-                x.SerialNumber,
-                x.CustomerId,
-                x.PurchasedAt,
-                x.WarrantyUntil,
-                x.WarrantyCoverage,
-                x.ServiceIntervalDays,
-                x.NextServiceDueAt,
-                x.NextRepairDueAt,
-                x.WarrantyUntil != null && x.WarrantyCoverage != ServiceCoverageScope.None && x.WarrantyUntil >= DateTimeOffset.UtcNow))
             .ToListAsync(cancellationToken);
+
+        var userLabels = await ResolveUserLabelsAsync(
+            rows.SelectMany(x => new[] { x.CreatedBy, x.LastModifiedBy }),
+            cancellationToken);
+
+        var units = rows.Select(x => ToDto(x, userLabels)).ToList();
 
         return Ok(units);
     }
@@ -192,23 +193,61 @@ public sealed class EquipmentUnitsController(
     [HttpGet("{id:guid}")]
     public async Task<ActionResult<EquipmentUnitDto>> Get(Guid id, CancellationToken cancellationToken)
     {
-        var unit = await dbContext.EquipmentUnits.AsNoTracking()
-            .Where(x => x.Id == id)
-            .Select(x => new EquipmentUnitDto(
-                x.Id,
-                x.ItemId,
-                x.SerialNumber,
-                x.CustomerId,
-                x.PurchasedAt,
-                x.WarrantyUntil,
-                x.WarrantyCoverage,
-                x.ServiceIntervalDays,
-                x.NextServiceDueAt,
-                x.NextRepairDueAt,
-                x.WarrantyUntil != null && x.WarrantyCoverage != ServiceCoverageScope.None && x.WarrantyUntil >= DateTimeOffset.UtcNow))
-            .FirstOrDefaultAsync(cancellationToken);
+        var row = await dbContext.EquipmentUnits.AsNoTracking()
+            .FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
 
-        return unit is null ? NotFound() : Ok(unit);
+        if (row is null)
+        {
+            return NotFound();
+        }
+
+        var userLabels = await ResolveUserLabelsAsync([row.CreatedBy, row.LastModifiedBy], cancellationToken);
+
+        return Ok(ToDto(row, userLabels));
+    }
+
+    private static EquipmentUnitDto ToDto(EquipmentUnit unit, IReadOnlyDictionary<Guid, string> userLabels)
+        => new(
+            unit.Id,
+            unit.ItemId,
+            unit.SerialNumber,
+            unit.CustomerId,
+            unit.PurchasedAt,
+            unit.WarrantyUntil,
+            unit.WarrantyCoverage,
+            unit.ServiceIntervalDays,
+            unit.NextServiceDueAt,
+            unit.NextRepairDueAt,
+            unit.HasActiveWarranty(DateTimeOffset.UtcNow),
+            unit.CreatedAt,
+            LookupUser(unit.CreatedBy, userLabels),
+            unit.LastModifiedAt,
+            LookupUser(unit.LastModifiedBy, userLabels));
+
+    private static string? LookupUser(Guid? userId, IReadOnlyDictionary<Guid, string> userLabels)
+        => userId is { } id && userLabels.TryGetValue(id, out var label) ? label : null;
+
+    /// <summary>Resolves audit user ids to a display name, falling back to email then user name.</summary>
+    private async Task<IReadOnlyDictionary<Guid, string>> ResolveUserLabelsAsync(
+        IEnumerable<Guid?> userIds,
+        CancellationToken cancellationToken)
+    {
+        var ids = userIds.Where(x => x.HasValue).Select(x => x!.Value).Distinct().ToList();
+        if (ids.Count == 0)
+        {
+            return new Dictionary<Guid, string>();
+        }
+
+        return await userManager.Users.AsNoTracking()
+            .Where(x => ids.Contains(x.Id))
+            .Select(x => new
+            {
+                x.Id,
+                Label = !string.IsNullOrWhiteSpace(x.DisplayName)
+                    ? x.DisplayName
+                    : x.Email ?? x.UserName ?? x.Id.ToString()
+            })
+            .ToDictionaryAsync(x => x.Id, x => x.Label, cancellationToken);
     }
 
     [HttpPut("{id:guid}")]
