@@ -147,6 +147,14 @@ export default async function ServiceHandoverDetailPage({
           </SecondaryLink>
         </div>
         <ServiceHandoverActions handoverId={handover.id} canComplete={isDraft} canCancel={isDraft} />
+        {!isCompleted ? (
+          <div className="mt-3 rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-900/40 dark:bg-amber-950/40 dark:text-amber-100">
+            <span className="font-semibold">Invoicing is locked while this handover is a draft.</span>{" "}
+            Press <span className="font-semibold">Complete</span> above to confirm the customer has taken
+            delivery, then the invoice lines below become editable. Nothing here is broken - the fields are
+            deliberately read-only until then.
+          </div>
+        ) : null}
         <div className="mt-3">
           <ServiceHandoverConvertInvoiceForm
             handoverId={handover.id}
