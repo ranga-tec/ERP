@@ -1,0 +1,151 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>neuedge Visual Email Template</title>
+  <style>
+    body {
+      margin: 0;
+      background: #edf1f7;
+      color: #172033;
+      font-family: Arial, Helvetica, sans-serif;
+      line-height: 1.5;
+    }
+
+    .email {
+      width: min(760px, calc(100% - 28px));
+      margin: 24px auto;
+      background: #ffffff;
+      border: 1px solid #d8deea;
+      border-radius: 10px;
+      overflow: hidden;
+    }
+
+    .hero {
+      padding: 36px 36px 24px;
+      background: #f8fbff;
+    }
+
+    .hero img {
+      display: block;
+      width: 100%;
+      border-radius: 10px;
+      border: 1px solid #d8deea;
+      margin-top: 24px;
+    }
+
+    .eyebrow {
+      margin: 0 0 10px;
+      color: #16805d;
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 34px;
+      line-height: 1.1;
+      letter-spacing: 0;
+    }
+
+    .lead {
+      margin: 16px 0 0;
+      color: #5b667a;
+      font-size: 17px;
+    }
+
+    .body {
+      padding: 30px 36px;
+    }
+
+    .modules {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin: 20px 0;
+    }
+
+    .modules div {
+      padding: 14px;
+      border: 1px solid #d8deea;
+      border-radius: 8px;
+      background: #f8fafc;
+      font-size: 14px;
+      color: #5b667a;
+    }
+
+    .modules strong {
+      display: block;
+      color: #172033;
+      margin-bottom: 4px;
+    }
+
+    .screenshot {
+      display: block;
+      width: 100%;
+      border: 1px solid #d8deea;
+      border-radius: 10px;
+      margin: 22px 0;
+    }
+
+    .cta {
+      display: inline-block;
+      padding: 13px 18px;
+      border-radius: 7px;
+      background: #1f5eff;
+      color: #ffffff;
+      font-weight: 700;
+      text-decoration: none;
+    }
+
+    .footer {
+      padding: 22px 36px;
+      background: #172033;
+      color: #dbe4f2;
+      font-size: 14px;
+    }
+
+    @media (max-width: 620px) {
+      .modules {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="email">
+    <section class="hero">
+      <p class="eyebrow">Complete ERP and Service Management</p>
+      <h1>Replace spreadsheets with one connected ERP system.</h1>
+      <p class="lead">neuedge helps businesses manage procurement, inventory, sales, service jobs, finance, reporting, user access, and audit logs in one web-based platform.</p>
+      <img src="assets/generated-visuals/erp-operations-hero.svg" alt="ERP operations visual">
+    </section>
+
+    <section class="body">
+      <p>Hi [Contact Name],</p>
+      <p>If your team is still managing purchase orders, stock, service jobs, invoices, payments, and reports through Excel or disconnected records, neuedge can help bring those workflows into one controlled system.</p>
+
+      <div class="modules">
+        <div><strong>Procurement</strong>PR, RFQ, PO, GRN, direct purchase, supplier invoices, and returns.</div>
+        <div><strong>Inventory</strong>Warehouse/bin stock, adjustments, transfers, reorder, batch, serial, and ledger.</div>
+        <div><strong>Sales</strong>Quotes, orders, dispatches, direct dispatches, invoices, and customer returns.</div>
+        <div><strong>Service</strong>Jobs, estimates, work orders, materials, QC, handovers, expenses, and costing.</div>
+        <div><strong>Finance</strong>AR/AP, payments, allocations, petty cash, credit/debit notes, and settlements.</div>
+        <div><strong>Control</strong>Dashboards, reports, permissions, approvals, and audit logs.</div>
+      </div>
+
+      <img class="screenshot" src="assets/screenshots/dashboard.png" alt="neuedge dashboard screenshot">
+
+      <p>Would you be available for a short demo this week?</p>
+      <a class="cta" href="[Demo Link]">Book a Demo</a>
+    </section>
+
+    <footer class="footer">
+      [Your Name] | [Phone Number] | [Email]
+    </footer>
+  </main>
+</body>
+</html>

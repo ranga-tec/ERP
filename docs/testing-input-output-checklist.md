@@ -81,7 +81,7 @@ Expected:
 | Cleanup response | Same page | Success message after each button |
 | Inventory reset | `Inventory -> Inventory Availability`, click `Load inventory` | No inventory rows |
 | PO/GRN reset | `Procurement -> Purchase Orders`, `Procurement -> Goods Receipts` | No old test PO/GRN documents, unless the database has unrelated retained data |
-| Service reset | `Service -> Jobs`, `Finance -> Petty Cash IOUs` | No old test jobs, daily sheets, job-linked IOUs, service expenses, MRNs, material dispositions, work orders, QC, or handovers |
+| Service reset | `Service -> Job Orders`, `Finance -> Petty Cash IOUs` | No old test jobs, daily sheets, job-linked IOUs, service expenses, MRNs, material dispositions, work orders, QC, or handovers |
 
 Do not use cleanup buttons on real production data.
 
@@ -146,12 +146,12 @@ Create these records before creating items.
 | `Master Data -> Item Categories` | Equipment | Name | `Equipment` |
 | `Master Data -> Item Categories` | Sundries / lubricants | Code | `SUNDRIES` |
 | `Master Data -> Item Categories` | Sundries / lubricants | Name | `Sundries / Grease / Lubricants` |
-| `Master Data -> Item Subcategories` | Filters | Category | `SPARES` |
-| `Master Data -> Item Subcategories` | Filters | Code | `FILTERS` |
-| `Master Data -> Item Subcategories` | Filters | Name | `Filters` |
-| `Master Data -> Item Subcategories` | Control boards | Category | `SPARES` |
-| `Master Data -> Item Subcategories` | Control boards | Code | `BOARDS` |
-| `Master Data -> Item Subcategories` | Control boards | Name | `Control Boards` |
+| `Master Data -> Item Categories` | Filters | Category | `SPARES` |
+| `Master Data -> Item Categories` | Filters | Code | `FILTERS` |
+| `Master Data -> Item Categories` | Filters | Name | `Filters` |
+| `Master Data -> Item Categories` | Control boards | Category | `SPARES` |
+| `Master Data -> Item Categories` | Control boards | Code | `BOARDS` |
+| `Master Data -> Item Categories` | Control boards | Name | `Control Boards` |
 
 Expected:
 
@@ -341,7 +341,7 @@ Expected:
 | GRN 1 stock movement | `Inventory -> Inventory Availability`, filter item `SKU-CORE` | `SKU-CORE` on hand `8` in `MAIN`, bin `Unassigned` |
 | Batch stock | `Inventory -> Inventory Availability`, search `LOT-A` | `SKU-BATCH`, batch `LOT-A`, on hand `4` |
 | Serial stock | `Inventory -> Inventory Availability`, search `SER-001` | `SKU-SERIAL`, serial `SER-001`, on hand `1` |
-| AP entry | `Finance -> AP` | GRN/AP outstanding includes `8 x 5 + 4 x 8 + 1 x 25 = 97` |
+| AP entry | `Finance -> Accounts Payable` | GRN/AP outstanding includes `8 x 5 + 4 x 8 + 1 x 25 = 97` |
 | Costing | `Reporting -> Costing`, item `SKU-CORE` | On hand `8`, weighted avg cost `5`, value `40` |
 
 ### 3.3 GRN 2 - Remaining Receipt
@@ -371,7 +371,7 @@ Expected:
 | Total `SKU-CORE` stock | `Inventory -> On Hand`, item `SKU-CORE`, warehouse `MAIN` | `20` |
 | Total batch stock | `Inventory -> Inventory Availability`, search `LOT-A` | `SKU-BATCH`, batch `LOT-A`, on hand `10` |
 | Serial stock | `Inventory -> Inventory Availability`, search `SER-001` and `SER-002` | both serials available with on hand `1` each |
-| AP total from two GRNs | `Finance -> AP` | GRN entries total `230` before payment/invoice allocation |
+| AP total from two GRNs | `Finance -> Accounts Payable` | GRN entries total `230` before payment/invoice allocation |
 | PO remaining receipt | Create another GRN from same PO | no remaining quantity should be available for the fully received lines |
 
 ### 3.4 Negative GRN Validation
@@ -472,7 +472,7 @@ Expected:
 
 ### 6.1 Direct Dispatch
 
-Go to `Sales -> Direct Dispatches`.
+Go to `Sales -> AOD`.
 
 Create:
 
@@ -501,7 +501,7 @@ Expected:
 
 ### 6.2 Sales Invoice
 
-Go to `Sales -> Invoices`.
+Go to `Sales -> Final Invoices`.
 
 Create invoice:
 
@@ -522,7 +522,7 @@ Expected:
 | Check | Where | Expected output |
 | --- | --- | --- |
 | Invoice total | Invoice detail | `42` |
-| AR entry | `Finance -> AR` | Customer `CUS1`, amount `42`, outstanding `42` |
+| AR entry | `Finance -> Accounts Receivable` | Customer `CUS1`, amount `42`, outstanding `42` |
 | Inventory | `Inventory -> On Hand` | unchanged from dispatch; invoice should not issue stock again |
 
 ## 7. Customer Return
@@ -552,7 +552,7 @@ Expected:
 | --- | --- | --- |
 | Return status | Customer return detail | `Posted` |
 | MAIN stock | `Inventory -> On Hand`, `MAIN` + `SKU-CORE` | `10` |
-| Customer credit note | `Finance -> Credit Notes` | Credit note for `CUS1`, amount `7` |
+| Customer credit note | `Finance -> A/R Credit Notes` | Credit note for `CUS1`, amount `7` |
 
 ## 8. Supplier Return
 
@@ -580,7 +580,7 @@ Expected:
 | --- | --- | --- |
 | Supplier return status | Detail page | `Posted` |
 | MAIN stock | `Inventory -> On Hand`, `MAIN` + `SKU-CORE` | `8` |
-| Supplier credit note | `Finance -> Credit Notes` | Credit note for `SUP1`, amount `10` |
+| Supplier credit note | `Finance -> A/P Credit Notes` | Credit note for `SUP1`, amount `10` |
 
 ## 9. Stock Adjustment
 
@@ -646,7 +646,7 @@ Create equipment unit:
 | Customer | `CUS1` |
 | Warranty coverage | `Labor and Parts` |
 
-Go to `Service -> Jobs`.
+Go to `Service -> Job Orders`.
 
 Create job:
 
@@ -814,7 +814,7 @@ Daily sheet relationship test:
 
 ### 10.2 MRN Available Stock Validation
 
-Go to `Service -> Material Requisitions`.
+Go to `Service -> MRN`.
 
 Create MRN:
 
@@ -953,7 +953,7 @@ Create:
 
 Go to `Service -> Job Sheets / Work Orders`.
 
-Create a job sheet / work order for the job. The create form is at the top of the `Job Sheets / Work Orders` page.
+Create a job sheet / work order for the job. Click `+ New Job Sheet` above the list; the create form opens in a modal dialog over the register.
 
 Go back to the job detail, open the `Daily Work` tab, click the `Labor` link on the `JDS...` daily sheet row or open the `Staff / Labor` sub-tab, and add the daily technician assignment.
 
@@ -1172,7 +1172,7 @@ Expected:
 | Check | Where | Expected output |
 | --- | --- | --- |
 | Service taken status | service taken detail | `Completed` |
-| Sales invoice | service taken detail / `Sales -> Invoices` | invoice created and linked |
+| Sales invoice | service taken detail / `Sales -> Final Invoices` | invoice created and linked |
 | Job costing | Job detail, `Costs` tab | Invoice value appears in costing summary |
 | Invoice trail | Job detail, `Billing` tab -> `Quotations & Final Invoices` | linked invoice appears in the invoice table |
 | Job status | Job detail | status becomes `Invoiced` after service taken conversion |
@@ -1285,7 +1285,7 @@ After the job is closed, review the same job from each tab and confirm no data w
 
 ### Customer Payment
 
-Go to `Finance -> Payments`.
+Go to `Finance -> Payment Receipts`.
 
 Create incoming payment:
 
@@ -1304,7 +1304,7 @@ Expected:
 | Check | Where | Expected output |
 | --- | --- | --- |
 | Payment detail | Payment detail | Allocated `42`, remaining `0` |
-| AR | `Finance -> AR`, outstanding only | Invoice no longer outstanding |
+| AR | `Finance -> Accounts Receivable`, outstanding only | Invoice no longer outstanding |
 | Invoice status | Invoice detail | `Paid` if fully allocated |
 
 ### Supplier Payment
@@ -1326,7 +1326,7 @@ Expected:
 | Check | Where | Expected output |
 | --- | --- | --- |
 | Payment detail | Payment detail | Allocated up to `230`, remaining `0` if all AP entries selected |
-| AP | `Finance -> AP`, outstanding only | GRN/AP entries no longer outstanding |
+| AP | `Finance -> Accounts Payable`, outstanding only | GRN/AP entries no longer outstanding |
 
 ## 13. Reporting Checks
 
@@ -1421,8 +1421,8 @@ After all sections above:
 | `SKU-SERIAL` stock | Availability search `SER-001` | consumed/unavailable |
 | `SKU-SERIAL` stock | Availability search `SER-002` | available `1` |
 | Inventory value for `SKU-CORE` | `Reporting -> Costing` | `13 x 5 = 65` after unused service material return |
-| Customer AR | `Finance -> AR` | sales invoice cleared if payment allocated |
-| Supplier AP | `Finance -> AP` | GRN/AP entries cleared if payment allocated |
+| Customer AR | `Finance -> Accounts Receivable` | sales invoice cleared if payment allocated |
+| Supplier AP | `Finance -> Accounts Payable` | GRN/AP entries cleared if payment allocated |
 | Service job costing | Job detail, `Costs` tab | material issue `35`, labor cost `20`, expense `5`, material dispositions clear, plus invoice/estimate values from service flow |
 
 ## 16. Common Failures And Where To Look

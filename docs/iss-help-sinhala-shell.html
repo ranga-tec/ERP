@@ -1,0 +1,816 @@
+<!DOCTYPE html>
+<html lang="si">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>neuedge - සම්පූර්ණ උපකාරක මාර්ගෝපදේශය</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Sinhala:wght@300;400;500;600;700&family=Noto+Serif+Sinhala:wght@400;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --navy:#1a2740;--accent:#2878c8;--accent-lt:#e8f3fc;--accent-mid:#5a9fd4;
+  --green:#1e8c45;--green-lt:#e8f7ee;--amber-lt:#fff4e0;
+  --body:#1f2d3d;--muted:#5a6a7e;--border:#dde5ef;--surface:#fff;--bg:#f4f7fb;
+  --radius:8px;--shadow:0 2px 10px rgba(26,39,64,.08);--sw:272px
+}
+body{font-family:'Noto Sans Sinhala','Inter',sans-serif;background:var(--bg);color:var(--body);font-size:15px;line-height:1.85;display:flex;min-height:100vh}
+#sb{width:var(--sw);background:var(--navy);color:#b8ccde;position:fixed;top:0;left:0;bottom:0;overflow-y:auto;z-index:200;display:flex;flex-direction:column}
+#sb::-webkit-scrollbar{width:3px}#sb::-webkit-scrollbar-thumb{background:#3a5070;border-radius:3px}
+.sb-head{padding:22px 18px 16px;border-bottom:1px solid #2a3f5e}
+.sb-brand{font-family:'Inter',sans-serif;font-size:10px;font-weight:700;letter-spacing:2.5px;text-transform:uppercase;color:var(--accent-mid);margin-bottom:5px}
+.sb-title{font-family:'Noto Serif Sinhala',serif;font-size:13px;color:#d8e8f4;line-height:1.5}
+.sb-nav{padding:10px 0 24px}
+.sb-group{font-family:'Inter',sans-serif;font-size:9px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:#3a5878;padding:14px 18px 4px}
+.sb-item{display:flex;align-items:flex-start;gap:9px;padding:6px 18px;color:#b8ccde;text-decoration:none;font-size:12.5px;line-height:1.5;transition:.15s}
+.sb-item:hover{background:#243350;color:#fff}
+.sb-item.active{background:rgba(88,159,212,.16);color:var(--accent-mid);font-weight:600;border-left:3px solid var(--accent-mid);padding-left:15px}
+.sb-num{font-family:'Inter',sans-serif;font-size:10px;font-weight:800;color:var(--accent-mid);min-width:20px;opacity:.75;padding-top:2px;flex-shrink:0}
+#hero{margin-left:var(--sw);background:var(--navy);color:#fff;padding:36px 52px 32px;position:relative;overflow:hidden}
+#hero::after{content:'';position:absolute;inset:0;background:linear-gradient(120deg,transparent 55%,rgba(88,159,212,.12) 100%);pointer-events:none}
+.hero-ey{font-family:'Inter',sans-serif;font-size:10px;font-weight:700;letter-spacing:2.5px;text-transform:uppercase;color:var(--accent-mid);margin-bottom:10px}
+#hero h1{font-family:'Noto Serif Sinhala',serif;font-size:26px;font-weight:700;color:#fff;line-height:1.4;margin-bottom:10px}
+#hero p{font-size:13.5px;color:#8aafc8;max-width:580px;line-height:1.7}
+.h-pills{display:flex;gap:16px;margin-top:18px;flex-wrap:wrap}
+.h-pill{font-family:'Inter',sans-serif;font-size:11px;color:#8aafc8;display:flex;align-items:center;gap:5px}
+.h-pill b{color:var(--accent-mid)}
+#main{margin-left:var(--sw);flex:1;padding:44px 52px 80px;max-width:960px}
+.sec{margin-bottom:52px;scroll-margin-top:20px}
+.sec-hd{display:flex;align-items:flex-start;gap:14px;margin-bottom:22px;padding-bottom:14px;border-bottom:2px solid var(--border)}
+.sec-num{font-family:'Inter',sans-serif;font-size:10.5px;font-weight:800;color:var(--accent);background:var(--accent-lt);border:1.5px solid #b0d0ee;border-radius:5px;padding:3px 9px;white-space:nowrap;margin-top:4px}
+.sec h2{font-family:'Noto Serif Sinhala',serif;font-size:21px;font-weight:700;color:var(--navy);line-height:1.4}
+.sec h3{font-family:'Noto Sans Sinhala',sans-serif;font-size:15px;font-weight:600;color:var(--accent);margin:26px 0 12px;padding-left:11px;border-left:3px solid var(--accent-mid)}
+.sec p{margin-bottom:12px}
+.sec ul,.sec ol{margin:8px 0 16px 20px}
+.sec li{margin-bottom:5px;line-height:1.75}
+.shot-wrap{margin:18px 0 22px;border-radius:var(--radius);overflow:hidden;border:1px solid var(--border);box-shadow:var(--shadow)}
+.shot-wrap img{width:100%;display:block}
+.shot-cap{background:#f0f4f9;border-top:1px solid var(--border);padding:7px 13px;font-family:'Inter',sans-serif;font-size:11px;color:var(--muted);font-style:italic}
+.cards{display:flex;flex-direction:column;gap:12px;margin:14px 0 18px}
+.card{border-radius:var(--radius);overflow:hidden}
+.card-lbl{font-family:'Inter',sans-serif;font-size:10px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;padding:7px 14px;display:flex;align-items:center;gap:5px}
+.card-body{padding:13px 16px;font-size:14px;line-height:1.75}
+.card-body ul{margin-left:16px}.card-body li{margin-bottom:4px}
+.c-in .card-lbl{background:#d4930a;color:#fff}.c-in .card-body{background:var(--amber-lt);border:1px solid #f0d090;border-top:none}
+.c-out .card-lbl{background:var(--accent);color:#fff}.c-out .card-body{background:var(--accent-lt);border:1px solid #b8d8ef;border-top:none}
+.c-chk .card-lbl{background:var(--green);color:#fff}.c-chk .card-body{background:var(--green-lt);border:1px solid #b0e0c0;border-top:none}
+.tbl-wrap{overflow-x:auto;margin:12px 0 18px;border-radius:var(--radius);box-shadow:var(--shadow)}
+table{width:100%;border-collapse:collapse;font-size:13.5px;background:var(--surface)}
+thead tr{background:var(--navy)}
+thead th{color:#fff;font-family:'Inter',sans-serif;font-size:11px;font-weight:600;letter-spacing:.4px;padding:11px 15px;text-align:left}
+tbody tr{border-bottom:1px solid var(--border)}
+tbody tr:nth-child(even){background:#f8fafc}
+tbody tr:last-child{border-bottom:none}
+td{padding:9px 15px;vertical-align:top;line-height:1.6}
+code{font-family:'Courier New',monospace;background:#edf1f7;color:var(--accent);padding:1px 6px;border-radius:4px;font-size:12px;border:1px solid #d0dcea}
+.flow{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:18px 22px;margin:14px 0 18px;box-shadow:var(--shadow)}
+.flow ol{list-style:none;counter-reset:fl}
+.flow li{counter-increment:fl;display:flex;align-items:flex-start;gap:12px;padding:7px 0;border-bottom:1px solid var(--border)}
+.flow li:last-child{border-bottom:none}
+.flow li::before{content:counter(fl);font-family:'Inter',sans-serif;font-size:10.5px;font-weight:800;background:var(--accent);color:#fff;min-width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;margin-top:3px;flex-shrink:0}
+.rulebox{background:#fffbf0;border:1px solid #f0d090;border-left:4px solid #d4930a;border-radius:var(--radius);padding:14px 18px;margin:14px 0;font-size:14px}
+.rulebox strong{display:block;font-family:'Inter',sans-serif;font-size:9.5px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:#9a6000;margin-bottom:8px}
+.rulebox ul{margin-left:16px}.rulebox li{margin-bottom:4px}
+.setup-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:9px;margin:14px 0}
+.setup-item{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:11px 15px;display:flex;align-items:center;gap:11px;box-shadow:var(--shadow)}
+.setup-n{font-family:'Inter',sans-serif;font-size:18px;font-weight:800;color:var(--accent);opacity:.25;min-width:24px}
+.setup-t{font-size:12.5px;line-height:1.4}
+.badge{display:inline-block;font-family:'Inter',sans-serif;font-size:11px;font-weight:600;padding:2px 8px;border-radius:20px}
+.b-draft{background:#eee;color:#555}.b-sub{background:#fff3cd;color:#7a5500}.b-app{background:#d4edda;color:#155724}.b-rej{background:#f8d7da;color:#721c24}
+.diff-tbl thead tr{background:#2c3e50}
+.cl-grid{display:grid;gap:1px;background:var(--border);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;box-shadow:var(--shadow);margin:12px 0}
+.cl-row{display:grid;grid-template-columns:1fr 1.4fr;gap:1px}
+.cl-row.hd{background:var(--navy)}.cl-row.hd .cl-cell{background:var(--navy);color:#fff;font-family:'Inter',sans-serif;font-size:11px;font-weight:700}
+.cl-cell{background:var(--surface);padding:9px 15px;font-size:13.5px;line-height:1.6}
+.cl-row:nth-child(even) .cl-cell{background:#f8fafc}
+.script{background:var(--navy);border-radius:var(--radius);padding:22px 26px;margin:14px 0}
+.script ol{margin-left:18px}.script li{margin-bottom:10px;color:#c8dcea;line-height:1.65}
+.script li b{color:var(--accent-mid)}
+.imp{background:var(--accent-lt);border:1px solid #b8d8ef;border-left:4px solid var(--accent);border-radius:var(--radius);padding:16px 20px;margin-bottom:20px;font-size:14px}
+.btt{position:fixed;bottom:28px;right:28px;background:var(--accent);color:#fff;border:none;border-radius:50%;width:42px;height:42px;cursor:pointer;box-shadow:0 4px 14px rgba(40,120,200,.3);font-size:17px;display:flex;align-items:center;justify-content:center;text-decoration:none;transition:.2s}
+.btt:hover{background:var(--navy);transform:translateY(-2px)}
+@media(max-width:768px){#sb{transform:translateX(-100%)}#main,#hero{margin-left:0;padding:22px 18px}}
+</style>
+</head>
+<body>
+<nav id="sb">
+  <div class="sb-head">
+    <div class="sb-brand">neuedge</div>
+    <div class="sb-title">සම්පූර්ණ උපකාරක මාර්ගෝපදේශය</div>
+  </div>
+  <div class="sb-nav">
+    <div class="sb-group">පළමු පියවර</div>
+    <a href="#s1" class="sb-item"><span class="sb-num">01</span>Login සහ Screen Layout</a>
+    <a href="#s2" class="sb-item"><span class="sb-num">02</span>Main Menu සිතියම</a>
+    <a href="#s3" class="sb-item"><span class="sb-num">03</span>Master Data සැකසීම</a>
+    <div class="sb-group">ගනුදෙනු</div>
+    <a href="#s4" class="sb-item"><span class="sb-num">04</span>Procurement</a>
+    <a href="#s5" class="sb-item"><span class="sb-num">05</span>Inventory</a>
+    <a href="#s6" class="sb-item"><span class="sb-num">06</span>Sales</a>
+    <a href="#s7" class="sb-item"><span class="sb-num">07</span>Finance</a>
+    <a href="#s8" class="sb-item"><span class="sb-num">08</span>Service</a>
+    <div class="sb-group">කළමනාකරණය</div>
+    <a href="#s9" class="sb-item"><span class="sb-num">09</span>Reporting</a>
+    <a href="#s10" class="sb-item"><span class="sb-num">10</span>Admin, Users, Notifications</a>
+    <a href="#s11" class="sb-item"><span class="sb-num">11</span>Audit Logs</a>
+    <div class="sb-group">පුහුණු අභ්‍යාස</div>
+    <a href="#s12" class="sb-item"><span class="sb-num">12</span>නිදර්ශනය: ගැනුම් &rarr; ගෙවීම</a>
+    <a href="#s13" class="sb-item"><span class="sb-num">13</span>නිදර්ශනය: Service Job</a>
+    <a href="#s14" class="sb-item"><span class="sb-num">14</span>Testing Checklist</a>
+    <a href="#s15" class="sb-item"><span class="sb-num">15</span>සාමාන්‍ය වැරදි</a>
+    <a href="#s16" class="sb-item"><span class="sb-num">16</span>Trainer Script</a>
+  </div>
+</nav>
+<div id="hero">
+  <div class="hero-ey">neuedge &bull; පරිශීලක අත්පොත</div>
+  <h1>සම්පූර්ණ උපකාරක මාර්ගෝපදේශය</h1>
+  <p>නව පරිශීලකයෙකුට, Tester කෙනෙකුට, හෝ Trainer කෙනෙකුට. neuedge පද්ධතිය කොටස් 16 ක් ඔස්සේ ප්‍රායෝගිකව පැහැදිලි කෙරේ.</p>
+  <div class="h-pills">
+    <div class="h-pill">📋 <b>16</b> කොටස්</div>
+    <div class="h-pill">🖼️ <b>16</b> screenshots</div>
+    <div class="h-pill">🎓 නව පරිශීලකයන් &amp; Trainers සඳහා</div>
+  </div>
+</div>
+<main id="main">
+
+<section class="sec" id="s1">
+  <div class="sec-hd"><span class="sec-num">01</span><h2>Login සහ Screen Layout</h2></div>
+  <div class="shot-wrap"><img id="img-login-page" alt="Login Page"><div class="shot-cap">Login Page</div></div>
+  <p>පද්ධතිය විවෘත කර sign in කරන්න.</p>
+  <div class="cards">
+    <div class="card c-in"><div class="card-lbl">📝 ඇතුළු කළ යුත්තේ</div><div class="card-body">
+      <div class="tbl-wrap"><table><thead><tr><th>Field</th><th>ඇතුළු කළ යුතු දේ</th></tr></thead><tbody>
+        <tr><td>Email</td><td>ඔබගේ user email</td></tr>
+        <tr><td>Password</td><td>ඔබගේ password</td></tr>
+      </tbody></table></div>
+    </div></div>
+    <div class="card c-out"><div class="card-lbl">📤 Output</div><div class="card-body"><ul>
+      <li>Dashboard විවෘත වේ.</li>
+      <li>Left sidebar හි ඔබට ප්‍රවේශ විය හැකි modules පමණක් දිස් වේ.</li>
+      <li>Top bar හි sign-in user name සහ notification bell දිස් වේ.</li>
+    </ul></div></div>
+    <div class="card c-chk"><div class="card-lbl">✅ පරීක්ෂා කළ යුතු දේ</div><div class="card-body"><ul>
+      <li>Sidebar හි අපේක්ෂිත modules දිස් වේ.</li>
+      <li>Notification bell දෘශ්‍යමාන ය.</li>
+      <li>Menu එකක් නොමැති නම් <code>Admin → Users → Access permissions</code> Admin ගෙන් check කිරීමට ඉල්ලන්න.</li>
+    </ul></div></div>
+  </div>
+</section>
+
+<section class="sec" id="s2">
+  <div class="sec-hd"><span class="sec-num">02</span><h2>Main Menu සිතියම</h2></div>
+  <div class="shot-wrap"><img id="img-dashboard" alt="Dashboard"><div class="shot-cap">Dashboard</div></div>
+  <div class="tbl-wrap"><table><thead><tr><th>Menu</th><th>භාවිතය</th></tr></thead><tbody>
+    <tr><td>Overview</td><td>Dashboard සහ ව්‍යාපාර සාරාංශය</td></tr>
+    <tr><td>Master Data</td><td>Items, customers, suppliers, currencies, warehouses, taxes ආදී setup data</td></tr>
+    <tr><td>Procurement</td><td>Purchase requisitions, RFQs, purchase orders, receipts, supplier invoices, supplier returns</td></tr>
+    <tr><td>Sales</td><td>Quotes, orders, dispatches, direct dispatches, invoices, customer returns</td></tr>
+    <tr><td>Service</td><td>Equipment, service jobs, daily sheets, work orders, estimates, handovers</td></tr>
+    <tr><td>Inventory</td><td>On-hand stock, availability, reorder alerts, stock adjustments, stock transfers</td></tr>
+    <tr><td>Finance</td><td>AR, AP, payments, petty cash, IOUs, credit notes, debit notes</td></tr>
+    <tr><td>Reporting</td><td>Stock, aging, tax, service, sales, purchase, supplier, costing reports</td></tr>
+    <tr><td>Admin</td><td>Users, notifications, imports, settings</td></tr>
+    <tr><td>Audit Logs</td><td>User actions සහ system changes ගේ ඉතිහාසය</td></tr>
+  </tbody></table></div>
+  <div class="rulebox"><strong>⚙️ පොදු රීතිය</strong><ul>
+    <li>ලේඛනයක් සෑදීමට <code>Create</code> හෝ <code>New</code> භාවිත කරන්න.</li>
+    <li>Draft ලෙස ඇති විට පමණක් <code>Edit</code> භාවිත කරන්න.</li>
+    <li>සූදානම් වූ විට <code>Post</code>, <code>Approve</code>, <code>Confirm</code>, හෝ <code>Send</code> භාවිත කරන්න.</li>
+    <li>Post කිරීමෙන් පසු: stock, AR, AP, report, notification, හෝ PDF check කරන්න.</li>
+  </ul></div>
+</section>
+
+<section class="sec" id="s3">
+  <div class="sec-hd"><span class="sec-num">03</span><h2>Master Data සැකසීම</h2></div>
+  <div class="shot-wrap"><img id="img-master-data-currencies" alt="Master Data: Currencies"><div class="shot-cap">Master Data: Currencies</div></div>
+  <p>Transactions ඇතුළු කිරීමට පෙර Master Data නිවැරදිව සකස් කළ යුතුය.</p>
+  <div class="setup-grid">
+    <div class="setup-item"><span class="setup-n">1</span><span class="setup-t">Companies, currencies, exchange rates</span></div>
+    <div class="setup-item"><span class="setup-n">2</span><span class="setup-t">Taxes සහ tax conversions</span></div>
+    <div class="setup-item"><span class="setup-n">3</span><span class="setup-t">Payment types</span></div>
+    <div class="setup-item"><span class="setup-n">4</span><span class="setup-t">Warehouses සහ bins/racks</span></div>
+    <div class="setup-item"><span class="setup-n">5</span><span class="setup-t">UoMs සහ unit conversions</span></div>
+    <div class="setup-item"><span class="setup-n">6</span><span class="setup-t">Item categories සහ brands</span></div>
+    <div class="setup-item"><span class="setup-n">7</span><span class="setup-t">Items</span></div>
+    <div class="setup-item"><span class="setup-n">8</span><span class="setup-t">Suppliers සහ customers</span></div>
+    <div class="setup-item"><span class="setup-n">9</span><span class="setup-t">Reorder settings</span></div>
+  </div>
+  <h3>3.1 Currencies</h3>
+  <div class="cards">
+    <div class="card c-in"><div class="card-lbl">📝 ඇතුළු කළ යුත්තේ</div><div class="card-body"><div class="tbl-wrap"><table><thead><tr><th>Field</th><th>උදාහරණය</th></tr></thead><tbody>
+      <tr><td>Code</td><td><code>LKR</code>, <code>USD</code></td></tr>
+      <tr><td>Name</td><td><code>Sri Lankan Rupee</code></td></tr>
+      <tr><td>Symbol</td><td><code>Rs.</code></td></tr>
+      <tr><td>Minor units</td><td><code>2</code></td></tr>
+      <tr><td>Base currency</td><td>ප්‍රධාන company currency සඳහා tick කරන්න</td></tr>
+    </tbody></table></div></div></div>
+    <div class="card c-out"><div class="card-lbl">📤 Output</div><div class="card-body"><ul>
+      <li>Currency list හි දිස් වේ. Payment, invoice, reporting screens භාවිත කළ හැකිය.</li>
+    </ul></div></div>
+    <div class="card c-chk"><div class="card-lbl">✅ පරීක්ෂා කළ යුතු දේ</div><div class="card-body"><ul>
+      <li>Base currency එකක් පමණක් active. විදේශ currency නම් exchange rate ඇතිව යුතුය.</li>
+    </ul></div></div>
+  </div>
+  <h3>3.2 Items</h3>
+  <div class="cards">
+    <div class="card c-in"><div class="card-lbl">📝 ඇතුළු කළ යුත්තේ</div><div class="card-body"><div class="tbl-wrap"><table><thead><tr><th>Field</th><th>උදාහරණය</th></tr></thead><tbody>
+      <tr><td>SKU</td><td><code>HF-001</code></td></tr>
+      <tr><td>Name</td><td><code>Hydraulic Filter</code></td></tr>
+      <tr><td>Type</td><td>Stock, Service, Equipment, හෝ Expense</td></tr>
+      <tr><td>Unit of measure</td><td><code>PCS</code></td></tr>
+      <tr><td>Default unit cost</td><td><code>2500.00</code></td></tr>
+      <tr><td>Tracking type</td><td>None, Batch, Serial, හෝ Batch + Serial</td></tr>
+    </tbody></table></div></div></div>
+    <div class="card c-chk"><div class="card-lbl">✅ පරීක්ෂා කළ යුතු දේ</div><div class="card-body"><ul>
+      <li>Transactions ට පෙර stock items නිවැරදි tracking type ලෙස set කළ යුතුය.</li>
+      <li>Serial machine ඇති නම් equipment items serial tracking.</li>
+    </ul></div></div>
+  </div>
+  <h3>3.3 Customers සහ Suppliers</h3>
+  <div class="cards">
+    <div class="card c-in"><div class="card-lbl">📝 ඇතුළු කළ යුත්තේ</div><div class="card-body"><div class="tbl-wrap"><table><thead><tr><th>Field</th><th>Customer</th><th>Supplier</th></tr></thead><tbody>
+      <tr><td>Code</td><td><code>CUS001</code></td><td><code>SUP001</code></td></tr>
+      <tr><td>Name</td><td><code>ABC Customer</code></td><td><code>Main Supplier</code></td></tr>
+      <tr><td>Email/phone/address</td><td>නිර්දේශිතයි</td><td>නිර්දේශිතයි</td></tr>
+    </tbody></table></div></div></div>
+    <div class="card c-chk"><div class="card-lbl">✅ පරීක්ෂා කළ යුතු දේ</div><div class="card-body"><ul>
+      <li>Codes duplicate නොකළ යුතුය. Inactive, නව transactions සඳහා නොයොදන්න.</li>
+    </ul></div></div>
+  </div>
+</section>
+
+<section class="sec" id="s4">
+  <div class="sec-hd"><span class="sec-num">04</span><h2>Procurement Tutorial</h2></div>
+  <div class="shot-wrap"><img id="img-procurement-purchase-orders" alt="Purchase Orders"><div class="shot-cap">Purchase Orders</div></div>
+  <p>Procurement, ගැනීමේ cycle පාලනය කරයි.</p>
+  <div class="flow"><ol><li>Purchase Requisition</li><li>RFQ</li><li>Purchase Order</li><li>Goods Receipt (GRN)</li><li>Supplier Invoice</li><li>Supplier Payment</li></ol></div>
+  <h3>4.1 Purchase Requisition</h3>
+  <p>Department, ගැනීමට පෙර items ඉල්ලා සිටින විට භාවිත කරන්න.</p>
+  <div class="cards">
+    <div class="card c-in"><div class="card-lbl">📝 ඇතුළු කළ යුත්තේ</div><div class="card-body"><div class="tbl-wrap"><table><thead><tr><th>Field</th><th>උදාහරණය</th></tr></thead><tbody>
+      <tr><td>Required date</td><td>අවශ්‍ය දිනය</td></tr><tr><td>Reason/notes</td><td>ඇයි item ඕනේ</td></tr>
+      <tr><td>Item</td><td><code>Hydraulic Filter</code></td></tr><tr><td>Quantity</td><td><code>10</code></td></tr>
+    </tbody></table></div></div></div>
+    <div class="card c-out"><div class="card-lbl">📤 Output</div><div class="card-body"><ul><li>Draft PR සාදනු ලැබේ. Draft ලෙස lines add/edit කළ හැකිය.</li></ul></div></div>
+    <div class="card c-chk"><div class="card-lbl">✅ පරීක්ෂා කළ යුතු දේ</div><div class="card-body"><ul>
+      <li>Submit, PR approval ට යවයි. <code>Procurement.PurchaseRequisition.Approve</code> permission ඇත්තන්ට notification.</li>
+      <li>Approver, approve/reject කළ හැකිය. Approved PR, PO ලෙස convert.</li>
+    </ul></div></div>
+  </div>
+  <h3>4.2 RFQ</h3>
+  <p>Suppliers ගෙන් මිල ඉල්ලා සිටින විට. RFQ document සාදනු ලැබේ. <code>Send</code> ක්ලික් = sent. RFQ number generate; PDF download ලැබේ.</p>
+  <h3>4.3 Purchase Order</h3>
+  <div class="cards">
+    <div class="card c-in"><div class="card-lbl">📝 ඇතුළු කළ යුත්තේ</div><div class="card-body"><div class="tbl-wrap"><table><thead><tr><th>Field</th><th>උදාහරණය</th></tr></thead><tbody>
+      <tr><td>Supplier</td><td><code>SUP001</code></td></tr><tr><td>Item</td><td><code>Hydraulic Filter</code></td></tr>
+      <tr><td>Quantity</td><td><code>10</code></td></tr><tr><td>Unit cost</td><td><code>2500.00</code></td></tr>
+      <tr><td>Tax</td><td>අදාළ tax</td></tr>
+    </tbody></table></div></div></div>
+    <div class="card c-chk"><div class="card-lbl">✅ පරීක්ෂා කළ යුතු දේ</div><div class="card-body"><ul>
+      <li>PO approve permission ඇත්තන්ට පමණ approve action. Approved PO, GRN සඳහා. Creator ට notification.</li>
+    </ul></div></div>
+  </div>
+  <h3>4.4 Goods Receipt Note (GRN)</h3>
+  <div class="cards">
+    <div class="card c-in"><div class="card-lbl">📝 ඇතුළු කළ යුත්තේ</div><div class="card-body"><div class="tbl-wrap"><table><thead><tr><th>Field</th><th>උදාහරණය</th></tr></thead><tbody>
+      <tr><td>PO</td><td>Approved PO</td></tr><tr><td>Warehouse</td><td><code>MAIN</code></td></tr>
+      <tr><td>Received quantity</td><td><code>10</code></td></tr><tr><td>Cost</td><td>Supplier cost</td></tr>
+      <tr><td>Batch/serial</td><td>Tracked item නම් අවශ්‍ය</td></tr>
+    </tbody></table></div></div></div>
+    <div class="card c-chk"><div class="card-lbl">✅ පරීක්ෂා කළ යුතු දේ</div><div class="card-body"><ul>
+      <li>Inventory on-hand 10 කින් වැඩි විය. AP entry ඇත. Stock ledger receipt movement.</li>
+    </ul></div></div>
+  </div>
+  <h3>4.5 Supplier Invoice</h3>
+  <div class="cards">
+    <div class="card c-in"><div class="card-lbl">📝 ඇතුළු කළ යුත්තේ</div><div class="card-body"><div class="tbl-wrap"><table><thead><tr><th>Field</th><th>උදාහරණය</th></tr></thead><tbody>
+      <tr><td>Supplier</td><td>PO/GRN Supplier</td></tr><tr><td>Source document</td><td>PO, GRN, direct</td></tr>
+      <tr><td>Invoice date</td><td>Supplier invoice date</td></tr><tr><td>Supplier invoice number</td><td>Supplier reference</td></tr>
+    </tbody></table></div></div></div>
+    <div class="card c-chk"><div class="card-lbl">✅ පරීක්ෂා කළ යුතු දේ</div><div class="card-body"><ul><li>Supplier AP balance වැඩිවේ. Invoice PDF ලැබේ.</li></ul></div></div>
+  </div>
+  <h3>4.6 Supplier Return</h3>
+  <div class="cards">
+    <div class="card c-in"><div class="card-lbl">📝 ඇතුළු කළ යුත්තේ</div><div class="card-body"><div class="tbl-wrap"><table><thead><tr><th>Field</th><th>උදාහරණය</th></tr></thead><tbody>
+      <tr><td>Supplier</td><td>Supplier</td></tr><tr><td>Warehouse</td><td>Stock return warehouse</td></tr>
+      <tr><td>Item</td><td>Return item</td></tr><tr><td>Quantity</td><td>Return ප්‍රමාණය</td></tr>
+      <tr><td>Reason</td><td>Damage, wrong item, excess</td></tr>
+    </tbody></table></div></div></div>
+    <div class="card c-chk"><div class="card-lbl">✅ පරීක්ෂා කළ යුතු දේ</div><div class="card-body"><ul><li>Stock අඩු විය. Supplier credit note finance හි.</li></ul></div></div>
+  </div>
+</section>
+
+<section class="sec" id="s5">
+  <div class="sec-hd"><span class="sec-num">05</span><h2>Inventory Tutorial</h2></div>
+  <h3>5.1 Inventory Availability</h3>
+  <div class="cards">
+    <div class="card c-in"><div class="card-lbl">📝 Filter</div><div class="card-body"><div class="tbl-wrap"><table><thead><tr><th>Filter</th><th>උදාහරණය</th></tr></thead><tbody>
+      <tr><td>Warehouse</td><td><code>MAIN</code></td></tr><tr><td>Item</td><td><code>Hydraulic Filter</code></td></tr>
+      <tr><td>Batch/serial</td><td>Optional</td></tr>
+    </tbody></table></div></div></div>
+    <div class="card c-out"><div class="card-lbl">📤 Output</div><div class="card-body"><ul><li>Item, warehouse, bin, batch, serial, quantity, unit cost, value table.</li></ul></div></div>
+    <div class="card c-chk"><div class="card-lbl">✅ පරීක්ෂා කළ යුතු දේ</div><div class="card-body"><ul>
+      <li>GRN හරහා stock; MRN issue/sell stock අඩු; bin නොමැති stock bin-less.</li>
+    </ul></div></div>
+  </div>
+  <h3>5.2 Stock Adjustment</h3>
+  <div class="cards">
+    <div class="card c-in"><div class="card-lbl">📝 ඇතුළු කළ යුත්තේ</div><div class="card-body"><div class="tbl-wrap"><table><thead><tr><th>Field</th><th>උදාහරණය</th></tr></thead><tbody>
+      <tr><td>Warehouse</td><td><code>MAIN</code></td></tr><tr><td>Reason</td><td><code>Monthly stock count</code></td></tr>
+      <tr><td>Item</td><td>Count කළ item</td></tr><tr><td>Counted quantity</td><td>Physical ප්‍රමාණය</td></tr>
+    </tbody></table></div></div></div>
+    <div class="card c-chk"><div class="card-lbl">✅ පරීක්ෂා කළ යුතු දේ</div><div class="card-body"><ul>
+      <li>On-hand = counted quantity. Stock ledger adjustment. Void drafts, stock affect නොකරයි.</li>
+    </ul></div></div>
+  </div>
+  <h3>5.3 Stock Transfer</h3>
+  <div class="cards">
+    <div class="card c-in"><div class="card-lbl">📝 ඇතුළු කළ යුත්තේ</div><div class="card-body"><div class="tbl-wrap"><table><thead><tr><th>Field</th><th>උදාහරණය</th></tr></thead><tbody>
+      <tr><td>From warehouse</td><td><code>MAIN</code></td></tr><tr><td>To warehouse</td><td><code>SERVICE</code></td></tr>
+      <tr><td>Item</td><td>ගෙනයන item</td></tr><tr><td>Move quantity</td><td>Transfer ප්‍රමාණය</td></tr>
+    </tbody></table></div></div></div>
+    <div class="card c-chk"><div class="card-lbl">✅ පරීක්ෂා කළ යුතු දේ</div><div class="card-body"><ul>
+      <li>Source stock අඩු. Destination stock වැඩි. Batch/serial ආරක්ෂා.</li>
+    </ul></div></div>
+  </div>
+</section>
+
+<section class="sec" id="s6">
+  <div class="sec-hd"><span class="sec-num">06</span><h2>Sales Tutorial</h2></div>
+  <div class="flow"><ol><li>Quote</li><li>Sales Order</li><li>Dispatch / Direct Dispatch</li><li>Sales Invoice</li><li>Payment</li><li>Customer Return (අවශ්‍ය නම්)</li></ol></div>
+  <h3>6.1 Sales Quote</h3>
+  <div class="cards">
+    <div class="card c-in"><div class="card-lbl">📝 ඇතුළු කළ යුත්තේ</div><div class="card-body"><div class="tbl-wrap"><table><thead><tr><th>Field</th><th>උදාහරණය</th></tr></thead><tbody>
+      <tr><td>Customer</td><td><code>CUS001</code></td></tr><tr><td>Valid until</td><td>Expiry date</td></tr>
+      <tr><td>Item/service</td><td>Quoted line</td></tr><tr><td>Quantity</td><td><code>4</code></td></tr>
+      <tr><td>Unit price</td><td><code>3500.00</code></td></tr>
+    </tbody></table></div></div></div>
+    <div class="card c-chk"><div class="card-lbl">✅ පරීක්ෂා කළ යුතු දේ</div><div class="card-body"><ul><li>Quote total නිවැරදි. PDF download.</li></ul></div></div>
+  </div>
+  <h3>6.2 Sales Order</h3>
+  <div class="cards">
+    <div class="card c-in"><div class="card-lbl">📝 ඇතුළු කළ යුත්තේ</div><div class="card-body"><div class="tbl-wrap"><table><thead><tr><th>Field</th><th>උදාහරණය</th></tr></thead><tbody>
+      <tr><td>Customer</td><td><code>CUS001</code></td></tr><tr><td>Item</td><td>Sold item</td></tr>
+      <tr><td>Quantity</td><td>Order quantity</td></tr><tr><td>Price</td><td>Sales price</td></tr>
+    </tbody></table></div></div></div>
+    <div class="card c-chk"><div class="card-lbl">✅ පරීක්ෂා කළ යුතු දේ</div><div class="card-body"><ul>
+      <li>Confirmed order, dispatch ට. Confirm rights ඇත්තන්ට confirm action.</li>
+    </ul></div></div>
+  </div>
+  <h3>6.3 Dispatch</h3>
+  <div class="cards">
+    <div class="card c-in"><div class="card-lbl">📝 ඇතුළු කළ යුත්තේ</div><div class="card-body"><div class="tbl-wrap"><table><thead><tr><th>Field</th><th>උදාහරණය</th></tr></thead><tbody>
+      <tr><td>Sales order</td><td>Confirmed order</td></tr><tr><td>Warehouse</td><td>Dispatch warehouse</td></tr>
+      <tr><td>Item</td><td>Dispatch item</td></tr><tr><td>Quantity</td><td>Dispatch quantity</td></tr>
+      <tr><td>Serial/batch</td><td>Tracked නම් අවශ්‍ය</td></tr>
+    </tbody></table></div></div></div>
+    <div class="card c-chk"><div class="card-lbl">✅ පරීක්ෂා කළ යුතු දේ</div><div class="card-body"><ul>
+      <li>Stock අඩු. Serial equipment unit. Dispatch PDF.</li>
+    </ul></div></div>
+  </div>
+  <h3>6.4 Direct Dispatch</h3>
+  <p>Normal order flow නොමැතිව AOD/direct delivery. <code>Customer</code> හෝ <code>Service job</code>, warehouse, item, quantity. Stock movement සහ customer/job link check.</p>
+  <h3>6.5 Sales Invoice</h3>
+  <div class="cards">
+    <div class="card c-in"><div class="card-lbl">📝 ඇතුළු කළ යුත්තේ</div><div class="card-body"><div class="tbl-wrap"><table><thead><tr><th>Field</th><th>උදාහරණය</th></tr></thead><tbody>
+      <tr><td>Customer</td><td><code>CUS001</code></td></tr><tr><td>Source</td><td>Dispatch, direct dispatch, manual</td></tr>
+      <tr><td>Item/line</td><td>Sales line</td></tr><tr><td>Quantity and price</td><td>Invoice quantity සහ price</td></tr>
+    </tbody></table></div></div></div>
+    <div class="card c-chk"><div class="card-lbl">✅ පරීක්ෂා කළ යුතු දේ</div><div class="card-body"><ul>
+      <li>Customer AR balance වැඩිවේ. Invoice PDF. Aging reports හි.</li>
+    </ul></div></div>
+  </div>
+  <h3>6.6 Customer Return</h3>
+  <div class="cards">
+    <div class="card c-in"><div class="card-lbl">📝 ඇතුළු කළ යුත්තේ</div><div class="card-body"><div class="tbl-wrap"><table><thead><tr><th>Field</th><th>උදාහරණය</th></tr></thead><tbody>
+      <tr><td>Customer</td><td>Return customer</td></tr><tr><td>Invoice</td><td>Source invoice (Optional)</td></tr>
+      <tr><td>Item</td><td>Return item</td></tr><tr><td>Quantity</td><td>Return quantity</td></tr>
+      <tr><td>Reason</td><td>Damage, wrong item, warranty</td></tr>
+    </tbody></table></div></div></div>
+    <div class="card c-chk"><div class="card-lbl">✅ පරීක්ෂා කළ යුතු දේ</div><div class="card-body"><ul><li>Stock වැඩිවේ. Customer credit note finance හි.</li></ul></div></div>
+  </div>
+</section>
+
+<section class="sec" id="s7">
+  <div class="sec-hd"><span class="sec-num">07</span><h2>Finance Tutorial</h2></div>
+  <div class="shot-wrap"><img id="img-finance-ar" alt="Accounts Receivable"><div class="shot-cap">Accounts Receivable (AR)</div></div>
+  <div class="shot-wrap"><img id="img-finance-ap" alt="Accounts Payable"><div class="shot-cap">Accounts Payable (AP)</div></div>
+  <h3>7.1 Accounts Receivable (AR)</h3>
+  <p><code>Finance → Accounts Receivable</code> &mdash; Customer invoice balances, outstanding. Posted sales invoices; payments reduce outstanding; credit notes allocate කළ විට reduce.</p>
+  <h3>7.2 Accounts Payable (AP)</h3>
+  <p><code>Finance → Accounts Payable</code> &mdash; Supplier invoice/GRN balances. Posted supplier invoices; supplier payments reduce; credit notes reduce.</p>
+  <h3>7.3 Payments</h3>
+  <div class="cards">
+    <div class="card c-in"><div class="card-lbl">📝 ඇතුළු කළ යුත්තේ</div><div class="card-body"><div class="tbl-wrap"><table><thead><tr><th>Field</th><th>Incoming</th><th>Outgoing</th></tr></thead><tbody>
+      <tr><td>Direction</td><td>Incoming</td><td>Outgoing</td></tr>
+      <tr><td>Counterparty type</td><td>Customer</td><td>Supplier</td></tr>
+      <tr><td>Payment type</td><td>Cash, bank, transfer</td><td>Cash, bank, transfer</td></tr>
+      <tr><td>Amount</td><td>ගෙවූ ප්‍රමාණය</td><td>ගෙවූ ප්‍රමාණය</td></tr>
+    </tbody></table></div></div></div>
+    <div class="card c-chk"><div class="card-lbl">✅ පරීක්ෂා කළ යුතු දේ</div><div class="card-body"><ul>
+      <li>Payment list. Allocated amount, AR/AP reduce. Allocate කළ user ට creator notification.</li>
+    </ul></div></div>
+  </div>
+  <h3>7.4 Credit Notes / 7.5 Debit Notes</h3>
+  <p>Counterparty type, counterparty, amount, notes. Credit: allocation AR/AP. Debit: PDF; counterparty balance review.</p>
+  <h3>7.6 Petty Cash Funds</h3>
+  <div class="cards">
+    <div class="card c-in"><div class="card-lbl">📝 ඇතුළු කළ යුත්තේ</div><div class="card-body"><div class="tbl-wrap"><table><thead><tr><th>Field</th><th>උදාහරණය</th></tr></thead><tbody>
+      <tr><td>Fund code</td><td><code>PC-MAIN</code></td></tr><tr><td>Currency</td><td><code>LKR</code></td></tr>
+      <tr><td>Custodian</td><td>වගකිව යුතු කෙනා</td></tr><tr><td>Opening balance</td><td>Starting float</td></tr>
+    </tbody></table></div></div></div>
+    <div class="card c-chk"><div class="card-lbl">✅ පරීක්ෂා කළ යුතු දේ</div><div class="card-body"><ul><li>Top-up/adjustment ලෙනසු balance update. Creator ට notification.</li></ul></div></div>
+  </div>
+  <h3>7.7 Petty Cash IOUs</h3>
+  <p>Advance ඉල්ලා සිටින විට. Service job, amount, purpose, settlement date. Approver approve/reject; Finance release/settle; Requester ට status notifications.</p>
+</section>
+
+<section class="sec" id="s8">
+  <div class="sec-hd"><span class="sec-num">08</span><h2>Service Tutorial</h2></div>
+  <div class="imp"><strong>ප්‍රධාන රීතිය:</strong> Customer equipment ගැටලුව සඳහා <strong>එක් job order</strong> සාදන්න. සෑම දිනයක්, cost, material issue, customer approval, closeout action ඒ job ට ලියාපදිංචි කරන්න.</div>
+  <h3>8.1 Service Menu Areas</h3>
+  <div class="tbl-wrap"><table><thead><tr><th>Screen</th><th>අරමුණ</th></tr></thead><tbody>
+    <tr><td>Command Center</td><td>Active/overdue jobs, missing sheets, pending approvals, finance blockers, billing readiness supervisor දසුන</td></tr>
+    <tr><td>Dispatch Board</td><td>Unassigned/active/waiting/completed jobs lane දසුන</td></tr>
+    <tr><td>Technician Workbench</td><td>Technician දෛනික දසුන: assignments, open sheets, quick actions</td></tr>
+    <tr><td>Equipment Units</td><td>Customer-owned machines, service jobs ලබා ගත හැකි</td></tr>
+    <tr><td>Service Contracts</td><td>AMC, SLA, warranty extension, coverage</td></tr>
+    <tr><td>Job Orders</td><td>ප්‍රධාන service job record</td></tr>
+    <tr><td>Job Sheets / Work Orders</td><td>Billable/costed labour time records</td></tr>
+    <tr><td>MRN / Material Requisitions</td><td>Job materials stock issue documents</td></tr>
+    <tr><td>Quotations / Estimates</td><td>Customer quotation, change-order</td></tr>
+    <tr><td>Service Taken / Handovers</td><td>Customer confirmation, final handover, invoice path</td></tr>
+    <tr><td>Quality Checks</td><td>Inspection / QC records</td></tr>
+  </tbody></table></div>
+
+  <h3>8.2 Equipment Units</h3>
+  <p>Job විවෘත කිරීමට පෙර <code>Service → Equipment Units</code>.</p>
+  <div class="cards">
+    <div class="card c-in"><div class="card-lbl">📝 ඇතුළු කළ යුත්තේ</div><div class="card-body"><div class="tbl-wrap"><table><thead><tr><th>Field</th><th>උදාහරණය</th></tr></thead><tbody>
+      <tr><td>Mode</td><td>Existing item / outside equipment</td></tr><tr><td>Item/model</td><td>Generator, compressor, hydraulic machine</td></tr>
+      <tr><td>Serial number</td><td><code>GEN-001</code></td></tr><tr><td>Customer</td><td>Equipment owner</td></tr>
+      <tr><td>Warranty/coverage</td><td>Labour, parts, labour and parts</td></tr>
+    </tbody></table></div></div></div>
+    <div class="card c-chk"><div class="card-lbl">✅ පරීක්ෂා කළ යුතු දේ</div><div class="card-body"><ul>
+      <li>Serial number නිවැරදි, unique. Customer ownership. Job ට පෙර warranty/contract.</li>
+    </ul></div></div>
+  </div>
+
+  <h3>8.3 Service Contracts</h3>
+  <div class="cards">
+    <div class="card c-in"><div class="card-lbl">📝 ඇතුළු කළ යුත්තේ</div><div class="card-body"><div class="tbl-wrap"><table><thead><tr><th>Field</th><th>උදාහරණය</th></tr></thead><tbody>
+      <tr><td>Equipment unit</td><td>Customer machine</td></tr><tr><td>Contract type</td><td>AMC, SLA, Warranty Extension</td></tr>
+      <tr><td>Coverage</td><td>Inspection, Labor, Parts, Labor and Parts</td></tr><tr><td>Start/end dates</td><td>Contract period</td></tr>
+    </tbody></table></div></div></div>
+    <div class="card c-chk"><div class="card-lbl">✅ පරීක්ෂා කළ යුතු දේ</div><div class="card-body"><ul>
+      <li>Contract period, job date cover. Coverage type. Job සෑදීමෙන් පසු add නම් <code>Refresh Entitlement</code>.</li>
+    </ul></div></div>
+  </div>
+
+  <h3>8.4 Service Job List</h3>
+  <div class="shot-wrap"><img id="img-01-jobs-list" alt="Service Job List"><div class="shot-cap">Service Job List</div></div>
+  <p><code>Service → Jobs</code>, ප්‍රධාන job register. නව job සඳහා පමණ <code>+ New Job Order</code>.</p>
+  <div class="cards">
+    <div class="card c-in"><div class="card-lbl">📝 Job සාදන විට ඇතුළු කළ යුත්තේ</div><div class="card-body"><div class="tbl-wrap"><table><thead><tr><th>Field</th><th>උදාහරණය</th></tr></thead><tbody>
+      <tr><td>Equipment unit</td><td>Customer machine</td></tr><tr><td>Customer</td><td>Auto-filled / selected</td></tr>
+      <tr><td>Job type</td><td>Service, Repair, PDI, Warranty, Inspection</td></tr>
+      <tr><td>Problem/complaint</td><td>Customer complaint</td></tr>
+      <tr><td>Responsible officer</td><td>Job owner</td></tr><tr><td>Expected date</td><td>Planned finish/visit date</td></tr>
+    </tbody></table></div></div></div>
+    <div class="card c-chk"><div class="card-lbl">✅ පරීක්ෂා කළ යුතු දේ</div><div class="card-body"><ul>
+      <li>Equipment/customer නිවැරදි. Entitlement නිවැරදි. Command center + job list. Notifications.</li>
+    </ul></div></div>
+  </div>
+
+  <h3>8.5 Job Overview සහ Tabs</h3>
+  <div class="shot-wrap"><img id="img-02-job-overview" alt="Job Overview"><div class="shot-cap">Job Overview</div></div>
+  <div class="tbl-wrap"><table><thead><tr><th>Tab</th><th>Users, මෙහි කරන දේ</th></tr></thead><tbody>
+    <tr><td>Overview</td><td>Cockpit summary, process timeline</td></tr>
+    <tr><td>Plan</td><td>Repair operations / stages plan</td></tr>
+    <tr><td>Daily Work</td><td>Daily sheets, staff/labour, progress</td></tr>
+    <tr><td>Materials</td><td>MRNs issue, return, damage/rejection</td></tr>
+    <tr><td>Expenses</td><td>IOUs, petty cash vouchers, claims</td></tr>
+    <tr><td>Billing</td><td>Closeout readiness, entitlement, estimates, invoices</td></tr>
+    <tr><td>Costs</td><td>Material, labour, expense, revenue, margin</td></tr>
+    <tr><td>Files &amp; Notes</td><td>Comments, attachments, support documents</td></tr>
+  </tbody></table></div>
+  <div class="card c-chk" style="border-radius:var(--radius)"><div class="card-lbl" style="background:var(--green);color:#fff">✅ පරීක්ෂා කළ යුතු දේ</div><div class="card-body" style="background:var(--green-lt);border:1px solid #b0e0c0;border-top:none"><ul>
+    <li>Timeline links: plan, daily work, materials, expenses, billing, costs, files.</li>
+    <li>Header edit, editable ලෙස ඇති විට. Execution ආරම්භ වූ පසු tabs ඔස්සේ.</li>
+  </ul></div></div>
+
+  <h3>8.6 Daily Field Sheets</h3>
+  <div class="shot-wrap"><img id="img-04-daily-sheets" alt="Daily Field Sheets"><div class="shot-cap">Daily Field Sheets</div></div>
+  <p>Daily sheet = one job, one working day/site visit daily field record.</p>
+  <ul>
+    <li>අද planned කළේ? / Completed? / Pending? / Site condition? / Staff? / Materials/IOUs/expenses entered?</li>
+  </ul>
+  <div class="cards">
+    <div class="card c-in"><div class="card-lbl">📝 ඇතුළු කළ යුත්තේ</div><div class="card-body"><div class="tbl-wrap"><table><thead><tr><th>Field</th><th>උදාහරණය</th></tr></thead><tbody>
+      <tr><td>Work date</td><td>අද / site visit date</td></tr><tr><td>Prepared by</td><td>Supervisor / technician</td></tr>
+      <tr><td>Planned work</td><td>කළ යුතු දේ</td></tr><tr><td>Completed work</td><td>Complete කළ දේ</td></tr>
+      <tr><td>Pending/issues</td><td>ශේෂ / block</td></tr><tr><td>Site condition</td><td>Customer site condition</td></tr>
+      <tr><td>Notes</td><td>Special instructions</td></tr>
+    </tbody></table></div></div></div>
+    <div class="card c-chk"><div class="card-lbl">✅ පරීක්ෂා කළ යුතු දේ</div><div class="card-body"><ul>
+      <li>Working day කට sheet එකක්. Staff/progress සඳහා sheet first. Draft/submitted = closeout block. Submit sheets approve/reject.</li>
+    </ul></div></div>
+  </div>
+  <div class="tbl-wrap"><table><thead><tr><th>Status</th><th>අර්ථය</th></tr></thead><tbody>
+    <tr><td><span class="badge b-draft">Draft</span></td><td>Submit නොකළ</td></tr>
+    <tr><td><span class="badge b-sub">Submitted</span></td><td>Supervisor review</td></tr>
+    <tr><td><span class="badge b-app">Approved</span></td><td>Locked</td></tr>
+    <tr><td><span class="badge b-rej">Rejected</span></td><td>Correction සඳහා</td></tr>
+  </tbody></table></div>
+
+  <h3>8.7 Daily Staff / Labour</h3>
+  <div class="shot-wrap"><img id="img-05-daily-labor" alt="Daily Staff / Labour"><div class="shot-cap">Daily Staff / Labour</div></div>
+  <p>Daily sheet ට attendance සහ work allocation. Who attended, what they did, hours, notes. Attendance record — final billable invoice ස්වයංක්‍රීයව නොකරයි.</p>
+
+  <h3>8.8 Daily Sheets vs Job Sheets / Work Orders</h3>
+  <div class="tbl-wrap"><table class="diff-tbl"><thead><tr><th>Daily Sheet / Daily Staff</th><th>Job Sheet / Work Order</th></tr></thead><tbody>
+    <tr><td>Daily operational record</td><td>Billable/costed labour record</td></tr>
+    <tr><td>Working day/visit ට එකක්</td><td>Labour billing අනුව job/task ට</td></tr>
+    <tr><td>අද සිදු වූ දේ</td><td>Costing/invoicing සඳහා work/time</td></tr>
+    <tr><td>Attendance, progress, materials, IOUs, expenses</td><td>Technician, date, hours, cost rate, billing rate, approval, invoice status</td></tr>
+    <tr><td>"අද සිදු වූ දේ?"</td><td>"Cost/bill කළ labour?"</td></tr>
+    <tr><td>Final billable ස්වයංක්‍රීය නැත</td><td>Approved billable entries → invoices</td></tr>
+  </tbody></table></div>
+  <p><strong>නිදර්ශනය:</strong></p>
+  <div class="flow"><ol>
+    <li>Technician, customer ගෙදර අද යයි.</li>
+    <li>Daily sheet today's visit.</li>
+    <li>Daily staff/labour technician add.</li>
+    <li>Fault සහ work progress add.</li>
+    <li>Hours 3 bill/cost නම් → job sheet/work-order time entry hours 3.</li>
+  </ol></div>
+
+  <h3>8.9 Work Orders / Job Sheets</h3>
+  <div class="cards">
+    <div class="card c-in"><div class="card-lbl">📝 ඇතුළු කළ යුත්තේ</div><div class="card-body"><div class="tbl-wrap"><table><thead><tr><th>Field</th><th>උදාහරණය</th></tr></thead><tbody>
+      <tr><td>Service job</td><td>Related job</td></tr><tr><td>Technician</td><td>Technician</td></tr>
+      <tr><td>Work date</td><td>Labour date</td></tr><tr><td>Hours</td><td>Billable/cost hours</td></tr>
+      <tr><td>Cost rate</td><td>Internal cost</td></tr><tr><td>Billing rate</td><td>Customer charge</td></tr>
+      <tr><td>Billable</td><td>Yes/No</td></tr>
+    </tbody></table></div></div></div>
+    <div class="card c-out"><div class="card-lbl">📤 Output</div><div class="card-body"><ul>
+      <li>Draft → Submitted → Approved/Rejected → Invoiced. Approved, job costing. Billable approved → invoice.</li>
+    </ul></div></div>
+    <div class="card c-chk"><div class="card-lbl">✅ පරීක්ෂා කළ යුතු දේ</div><div class="card-body"><ul>
+      <li>Rates නිවැරදි. Warranty/contract coverage. Rejected, bill නොවේ. Closeout ට uninvoiced labour check.</li>
+    </ul></div></div>
+  </div>
+
+  <h3>8.10 Materials / MRN</h3>
+  <div class="shot-wrap"><img id="img-06-materials" alt="Materials / MRN"><div class="shot-cap">Materials / MRN</div></div>
+  <div class="cards">
+    <div class="card c-in"><div class="card-lbl">📝 ඇතුළු කළ යුත්තේ</div><div class="card-body"><div class="tbl-wrap"><table><thead><tr><th>Field</th><th>උදාහරණය</th></tr></thead><tbody>
+      <tr><td>Service job</td><td>Related job</td></tr><tr><td>Warehouse/bin</td><td>Source stock</td></tr>
+      <tr><td>Item</td><td>Spare part</td></tr><tr><td>Quantity</td><td>Required</td></tr>
+      <tr><td>Batch/serial</td><td>Tracked items ට</td></tr>
+    </tbody></table></div></div></div>
+    <div class="card c-chk"><div class="card-lbl">✅ MRN ගිණිය යුතු</div><div class="card-body"><ul>
+      <li>Plan / Draft MRN → stock නොඅඩු. Posted MRN → stock අඩු. Material cost job costing.</li>
+      <li>Closeout ට returned/damaged/rejected/unused record.</li>
+    </ul></div></div>
+  </div>
+
+  <h3>8.11 Material Returns, Damage, Rejection</h3>
+  <ul><li>Unused → stores return</li><li>Wrong item</li><li>Customer rejected</li><li>Damaged</li><li>Supplier issue</li></ul>
+  <div class="card c-chk" style="border-radius:var(--radius)"><div class="card-lbl" style="background:var(--green);color:#fff">✅ Check</div><div class="card-body" style="background:var(--green-lt);border:1px solid #b0e0c0;border-top:none"><ul>
+    <li>Return → correct posted return flow. Damaged/rejected visible. Closeout unresolved නොලැබේ.</li>
+  </ul></div></div>
+
+  <h3>8.12 Expenses</h3>
+  <div class="shot-wrap"><img id="img-07-expenses" alt="Expenses"><div class="shot-cap">Expenses</div></div>
+  <div class="tbl-wrap"><table><thead><tr><th>Type</th><th>භාවිත</th></tr></thead><tbody>
+    <tr><td>IOU / Employee Advance</td><td>Receipts ට පෙර advance cash</td></tr>
+    <tr><td>Petty Cash Voucher</td><td>Company petty cash use</td></tr>
+    <tr><td>Out-of-pocket Claim</td><td>Personally ගෙව්, reimbursement</td></tr>
+  </tbody></table></div>
+  <div class="card c-chk" style="border-radius:var(--radius)"><div class="card-lbl" style="background:var(--green);color:#fff">✅ Check</div><div class="card-body" style="background:var(--green-lt);border:1px solid #b0e0c0;border-top:none"><ul>
+    <li>IOUs notify approve rights users. Requester notifications. Finance approve/release/settle. Pending docs closeout block.</li>
+  </ul></div></div>
+
+  <h3>8.13 Estimates / Quotations</h3>
+  <p>Customer, repair value/additional work approve කළ යුතු නම්. Parts, labour, billable expenses. Draft edit; Send = pending; approval/rejection recorded; scope change = change order; warranty/contract = zero charge.</p>
+
+  <h3>8.14 Service Taken / Handover</h3>
+  <div class="cards">
+    <div class="card c-in"><div class="card-lbl">📝 ඇතුළු කළ යුත්තේ</div><div class="card-body"><div class="tbl-wrap"><table><thead><tr><th>Field</th><th>උදාහරණය</th></tr></thead><tbody>
+      <tr><td>Handover date</td><td>Completion date</td></tr><tr><td>Customer acknowledgement</td><td>Confirmation</td></tr>
+      <tr><td>Returned items</td><td>Customer ට return items</td></tr>
+      <tr><td>Post-service warranty</td><td>Warranty months</td></tr><tr><td>Notes</td><td>Final remarks</td></tr>
+    </tbody></table></div></div></div>
+    <div class="card c-chk"><div class="card-lbl">✅ Check</div><div class="card-body"><ul>
+      <li>Customer acknowledgement. Returned items. Closeout ට handover status.</li>
+    </ul></div></div>
+  </div>
+
+  <h3>8.15 Billing සහ Closeout</h3>
+  <div class="shot-wrap"><img id="img-08-billing" alt="Billing / Closeout"><div class="shot-cap">Billing / Closeout</div></div>
+  <p>Job close ට පෙර Billing tab.</p>
+  <div class="cl-grid">
+    <div class="cl-row hd"><div class="cl-cell">Closeout Area</div><div class="cl-cell">පරීක්ෂා කළ යුතු දේ</div></div>
+    <div class="cl-row"><div class="cl-cell">Daily sheets</div><div class="cl-cell">Draft/submitted sheets ශේෂ නොතිබිය</div></div>
+    <div class="cl-row"><div class="cl-cell">Labour</div><div class="cl-cell">Open labour entries ශේෂ නැත; billable bill/handled</div></div>
+    <div class="cl-row"><div class="cl-cell">Materials</div><div class="cl-cell">MRNs posted/cancelled; material used/returned/damaged/rejected</div></div>
+    <div class="cl-row"><div class="cl-cell">Expenses/IOUs</div><div class="cl-cell">Pending advances, vouchers, claims cleared</div></div>
+    <div class="cl-row"><div class="cl-cell">Estimate/invoice</div><div class="cl-cell">Customer approval, handover, final invoice clear</div></div>
+    <div class="cl-row"><div class="cl-cell">Costs</div><div class="cl-cell">Materials, labour, claims, invoice revenue reviewed</div></div>
+  </div>
+
+  <h3>8.16 Costs</h3>
+  <div class="shot-wrap"><img id="img-09-costs" alt="Costs"><div class="shot-cap">Costs View</div></div>
+  <div class="cards">
+    <div class="card c-out"><div class="card-lbl">📤 Output</div><div class="card-body"><ul><li>Material cost, labour cost, expense cost, quoted revenue, invoice revenue, margin.</li></ul></div></div>
+    <div class="card c-chk"><div class="card-lbl">✅ Check</div><div class="card-body"><ul>
+      <li>Posted MRNs; approved labour; approved/settled claims. Final billing ට costs review. Uninvoiced billable labour check.</li>
+    </ul></div></div>
+  </div>
+
+  <h3>8.17 නිර්දේශිත End-to-End Service Flow</h3>
+  <div class="flow"><ol>
+    <li>Customer equipment unit confirm.</li><li>Service contract/warranty confirm.</li><li>Job order සාදන්න.</li>
+    <li>Entitlement review / <code>Refresh Entitlement</code>.</li><li>Job start.</li><li>Operations plan (අවශ්‍ය නම්).</li>
+    <li>Daily sheet first working day.</li><li>Daily staff/labour attendance.</li><li>Daily progress.</li>
+    <li>IOU / expense (අවශ්‍ය නම්).</li><li>MRN සාදා post (parts use නම්).</li>
+    <li>Material return/damage/rejection (අවශ්‍ය නම්).</li>
+    <li>Job sheet/work-order labour billable/costed hours.</li>
+    <li>Estimate (customer approval අවශ්‍ය නම්).</li>
+    <li>Job complete.</li><li>Service taken/handover.</li>
+    <li>Billing සහ Costs review.</li><li>Closeout blockers clear.</li><li>Job close.</li>
+  </ol></div>
+</section>
+
+<section class="sec" id="s9">
+  <div class="sec-hd"><span class="sec-num">09</span><h2>Reporting Tutorial</h2></div>
+  <div class="shot-wrap"><img id="img-reporting-costing" alt="Reporting: Costing"><div class="shot-cap">Reporting: Costing Report</div></div>
+  <div class="tbl-wrap"><table><thead><tr><th>Report</th><th>පරීක්ෂා කළ යුතු දේ</th></tr></thead><tbody>
+    <tr><td>Stock Ledger</td><td>Stock receipt, issue, adjustment, transfer</td></tr>
+    <tr><td>Aging</td><td>Customer AR, supplier AP outstanding</td></tr>
+    <tr><td>Tax Summary</td><td>Taxable sales/purchase totals</td></tr>
+    <tr><td>Service KPIs</td><td>Job සහ service performance</td></tr>
+    <tr><td>Sales Analysis</td><td>Customer/item sales totals</td></tr>
+    <tr><td>Purchase Analysis</td><td>Supplier/item purchase totals</td></tr>
+    <tr><td>Supplier Performance</td><td>Supplier delivery/purchase</td></tr>
+    <tr><td>Costing</td><td>Inventory value සහ cost</td></tr>
+  </tbody></table></div>
+  <div class="cards">
+    <div class="card c-in"><div class="card-lbl">📝 Input</div><div class="card-body"><ul><li>Date range. Warehouse, item, customer, supplier, service filter.</li></ul></div></div>
+    <div class="card c-chk"><div class="card-lbl">✅ Check</div><div class="card-body"><ul>
+      <li>Totals, posted documents match. Drafts, posted reports affect නොකරයි.</li>
+    </ul></div></div>
+  </div>
+</section>
+
+<section class="sec" id="s10">
+  <div class="sec-hd"><span class="sec-num">10</span><h2>Admin, Users, Access, සහ Notifications</h2></div>
+  <div class="shot-wrap"><img id="img-admin-users" alt="Admin Users"><div class="shot-cap">Admin: Users</div></div>
+  <h3>10.1 User Roles</h3>
+  <p>Admin, Procurement, Inventory, Sales, Service, Finance, Reporting.</p>
+  <h3>10.2 User Permissions</h3>
+  <p>View, Create, Edit, Submit, Approve, Reject, Post, Allocate, Settle, Delete/Void.</p>
+  <div class="cards">
+    <div class="card c-in"><div class="card-lbl">📝 ඇතුළු කළ යුත්තේ</div><div class="card-body"><div class="tbl-wrap"><table><thead><tr><th>Field</th><th>උදාහරණය</th></tr></thead><tbody>
+      <tr><td>User</td><td>Selected user</td></tr><tr><td>Roles</td><td>Sales, Finance, ආදිය</td></tr>
+      <tr><td>Access permissions</td><td>Exact permissions tick/untick</td></tr>
+    </tbody></table></div></div></div>
+    <div class="card c-chk"><div class="card-lbl">✅ Check</div><div class="card-body"><ul>
+      <li>View-only: pages open, create/edit/post නොකළ හැකි. Approvers, approval actions. Same permission = same notification.</li>
+    </ul></div></div>
+  </div>
+  <h3>10.3 Notifications</h3>
+  <div class="card c-chk" style="border-radius:var(--radius)"><div class="card-lbl" style="background:var(--green);color:#fff">✅ නිදර්ශන</div><div class="card-body" style="background:var(--green-lt);border:1px solid #b0e0c0;border-top:none"><ul>
+    <li>IOU submitted → IOU approvers ට notify.</li>
+    <li>Purchase requisition → PR approvers ට notify.</li>
+    <li>Expense claim → claim approvers ට notify.</li>
+    <li>Approved/posted/allocated → creator ට notify.</li>
+    <li>Notification title clear. Link, correct document. Read = status change.</li>
+  </ul></div></div>
+</section>
+
+<section class="sec" id="s11">
+  <div class="sec-hd"><span class="sec-num">11</span><h2>Audit Logs</h2></div>
+  <p>කවුරු කුමක් කළේ: Audit Logs.</p>
+  <div class="card c-chk" style="border-radius:var(--radius)"><div class="card-lbl" style="background:var(--green);color:#fff">✅ Check</div><div class="card-body" style="background:var(--green-lt);border:1px solid #b0e0c0;border-top:none"><ul>
+    <li>Created / Edited / Posted / Approved-Rejected / User-Admin changes.</li>
+  </ul></div></div>
+  <p style="margin-top:14px">Audit logs = testing සහ troubleshooting evidence.</p>
+</section>
+
+<section class="sec" id="s12">
+  <div class="sec-hd"><span class="sec-num">12</span><h2>සම්පූර්ණ නිදර්ශනය: Stock Purchase සිට Customer Payment</h2></div>
+  <div class="flow"><ol>
+    <li>Item, supplier, customer, warehouse, tax, currency confirm.</li>
+    <li>Purchase order quantity <code>10</code>.</li><li>Purchase order approve.</li>
+    <li>GRN from PO.</li><li>GRN post.</li>
+    <li>Inventory <code>10</code> වැඩිවූදැයි check.</li>
+    <li>Sales order quantity <code>4</code>.</li><li>Sales order confirm.</li>
+    <li>Dispatch.</li><li>Dispatch post.</li>
+    <li>Stock <code>4</code> අඩුවූදැයි check.</li>
+    <li>Sales invoice.</li><li>Invoice post.</li><li>AR වැඩිවූදැයි check.</li>
+    <li>Incoming customer payment.</li><li>Payment AR ට allocate.</li>
+    <li>AR outstanding අඩුවූදැයි check.</li>
+    <li>Stock ledger, aging report, costing report.</li>
+  </ol></div>
+  <div class="card c-chk" style="border-radius:var(--radius);margin-top:14px"><div class="card-lbl" style="background:var(--green);color:#fff">✅ Final Check</div><div class="card-body" style="background:var(--green-lt);border:1px solid #b0e0c0;border-top:none"><ul>
+    <li>Stock: received <code>10</code>, dispatched <code>4</code>, remaining <code>6</code>.</li>
+    <li>AR: invoice created, payment reduced it.</li>
+    <li>Reports: stock ledger, aging, costing = documents match.</li>
+    <li>Audit: user actions visible. PDFs available.</li>
+  </ul></div></div>
+</section>
+
+<section class="sec" id="s13">
+  <div class="sec-hd"><span class="sec-num">13</span><h2>සම්පූර්ණ නිදර්ශනය: Service Job</h2></div>
+  <div class="flow"><ol>
+    <li>Equipment unit confirm.</li><li>Job order.</li><li>Job start.</li>
+    <li>Daily sheet.</li><li>Daily staff.</li><li>Progress update.</li>
+    <li>IOU (අවශ්‍ය නම්).</li><li>MRN සාදා material issue post.</li>
+    <li>Work order labour entry.</li><li>Labour submit සහ approve.</li>
+    <li>Estimate (customer approval නම්).</li><li>Job complete.</li>
+    <li>Handover/service taken.</li><li>Billing සහ closeout readiness.</li>
+    <li>Costs review.</li><li>Blockers clear; job close.</li>
+  </ol></div>
+  <div class="card c-chk" style="border-radius:var(--radius);margin-top:14px"><div class="card-lbl" style="background:var(--green);color:#fff">✅ Check</div><div class="card-body" style="background:var(--green-lt);border:1px solid #b0e0c0;border-top:none"><ul>
+    <li>Working days daily work. Materials/expenses settled. Labour approved.</li>
+    <li>Billing completed. Costs reviewed. Readiness clear = job closes.</li>
+  </ul></div></div>
+</section>
+
+<section class="sec" id="s14">
+  <div class="sec-hd"><span class="sec-num">14</span><h2>Testing Checklist</h2></div>
+  <div class="cl-grid">
+    <div class="cl-row hd"><div class="cl-cell">Check</div><div class="cl-cell">Pass condition</div></div>
+    <div class="cl-row"><div class="cl-cell">Create</div><div class="cl-cell">Document number generate</div></div>
+    <div class="cl-row"><div class="cl-cell">Edit</div><div class="cl-cell">Draft edit කළ හැකි</div></div>
+    <div class="cl-row"><div class="cl-cell">Permission</div><div class="cl-cell">Unauthorized user, action නොකළ හැකි</div></div>
+    <div class="cl-row"><div class="cl-cell">Submit/Approve/Post</div><div class="cl-cell">Status නිවැරදිව change</div></div>
+    <div class="cl-row"><div class="cl-cell">Notification</div><div class="cl-cell">නිවැරදි users ට notification</div></div>
+    <div class="cl-row"><div class="cl-cell">Inventory impact</div><div class="cl-cell">Post ලෙනසු stock change</div></div>
+    <div class="cl-row"><div class="cl-cell">Finance impact</div><div class="cl-cell">Post/allocation ලෙනසු AR/AP change</div></div>
+    <div class="cl-row"><div class="cl-cell">PDF</div><div class="cl-cell">PDF open/download</div></div>
+    <div class="cl-row"><div class="cl-cell">Audit</div><div class="cl-cell">Action, audit log හි</div></div>
+    <div class="cl-row"><div class="cl-cell">Report</div><div class="cl-cell">Posted result reflect</div></div>
+  </div>
+</section>
+
+<section class="sec" id="s15">
+  <div class="sec-hd"><span class="sec-num">15</span><h2>සාමාන්‍ය වැරදි</h2></div>
+  <div class="cl-grid">
+    <div class="cl-row hd"><div class="cl-cell">වැරැද්ද</div><div class="cl-cell">නිවැරදි ක්‍රියාව</div></div>
+    <div class="cl-row"><div class="cl-cell">Posted document edit කිරීම</div><div class="cl-cell">Return, credit note, debit note, adjustment, correction flow</div></div>
+    <div class="cl-row"><div class="cl-cell">Draft, stock affect කරවේ යැයි</div><div class="cl-cell">Document post කරන්න</div></div>
+    <div class="cl-row"><div class="cl-cell">Daily labour, customer invoice කෙරේ යැයි</div><div class="cl-cell">Work order/job sheet billable time</div></div>
+    <div class="cl-row"><div class="cl-cell">Approve button නෑ</div><div class="cl-cell">User permission check</div></div>
+    <div class="cl-row"><div class="cl-cell">Menu item නෑ</div><div class="cl-cell">Role සහ view permission check</div></div>
+    <div class="cl-row"><div class="cl-cell">Stock නෑ</div><div class="cl-cell">Warehouse, bin, batch, serial, posted receipts check</div></div>
+    <div class="cl-row"><div class="cl-cell">Service job close කිරීමට නෑ</div><div class="cl-cell">Billing → Closeout Readiness, blockers clear</div></div>
+  </div>
+</section>
+
+<section class="sec" id="s16">
+  <div class="sec-hd"><span class="sec-num">16</span><h2>Quick Trainer Script</h2></div>
+  <p>නව user කෙනෙකුට මෙසේ කියන්න:</p>
+  <div class="script"><ol>
+    <li><b>"පළමුව master data: items, customers, suppliers, warehouses, taxes, currency."</b></li>
+    <li><b>"Business documents draft ලෙස සාදමු."</b></li>
+    <li><b>"Draft safe. Post/approve වන තෙක් stock/accounts affect නොකරයි."</b></li>
+    <li><b>"Posting ප්‍රධාන action. Stock, AR, AP, reports, audit update."</b></li>
+    <li><b>"Permissions, view/create/edit/approve/post/allocate/settle කළ හැකි කාරයා control."</b></li>
+    <li><b>"Notifications, ඊළඟ responsible users ට action දන්වයි."</b></li>
+    <li><b>"Reports, transaction result check කරන ස්ථානය."</b></li>
+  </ol></div>
+</section>
+
+</main>
+<a href="#hero" class="btt" title="ඉහළට">↑</a>
+<script src="iss-imgs.js"></script>
+<script>
+// Inject images from base64 map
+var map = {
+  'img-login-page':'login-page','img-dashboard':'dashboard',
+  'img-master-data-currencies':'master-data-currencies',
+  'img-procurement-purchase-orders':'procurement-purchase-orders',
+  'img-finance-ar':'finance-ar','img-finance-ap':'finance-ap',
+  'img-reporting-costing':'reporting-costing','img-admin-users':'admin-users',
+  'img-01-jobs-list':'01-jobs-list','img-02-job-overview':'02-job-overview',
+  'img-04-daily-sheets':'04-daily-sheets','img-05-daily-labor':'05-daily-labor',
+  'img-06-materials':'06-materials','img-07-expenses':'07-expenses',
+  'img-08-billing':'08-billing','img-09-costs':'09-costs'
+};
+for(var id in map){ var el=document.getElementById(id); if(el && window._imgs) el.src=window._imgs[map[id]]; }
+// Sidebar scroll highlight
+const items=document.querySelectorAll('.sb-item');
+const secs=document.querySelectorAll('.sec');
+const obs=new IntersectionObserver(function(entries){
+  entries.forEach(function(e){
+    if(e.isIntersecting){
+      items.forEach(function(i){i.classList.toggle('active',i.getAttribute('href')==='#'+e.target.id);});
+    }
+  });
+},{threshold:0.15,rootMargin:'-5% 0px -75% 0px'});
+secs.forEach(function(s){obs.observe(s);});
+</script>
+</body>
+</html>

@@ -103,13 +103,13 @@ Railway status:
 
 Unrelated local changes exist and must not be reverted or staged unless the user explicitly asks:
 
-- `backend/src/neuedge.Infrastructure/DependencyInjection.cs`
-- `backend/src/neuedge.Infrastructure/Persistence/IssDbContextFactory.cs`
-- `backend/tests/neuedge.UnitTests/neuedge.UnitTests.csproj`
+- `backend/src/ISS.Infrastructure/DependencyInjection.cs`
+- `backend/src/ISS.Infrastructure/Persistence/IssDbContextFactory.cs`
+- `backend/tests/ISS.UnitTests/ISS.UnitTests.csproj`
 - `frontend/src/components/SearchableSelect.tsx`
 - untracked `Modification reqs/`
-- untracked `backend/src/neuedge.Infrastructure/Persistence/DatabaseConnectionStringResolver.cs`
-- untracked `backend/tests/neuedge.UnitTests/Infrastructure/`
+- untracked `backend/src/ISS.Infrastructure/Persistence/DatabaseConnectionStringResolver.cs`
+- untracked `backend/tests/ISS.UnitTests/Infrastructure/`
 - untracked `data/`
 - untracked `docs/testing-input-output-checklist.pdf`
 - untracked `frontend/src/lib/attachment-upload.ts`
@@ -168,7 +168,7 @@ References already documented in `docs/service-job-daily-field-operations-requir
 
 Added:
 
-- `backend/src/neuedge.Domain/Service/ServiceJobOperation.cs`
+- `backend/src/ISS.Domain/Service/ServiceJobOperation.cs`
 - EF mapping and migration for service job operations
 - API endpoints under `ServiceJobsController`
 - service methods in `ServiceManagementService`
@@ -191,7 +191,7 @@ The operation plan is only a plan. Inventory is still consumed through MRN posti
 
 Added:
 
-- `backend/src/neuedge.Domain/Service/ServiceJobDailySheet.cs`
+- `backend/src/ISS.Domain/Service/ServiceJobDailySheet.cs`
 
 Daily sheet fields:
 
@@ -280,7 +280,7 @@ Updated existing APIs to carry optional daily sheet IDs:
 
 Added migration:
 
-- `backend/src/neuedge.Infrastructure/Persistence/Migrations/20260514163425_AddServiceJobDailySheets.cs`
+- `backend/src/ISS.Infrastructure/Persistence/Migrations/20260514163425_AddServiceJobDailySheets.cs`
 - designer file
 - updated `IssDbContextModelSnapshot.cs`
 
@@ -387,9 +387,9 @@ The testing checklist now includes:
 
 Passed:
 
-- `dotnet test backend\tests\neuedge.UnitTests\neuedge.UnitTests.csproj`
+- `dotnet test backend\tests\ISS.UnitTests\ISS.UnitTests.csproj`
   - 45 tests passed during service operation backend work
-- `dotnet build backend\src\neuedge.Api\neuedge.Api.csproj`
+- `dotnet build backend\src\ISS.Api\ISS.Api.csproj`
 - `npx tsc --noEmit`
 - targeted `npx eslint` for changed service-job frontend files
 - `git diff --check`
@@ -457,8 +457,8 @@ Still pending:
 6. Infrastructure:
    - add a `next start` process manager or startup script so production server (port 3000) survives reboots without manual intervention
 7. Run targeted checks for service-job work:
-   - `dotnet test backend\tests\neuedge.UnitTests\neuedge.UnitTests.csproj`
-   - `dotnet build backend\src\neuedge.Api\neuedge.Api.csproj`
+   - `dotnet test backend\tests\ISS.UnitTests\ISS.UnitTests.csproj`
+   - `dotnet build backend\src\ISS.Api\ISS.Api.csproj`
    - `npx tsc --noEmit` from `frontend/`
 8. Push with `GIT_TERMINAL_PROMPT=0` if the Windows Git credential manager hangs.
 9. Deploy to Railway from a clean detached worktree using:

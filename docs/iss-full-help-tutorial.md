@@ -64,6 +64,33 @@ Common rule:
 - Use `Post`, `Approve`, `Confirm`, or `Send` when the document is ready.
 - After posting, check the related output: stock, AR, AP, report, notification, or PDF.
 
+### 2.1 Screen Conventions
+
+Most screens follow the same shape: the list (register) is the main view, and create/edit forms open in a
+dialog on top of it. You rarely leave the list.
+
+| Element | Where | Behaviour |
+| --- | --- | --- |
+| `+ New ...` button | Top right of a list page | Opens the create form in a modal dialog over the list |
+| `Edit` on a master-data row | Row `Actions` column | Opens a modal form; press `Save` inside the dialog |
+| `Edit` on a draft document row | Row `Actions` column | Opens the document editor inside a modal; the list refreshes after saving |
+| `View` on a document row | Row `Actions` column | Opens the full detail page |
+| `Delete` | Row `Actions` column | Asks for a browser confirmation first |
+| `Audit` | Row `Actions` column | Shows the change history for that record |
+| Search box | Above a list table | Filters the rows already on screen |
+
+Closing a dialog:
+
+- `Close`, the `Escape` key, or a click outside the dialog all dismiss it.
+- Dismissing never saves. Anything typed since the dialog opened is discarded.
+
+Two things to keep in mind while testing:
+
+- The search box is a filter over the rows currently loaded on the page, not a server-side lookup. If a
+  record is not on the page you are viewing, searching will not pull it in.
+- Because create and edit happen over the list, the list is expected to show the new or changed row as
+  soon as the dialog closes. If it does not, that is a defect worth logging.
+
 ## 3. Master Data Setup
 
 ![Currencies](assets/tester-trainer/master-data-currencies.png)
@@ -112,10 +139,10 @@ What to input:
 | --- | --- |
 | SKU | `HF-001` |
 | Name | `Hydraulic Filter` |
-| Type | Stock, Service, Equipment, or Expense |
+| Type | `Equipment`, `Spare Part`, or `Service` |
 | Unit of measure | `PCS` |
 | Default unit cost | `2500.00` |
-| Tracking type | None, Batch, Serial, or Batch + Serial |
+| Tracking type | `None`, `Serial`, or `Batch` |
 
 Output:
 
@@ -757,7 +784,7 @@ What to check:
 
 ![Service job list](../frontend/public/help/job-orders/01-jobs-list.png)
 
-Use `Service -> Jobs` as the main job register. Existing jobs appear first. Use `+ New Job Order` only when opening a new job.
+Use `Service -> Job Orders` as the main job register. Existing jobs appear first. Use `+ New Job Order` only when opening a new job.
 
 What to input when creating:
 

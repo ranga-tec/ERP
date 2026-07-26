@@ -170,9 +170,9 @@ The latest release also includes:
 
 Relevant files:
 
-- `backend/src/neuedge.Domain/Service/ServiceHandover.cs`
-- `backend/src/neuedge.Application/Services/ServiceManagementService.cs`
-- `backend/src/neuedge.Api/Controllers/Service/ServiceHandoversController.cs`
+- `backend/src/ISS.Domain/Service/ServiceHandover.cs`
+- `backend/src/ISS.Application/Services/ServiceManagementService.cs`
+- `backend/src/ISS.Api/Controllers/Service/ServiceHandoversController.cs`
 - `frontend/src/app/(app)/service/handovers/page.tsx`
 - `frontend/src/app/(app)/service/handovers/[id]/page.tsx`
 - `frontend/src/app/(app)/service/handovers/ServiceHandoverEditForm.tsx`
@@ -237,12 +237,12 @@ Important scope limit:
   - `frontend/src/components/data-grid/EditableDataTable.tsx`
   - `frontend/src/components/data-grid/LookupCell.tsx`
 - Finance account mapping:
-  - `backend/src/neuedge.Api/Controllers/ItemsController.cs`
-  - `backend/src/neuedge.Api/Controllers/MasterData/ItemCategoriesController.cs`
-  - `backend/src/neuedge.Application/Services/DocumentAccountMappingService.cs`
-  - `backend/src/neuedge.Application/Services/SalesService.cs`
-  - `backend/src/neuedge.Application/Services/ProcurementService.cs`
-  - `backend/src/neuedge.Application/Services/ServiceManagementService.cs`
+  - `backend/src/ISS.Api/Controllers/ItemsController.cs`
+  - `backend/src/ISS.Api/Controllers/MasterData/ItemCategoriesController.cs`
+  - `backend/src/ISS.Application/Services/DocumentAccountMappingService.cs`
+  - `backend/src/ISS.Application/Services/SalesService.cs`
+  - `backend/src/ISS.Application/Services/ProcurementService.cs`
+  - `backend/src/ISS.Application/Services/ServiceManagementService.cs`
 - Finance accounts workspace:
   - `frontend/src/app/(app)/finance/accounts/page.tsx`
   - `frontend/src/app/(app)/finance/accounts/LedgerAccountsWorkspace.tsx`

@@ -32,7 +32,7 @@ Minimum role test:
 
 | Test | Expected result |
 | --- | --- |
-| Service user opens `Service -> Jobs` | Allowed |
+| Service user opens `Service -> Job Orders` | Allowed |
 | Service user opens `Finance -> Petty Cash IOUs` | Allowed for job-linked IOU status/operation if configured |
 | Inventory user opens MRN/detail | Allowed |
 | Finance user approves/settles IOU and claims | Allowed |
@@ -93,8 +93,8 @@ Expected starting stock:
 | Check | Expected result |
 | --- | --- |
 | `Inventory -> On Hand`, `SKU-CORE` | MAIN has `10` |
-| `Inventory -> Availability`, `SER-SVC-001` | Available |
-| `Inventory -> Availability`, `SER-SVC-002` | Available |
+| `Inventory -> Inventory Availability`, `SER-SVC-001` | Available |
+| `Inventory -> Inventory Availability`, `SER-SVC-002` | Available |
 | `Inventory -> On Hand`, `SUN-GREASE` | MAIN has at least `5` if stocked |
 
 ## 5. Test Run Control Sheet
@@ -127,9 +127,9 @@ Fill this during testing.
 | 2 | Open `Service -> Dispatch Board` | Job lanes load |
 | 3 | Open `Service -> Technician Workbench` | Technician daily work page loads |
 | 4 | Open `Service -> Equipment Units` | Equipment list loads before create form |
-| 5 | Open `Service -> Jobs` | Job list loads before create form |
+| 5 | Open `Service -> Job Orders` | Job list loads before create form |
 | 6 | Open `Service -> Job Sheets / Work Orders` | Work order list loads |
-| 7 | Open `Service -> Material Requisitions` | MRN list loads |
+| 7 | Open `Service -> MRN` | MRN list loads |
 | 8 | Open `Service -> Petty Cash` or expense claims page | Service expense list loads |
 | 9 | Open `Service -> Service Taken` | Handover list loads |
 | 10 | Open `Service -> Help` | Full rendered help page opens, not raw markdown |
@@ -176,7 +176,7 @@ Negative tests:
 
 ## 8. Create Job Order
 
-Open `Service -> Jobs`.
+Open `Service -> Job Orders`.
 
 | Step | Action | Expected result |
 | --- | --- | --- |
@@ -192,7 +192,7 @@ Expected:
 
 | Check | Where | Expected result |
 | --- | --- | --- |
-| Job list | `Service -> Jobs` | New job appears without needing browser reload |
+| Job list | `Service -> Job Orders` | New job appears without needing browser reload |
 | Job status | List/detail | `Open` or correct initial status |
 | Job number | List/detail | Generated job number appears |
 | View | Job number/View action | Opens job detail |
@@ -438,7 +438,7 @@ Negative tests:
 
 ## 16. Materials / MRN Issue
 
-Open `Materials` from the job or `Service -> Material Requisitions`.
+Open `Materials` from the job or `Service -> MRN`.
 
 Create MRN from the job Materials tab when possible.
 
@@ -926,7 +926,7 @@ Expected:
 
 ## 26. Customer Payment And AR
 
-Open `Finance -> Payments` or payment receipt workflow.
+Open `Finance -> Payment Receipts` or payment receipt workflow.
 
 Create customer payment for final invoice.
 
@@ -1123,8 +1123,8 @@ After closeout, check reporting.
 | `Reporting -> Service KPIs` | Job activity included |
 | `Reporting -> Costing` | Service cost/inventory cost reflected |
 | `Inventory -> On Hand` | `SKU-CORE` final qty reflects issue and return |
-| `Inventory -> Availability` | `SER-SVC-001` unavailable if damaged/consumed; `SER-SVC-002` available |
-| `Finance -> AR` | Invoice/payment reflected |
+| `Inventory -> Inventory Availability` | `SER-SVC-001` unavailable if damaged/consumed; `SER-SVC-002` available |
+| `Finance -> Accounts Receivable` | Invoice/payment reflected |
 | `Finance -> Petty Cash` | IOU/voucher/claim cash movements reflected |
 | `Finance -> Petty Cash IOUs` | Final IOU status settled/rejected/cancelled |
 
@@ -1150,9 +1150,10 @@ Expected stock from base scenario:
 
 ## 35. Regression Checklist For Modal Dialog Pattern
 
-Use this after UI changes.
+Use this after UI changes. There is no `Cancel` button in the dialogs: dismiss with `Close`, the `Escape`
+key, or a click outside the dialog. Any of the three must discard the entry without saving.
 
-| Area | Create opens modal | Edit opens modal | Register/list remains primary | Save refreshes list | Cancel does not save |
+| Area | Create opens modal | Edit opens modal | Register/list remains primary | Save refreshes list | Dismiss does not save |
 | --- | --- | --- | --- | --- | --- |
 | Job order list | Pass/Fail | Pass/Fail | Pass/Fail | Pass/Fail | Pass/Fail |
 | Job detail edit header | Pass/Fail | Pass/Fail | Pass/Fail | Pass/Fail | Pass/Fail |

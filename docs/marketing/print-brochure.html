@@ -1,0 +1,331 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>neuedge Brochure</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #172033;
+      --muted: #5c667a;
+      --line: #d8dde8;
+      --blue: #1f5eff;
+      --green: #16805d;
+      --gold: #b67b10;
+      --bg: #f5f7fb;
+      --panel: #ffffff;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--ink);
+      font-family: Arial, Helvetica, sans-serif;
+      line-height: 1.45;
+    }
+
+    .page {
+      width: min(1120px, calc(100% - 32px));
+      margin: 24px auto;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      box-shadow: 0 18px 50px rgba(31, 45, 78, 0.12);
+    }
+
+    .hero {
+      display: grid;
+      grid-template-columns: 1.1fr 0.9fr;
+      gap: 32px;
+      padding: 44px;
+      background:
+        linear-gradient(135deg, rgba(31, 94, 255, 0.1), rgba(22, 128, 93, 0.08)),
+        #ffffff;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .eyebrow {
+      margin: 0 0 12px;
+      color: var(--green);
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 42px;
+      line-height: 1.08;
+      letter-spacing: 0;
+    }
+
+    .lead {
+      margin: 18px 0 0;
+      color: var(--muted);
+      font-size: 18px;
+      max-width: 620px;
+    }
+
+    .cta {
+      display: inline-block;
+      margin-top: 28px;
+      padding: 12px 18px;
+      border-radius: 6px;
+      background: var(--blue);
+      color: #ffffff;
+      font-weight: 700;
+      text-decoration: none;
+    }
+
+    .snapshot {
+      align-self: stretch;
+      display: grid;
+      gap: 12px;
+    }
+
+    .metric {
+      padding: 18px;
+      border: 1px solid var(--line);
+      border-left: 5px solid var(--blue);
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.84);
+    }
+
+    .metric:nth-child(2) {
+      border-left-color: var(--green);
+    }
+
+    .metric:nth-child(3) {
+      border-left-color: var(--gold);
+    }
+
+    .metric strong {
+      display: block;
+      font-size: 18px;
+      margin-bottom: 4px;
+    }
+
+    .metric span {
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .content {
+      padding: 34px 44px 42px;
+    }
+
+    .section-title {
+      margin: 0 0 16px;
+      font-size: 24px;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 16px;
+      margin-bottom: 34px;
+    }
+
+    .module {
+      min-height: 168px;
+      padding: 18px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #ffffff;
+    }
+
+    .module h3 {
+      margin: 0 0 9px;
+      font-size: 17px;
+    }
+
+    .module p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .benefits {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 28px;
+      padding-top: 6px;
+    }
+
+    ul {
+      margin: 0;
+      padding-left: 20px;
+    }
+
+    li {
+      margin-bottom: 9px;
+      color: var(--muted);
+    }
+
+    .contact {
+      padding: 24px 44px;
+      background: #172033;
+      color: #ffffff;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 24px;
+    }
+
+    .contact h2 {
+      margin: 0 0 5px;
+      font-size: 24px;
+    }
+
+    .contact p {
+      margin: 0;
+      color: #dbe2f0;
+    }
+
+    .contact-details {
+      text-align: right;
+      color: #ffffff;
+      font-weight: 700;
+    }
+
+    @media (max-width: 820px) {
+      .hero,
+      .benefits,
+      .grid {
+        grid-template-columns: 1fr;
+      }
+
+      h1 {
+        font-size: 34px;
+      }
+
+      .hero,
+      .content,
+      .contact {
+        padding-left: 24px;
+        padding-right: 24px;
+      }
+
+      .contact {
+        align-items: flex-start;
+        flex-direction: column;
+      }
+
+      .contact-details {
+        text-align: left;
+      }
+    }
+
+    @media print {
+      body {
+        background: #ffffff;
+      }
+
+      .page {
+        width: 100%;
+        margin: 0;
+        border: 0;
+        box-shadow: none;
+      }
+
+      .cta {
+        border: 1px solid var(--blue);
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <section class="hero">
+      <div>
+        <p class="eyebrow">Complete ERP and Service Management</p>
+        <h1>Run procurement, inventory, sales, service, finance, and reporting in one system.</h1>
+        <p class="lead">neuedge helps equipment, spare parts, trading, and service businesses replace spreadsheets and manual follow-ups with a secure web-based operating platform.</p>
+        <a class="cta" href="#">Book a Demo</a>
+      </div>
+      <div class="snapshot" aria-label="System highlights">
+        <div class="metric">
+          <strong>One connected workflow</strong>
+          <span>From purchase request to GRN, dispatch, invoice, service handover, payment, and report.</span>
+        </div>
+        <div class="metric">
+          <strong>Real-time visibility</strong>
+          <span>Track stock, service jobs, approvals, AR/AP, payments, costing, and dashboards.</span>
+        </div>
+        <div class="metric">
+          <strong>Controlled access</strong>
+          <span>Role-based permissions, approval steps, document traceability, and audit logs.</span>
+        </div>
+      </div>
+    </section>
+
+    <section class="content">
+      <h2 class="section-title">Core Modules</h2>
+      <div class="grid">
+        <article class="module">
+          <h3>Master Data</h3>
+          <p>Items, brands, categories, customers, suppliers, warehouses, bins, UoM, taxes, currencies, and payment types.</p>
+        </article>
+        <article class="module">
+          <h3>Procurement</h3>
+          <p>Purchase requisitions, RFQs, purchase orders, goods receipts, direct purchases, supplier invoices, and returns.</p>
+        </article>
+        <article class="module">
+          <h3>Inventory</h3>
+          <p>Warehouse and bin stock, adjustments, transfers, reorder alerts, batch/serial tracking, and stock ledger history.</p>
+        </article>
+        <article class="module">
+          <h3>Sales</h3>
+          <p>Quotations, sales orders, dispatches, direct dispatches, invoices, customer returns, and payment visibility.</p>
+        </article>
+        <article class="module">
+          <h3>Service</h3>
+          <p>Equipment, contracts, service jobs, estimates, work orders, material requests, quality checks, handovers, and job costing.</p>
+        </article>
+        <article class="module">
+          <h3>Finance and Reports</h3>
+          <p>AR/AP, payments, petty cash, credit/debit notes, tax summary, aging, KPIs, costing, dashboards, and audit logs.</p>
+        </article>
+      </div>
+
+      <div class="benefits">
+        <div>
+          <h2 class="section-title">Business Benefits</h2>
+          <ul>
+            <li>Reduce repeated manual entry and spreadsheet dependency.</li>
+            <li>Improve stock accuracy and warehouse visibility.</li>
+            <li>Track service jobs from request to handover and invoice.</li>
+            <li>Connect procurement, sales, inventory, service, and finance.</li>
+          </ul>
+        </div>
+        <div>
+          <h2 class="section-title">Ideal For</h2>
+          <ul>
+            <li>Equipment distributors and machinery service companies.</li>
+            <li>Spare parts dealers and inventory-based businesses.</li>
+            <li>Trading companies with purchasing, dispatch, and finance workflows.</li>
+            <li>Teams that need role-based access, audit logs, and management reports.</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section class="contact">
+      <div>
+        <h2>Ready to replace manual workflows?</h2>
+        <p>Book a demo and see how neuedge can support your daily operations.</p>
+      </div>
+      <div class="contact-details">
+        <div>[Phone Number]</div>
+        <div>[Email]</div>
+        <div>[Demo Link]</div>
+      </div>
+    </section>
+  </main>
+</body>
+</html>

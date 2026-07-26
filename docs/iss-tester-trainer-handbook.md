@@ -95,6 +95,30 @@ What this means in practice:
 - the backend saves business data in PostgreSQL
 - posted transactions update stock, AR/AP, reports, audit history, and PDFs
 
+### Screen conventions
+
+Almost every module screen is a list (register) with create and edit forms that open in a modal dialog on
+top of it. Testers and trainees should expect to stay on the list rather than navigate to separate form
+pages.
+
+| Element | Behaviour |
+| --- | --- |
+| `+ New ...` at the top right of a list | Opens the create form in a dialog over the list |
+| `Edit` in a master-data row | Opens a modal form; `Save` is inside the dialog |
+| `Edit` in a draft document row | Opens the document editor inside a modal; the list refreshes on save |
+| `View` in a document row | Opens the full detail page |
+| `Delete` | Browser confirmation first |
+| `Audit` | Change history for that record |
+| Search box above a table | Filters rows already loaded on the page |
+
+`Close`, `Escape`, or clicking outside dismisses a dialog, and dismissing never saves.
+
+Two points worth teaching explicitly:
+
+- the search box filters what is already on screen; it is not a server-side lookup, so it will not find a
+  record that is not on the current page
+- after a dialog closes, the row should already be visible or updated in the list without a browser reload
+
 ## 5. Functional Map
 
 | Menu area | Purpose | Examples of what to test |
@@ -116,17 +140,26 @@ From the repo root:
 
 ### Database
 
-Expected:
+The backend's development connection string (`backend/src/ISS.Api/appsettings.Development.json`) expects:
 
-- PostgreSQL is available on `localhost:5432`
-- Main local database: `iss`
-- Local integration-test database: `iss_integration_local`
-- Default local credentials used in this repo: `pgadmin / vesper`
+- PostgreSQL on `localhost:5432`
+- database `iss`
+- credentials `pgadmin / vesper`
+
+> **Heads-up:** `docker compose up -d` at the repo root does *not* match that. The compose file starts
+> Postgres 16 as database `neuedge` published on host port **5433**, with the same `pgadmin / vesper`
+> credentials. So the compose database and the dev connection string currently disagree. Either point
+> `ConnectionStrings__Default` at `Host=localhost;Port=5433;Database=neuedge;Username=pgadmin;Password=vesper`,
+> or run your own Postgres on 5432 with a database named `iss`. Confirm which one your environment uses
+> before reporting a startup failure as a defect.
+
+Integration tests use Testcontainers by default. To run them against an existing database instead, set
+`ISS_INTEGRATIONTESTS_CONNECTION_STRING` (see `docs/deployment.md` for the fallback notes).
 
 ### Backend
 
 ```powershell
-dotnet run --project backend/src/neuedge.Api/neuedge.Api.csproj
+dotnet run --project backend/src/ISS.Api/ISS.Api.csproj
 ```
 
 Expected:
@@ -194,7 +227,7 @@ Use this for every build or release candidate.
 ### Smoke steps
 
 1. Open `Master Data -> Currencies`.
-2. Open `Finance -> Payments`.
+2. Open `Finance -> Payment Receipts`.
 3. Open `Reporting -> Costing`.
 4. Open `Admin -> Users`.
 5. Open `Audit Logs`.
@@ -306,8 +339,8 @@ Expected:
 
 Open:
 
-- `Finance -> AP`
-- `Finance -> AR`
+- `Finance -> Accounts Payable`
+- `Finance -> Accounts Receivable`
 - `Reporting -> Costing`
 
 Expected:
@@ -346,7 +379,10 @@ Use this after the smoke test and core scenario.
 
 ### Master data
 
-- create, edit, save, cancel, and delete work on list pages
+- `+ New ...` opens the create dialog, saves, and the new row appears without a browser reload
+- `Edit` on a row opens the modal form pre-filled with the current values and saves back to the same row
+- dismissing a dialog with `Close`, `Escape`, or an outside click discards the entry
+- `Delete` asks for confirmation first
 - blocked deletes show a useful message when a record is in use
 - inactive records behave correctly in dropdowns and lists
 - seeded reference data exists on a clean system:
@@ -472,17 +508,21 @@ A trainee is ready to test independently when they can explain:
 
 ## 13. Screenshots
 
-These screenshots were captured from a live local walkthrough on March 14, 2026.
+> **Screenshot currency.** Figure 1 was recaptured from the current build. Figures 2-8 still come from a
+> local walkthrough on March 14, 2026 and predate both the C-COM branding and the move to modal
+> create/edit dialogs. Treat them as illustrations of *what each screen is for*, not of how it looks now:
+> the sidebar shows the older product branding, and list pages show a create panel below the table where
+> the current build uses a `+ New ...` dialog. They need recapturing on a seeded environment.
 
 ### Figure 1: Login screen
 
-![neuedge login screen](assets/tester-trainer/login-page.png)
+![C-COM ERP login screen](assets/tester-trainer/login-page.png)
 
 The login page also supports account creation when self-registration is enabled.
 
 ### Figure 2: Dashboard after sample walkthrough
 
-![neuedge dashboard](assets/tester-trainer/dashboard.png)
+![dashboard](assets/tester-trainer/dashboard.png)
 
 In the captured example, the dashboard shows:
 
@@ -492,31 +532,31 @@ In the captured example, the dashboard shows:
 
 ### Figure 3: Seeded currency master data
 
-![neuedge currencies page](assets/tester-trainer/master-data-currencies.png)
+![currencies page](assets/tester-trainer/master-data-currencies.png)
 
 This is a good smoke-test page because fresh systems should already have default currencies.
 
 ### Figure 4: Purchase order list and create area
 
-![neuedge purchase orders page](assets/tester-trainer/procurement-purchase-orders.png)
+![purchase orders page](assets/tester-trainer/procurement-purchase-orders.png)
 
 Use this screen to teach the difference between a draft transaction and an approved document.
 
 ### Figure 5: Accounts payable showing GRN-driven liability
 
-![neuedge accounts payable page](assets/tester-trainer/finance-ap.png)
+![accounts payable page](assets/tester-trainer/finance-ap.png)
 
 In the captured example, supplier `SUP231252` has an outstanding GRN balance of `50`.
 
 ### Figure 6: Accounts receivable showing invoice-driven balance
 
-![neuedge accounts receivable page](assets/tester-trainer/finance-ar.png)
+![accounts receivable page](assets/tester-trainer/finance-ar.png)
 
 In the captured example, customer `CUS231252` has an outstanding invoice balance of `28`.
 
 ### Figure 7: Costing report showing valuation after stock in and stock out
 
-![neuedge costing report](assets/tester-trainer/reporting-costing.png)
+![costing report](assets/tester-trainer/reporting-costing.png)
 
 In the captured example, item `SKU231252` shows:
 
@@ -526,7 +566,7 @@ In the captured example, item `SKU231252` shows:
 
 ### Figure 8: Admin user management
 
-![neuedge admin users page](assets/tester-trainer/admin-users.png)
+![admin users page](assets/tester-trainer/admin-users.png)
 
 Use this screen to train admins on role assignment and account support tasks.
 

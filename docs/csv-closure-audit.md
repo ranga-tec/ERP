@@ -8,10 +8,10 @@ It is intended to guide closure work and UAT, not to replace row-level manual ve
 ## Method
 
 - Evidence sources:
-  - Backend API controllers in `backend/src/neuedge.Api/Controllers`
+  - Backend API controllers in `backend/src/ISS.Api/Controllers`
   - Frontend routes/pages in `frontend/src/app/(app)`
-  - Integration tests in `backend/tests/neuedge.IntegrationTests/EndToEndTests.cs`
-  - Unit tests in `backend/tests/neuedge.UnitTests`
+  - Integration tests in `backend/tests/ISS.IntegrationTests/EndToEndTests.cs`
+  - Unit tests in `backend/tests/ISS.UnitTests`
   - Deployment/ops docs and CI workflow
 - Status definitions:
   - `Done`: core workflow is implemented end-to-end and aligned enough to the CSV intent
@@ -75,7 +75,7 @@ Supplemental workflow note:
 
 ## Evidence Highlights
 
-- Broad backend module coverage exists under `backend/src/neuedge.Api/Controllers`:
+- Broad backend module coverage exists under `backend/src/ISS.Api/Controllers`:
   - `Procurement`, `Sales`, `Service`, `Finance`, `Inventory`, `Admin`, `Documents`
 - Broad frontend module coverage exists under `frontend/src/app/(app)`:
   - master data, procurement, inventory, sales, service, finance, admin, audit

@@ -17,7 +17,7 @@ This section is the fastest path to safe modifications.
 Recommended order:
 
 1. Identify domain/entity changes
-   - add/extend domain types in `neuedge.Domain`
+   - add/extend domain types in `ISS.Domain`
    - preserve invariants and status transitions
 2. Add persistence support
    - update `IssDbContext` mappings

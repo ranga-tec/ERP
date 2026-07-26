@@ -28,7 +28,7 @@ The API requires a connection string. Example (PowerShell):
 
 ```powershell
 $env:ConnectionStrings__Default="Host=localhost;Port=5432;Database=iss;Username=pgadmin;Password=vesper"
-dotnet run --project backend/src/neuedge.Api/neuedge.Api.csproj
+dotnet run --project backend/src/ISS.Api/ISS.Api.csproj
 ```
 
 Notes:
@@ -71,14 +71,14 @@ Expected C-COM demo counts:
 
 ### EF migrations (production-ready schema deployment)
 
-Baseline migration is included under `backend/src/neuedge.Infrastructure/Persistence/Migrations`.
+Baseline migration is included under `backend/src/ISS.Infrastructure/Persistence/Migrations`.
 
 Generate future migrations:
 
 ```powershell
 dotnet ef migrations add <Name> `
-  --project backend/src/neuedge.Infrastructure/neuedge.Infrastructure.csproj `
-  --startup-project backend/src/neuedge.Api/neuedge.Api.csproj `
+  --project backend/src/ISS.Infrastructure/ISS.Infrastructure.csproj `
+  --startup-project backend/src/ISS.Api/ISS.Api.csproj `
   --output-dir Persistence/Migrations
 ```
 
@@ -87,15 +87,15 @@ Apply migrations:
 ```powershell
 $env:ConnectionStrings__Default="Host=localhost;Port=5432;Database=iss;Username=pgadmin;Password=vesper"
 dotnet ef database update `
-  --project backend/src/neuedge.Infrastructure/neuedge.Infrastructure.csproj `
-  --startup-project backend/src/neuedge.Api/neuedge.Api.csproj
+  --project backend/src/ISS.Infrastructure/ISS.Infrastructure.csproj `
+  --startup-project backend/src/ISS.Api/ISS.Api.csproj
 ```
 
 Or let the API apply them on startup:
 
 ```powershell
 $env:Database__InitializationMode="Migrate"
-dotnet run --project backend/src/neuedge.Api/neuedge.Api.csproj
+dotnet run --project backend/src/ISS.Api/ISS.Api.csproj
 ```
 
 If you already created a database using `EnsureCreated`, recreate it (recommended for non-production) before switching to migrations, or align it manually before inserting migration history.
@@ -205,7 +205,7 @@ $env:ISS_INTEGRATIONTESTS_CONNECTION_STRING="Host=localhost;Port=5432;Database=i
 $env:ISS_INTEGRATIONTESTS_RESET_EXISTING_DB="1"
 $env:ISS_INTEGRATIONTESTS_HTTP_TIMEOUT_SECONDS="60"
 $env:ISS_INTEGRATIONTESTS_DB_READY_TIMEOUT_SECONDS="60"
-dotnet test .\backend\tests\neuedge.IntegrationTests\neuedge.IntegrationTests.csproj -c Release --nologo --no-build --logger "console;verbosity=minimal"
+dotnet test .\backend\tests\ISS.IntegrationTests\ISS.IntegrationTests.csproj -c Release --nologo --no-build --logger "console;verbosity=minimal"
 ```
 
 Notes:
@@ -213,7 +213,7 @@ Notes:
 - `ISS_INTEGRATIONTESTS_RESET_EXISTING_DB=1` will delete and recreate the target database before each run.
 - Use a dedicated test database name, not the main `iss` database.
 - Build once before `--no-build` runs:
-  - `dotnet build .\backend\tests\neuedge.IntegrationTests\neuedge.IntegrationTests.csproj -c Release --nologo`
+  - `dotnet build .\backend\tests\ISS.IntegrationTests\ISS.IntegrationTests.csproj -c Release --nologo`
 
 ## Single-VPS production deployment (current approach)
 
@@ -497,7 +497,7 @@ pg_restore --clean --if-exists --no-owner --no-privileges `
 File storage:
 
 ```powershell
-Compress-Archive -Path .\backend\src\neuedge.Api\App_Data\* `
+Compress-Archive -Path .\backend\src\ISS.Api\App_Data\* `
   -DestinationPath .\backup\neuedge-app-data-$(Get-Date -Format yyyyMMdd-HHmmss).zip
 ```
 

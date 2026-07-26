@@ -65,19 +65,19 @@ Repo root:
 - `scripts/`
 - `.github/workflows/ci.yml`
 - `docker-compose.yml`
-- `neuedge.slnx`
+- `ISS.slnxx`
 
 Backend source projects (`backend/src`):
 
-- `neuedge.Api` -> HTTP API, auth, controllers, middleware, health checks, hosted services
-- `neuedge.Application` -> application services, interfaces, options, validators
-- `neuedge.Domain` -> domain entities, enums, invariants, business rules
-- `neuedge.Infrastructure` -> EF Core persistence, Identity integration, PDF/docs, notifications adapters
+- `ISS.Api` -> HTTP API, auth, controllers, middleware, health checks, hosted services
+- `ISS.Application` -> application services, interfaces, options, validators
+- `ISS.Domain` -> domain entities, enums, invariants, business rules
+- `ISS.Infrastructure` -> EF Core persistence, Identity integration, PDF/docs, notifications adapters
 
 Backend tests (`backend/tests`):
 
-- `neuedge.UnitTests` -> domain/application unit tests
-- `neuedge.IntegrationTests` -> end-to-end API tests via in-process test host + PostgreSQL
+- `ISS.UnitTests` -> domain/application unit tests
+- `ISS.IntegrationTests` -> end-to-end API tests via in-process test host + PostgreSQL
 
 Frontend (`frontend/src`):
 

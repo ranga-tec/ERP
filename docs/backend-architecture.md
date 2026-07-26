@@ -13,18 +13,18 @@ Primary references:
 
 The codebase uses a practical layered architecture:
 
-- `neuedge.Domain`
+- `ISS.Domain`
   - entity models and invariants
   - status enums
   - core workflow rules (for example, posting/approval restrictions)
-- `neuedge.Application`
+- `ISS.Application`
   - orchestration services that coordinate domain entities, persistence, inventory movements, notifications
   - interfaces and cross-cutting abstractions (`IClock`, `IIssDbContext`, etc.)
-- `neuedge.Infrastructure`
+- `ISS.Infrastructure`
   - EF Core `IssDbContext`
   - ASP.NET Identity persistence
   - implementations for document PDFs and notifications
-- `neuedge.Api`
+- `ISS.Api`
   - HTTP endpoints, DTO mapping, authorization, startup, middleware, health, hosted background dispatch
 
 Guiding principle:
@@ -32,7 +32,7 @@ Guiding principle:
 - Business behavior should live in domain entities and application services.
 - Controllers should stay thin (validate request shape, authorize, delegate, return DTOs).
 
-### Startup Pipeline (`backend/src/neuedge.Api/Program.cs`)
+### Startup Pipeline (`backend/src/ISS.Api/Program.cs`)
 
 Key startup behaviors:
 
@@ -80,7 +80,7 @@ Behavior:
 
 Role constants are defined in:
 
-- `backend/src/neuedge.Api/Security/Roles.cs`
+- `backend/src/ISS.Api/Security/Roles.cs`
 
 Authorization model:
 
@@ -128,7 +128,7 @@ When changing roles:
 
 Global error mapping is implemented in:
 
-- `backend/src/neuedge.Api/Middleware/ExceptionHandlingMiddleware.cs`
+- `backend/src/ISS.Api/Middleware/ExceptionHandlingMiddleware.cs`
 
 Mappings:
 
@@ -143,11 +143,11 @@ In Development, `500` responses include detailed exception text. This is useful 
 
 Primary DbContext:
 
-- `backend/src/neuedge.Infrastructure/Persistence/IssDbContext.cs`
+- `backend/src/ISS.Infrastructure/Persistence/IssDbContext.cs`
 
 Interface abstraction:
 
-- `backend/src/neuedge.Application/Persistence/IIssDbContext.cs`
+- `backend/src/ISS.Application/Persistence/IIssDbContext.cs`
 
 Notes:
 
@@ -193,7 +193,7 @@ it usually means app code is newer than the local DB schema. Fix by running migr
 
 ### Application Services (Business Orchestration)
 
-Registered in `backend/src/neuedge.Application/DependencyInjection.cs`:
+Registered in `backend/src/ISS.Application/DependencyInjection.cs`:
 
 - `InventoryService`
 - `InventoryOperationsService`
@@ -224,7 +224,7 @@ When extending workflows:
 
 ### Controller Organization
 
-Top-level controller areas under `backend/src/neuedge.Api/Controllers`:
+Top-level controller areas under `backend/src/ISS.Api/Controllers`:
 
 - `Admin`
 - `Documents`
@@ -304,7 +304,7 @@ Line item API standard:
 
 Document comments and attachments are handled by:
 
-- `backend/src/neuedge.Api/Controllers/Documents/DocumentCollaborationController.cs`
+- `backend/src/ISS.Api/Controllers/Documents/DocumentCollaborationController.cs`
 
 Capabilities:
 
@@ -319,7 +319,7 @@ Reference types:
 
 Attachment hardening is centralized in:
 
-- `backend/src/neuedge.Api/AttachmentUploadPolicy.cs`
+- `backend/src/ISS.Api/AttachmentUploadPolicy.cs`
 
 Current policy includes:
 
@@ -343,7 +343,7 @@ Important maintainer rule:
 
 Reporting endpoints live in:
 
-- `backend/src/neuedge.Api/Controllers/ReportingController.cs`
+- `backend/src/ISS.Api/Controllers/ReportingController.cs`
 
 Current endpoints include:
 
@@ -369,11 +369,11 @@ Implementation caution:
 
 Notification enqueueing is handled in:
 
-- `backend/src/neuedge.Application/Services/NotificationService.cs`
+- `backend/src/ISS.Application/Services/NotificationService.cs`
 
 Background dispatch is handled in:
 
-- `backend/src/neuedge.Api/Services/NotificationDispatcherHostedService.cs`
+- `backend/src/ISS.Api/Services/NotificationDispatcherHostedService.cs`
 
 Pattern:
 
@@ -395,7 +395,7 @@ When adding new notification-producing actions:
 
 Location:
 
-- `backend/tests/neuedge.UnitTests`
+- `backend/tests/ISS.UnitTests`
 
 Used for:
 
@@ -406,7 +406,7 @@ Used for:
 
 Location:
 
-- `backend/tests/neuedge.IntegrationTests`
+- `backend/tests/ISS.IntegrationTests`
 
 Key files:
 
@@ -494,7 +494,7 @@ Docker compose defaults (`docker-compose.yml`):
 Backend:
 
 ```powershell
-dotnet run --project backend/src/neuedge.Api/neuedge.Api.csproj
+dotnet run --project backend/src/ISS.Api/ISS.Api.csproj
 ```
 
 Frontend:
@@ -519,15 +519,15 @@ Apply migrations manually:
 ```powershell
 $env:ConnectionStrings__Default="Host=localhost;Port=5432;Database=iss;Username=pgadmin;Password=vesper"
 dotnet ef database update `
-  --project backend/src/neuedge.Infrastructure/neuedge.Infrastructure.csproj `
-  --startup-project backend/src/neuedge.Api/neuedge.Api.csproj
+  --project backend/src/ISS.Infrastructure/ISS.Infrastructure.csproj `
+  --startup-project backend/src/ISS.Api/ISS.Api.csproj
 ```
 
 Or let startup apply migrations:
 
 ```powershell
 $env:Database__InitializationMode="Migrate"
-dotnet run --project backend/src/neuedge.Api/neuedge.Api.csproj
+dotnet run --project backend/src/ISS.Api/ISS.Api.csproj
 ```
 
 ### Local Schema Drift Recovery (Common)
@@ -556,10 +556,10 @@ $env:PGPASSWORD="vesper"
 & 'C:\Program Files\PostgreSQL\16\bin\psql.exe' -h localhost -p 5432 -U postgres -d postgres -c "CREATE DATABASE iss OWNER pgadmin;"
 
 $env:ConnectionStrings__Default="Host=localhost;Port=5432;Database=iss;Username=pgadmin;Password=vesper"
-dotnet build backend/src/neuedge.Api/neuedge.Api.csproj -c Release --nologo
+dotnet build backend/src/ISS.Api/ISS.Api.csproj -c Release --nologo
 dotnet ef database update --configuration Release --no-build `
-  --project backend/src/neuedge.Infrastructure/neuedge.Infrastructure.csproj `
-  --startup-project backend/src/neuedge.Api/neuedge.Api.csproj
+  --project backend/src/ISS.Infrastructure/ISS.Infrastructure.csproj `
+  --startup-project backend/src/ISS.Api/ISS.Api.csproj
 ```
 
 ### API Smoke Script

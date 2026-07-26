@@ -1,0 +1,422 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>neuedge Visual Brochure</title>
+  <style>
+    :root {
+      --ink: #172033;
+      --muted: #5b667a;
+      --line: #d8deea;
+      --blue: #1f5eff;
+      --green: #16805d;
+      --gold: #b67b10;
+      --paper: #ffffff;
+      --soft: #f4f7fb;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      background: #edf1f7;
+      color: var(--ink);
+      font-family: Arial, Helvetica, sans-serif;
+      line-height: 1.45;
+    }
+
+    .sheet {
+      width: min(1180px, calc(100% - 32px));
+      margin: 24px auto;
+      background: var(--paper);
+      border: 1px solid var(--line);
+      box-shadow: 0 24px 70px rgba(23, 32, 51, 0.14);
+      overflow: hidden;
+    }
+
+    .hero {
+      min-height: 680px;
+      display: grid;
+      grid-template-columns: 0.92fr 1.08fr;
+      gap: 34px;
+      align-items: center;
+      padding: 50px;
+      background: #f9fbff;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .hero-copy {
+      position: relative;
+      z-index: 2;
+    }
+
+    .eyebrow {
+      margin: 0 0 12px;
+      color: var(--green);
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 48px;
+      line-height: 1.05;
+      letter-spacing: 0;
+    }
+
+    .lead {
+      margin: 20px 0 0;
+      color: var(--muted);
+      font-size: 18px;
+      max-width: 560px;
+    }
+
+    .button {
+      display: inline-block;
+      margin-top: 28px;
+      padding: 13px 18px;
+      border-radius: 7px;
+      background: var(--blue);
+      color: #ffffff;
+      font-weight: 700;
+      text-decoration: none;
+    }
+
+    .hero-art {
+      width: 100%;
+      border-radius: 18px;
+      box-shadow: 0 24px 60px rgba(23, 32, 51, 0.18);
+    }
+
+    section {
+      padding: 42px 50px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .section-title {
+      margin: 0 0 18px;
+      font-size: 30px;
+      line-height: 1.15;
+    }
+
+    .intro-grid {
+      display: grid;
+      grid-template-columns: 0.95fr 1.05fr;
+      gap: 28px;
+      align-items: start;
+    }
+
+    .pain-list,
+    .benefit-list {
+      display: grid;
+      gap: 12px;
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    .pain-list li,
+    .benefit-list li {
+      padding: 14px 16px;
+      background: var(--soft);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      color: var(--muted);
+    }
+
+    .module-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 16px;
+    }
+
+    .module {
+      min-height: 170px;
+      padding: 18px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #ffffff;
+    }
+
+    .module h3 {
+      margin: 0 0 8px;
+      font-size: 18px;
+    }
+
+    .module p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .screens {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 18px;
+    }
+
+    .shot {
+      overflow: hidden;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: #ffffff;
+      box-shadow: 0 14px 32px rgba(23, 32, 51, 0.08);
+    }
+
+    .shot img {
+      display: block;
+      width: 100%;
+      aspect-ratio: 16 / 9;
+      object-fit: cover;
+      object-position: top left;
+      background: #f5f7fb;
+    }
+
+    .shot figcaption {
+      padding: 13px 15px;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .feature-strip {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 14px;
+      margin-top: 22px;
+    }
+
+    .feature-strip div {
+      padding: 16px;
+      border-radius: 8px;
+      background: #172033;
+      color: #ffffff;
+      min-height: 112px;
+    }
+
+    .feature-strip strong {
+      display: block;
+      font-size: 28px;
+      margin-bottom: 6px;
+    }
+
+    .feature-strip span {
+      display: block;
+      color: #dbe4f2;
+      font-size: 13px;
+    }
+
+    .visual-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 28px;
+      align-items: center;
+    }
+
+    .visual-row img {
+      width: 100%;
+      border-radius: 14px;
+      border: 1px solid var(--line);
+      box-shadow: 0 18px 42px rgba(23, 32, 51, 0.12);
+    }
+
+    .contact {
+      display: flex;
+      justify-content: space-between;
+      gap: 24px;
+      padding: 30px 50px;
+      background: #172033;
+      color: #ffffff;
+    }
+
+    .contact h2 {
+      margin: 0 0 6px;
+      font-size: 28px;
+    }
+
+    .contact p {
+      margin: 0;
+      color: #dbe4f2;
+    }
+
+    .contact-details {
+      text-align: right;
+      font-weight: 700;
+      line-height: 1.8;
+    }
+
+    @media (max-width: 900px) {
+      .hero,
+      .intro-grid,
+      .visual-row,
+      .screens,
+      .module-grid,
+      .feature-strip {
+        grid-template-columns: 1fr;
+      }
+
+      h1 {
+        font-size: 36px;
+      }
+
+      .hero,
+      section,
+      .contact {
+        padding-left: 24px;
+        padding-right: 24px;
+      }
+
+      .contact {
+        flex-direction: column;
+      }
+
+      .contact-details {
+        text-align: left;
+      }
+    }
+
+    @media print {
+      body {
+        background: #ffffff;
+      }
+
+      .sheet {
+        width: 100%;
+        margin: 0;
+        border: 0;
+        box-shadow: none;
+      }
+
+      section,
+      .hero {
+        break-inside: avoid;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="sheet">
+    <header class="hero">
+      <div class="hero-copy">
+        <p class="eyebrow">neuedge System</p>
+        <h1>One platform for procurement, inventory, sales, service, finance, and reporting.</h1>
+        <p class="lead">A complete web-based ERP built for equipment, spare parts, trading, and service businesses that need real-time control instead of spreadsheet-driven operations.</p>
+        <a class="button" href="#">Book a Demo</a>
+      </div>
+      <img class="hero-art" src="assets/generated-visuals/erp-operations-hero.svg" alt="ERP operations dashboard visual">
+    </header>
+
+    <section>
+      <div class="intro-grid">
+        <div>
+          <h2 class="section-title">The problem it solves</h2>
+          <p class="lead">Manual files, paper approvals, disconnected department records, and delayed reports make it hard to know the real position of stock, service jobs, invoices, payments, and costs.</p>
+        </div>
+        <ul class="pain-list">
+          <li>Excel-based stock and transaction tracking causes duplicate work and errors.</li>
+          <li>Purchase, stores, sales, service, and accounts teams often work from separate records.</li>
+          <li>Management reporting takes too long because information must be collected manually.</li>
+          <li>Service job profitability is hard to see without connected material, labor, expense, and invoice data.</li>
+        </ul>
+      </div>
+      <div class="feature-strip">
+        <div><strong>360</strong><span>degree operational visibility across departments</span></div>
+        <div><strong>1</strong><span>connected platform for daily ERP workflows</span></div>
+        <div><strong>Role</strong><span>based access, approvals, and audit logs</span></div>
+        <div><strong>Live</strong><span>dashboards, reports, stock, and job costing</span></div>
+      </div>
+    </section>
+
+    <section>
+      <h2 class="section-title">Feature Coverage</h2>
+      <div class="module-grid">
+        <article class="module">
+          <h3>Master Data</h3>
+          <p>Items, brands, categories, customers, suppliers, warehouses, bins, UoM, taxes, currencies, payment types, and references.</p>
+        </article>
+        <article class="module">
+          <h3>Procurement</h3>
+          <p>Purchase requisitions, RFQs, purchase orders, goods receipts, direct purchases, supplier invoices, and returns.</p>
+        </article>
+        <article class="module">
+          <h3>Inventory</h3>
+          <p>On-hand stock, warehouse/bin visibility, stock adjustments, transfers, reorder alerts, batch/serial tracking, and ledger history.</p>
+        </article>
+        <article class="module">
+          <h3>Sales</h3>
+          <p>Quotations, sales orders, dispatches, direct dispatches, invoices, customer returns, and customer payment visibility.</p>
+        </article>
+        <article class="module">
+          <h3>Service Management</h3>
+          <p>Equipment units, contracts, service jobs, estimates, work orders, material requests, QC, handovers, claims, and job costing.</p>
+        </article>
+        <article class="module">
+          <h3>Finance and Reports</h3>
+          <p>AR/AP, payments, allocations, petty cash, credit/debit notes, tax reports, aging, KPIs, costing, dashboards, and audit logs.</p>
+        </article>
+      </div>
+    </section>
+
+    <section>
+      <h2 class="section-title">Real Product Screenshots</h2>
+      <div class="screens">
+        <figure class="shot">
+          <img src="assets/screenshots/dashboard.png" alt="neuedge dashboard screenshot">
+          <figcaption>Role-aware operations dashboard with queues, KPIs, alerts, and quick access.</figcaption>
+        </figure>
+        <figure class="shot">
+          <img src="assets/screenshots/procurement-purchase-orders.png" alt="Purchase orders screenshot">
+          <figcaption>Procurement workflow covering purchase documents, line editing, approvals, and status control.</figcaption>
+        </figure>
+        <figure class="shot">
+          <img src="assets/screenshots/service-job-overview.png" alt="Service job overview screenshot">
+          <figcaption>Service job overview with work progress, estimates, materials, labor, expenses, and handover context.</figcaption>
+        </figure>
+        <figure class="shot">
+          <img src="assets/screenshots/service-job-costing.png" alt="Service job costing screenshot">
+          <figcaption>Job costing rollup across material issues, direct purchases, labor, expenses, estimates, and invoices.</figcaption>
+        </figure>
+        <figure class="shot">
+          <img src="assets/screenshots/finance-ar.png" alt="Finance accounts receivable screenshot">
+          <figcaption>Finance workspace for receivables, payables, payments, allocations, petty cash, notes, and settlements.</figcaption>
+        </figure>
+        <figure class="shot">
+          <img src="assets/screenshots/reporting-costing.png" alt="Costing report screenshot">
+          <figcaption>Reporting workspace with costing, aging, tax, stock ledger, service KPIs, and management visibility.</figcaption>
+        </figure>
+      </div>
+    </section>
+
+    <section>
+      <div class="visual-row">
+        <img src="assets/generated-visuals/service-inventory-visual.svg" alt="Service and inventory visual">
+        <div>
+          <h2 class="section-title">Built for service and inventory-heavy businesses</h2>
+          <ul class="benefit-list">
+            <li>Connect service jobs with materials, labor, direct purchases, claims, invoices, and costing.</li>
+            <li>Track stock across warehouse, bin, batch, serial, transfers, adjustments, and reorder alerts.</li>
+            <li>Give purchasing, stores, service, sales, finance, and management one shared operational record.</li>
+            <li>Control sensitive workflows with permissions, approvals, document status, and audit logs.</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <footer class="contact">
+      <div>
+        <h2>Ready to replace manual workflows?</h2>
+        <p>Book a demo and see how neuedge can support your daily operations.</p>
+      </div>
+      <div class="contact-details">
+        <div>[Phone Number]</div>
+        <div>[Email]</div>
+        <div>[Demo Link]</div>
+      </div>
+    </footer>
+  </main>
+</body>
+</html>

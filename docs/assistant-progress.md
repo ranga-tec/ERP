@@ -278,9 +278,9 @@ New service-document editing behavior now implemented:
 
 Relevant files:
 
-- `backend/src/neuedge.Domain/Service/ServiceHandover.cs`
-- `backend/src/neuedge.Application/Services/ServiceManagementService.cs`
-- `backend/src/neuedge.Api/Controllers/Service/ServiceHandoversController.cs`
+- `backend/src/ISS.Domain/Service/ServiceHandover.cs`
+- `backend/src/ISS.Application/Services/ServiceManagementService.cs`
+- `backend/src/ISS.Api/Controllers/Service/ServiceHandoversController.cs`
 - `frontend/src/app/(app)/service/handovers/page.tsx`
 - `frontend/src/app/(app)/service/handovers/[id]/page.tsx`
 - `frontend/src/app/(app)/service/handovers/ServiceHandoverEditForm.tsx`
@@ -373,31 +373,31 @@ Important workspace note:
 
 Relevant local paths currently carrying assistant work:
 
-- `backend/src/neuedge.Api/Assistant/`
-- `backend/src/neuedge.Api/Controllers/AssistantController.cs`
-- `backend/src/neuedge.Api/Controllers/AssistantSettingsController.cs`
-- `backend/src/neuedge.Domain/Assistant/`
-- `backend/src/neuedge.Infrastructure/Persistence/Migrations/20260316164901_AddAssistantSettingsModule.cs`
+- `backend/src/ISS.Api/Assistant/`
+- `backend/src/ISS.Api/Controllers/AssistantController.cs`
+- `backend/src/ISS.Api/Controllers/AssistantSettingsController.cs`
+- `backend/src/ISS.Domain/Assistant/`
+- `backend/src/ISS.Infrastructure/Persistence/Migrations/20260316164901_AddAssistantSettingsModule.cs`
 - `frontend/src/components/assistant/`
 - `frontend/src/app/(app)/settings/AssistantSettingsCard.tsx`
 
 Relevant GRN partial-receipt paths:
 
-- `backend/src/neuedge.Api/Controllers/Procurement/GoodsReceiptsController.cs`
-- `backend/src/neuedge.Application/Services/ProcurementService.cs`
-- `backend/src/neuedge.Domain/Procurement/GoodsReceipt.cs`
-- `backend/src/neuedge.Domain/Procurement/PurchaseOrder.cs`
-- `backend/src/neuedge.Infrastructure/Persistence/Migrations/20260319104500_AddGoodsReceiptPurchaseOrderLineLink.cs`
+- `backend/src/ISS.Api/Controllers/Procurement/GoodsReceiptsController.cs`
+- `backend/src/ISS.Application/Services/ProcurementService.cs`
+- `backend/src/ISS.Domain/Procurement/GoodsReceipt.cs`
+- `backend/src/ISS.Domain/Procurement/PurchaseOrder.cs`
+- `backend/src/ISS.Infrastructure/Persistence/Migrations/20260319104500_AddGoodsReceiptPurchaseOrderLineLink.cs`
 - `frontend/src/app/(app)/procurement/goods-receipts/GoodsReceiptCreateForm.tsx`
 - `frontend/src/app/(app)/procurement/goods-receipts/GoodsReceiptReceiptPlanForm.tsx`
 - `frontend/src/app/(app)/procurement/goods-receipts/[id]/page.tsx`
-- `backend/tests/neuedge.IntegrationTests/EndToEndTests.cs`
+- `backend/tests/ISS.IntegrationTests/EndToEndTests.cs`
 
 ## Assistant Architecture Implemented So Far
 
 ### Backend wiring
 
-The API startup already registers the assistant module in `backend/src/neuedge.Api/Program.cs`:
+The API startup already registers the assistant module in `backend/src/ISS.Api/Program.cs`:
 
 - `AssistantSessionStore` as a singleton
 - `AssistantProviderGateway` via `HttpClient`
@@ -583,8 +583,8 @@ These tests validate the core partial-receipt path and the assistant-driven GRN 
 
 The following validations were completed successfully in the local environment:
 
-- `dotnet build backend/src/neuedge.Api/neuedge.Api.csproj -c Release --nologo`
-- `dotnet test backend/tests/neuedge.UnitTests/neuedge.UnitTests.csproj -c Release --nologo`
+- `dotnet build backend/src/ISS.Api/ISS.Api.csproj -c Release --nologo`
+- `dotnet test backend/tests/ISS.UnitTests/ISS.UnitTests.csproj -c Release --nologo`
 - `npm run build` inside `frontend/`
 
 The following validation could not be completed in the current shell:
@@ -606,10 +606,10 @@ Severity: high
 
 Files:
 
-- `backend/src/neuedge.Application/Services/ProcurementService.cs`
-- `backend/src/neuedge.Application/Services/InventoryService.cs`
+- `backend/src/ISS.Application/Services/ProcurementService.cs`
+- `backend/src/ISS.Application/Services/InventoryService.cs`
 - `frontend/src/app/(app)/procurement/goods-receipts/GoodsReceiptReceiptPlanForm.tsx`
-- `backend/src/neuedge.Api/Assistant/AssistantCoordinator.cs`
+- `backend/src/ISS.Api/Assistant/AssistantCoordinator.cs`
 
 Issue:
 
@@ -633,8 +633,8 @@ Severity: medium
 
 Files:
 
-- `backend/src/neuedge.Api/Assistant/AssistantCoordinator.cs`
-- `backend/src/neuedge.Application/Services/ProcurementService.cs`
+- `backend/src/ISS.Api/Assistant/AssistantCoordinator.cs`
+- `backend/src/ISS.Application/Services/ProcurementService.cs`
 
 Issue:
 
@@ -657,7 +657,7 @@ Severity: medium
 
 Files:
 
-- `backend/src/neuedge.Application/Services/ProcurementService.cs`
+- `backend/src/ISS.Application/Services/ProcurementService.cs`
 - `frontend/src/app/(app)/procurement/goods-receipts/GoodsReceiptCreateForm.tsx`
 
 Issue:
@@ -681,7 +681,7 @@ Severity: medium
 
 Files:
 
-- `backend/src/neuedge.Api/Assistant/AssistantModels.cs`
+- `backend/src/ISS.Api/Assistant/AssistantModels.cs`
 - `frontend/src/components/assistant/AssistantPanel.tsx`
 
 Issue:
@@ -746,9 +746,9 @@ If the next session starts cold, read these in order:
 1. `README.md`
 2. `docs/system-technical-maintainer-guide.md`
 3. this file: `docs/assistant-progress.md`
-4. `backend/src/neuedge.Api/Assistant/AssistantCoordinator.cs`
-5. `backend/src/neuedge.Application/Services/ProcurementService.cs`
+4. `backend/src/ISS.Api/Assistant/AssistantCoordinator.cs`
+5. `backend/src/ISS.Application/Services/ProcurementService.cs`
 6. `frontend/src/app/(app)/procurement/goods-receipts/GoodsReceiptReceiptPlanForm.tsx`
-7. `backend/tests/neuedge.IntegrationTests/EndToEndTests.cs`
+7. `backend/tests/ISS.IntegrationTests/EndToEndTests.cs`
 
 If the next task is assistant-focused, do not assume the UI and backend are at the same completion level. Check both before making changes.

@@ -46,6 +46,19 @@ Run the project in two layers:
 
 This keeps the final reconciliation clean while still giving wide module coverage.
 
+### Screen conventions assumed by these steps
+
+Where a phase says "create" or "open and edit" a record, the UI works like this:
+
+- `+ New ...` at the top right of a list opens the create form in a modal dialog over the list
+- `Edit` in a row opens a modal (a form for master data, the document editor for draft documents)
+- `View` in a document row opens the full detail page
+- `Close`, `Escape`, or a click outside dismisses a dialog without saving
+- the search box above a table filters only the rows already loaded on that page
+
+After a dialog closes, the list should already reflect the change without a browser reload. If it does
+not, treat that as a defect rather than retrying.
+
 ## 3. Environment And Role Preparation
 
 ### Required environment
@@ -54,7 +67,7 @@ From the repo root:
 
 ```powershell
 docker compose up -d
-dotnet run --project backend/src/neuedge.Api/neuedge.Api.csproj
+dotnet run --project backend/src/ISS.Api/ISS.Api.csproj
 cd frontend
 copy .env.example .env.local
 npm install
@@ -65,6 +78,11 @@ Expected:
 
 - frontend opens at `http://localhost:3000`
 - backend health is available at `http://localhost:5257/health`
+
+> **Database mismatch to expect.** `docker compose up -d` starts Postgres as database `neuedge` on host
+> port **5433**, but `appsettings.Development.json` points at database `iss` on port `5432`. If the API
+> fails to start or `/health` reports the database as unhealthy, reconcile those two before logging a
+> defect. See `docs/iss-tester-trainer-handbook.md` section 6 for both options.
 
 ### Recommended role for this workflow
 
@@ -79,7 +97,7 @@ Role-specific testing should be done afterward with `docs/role-based-test-checkl
 
 ### Screenshot 1: Login
 
-![neuedge login page](assets/tester-trainer/login-page.png)
+![C-COM ERP login page](assets/tester-trainer/login-page.png)
 
 ## 4. Baseline Test Data
 
@@ -146,7 +164,7 @@ This phase proves the environment is healthy before deeper testing begins.
 ### Steps
 
 1. Open `Master Data -> Currencies`
-2. Open `Finance -> Payments`
+2. Open `Finance -> Payment Receipts`
 3. Open `Reporting -> Costing`
 4. Open `Audit Logs`
 
@@ -159,7 +177,7 @@ Expected:
 
 ### Screenshot 2: Seeded currencies
 
-![neuedge currencies](assets/tester-trainer/master-data-currencies.png)
+![currencies](assets/tester-trainer/master-data-currencies.png)
 
 ## 7. Phase 1: Master Data Foundation
 
@@ -254,11 +272,11 @@ Expected:
 - PO total = `100`
 - GRN posts successfully
 - `Inventory -> On Hand` for `MAIN` + `SKU-CORE` = `20`
-- `Finance -> AP` shows supplier exposure of `100`
+- `Finance -> Accounts Payable` shows supplier exposure of `100`
 
 ### Screenshot 3: Purchase order screen
 
-![neuedge purchase order page](assets/tester-trainer/procurement-purchase-orders.png)
+![purchase order page](assets/tester-trainer/procurement-purchase-orders.png)
 
 ## 9. Phase 3: Inventory Validation After Receipt
 
@@ -314,7 +332,7 @@ This phase simulates stock leaving the company and money becoming receivable fro
 
 ### Steps
 
-1. Open `Sales -> Direct Dispatches`
+1. Open `Sales -> AOD`
 2. Create direct dispatch:
    - customer `CUS1`
    - warehouse `MAIN`
@@ -322,7 +340,7 @@ This phase simulates stock leaving the company and money becoming receivable fro
    - item `SKU-CORE`
    - qty `6`
 4. Post the dispatch
-5. Open `Sales -> Invoices`
+5. Open `Sales -> Final Invoices`
 6. Create invoice for `CUS1`
 7. Add line:
    - item `SKU-CORE`
@@ -337,7 +355,7 @@ Expected:
 - `MAIN` on hand becomes `9`
 - company total becomes `14`
 - invoice total = `42`
-- `Finance -> AR` shows customer exposure of `42`
+- `Finance -> Accounts Receivable` shows customer exposure of `42`
 
 ## 12. Phase 6: Customer Return
 
@@ -426,11 +444,11 @@ It proves that:
 
 ### Customer side
 
-1. Open `Finance -> Credit Notes`
+1. Open `Finance -> A/R Credit Notes`
 2. Locate the customer credit note from the customer return
 3. Allocate that credit note to the sales invoice
 4. Confirm remaining customer balance becomes `35`
-5. Open `Finance -> Payments`
+5. Open `Finance -> Payment Receipts`
 6. Create incoming payment:
    - customer `CUS1`
    - amount `35`
@@ -439,15 +457,15 @@ It proves that:
 Expected:
 
 - invoice is fully settled after credit note + payment
-- `Finance -> AR` outstanding becomes `0`
+- `Finance -> Accounts Receivable` outstanding becomes `0`
 
 ### Supplier side
 
-1. Open `Finance -> Credit Notes`
+1. Open `Finance -> A/P Credit Notes`
 2. Locate the supplier credit note from the supplier return
 3. Allocate that credit note to the supplier balance
 4. Confirm remaining supplier balance becomes `90`
-5. Open `Finance -> Payments`
+5. Open `Finance -> Payment Receipts`
 6. Create outgoing payment:
    - supplier `SUP1`
    - amount `90`
@@ -456,15 +474,15 @@ Expected:
 Expected:
 
 - supplier balance is fully settled after credit note + payment
-- `Finance -> AP` outstanding becomes `0`
+- `Finance -> Accounts Payable` outstanding becomes `0`
 
 ### Screenshot 4: Accounts payable
 
-![neuedge accounts payable](assets/tester-trainer/finance-ap.png)
+![accounts payable](assets/tester-trainer/finance-ap.png)
 
 ### Screenshot 5: Accounts receivable
 
-![neuedge accounts receivable](assets/tester-trainer/finance-ar.png)
+![accounts receivable](assets/tester-trainer/finance-ar.png)
 
 ## 16. Phase 10: Core Month-End Report Checks
 
@@ -522,22 +540,22 @@ Use this exact expected closing position for `SKU-CORE`:
    - stock adjustment appears as signed variance, not as entered counted quantity
 3. `Reporting -> Costing`
    - `SKU-CORE` company value = `60`
-4. `Finance -> AR`
+4. `Finance -> Accounts Receivable`
    - no outstanding for `CUS1`
-5. `Finance -> AP`
+5. `Finance -> Accounts Payable`
    - no outstanding for `SUP1`
-6. `Reporting -> Aging`
+6. `Reporting -> AR/AP Aging`
    - no outstanding aged balance for the core customer and supplier
 7. `Dashboard`
    - AR and AP totals reflect the settled balances
 
 ### Screenshot 6: Costing report
 
-![neuedge costing report](assets/tester-trainer/reporting-costing.png)
+![costing report](assets/tester-trainer/reporting-costing.png)
 
 ### Screenshot 7: Dashboard
 
-![neuedge dashboard](assets/tester-trainer/dashboard.png)
+![dashboard](assets/tester-trainer/dashboard.png)
 
 ## 17. Extension Scenario Set
 
@@ -664,14 +682,14 @@ Recommended setup:
 Test:
 
 - `Service -> Equipment Units`
-- `Service -> Jobs`
+- `Service -> Job Orders`
 - job detail `Daily Field Sheets`
-- `Service -> Work Orders`
-- `Service -> Estimates`
-- `Service -> Expense Claims`
-- `Service -> Material Requisitions`
-- `Service -> Quality Checks`
-- `Service -> Handovers`
+- `Service -> Job Sheets / Work Orders`
+- `Service -> Quotations`
+- `Service -> Petty Cash`
+- `Service -> MRN`
+- `Service -> Inspection / QC`
+- `Service -> Service Taken`
 - `Finance -> Petty Cash`
 - `Finance -> Petty Cash IOUs`
 
