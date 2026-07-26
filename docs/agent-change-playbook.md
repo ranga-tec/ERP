@@ -1,4 +1,4 @@
-﻿# ISS ERP Agent Change Playbook and Troubleshooting Guide
+# neuedge Agent Change Playbook and Troubleshooting Guide
 
 This guide is focused on making safe changes to the system: feature additions/modifications/removals, closure planning, troubleshooting, and documentation hygiene.
 
@@ -17,7 +17,7 @@ This section is the fastest path to safe modifications.
 Recommended order:
 
 1. Identify domain/entity changes
-   - add/extend domain types in `ISS.Domain`
+   - add/extend domain types in `neuedge.Domain`
    - preserve invariants and status transitions
 2. Add persistence support
    - update `IssDbContext` mappings
@@ -211,7 +211,7 @@ Likely cause:
 Fix:
 
 - for raw-IP / plain HTTP deployments, set:
-  - `ISS_SECURE_COOKIES=false`
+  - `NEUEDGE_SECURE_COOKIES=false`
   - `SECURITY_ENFORCE_HTTPS=false`
 - after real HTTPS is added, switch both back to `true`
 
@@ -220,13 +220,13 @@ Fast diagnosis flow:
 1. Check the live env file used by the VPS deployment:
 
 ```bash
-grep -E 'ISS_SECURE_COOKIES|SECURITY_ENFORCE_HTTPS' /opt/iss/deploy/.env
+grep -E 'NEUEDGE_SECURE_COOKIES|SECURITY_ENFORCE_HTTPS' /opt/neuedge/deploy/.env
 ```
 
 2. Rebuild the stack if you changed either value:
 
 ```bash
-docker compose --env-file /opt/iss/deploy/.env -f /opt/iss/deploy/docker-compose.vps.yml up -d --build
+docker compose --env-file /opt/neuedge/deploy/.env -f /opt/neuedge/deploy/docker-compose.vps.yml up -d --build
 ```
 
 3. Inspect the login response headers:

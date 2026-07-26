@@ -1,4 +1,4 @@
-# ISS Role-Based Test Checklists
+# neuedge Role-Based Test Checklists
 
 This document provides manual test checklists for these user roles:
 

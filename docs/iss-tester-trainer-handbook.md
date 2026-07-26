@@ -1,6 +1,6 @@
-# ISS Tester and Trainer Handbook
+# neuedge Tester and Trainer Handbook
 
-This document is the zero-knowledge onboarding guide for manual testers, business users, and trainers working with the ISS ERP system.
+This document is the zero-knowledge onboarding guide for manual testers, business users, and trainers working with the neuedge system.
 
 It combines the "what is this system?", "how do I run it?", and "how do I test it?" answers into one place.
 
@@ -8,7 +8,7 @@ Validated against the current repository and a live local walkthrough on March 3
 
 ## 1. What This System Is
 
-ISS is a browser-based ERP system for service, inventory, procurement, sales, finance, and reporting work.
+neuedge is a browser-based ERP system for service, inventory, procurement, sales, finance, and reporting work.
 
 Main business areas:
 
@@ -49,7 +49,7 @@ Use the deeper technical docs only when you need implementation detail:
 
 If the trainee is completely new, teach these first:
 
-| Term | Meaning in ISS |
+| Term | Meaning in neuedge |
 | --- | --- |
 | Master data | Reference data used by transactions, such as items, suppliers, customers, warehouses, taxes, currencies |
 | Transaction | A business document such as a PO, GRN, invoice, payment, stock adjustment, or work order |
@@ -126,7 +126,7 @@ Expected:
 ### Backend
 
 ```powershell
-dotnet run --project backend/src/ISS.Api/ISS.Api.csproj
+dotnet run --project backend/src/neuedge.Api/neuedge.Api.csproj
 ```
 
 Expected:
@@ -476,13 +476,13 @@ These screenshots were captured from a live local walkthrough on March 14, 2026.
 
 ### Figure 1: Login screen
 
-![ISS login screen](assets/tester-trainer/login-page.png)
+![neuedge login screen](assets/tester-trainer/login-page.png)
 
 The login page also supports account creation when self-registration is enabled.
 
 ### Figure 2: Dashboard after sample walkthrough
 
-![ISS dashboard](assets/tester-trainer/dashboard.png)
+![neuedge dashboard](assets/tester-trainer/dashboard.png)
 
 In the captured example, the dashboard shows:
 
@@ -492,31 +492,31 @@ In the captured example, the dashboard shows:
 
 ### Figure 3: Seeded currency master data
 
-![ISS currencies page](assets/tester-trainer/master-data-currencies.png)
+![neuedge currencies page](assets/tester-trainer/master-data-currencies.png)
 
 This is a good smoke-test page because fresh systems should already have default currencies.
 
 ### Figure 4: Purchase order list and create area
 
-![ISS purchase orders page](assets/tester-trainer/procurement-purchase-orders.png)
+![neuedge purchase orders page](assets/tester-trainer/procurement-purchase-orders.png)
 
 Use this screen to teach the difference between a draft transaction and an approved document.
 
 ### Figure 5: Accounts payable showing GRN-driven liability
 
-![ISS accounts payable page](assets/tester-trainer/finance-ap.png)
+![neuedge accounts payable page](assets/tester-trainer/finance-ap.png)
 
 In the captured example, supplier `SUP231252` has an outstanding GRN balance of `50`.
 
 ### Figure 6: Accounts receivable showing invoice-driven balance
 
-![ISS accounts receivable page](assets/tester-trainer/finance-ar.png)
+![neuedge accounts receivable page](assets/tester-trainer/finance-ar.png)
 
 In the captured example, customer `CUS231252` has an outstanding invoice balance of `28`.
 
 ### Figure 7: Costing report showing valuation after stock in and stock out
 
-![ISS costing report](assets/tester-trainer/reporting-costing.png)
+![neuedge costing report](assets/tester-trainer/reporting-costing.png)
 
 In the captured example, item `SKU231252` shows:
 
@@ -526,7 +526,7 @@ In the captured example, item `SKU231252` shows:
 
 ### Figure 8: Admin user management
 
-![ISS admin users page](assets/tester-trainer/admin-users.png)
+![neuedge admin users page](assets/tester-trainer/admin-users.png)
 
 Use this screen to train admins on role assignment and account support tasks.
 

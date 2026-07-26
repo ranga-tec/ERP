@@ -1,10 +1,10 @@
-# ISS Demo Automation Guide
+# neuedge Demo Automation Guide
 
-This guide explains how to run repeatable browser walkthroughs for ISS video recording.
+This guide explains how to run repeatable browser walkthroughs for neuedge video recording.
 
 The runner lives in the frontend app and uses Playwright to:
 
-- open the ISS app
+- open the neuedge app
 - sign in with demo credentials
 - navigate through a named module flow
 - pause on each screen long enough for recording

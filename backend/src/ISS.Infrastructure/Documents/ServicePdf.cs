@@ -345,7 +345,7 @@ public sealed partial class DocumentPdfService
                 });
             },
             fileName: $"SJDS-{sheet.Number}.pdf",
-            qrPayload: $"ISS:SJDS:{sheet.Id}",
+            qrPayload: $"NEUEDGE:SJDS:{sheet.Id}",
             barcodePayload: sheet.Number);
     }
 
@@ -381,7 +381,7 @@ public sealed partial class DocumentPdfService
                 column.Item().Text(job.ProblemDescription);
             },
             fileName: $"JOB-{job.Number}.pdf",
-            qrPayload: $"ISS:JOB:{job.Id}",
+            qrPayload: $"NEUEDGE:JOB:{job.Id}",
             barcodePayload: job.Number);
     }
 
@@ -470,7 +470,7 @@ public sealed partial class DocumentPdfService
                 });
             },
             fileName: $"WO-{wo.Id:N}.pdf",
-            qrPayload: $"ISS:WO:{wo.Id}",
+            qrPayload: $"NEUEDGE:WO:{wo.Id}",
             barcodePayload: wo.Id.ToString("N")[..12].ToUpperInvariant());
     }
 
@@ -530,7 +530,7 @@ public sealed partial class DocumentPdfService
                 });
             },
             fileName: $"MR-{mr.Number}.pdf",
-            qrPayload: $"ISS:MR:{mr.Id}",
+            qrPayload: $"NEUEDGE:MR:{mr.Id}",
             barcodePayload: mr.Number);
     }
 
@@ -563,7 +563,7 @@ public sealed partial class DocumentPdfService
                 }
             },
             fileName: $"QC-{qc.Id:N}.pdf",
-            qrPayload: $"ISS:QC:{qc.Id}",
+            qrPayload: $"NEUEDGE:QC:{qc.Id}",
             barcodePayload: qc.Id.ToString("N")[..12].ToUpperInvariant());
     }
 
@@ -651,7 +651,7 @@ public sealed partial class DocumentPdfService
                 column.Item().AlignRight().Text($"Total: {FormatMoney(estimate.Total)}").SemiBold();
             },
             fileName: $"SE-{estimate.Number}.pdf",
-            qrPayload: $"ISS:SE:{estimate.Id}",
+            qrPayload: $"NEUEDGE:SE:{estimate.Id}",
             barcodePayload: estimate.Number);
     }
 
@@ -714,7 +714,7 @@ public sealed partial class DocumentPdfService
                 }
             },
             fileName: $"SH-{handover.Number}.pdf",
-            qrPayload: $"ISS:SH:{handover.Id}",
+            qrPayload: $"NEUEDGE:SH:{handover.Id}",
             barcodePayload: handover.Number);
     }
 
@@ -820,7 +820,7 @@ public sealed partial class DocumentPdfService
                 column.Item().PaddingTop(8).AlignRight().Text($"Total: {FormatMoney(claim.Total)}").SemiBold();
             },
             fileName: $"SEC-{claim.Number}.pdf",
-            qrPayload: $"ISS:SEC:{claim.Id}",
+            qrPayload: $"NEUEDGE:SEC:{claim.Id}",
             barcodePayload: claim.Number);
     }
 

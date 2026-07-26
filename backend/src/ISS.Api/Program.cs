@@ -41,8 +41,8 @@ builder.Services.AddOptions<JwtBearerOptions>(JwtBearerDefaults.AuthenticationSc
     .Configure<IConfiguration>((options, configuration) =>
     {
         var jwtSection = configuration.GetSection("Jwt");
-        var jwtIssuer = jwtSection["Issuer"] ?? "ISS";
-        var jwtAudience = jwtSection["Audience"] ?? "ISS";
+        var jwtIssuer = jwtSection["Issuer"] ?? "neuedge";
+        var jwtAudience = jwtSection["Audience"] ?? "neuedge";
         var jwtKey = jwtSection["Key"] ?? "dev-only-change-me";
 
         options.TokenValidationParameters = new TokenValidationParameters
@@ -120,7 +120,7 @@ builder.Services.AddHealthChecks()
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(options =>
 {
-    options.SwaggerDoc("v1", new OpenApiInfo { Title = "ISS API", Version = "v1" });
+    options.SwaggerDoc("v1", new OpenApiInfo { Title = "neuedge API", Version = "v1" });
 
     options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
     {

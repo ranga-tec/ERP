@@ -1,6 +1,6 @@
-# ISS Screen Recording Runbook
+# neuedge Screen Recording Runbook
 
-Use this runbook before recording any ISS tutorial or marketing clip.
+Use this runbook before recording any neuedge tutorial or marketing clip.
 
 ## 1. Recording Goal
 
@@ -30,7 +30,7 @@ Before opening the app:
 6. Use the same theme and font scaling for all episodes.
 7. Log in with a demo account that has stable access to the section you are recording.
 
-For the ISS demo baseline:
+For the neuedge demo baseline:
 
 - locale: `en-LK`
 - time zone: `Asia/Colombo`

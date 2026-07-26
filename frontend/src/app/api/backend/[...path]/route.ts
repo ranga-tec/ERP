@@ -1,6 +1,6 @@
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
-import { ISS_TOKEN_COOKIE, issApiBaseUrl } from "@/lib/env";
+import { NEUEDGE_TOKEN_COOKIE, neuedgeApiBaseUrl } from "@/lib/env";
 
 export const runtime = "nodejs";
 
@@ -26,7 +26,7 @@ const HOP_BY_HOP_HEADERS = new Set([
 ]);
 
 function upstreamTimeoutMs(): number {
-  const raw = process.env.ISS_BACKEND_PROXY_TIMEOUT_MS;
+  const raw = process.env.NEUEDGE_BACKEND_PROXY_TIMEOUT_MS;
   if (!raw) return DEFAULT_UPSTREAM_TIMEOUT_MS;
 
   const parsed = Number(raw);
@@ -39,7 +39,7 @@ function upstreamTimeoutMs(): number {
 
 function buildUpstreamUrl(req: Request, path: string[]): URL {
   const incoming = new URL(req.url);
-  const upstream = new URL(`/api/${path.join("/")}`, issApiBaseUrl());
+  const upstream = new URL(`/api/${path.join("/")}`, neuedgeApiBaseUrl());
   incoming.searchParams.forEach((value, key) => upstream.searchParams.append(key, value));
   return upstream;
 }
@@ -47,7 +47,7 @@ function buildUpstreamUrl(req: Request, path: string[]): URL {
 async function forward(req: Request, path: string[]) {
   const upstreamUrl = buildUpstreamUrl(req, path);
   const cookieStore = await cookies();
-  const token = cookieStore.get(ISS_TOKEN_COOKIE)?.value;
+  const token = cookieStore.get(NEUEDGE_TOKEN_COOKIE)?.value;
 
   const headers = new Headers();
   req.headers.forEach((value, key) => {

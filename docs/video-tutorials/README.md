@@ -1,12 +1,12 @@
-# ISS Video Tutorial Pack
+# neuedge Video Tutorial Pack
 
-This folder turns the current ISS product and training docs into a practical video-production pack for:
+This folder turns the current neuedge product and training docs into a practical video-production pack for:
 
 - short marketing videos
 - longer user-guidance tutorials
 - repeatable screen recordings for demos, onboarding, and release showcases
 
-Use this pack with the current ISS navigation in `frontend/src/components/Sidebar.tsx` and the operating guidance already documented in:
+Use this pack with the current neuedge navigation in `frontend/src/components/Sidebar.tsx` and the operating guidance already documented in:
 
 - `docs/user-manual.md`
 - `docs/iss-tester-trainer-handbook.md`
@@ -14,7 +14,7 @@ Use this pack with the current ISS navigation in `frontend/src/components/Sideba
 
 ## Output Strategy
 
-Create two videos for each top-level ISS section:
+Create two videos for each top-level neuedge section:
 
 1. `Marketing cut`
    - length: `45-90 sec`

@@ -1,6 +1,6 @@
-# ISS ERP Full Help Tutorial
+# neuedge Full Help Tutorial
 
-This guide is written for a new user, tester, or trainer. It explains the ISS ERP system in simple English and follows the same practical style used when teaching accounting or stock systems such as Tally.
+This guide is written for a new user, tester, or trainer. It explains the neuedge system in simple English and follows the same practical style used when teaching accounting or stock systems such as Tally.
 
 Use this guide to learn:
 

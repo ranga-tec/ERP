@@ -1,6 +1,6 @@
 # Manual UAT Guide
 
-This guide is for a fresh end-to-end manual test of the ISS ERP system.
+This guide is for a fresh end-to-end manual test of the neuedge system.
 
 It is based on a verified walkthrough completed on March 30, 2026 against a fresh database.
 
@@ -326,7 +326,7 @@ Expected:
 
 - equipment units accept warranty coverage and the unit detail page allows updates
 - outside equipment can be registered without leaving the service module; the system creates an Equipment item and serialized unit together
-- ISS-sold serialized equipment can also be created automatically from posted Dispatch/AOD lines
+- neuedge-sold serialized equipment can also be created automatically from posted Dispatch/AOD lines
 - service jobs and service contracts use the serialized equipment unit, but the picker displays and searches the linked Item table SKU/name as well as the unit serial number
 - the contract can be linked to the same unit and appears on both the contract list and equipment-unit detail page
 - service lists now expose explicit `View` / `Edit` entry points instead of relying only on clickable document numbers

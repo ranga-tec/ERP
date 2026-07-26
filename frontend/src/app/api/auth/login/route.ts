@@ -1,6 +1,6 @@
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
-import { ISS_TOKEN_COOKIE, issApiBaseUrl, issSecureCookies } from "@/lib/env";
+import { NEUEDGE_TOKEN_COOKIE, neuedgeApiBaseUrl, neuedgeSecureCookies } from "@/lib/env";
 
 type LoginRequest = { email: string; password: string };
 type AuthResponse = { token: string; userId: string; companyId?: string; email?: string; roles?: string[] };
@@ -12,7 +12,7 @@ export async function POST(req: Request) {
   const email = typeof body.email === "string" ? body.email : "";
   const password = typeof body.password === "string" ? body.password : "";
 
-  const resp = await fetch(new URL("/api/auth/login", issApiBaseUrl()), {
+  const resp = await fetch(new URL("/api/auth/login", neuedgeApiBaseUrl()), {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({ email, password }),
@@ -32,10 +32,10 @@ export async function POST(req: Request) {
   }
 
   const cookieStore = await cookies();
-  cookieStore.set(ISS_TOKEN_COOKIE, data.token, {
+  cookieStore.set(NEUEDGE_TOKEN_COOKIE, data.token, {
     httpOnly: true,
     sameSite: "lax",
-    secure: issSecureCookies(),
+    secure: neuedgeSecureCookies(),
     path: "/",
     maxAge: 60 * 60 * 8,
   });

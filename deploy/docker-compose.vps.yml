@@ -1,17 +1,17 @@
-name: iss
+name: neuedge
 
 services:
   db:
     image: postgres:16
     restart: unless-stopped
     environment:
-      POSTGRES_DB: ${POSTGRES_DB:-iss}
+      POSTGRES_DB: ${POSTGRES_DB:-neuedge}
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB:-iss}"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB:-neuedge}"]
       interval: 10s
       timeout: 5s
       retries: 10
@@ -27,16 +27,16 @@ services:
     environment:
       ASPNETCORE_ENVIRONMENT: Production
       ASPNETCORE_URLS: http://0.0.0.0:8080
-      ConnectionStrings__Default: Host=db;Port=5432;Database=${POSTGRES_DB:-iss};Username=${POSTGRES_USER};Password=${POSTGRES_PASSWORD}
+      ConnectionStrings__Default: Host=db;Port=5432;Database=${POSTGRES_DB:-neuedge};Username=${POSTGRES_USER};Password=${POSTGRES_PASSWORD}
       Database__InitializationMode: Migrate
       Database__EnableRetryOnFailure: "true"
-      Jwt__Issuer: ${JWT_ISSUER:-ISS}
-      Jwt__Audience: ${JWT_AUDIENCE:-ISS}
+      Jwt__Issuer: ${JWT_ISSUER:-neuedge}
+      Jwt__Audience: ${JWT_AUDIENCE:-neuedge}
       Jwt__Key: ${JWT_KEY}
       Security__EnforceHttps: ${SECURITY_ENFORCE_HTTPS:-false}
       Auth__BootstrapAdminEmail: ${BOOTSTRAP_ADMIN_EMAIL}
       Auth__BootstrapAdminPassword: ${BOOTSTRAP_ADMIN_PASSWORD}
-      Auth__BootstrapAdminDisplayName: ${BOOTSTRAP_ADMIN_DISPLAY_NAME:-ISS Admin}
+      Auth__BootstrapAdminDisplayName: ${BOOTSTRAP_ADMIN_DISPLAY_NAME:-neuedge Admin}
       Auth__AllowFirstUserBootstrapRegistration: "true"
     volumes:
       - api_app_data:/app/App_Data
@@ -53,10 +53,10 @@ services:
     environment:
       NODE_ENV: production
       PORT: 3000
-      ISS_API_BASE_URL: http://api:8080
-      ISS_SECURE_COOKIES: ${ISS_SECURE_COOKIES:-false}
-      ISS_BACKEND_PROXY_TIMEOUT_MS: ${ISS_BACKEND_PROXY_TIMEOUT_MS:-30000}
-      NEXT_PUBLIC_ISS_ALLOW_SELF_REGISTRATION: ${NEXT_PUBLIC_ISS_ALLOW_SELF_REGISTRATION:-false}
+      NEUEDGE_API_BASE_URL: http://api:8080
+      NEUEDGE_SECURE_COOKIES: ${NEUEDGE_SECURE_COOKIES:-false}
+      NEUEDGE_BACKEND_PROXY_TIMEOUT_MS: ${NEUEDGE_BACKEND_PROXY_TIMEOUT_MS:-30000}
+      NEXT_PUBLIC_NEUEDGE_ALLOW_SELF_REGISTRATION: ${NEXT_PUBLIC_NEUEDGE_ALLOW_SELF_REGISTRATION:-false}
     ports:
       - "80:3000"
 

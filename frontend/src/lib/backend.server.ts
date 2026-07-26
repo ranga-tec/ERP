@@ -1,13 +1,13 @@
 import { cookies } from "next/headers";
-import { ISS_TOKEN_COOKIE, issApiBaseUrl } from "@/lib/env";
+import { NEUEDGE_TOKEN_COOKIE, neuedgeApiBaseUrl } from "@/lib/env";
 
 export async function backendFetchJson<T>(
   path: string,
   init?: RequestInit,
 ): Promise<T> {
   const cookieStore = await cookies();
-  const token = cookieStore.get(ISS_TOKEN_COOKIE)?.value;
-  const url = new URL(`/api${path.startsWith("/") ? path : `/${path}`}`, issApiBaseUrl());
+  const token = cookieStore.get(NEUEDGE_TOKEN_COOKIE)?.value;
+  const url = new URL(`/api${path.startsWith("/") ? path : `/${path}`}`, neuedgeApiBaseUrl());
 
   const headers = new Headers(init?.headers);
   headers.set("accept", "application/json");

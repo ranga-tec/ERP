@@ -18,8 +18,9 @@ public sealed class IssApiFactory(string connectionString) : WebApplicationFacto
             config.AddInMemoryCollection(new Dictionary<string, string?>
             {
                 ["ConnectionStrings:Default"] = connectionString,
-                ["Jwt:Issuer"] = "ISS",
-                ["Jwt:Audience"] = "ISS",
+                ["Database:InitializationMode"] = "None",
+                ["Jwt:Issuer"] = "neuedge",
+                ["Jwt:Audience"] = "neuedge",
                 ["Jwt:Key"] = "integration-tests-key-please-change",
                 ["Auth:AllowSelfRegistration"] = "false",
                 ["Auth:AllowFirstUserBootstrapRegistration"] = "true",

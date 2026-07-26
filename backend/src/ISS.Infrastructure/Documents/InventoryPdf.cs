@@ -72,7 +72,7 @@ public sealed partial class DocumentPdfService
                 });
             },
             fileName: $"ADJ-{adj.Number}.pdf",
-            qrPayload: $"ISS:ADJ:{adj.Id}",
+            qrPayload: $"NEUEDGE:ADJ:{adj.Id}",
             barcodePayload: adj.Number);
     }
 
@@ -135,7 +135,7 @@ public sealed partial class DocumentPdfService
                 });
             },
             fileName: $"TRF-{trf.Number}.pdf",
-            qrPayload: $"ISS:TRF:{trf.Id}",
+            qrPayload: $"NEUEDGE:TRF:{trf.Id}",
             barcodePayload: trf.Number);
     }
 }

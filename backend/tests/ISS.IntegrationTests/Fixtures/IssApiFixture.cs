@@ -47,7 +47,7 @@ public sealed class IssApiFixture : IAsyncLifetime
         var dbReadyTimeoutSeconds = ReadPositiveIntEnvironmentVariable(DbReadyTimeoutSecondsEnvVar, DefaultDbReadyTimeoutSeconds);
         using (var dbReadyCts = new CancellationTokenSource(TimeSpan.FromSeconds(dbReadyTimeoutSeconds)))
         {
-            await WaitForDatabaseReadyAsync(_connectionString, dbReadyCts.Token);
+            await WaitForDatabaseReadyAsync(_connectionString, usingExternalDatabase, dbReadyCts.Token);
         }
 
         _factory = new IssApiFactory(_connectionString);
@@ -115,15 +115,28 @@ public sealed class IssApiFixture : IAsyncLifetime
             : defaultValue;
     }
 
-    private static async Task WaitForDatabaseReadyAsync(string connectionString, CancellationToken cancellationToken)
+    private static async Task WaitForDatabaseReadyAsync(
+        string connectionString,
+        bool usingExternalDatabase,
+        CancellationToken cancellationToken)
     {
+        var readinessConnectionString = connectionString;
+        if (usingExternalDatabase)
+        {
+            var builder = new NpgsqlConnectionStringBuilder(connectionString)
+            {
+                Database = "postgres"
+            };
+            readinessConnectionString = builder.ConnectionString;
+        }
+
         while (true)
         {
             cancellationToken.ThrowIfCancellationRequested();
 
             try
             {
-                await using var connection = new NpgsqlConnection(connectionString);
+                await using var connection = new NpgsqlConnection(readinessConnectionString);
                 await connection.OpenAsync(cancellationToken);
                 await connection.CloseAsync();
                 return;

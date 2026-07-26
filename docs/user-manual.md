@@ -1,6 +1,6 @@
-# ISS ERP User Manual
+# neuedge User Manual
 
-This manual explains how to use the ISS ERP system in simple English. It is written for daily users, supervisors, finance users, store users, managers, trainers, and testers.
+This manual explains how to use the neuedge system in simple English. It is written for daily users, supervisors, finance users, store users, managers, trainers, and testers.
 
 The system follows one main rule:
 

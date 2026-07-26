@@ -1,4 +1,4 @@
-# ISS Testing Input / Output Checklist
+# neuedge Testing Input / Output Checklist
 
 This document gives testers exact values to enter, expected outputs, and where to verify each result.
 
@@ -630,7 +630,7 @@ Use this interpretation while testing:
 | `Costs` | Actual cost, quoted revenue, invoice revenue, margin view, and source tables. | supervisor / finance |
 | `Files & Notes` | Comments, attachments, and supporting evidence. | all authorized job users |
 
-Professional service systems normally avoid one long job form. In ISS, testers should confirm the job detail behaves as a workspace with tabs and sub-tabs, and that pending closeout tiles open the related data list or workflow area instead of leaving the user to search manually.
+Professional service systems normally avoid one long job form. In neuedge, testers should confirm the job detail behaves as a workspace with tabs and sub-tabs, and that pending closeout tiles open the related data list or workflow area instead of leaving the user to search manually.
 
 ### 10.1 Create Equipment And Job
 

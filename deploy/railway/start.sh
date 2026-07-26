@@ -4,7 +4,7 @@ set -eu
 API_PORT="${API_PORT:-8080}"
 WEB_PORT="${PORT:-3000}"
 
-export ISS_API_BASE_URL="${ISS_API_BASE_URL:-http://127.0.0.1:${API_PORT}}"
+export NEUEDGE_API_BASE_URL="${NEUEDGE_API_BASE_URL:-http://127.0.0.1:${API_PORT}}"
 
 mkdir -p /app/backend/App_Data
 

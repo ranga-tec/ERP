@@ -1,11 +1,11 @@
-export const ISS_TOKEN_COOKIE = "iss_token";
+export const NEUEDGE_TOKEN_COOKIE = "neuedge_token";
 
-export function issApiBaseUrl(): string {
-  return process.env.ISS_API_BASE_URL ?? "http://localhost:5257";
+export function neuedgeApiBaseUrl(): string {
+  return process.env.NEUEDGE_API_BASE_URL ?? "http://localhost:5257";
 }
 
-export function issSecureCookies(): boolean {
-  const raw = process.env.ISS_SECURE_COOKIES?.trim().toLowerCase();
+export function neuedgeSecureCookies(): boolean {
+  const raw = process.env.NEUEDGE_SECURE_COOKIES?.trim().toLowerCase();
   if (raw === "true") {
     return true;
   }

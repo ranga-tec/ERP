@@ -2081,6 +2081,7 @@ public sealed class EndToEndTests(IssApiFixture fixture) : IClassFixture<IssApiF
         Assert.Equal(estimate.Id, updatedClaim.Lines[0].ConvertedToServiceEstimateId);
 
         await PostNoContent($"/api/service/estimates/{estimate.Id}/approve", new { });
+        await PostNoContent($"/api/service/jobs/{job.Id}/complete", new { });
 
         var handover = await Post<ServiceHandoverApiDto>("/api/service/handovers", new
         {
@@ -2359,6 +2360,7 @@ public sealed class EndToEndTests(IssApiFixture fixture) : IClassFixture<IssApiF
             taxPercent = 0m
         });
         await PostNoContent($"/api/service/estimates/{estimate.Id}/approve", new { });
+        await PostNoContent($"/api/service/jobs/{job.Id}/complete", new { });
 
         var handover = await Post<ServiceHandoverApiDto>("/api/service/handovers", new
         {
@@ -2479,6 +2481,7 @@ public sealed class EndToEndTests(IssApiFixture fixture) : IClassFixture<IssApiF
         Assert.Contains(estimateNotifications, n => n.Channel == NotificationChannel.Sms && n.Recipient == customer.Phone);
 
         await PostNoContent($"/api/service/estimates/{estimate.Id}/approve", new { });
+        await PostNoContent($"/api/service/jobs/{job.Id}/complete", new { });
 
         var handover = await Post<ServiceHandoverApiDto>("/api/service/handovers", new
         {

@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { cookies } from "next/headers";
 import { backendFetchJson } from "@/lib/backend.server";
-import { ISS_TOKEN_COOKIE } from "@/lib/env";
+import { NEUEDGE_TOKEN_COOKIE } from "@/lib/env";
 import { sessionFromToken } from "@/lib/jwt";
 import { ItemInlineLink } from "@/components/InlineLink";
 import { Card, SecondaryLink } from "@/components/ui";
@@ -71,7 +71,7 @@ export default async function InvoiceDetailPage({
   const { mode } = await searchParams;
   const startInEditMode = mode === "edit";
   const cookieStore = await cookies();
-  const token = cookieStore.get(ISS_TOKEN_COOKIE)?.value;
+  const token = cookieStore.get(NEUEDGE_TOKEN_COOKIE)?.value;
   const session = token ? sessionFromToken(token) : null;
   const roles = new Set(session?.roles ?? []);
   const canManageInvoices = roles.has("Admin") || roles.has("Sales") || roles.has("Finance");

@@ -2,7 +2,7 @@
 
 Date prepared: 2026-06-03
 
-This document is the full manual testing guide for the ISS ERP Service Job section. It covers service jobs, equipment units, command center, dispatch board, technician workbench, daily sheets, staff/labour, progress, job sheets/work orders, materials, material returns, damage/rejection handling, IOUs, petty cash, out-of-pocket claims, accounts, estimates, service taken, manual invoice creation, final invoices, costs, closeout, files, and audit checks.
+This document is the full manual testing guide for the neuedge Service Job section. It covers service jobs, equipment units, command center, dispatch board, technician workbench, daily sheets, staff/labour, progress, job sheets/work orders, materials, material returns, damage/rejection handling, IOUs, petty cash, out-of-pocket claims, accounts, estimates, service taken, manual invoice creation, final invoices, costs, closeout, files, and audit checks.
 
 Use this document when the Service module must be proven accurate before release or customer demonstration.
 

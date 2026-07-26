@@ -34,8 +34,8 @@
 
 ### Local Server State
 
-- Production `next start` running on port 3000 (ISS ERP, full build with all changes)
-- Dev `next dev` running on port 3003 (ISS ERP, Turbopack, live changes)
+- Production `next start` running on port 3000 (neuedge, full build with all changes)
+- Dev `next dev` running on port 3003 (neuedge, Turbopack, live changes)
 - Backend running on port 5257
 
 ## Current GitHub Checkpoints
@@ -82,18 +82,18 @@ Historical VPS deployment notes remain below for reference:
   - `deploy/docker-compose.vps.yml`
   - `deploy/.env.example`
   - `deploy/backup.sh`
-- server application root: `/opt/iss`
-- live runtime env file: `/opt/iss/deploy/.env` and it is not committed to git
+- server application root: `/opt/neuedge`
+- live runtime env file: `/opt/neuedge/deploy/.env` and it is not committed to git
 - persistent runtime data:
   - PostgreSQL Docker volume `iss_postgres_data`
   - backend file-storage Docker volume `iss_api_app_data`
 - scheduled backup:
-  - `0 2 * * * /opt/iss/deploy/backup.sh >> /opt/iss-backups/backup.log 2>&1`
+  - `0 2 * * * /opt/neuedge/deploy/backup.sh >> /opt/neuedge-backups/backup.log 2>&1`
 - operator access rule:
   - use SSH key access through the non-root deploy user
   - do not re-enable password or root SSH login
 - HTTP/TLS note:
-  - raw-IP HTTP deployments require `ISS_SECURE_COOKIES=false` and `SECURITY_ENFORCE_HTTPS=false`
+  - raw-IP HTTP deployments require `NEUEDGE_SECURE_COOKIES=false` and `SECURITY_ENFORCE_HTTPS=false`
   - after attaching real HTTPS, set both values to `true`
 
 ## Current Frontend State
@@ -170,9 +170,9 @@ The latest release also includes:
 
 Relevant files:
 
-- `backend/src/ISS.Domain/Service/ServiceHandover.cs`
-- `backend/src/ISS.Application/Services/ServiceManagementService.cs`
-- `backend/src/ISS.Api/Controllers/Service/ServiceHandoversController.cs`
+- `backend/src/neuedge.Domain/Service/ServiceHandover.cs`
+- `backend/src/neuedge.Application/Services/ServiceManagementService.cs`
+- `backend/src/neuedge.Api/Controllers/Service/ServiceHandoversController.cs`
 - `frontend/src/app/(app)/service/handovers/page.tsx`
 - `frontend/src/app/(app)/service/handovers/[id]/page.tsx`
 - `frontend/src/app/(app)/service/handovers/ServiceHandoverEditForm.tsx`
@@ -237,12 +237,12 @@ Important scope limit:
   - `frontend/src/components/data-grid/EditableDataTable.tsx`
   - `frontend/src/components/data-grid/LookupCell.tsx`
 - Finance account mapping:
-  - `backend/src/ISS.Api/Controllers/ItemsController.cs`
-  - `backend/src/ISS.Api/Controllers/MasterData/ItemCategoriesController.cs`
-  - `backend/src/ISS.Application/Services/DocumentAccountMappingService.cs`
-  - `backend/src/ISS.Application/Services/SalesService.cs`
-  - `backend/src/ISS.Application/Services/ProcurementService.cs`
-  - `backend/src/ISS.Application/Services/ServiceManagementService.cs`
+  - `backend/src/neuedge.Api/Controllers/ItemsController.cs`
+  - `backend/src/neuedge.Api/Controllers/MasterData/ItemCategoriesController.cs`
+  - `backend/src/neuedge.Application/Services/DocumentAccountMappingService.cs`
+  - `backend/src/neuedge.Application/Services/SalesService.cs`
+  - `backend/src/neuedge.Application/Services/ProcurementService.cs`
+  - `backend/src/neuedge.Application/Services/ServiceManagementService.cs`
 - Finance accounts workspace:
   - `frontend/src/app/(app)/finance/accounts/page.tsx`
   - `frontend/src/app/(app)/finance/accounts/LedgerAccountsWorkspace.tsx`
@@ -263,8 +263,8 @@ $env:GCM_INTERACTIVE='Never'
 git push "https://ranga-tec@github.com/ranga-tec/ERP.git" main:main
 ```
 
-- if another VPS deploy is needed, sync the changed `backend/`, `frontend/`, and `deploy/` directories to `/opt/iss`, then rebuild from the server:
+- if another VPS deploy is needed, sync the changed `backend/`, `frontend/`, and `deploy/` directories to `/opt/neuedge`, then rebuild from the server:
 
 ```bash
-docker compose --env-file /opt/iss/deploy/.env -f /opt/iss/deploy/docker-compose.vps.yml up -d --build
+docker compose --env-file /opt/neuedge/deploy/.env -f /opt/neuedge/deploy/docker-compose.vps.yml up -d --build
 ```

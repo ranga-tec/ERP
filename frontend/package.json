@@ -1,19 +1,19 @@
 {
-  "name": "frontend",
+  "name": "neuedge-frontend",
   "version": "0.1.0",
   "private": true,
   "scripts": {
     "dev": "next dev --webpack",
-    "build": "next build --webpack",
+    "build": "next build",
     "start": "next start",
-    "lint": "eslint",
+    "lint": "eslint src",
     "video:demo": "node scripts/video-demo-runner.mjs",
     "video:demo:item-create": "node scripts/video-demo-item-create.mjs",
     "video:demo:help": "node scripts/video-demo-runner.mjs --help",
     "video:demo:list": "node scripts/video-demo-runner.mjs --list"
   },
   "dependencies": {
-    "next": "16.1.6",
+    "next": "16.2.10",
     "react": "19.2.3",
     "react-dom": "19.2.3"
   },
@@ -23,9 +23,12 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
-    "eslint-config-next": "16.1.6",
+    "eslint-config-next": "16.2.10",
     "playwright": "1.59.1",
     "tailwindcss": "^4",
     "typescript": "^5"
+  },
+  "overrides": {
+    "postcss": "^8.5.10"
   }
 }

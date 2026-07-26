@@ -1,6 +1,6 @@
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
-import { ISS_TOKEN_COOKIE, issApiBaseUrl } from "@/lib/env";
+import { NEUEDGE_TOKEN_COOKIE, neuedgeApiBaseUrl } from "@/lib/env";
 
 type RegisterRequest = { email: string; password: string; displayName?: string };
 type AuthResponse = { token: string; userId: string; companyId?: string; email?: string; roles?: string[] };
@@ -14,7 +14,7 @@ export async function POST(req: Request) {
   const displayName =
     typeof body.displayName === "string" ? body.displayName : undefined;
 
-  const resp = await fetch(new URL("/api/auth/register", issApiBaseUrl()), {
+  const resp = await fetch(new URL("/api/auth/register", neuedgeApiBaseUrl()), {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({ email, password, displayName }),
@@ -34,7 +34,7 @@ export async function POST(req: Request) {
   }
 
   const cookieStore = await cookies();
-  cookieStore.set(ISS_TOKEN_COOKIE, data.token, {
+  cookieStore.set(NEUEDGE_TOKEN_COOKIE, data.token, {
     httpOnly: true,
     sameSite: "lax",
     secure: process.env.NODE_ENV === "production",

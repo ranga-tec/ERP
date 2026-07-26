@@ -1,6 +1,6 @@
 # Data Grid Module
 
-This folder contains the reusable editable grid framework used by ISS transaction screens.
+This folder contains the reusable editable grid framework used by neuedge transaction screens.
 
 Design goals:
 

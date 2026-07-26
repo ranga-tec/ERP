@@ -71,7 +71,7 @@ type ReportPreview = {
   rows: Array<Record<string, string>>;
 };
 
-const ASSISTANT_OPEN_KEY = "iss_assistant_open_v1";
+const ASSISTANT_OPEN_KEY = "neuedge_assistant_open_v1";
 
 type AssistantSettingsSummary = {
   isAllowed: boolean;

@@ -1,6 +1,6 @@
 # Deployment / Installation
 
-This repo contains a complete ISS ERP system:
+This repo contains a complete neuedge system:
 
 - Backend: ASP.NET Core (.NET 8) + PostgreSQL
 - Frontend: Next.js (App Router) + TypeScript + Tailwind
@@ -28,7 +28,7 @@ The API requires a connection string. Example (PowerShell):
 
 ```powershell
 $env:ConnectionStrings__Default="Host=localhost;Port=5432;Database=iss;Username=pgadmin;Password=vesper"
-dotnet run --project backend/src/ISS.Api/ISS.Api.csproj
+dotnet run --project backend/src/neuedge.Api/neuedge.Api.csproj
 ```
 
 Notes:
@@ -39,7 +39,7 @@ Notes:
   - `None` (default in non-Development)
 - Roles are seeded on startup.
 - Fresh databases also seed default currencies, payment types, tax codes, and reference forms required by core finance/reporting screens.
-- Fresh databases seed default companies (`ISS`, `C-COM`) and C-COM demo master data used by the hosted demo.
+- Fresh databases seed default companies (`neuedge`, `C-COM`) and C-COM demo master data used by the hosted demo.
 - The first registered user becomes `Admin`.
 - Health endpoint: `GET /health` (includes DB connectivity, not just process liveness)
 
@@ -64,21 +64,21 @@ select count(*) from "Suppliers" s join "Companies" c on c."Id" = s."CompanyId" 
 
 Expected C-COM demo counts:
 
-- companies: `2` (`ISS`, `C-COM`)
+- companies: `2` (`neuedge`, `C-COM`)
 - C-COM disabled category: `1`
 - C-COM items: `170`
 - C-COM suppliers: `29`
 
 ### EF migrations (production-ready schema deployment)
 
-Baseline migration is included under `backend/src/ISS.Infrastructure/Persistence/Migrations`.
+Baseline migration is included under `backend/src/neuedge.Infrastructure/Persistence/Migrations`.
 
 Generate future migrations:
 
 ```powershell
 dotnet ef migrations add <Name> `
-  --project backend/src/ISS.Infrastructure/ISS.Infrastructure.csproj `
-  --startup-project backend/src/ISS.Api/ISS.Api.csproj `
+  --project backend/src/neuedge.Infrastructure/neuedge.Infrastructure.csproj `
+  --startup-project backend/src/neuedge.Api/neuedge.Api.csproj `
   --output-dir Persistence/Migrations
 ```
 
@@ -87,15 +87,15 @@ Apply migrations:
 ```powershell
 $env:ConnectionStrings__Default="Host=localhost;Port=5432;Database=iss;Username=pgadmin;Password=vesper"
 dotnet ef database update `
-  --project backend/src/ISS.Infrastructure/ISS.Infrastructure.csproj `
-  --startup-project backend/src/ISS.Api/ISS.Api.csproj
+  --project backend/src/neuedge.Infrastructure/neuedge.Infrastructure.csproj `
+  --startup-project backend/src/neuedge.Api/neuedge.Api.csproj
 ```
 
 Or let the API apply them on startup:
 
 ```powershell
 $env:Database__InitializationMode="Migrate"
-dotnet run --project backend/src/ISS.Api/ISS.Api.csproj
+dotnet run --project backend/src/neuedge.Api/neuedge.Api.csproj
 ```
 
 If you already created a database using `EnsureCreated`, recreate it (recommended for non-production) before switching to migrations, or align it manually before inserting migration history.
@@ -140,10 +140,10 @@ Open `http://localhost:3000`.
 
 Frontend environment variables:
 
-- `ISS_API_BASE_URL` (defaults to `http://localhost:5257`)
-- `ISS_SECURE_COOKIES` (`true` | `false`; defaults to `true` in production, set to `false` only when deliberately serving plain HTTP)
-- `ISS_BACKEND_PROXY_TIMEOUT_MS` (optional; backend proxy upstream timeout in ms, default `30000`)
-- `NEXT_PUBLIC_ISS_ALLOW_SELF_REGISTRATION` (optional; register link is enabled by default in dev and disabled by default in production)
+- `NEUEDGE_API_BASE_URL` (defaults to `http://localhost:5257`)
+- `NEUEDGE_SECURE_COOKIES` (`true` | `false`; defaults to `true` in production, set to `false` only when deliberately serving plain HTTP)
+- `NEUEDGE_BACKEND_PROXY_TIMEOUT_MS` (optional; backend proxy upstream timeout in ms, default `30000`)
+- `NEXT_PUBLIC_NEUEDGE_ALLOW_SELF_REGISTRATION` (optional; register link is enabled by default in dev and disabled by default in production)
 
 ## Railway deployment notes
 
@@ -151,7 +151,7 @@ The repo-root `Dockerfile` runs the API and frontend in one Railway web service:
 
 - frontend listens on Railway's `$PORT`
 - API listens internally on `API_PORT` (default `8080`)
-- `ISS_API_BASE_URL` defaults to `http://127.0.0.1:8080`
+- `NEUEDGE_API_BASE_URL` defaults to `http://127.0.0.1:8080`
 - `Database__InitializationMode` defaults to `Migrate` in the Railway image
 
 Railway's PostgreSQL service exposes `DATABASE_URL` by default. The API accepts that URL directly, so a Railway service can either reference the database URL:
@@ -180,8 +180,8 @@ npx @railway/cli@latest up --service ERP --environment production --detach
 When deploying from a local machine with uncommitted work, deploy from a clean git worktree or a clean checkout of the pushed commit. That prevents unrelated local files from being uploaded:
 
 ```powershell
-git worktree add --detach ..\ISS-deploy-<commit> <commit>
-cd ..\ISS-deploy-<commit>
+git worktree add --detach ..\neuedge-deploy-<commit> <commit>
+cd ..\neuedge-deploy-<commit>
 npx @railway/cli@latest link --project <project-id> --environment production --service ERP
 npx @railway/cli@latest up --service ERP --environment production --detach
 ```
@@ -205,7 +205,7 @@ $env:ISS_INTEGRATIONTESTS_CONNECTION_STRING="Host=localhost;Port=5432;Database=i
 $env:ISS_INTEGRATIONTESTS_RESET_EXISTING_DB="1"
 $env:ISS_INTEGRATIONTESTS_HTTP_TIMEOUT_SECONDS="60"
 $env:ISS_INTEGRATIONTESTS_DB_READY_TIMEOUT_SECONDS="60"
-dotnet test .\backend\tests\ISS.IntegrationTests\ISS.IntegrationTests.csproj -c Release --nologo --no-build --logger "console;verbosity=minimal"
+dotnet test .\backend\tests\neuedge.IntegrationTests\neuedge.IntegrationTests.csproj -c Release --nologo --no-build --logger "console;verbosity=minimal"
 ```
 
 Notes:
@@ -213,7 +213,7 @@ Notes:
 - `ISS_INTEGRATIONTESTS_RESET_EXISTING_DB=1` will delete and recreate the target database before each run.
 - Use a dedicated test database name, not the main `iss` database.
 - Build once before `--no-build` runs:
-  - `dotnet build .\backend\tests\ISS.IntegrationTests\ISS.IntegrationTests.csproj -c Release --nologo`
+  - `dotnet build .\backend\tests\neuedge.IntegrationTests\neuedge.IntegrationTests.csproj -c Release --nologo`
 
 ## Single-VPS production deployment (current approach)
 
@@ -267,9 +267,9 @@ Recommended baseline:
 
 Recommended filesystem layout on the server:
 
-- app root: `/opt/iss`
-- backups: `/opt/iss-backups`
-- runtime env file: `/opt/iss/deploy/.env`
+- app root: `/opt/neuedge`
+- backups: `/opt/neuedge-backups`
+- runtime env file: `/opt/neuedge/deploy/.env`
 
 ### Host hardening checklist
 
@@ -293,8 +293,8 @@ sudo apt-get update
 sudo apt-get install -y ca-certificates curl git ufw
 curl -fsSL https://get.docker.com | sh
 sudo usermod -aG docker $USER
-sudo mkdir -p /opt/iss /opt/iss-backups
-sudo chown -R $USER:$USER /opt/iss /opt/iss-backups
+sudo mkdir -p /opt/neuedge /opt/neuedge-backups
+sudo chown -R $USER:$USER /opt/neuedge /opt/neuedge-backups
 ```
 
 ### Prepare runtime secrets
@@ -320,9 +320,9 @@ Important variables in the tracked VPS template:
 - `BOOTSTRAP_ADMIN_PASSWORD`
 - `BOOTSTRAP_ADMIN_DISPLAY_NAME`
 - `SECURITY_ENFORCE_HTTPS`
-- `ISS_SECURE_COOKIES`
-- `ISS_BACKEND_PROXY_TIMEOUT_MS`
-- `NEXT_PUBLIC_ISS_ALLOW_SELF_REGISTRATION`
+- `NEUEDGE_SECURE_COOKIES`
+- `NEUEDGE_BACKEND_PROXY_TIMEOUT_MS`
+- `NEXT_PUBLIC_NEUEDGE_ALLOW_SELF_REGISTRATION`
 
 Rules:
 
@@ -340,7 +340,7 @@ The tracked VPS compose file is intentionally usable on a raw IP address before 
 Use these settings when serving the app directly on `http://<server-ip>`:
 
 - `SECURITY_ENFORCE_HTTPS=false`
-- `ISS_SECURE_COOKIES=false`
+- `NEUEDGE_SECURE_COOKIES=false`
 
 Current live raw-IP endpoint:
 
@@ -349,14 +349,14 @@ Current live raw-IP endpoint:
 Why both matter:
 
 - if `Security__EnforceHttps` stays enabled without TLS, the API can redirect or reject traffic in ways that break the container-to-container and browser flow
-- if `ISS_SECURE_COOKIES=true` on plain HTTP, the browser will reject the auth cookie and login will appear to succeed while the session does not persist
+- if `NEUEDGE_SECURE_COOKIES=true` on plain HTTP, the browser will reject the auth cookie and login will appear to succeed while the session does not persist
 
 #### HTTPS mode
 
 After the site is reachable through real HTTPS:
 
 - set `SECURITY_ENFORCE_HTTPS=true`
-- set `ISS_SECURE_COOKIES=true`
+- set `NEUEDGE_SECURE_COOKIES=true`
 
 At that point, terminate TLS in front of the frontend container with a host-level or containerized reverse proxy such as Caddy or Nginx, and forward the scheme correctly.
 
@@ -373,22 +373,22 @@ You can upload them with your preferred tool:
 - `scp`
 - `sftp`
 - `rsync`
-- a tarball extracted into `/opt/iss`
+- a tarball extracted into `/opt/neuedge`
 
 The current workflow does not require a git checkout on the server.
 
 ### Deploy or update the stack
 
-From `/opt/iss` on the VPS:
+From `/opt/neuedge` on the VPS:
 
 ```bash
-docker compose --env-file /opt/iss/deploy/.env -f /opt/iss/deploy/docker-compose.vps.yml up -d --build
+docker compose --env-file /opt/neuedge/deploy/.env -f /opt/neuedge/deploy/docker-compose.vps.yml up -d --build
 ```
 
 Check status:
 
 ```bash
-docker compose --env-file /opt/iss/deploy/.env -f /opt/iss/deploy/docker-compose.vps.yml ps
+docker compose --env-file /opt/neuedge/deploy/.env -f /opt/neuedge/deploy/docker-compose.vps.yml ps
 ```
 
 Expected state:
@@ -468,13 +468,13 @@ It currently:
 
 - runs `pg_dump` against the live `db` container
 - archives the `iss_api_app_data` Docker volume
-- writes files into `/opt/iss-backups`
+- writes files into `/opt/neuedge-backups`
 - deletes backups older than 7 days
 
 Recommended cron entry:
 
 ```bash
-0 2 * * * /opt/iss/deploy/backup.sh >> /opt/iss-backups/backup.log 2>&1
+0 2 * * * /opt/neuedge/deploy/backup.sh >> /opt/neuedge-backups/backup.log 2>&1
 ```
 
 ### Manual backup examples
@@ -497,8 +497,8 @@ pg_restore --clean --if-exists --no-owner --no-privileges `
 File storage:
 
 ```powershell
-Compress-Archive -Path .\backend\src\ISS.Api\App_Data\* `
-  -DestinationPath .\backup\iss-app-data-$(Get-Date -Format yyyyMMdd-HHmmss).zip
+Compress-Archive -Path .\backend\src\neuedge.Api\App_Data\* `
+  -DestinationPath .\backup\neuedge-app-data-$(Get-Date -Format yyyyMMdd-HHmmss).zip
 ```
 
 ### What must be backed up
@@ -515,12 +515,12 @@ Always back up both:
 ### Rollout
 
 1. Back up database and `App_Data`.
-2. Sync the new `backend/`, `frontend/`, and `deploy/` files to `/opt/iss`.
-3. Review `/opt/iss/deploy/.env` for any new or changed variables.
+2. Sync the new `backend/`, `frontend/`, and `deploy/` files to `/opt/neuedge`.
+3. Review `/opt/neuedge/deploy/.env` for any new or changed variables.
 4. Run:
 
 ```bash
-docker compose --env-file /opt/iss/deploy/.env -f /opt/iss/deploy/docker-compose.vps.yml up -d --build
+docker compose --env-file /opt/neuedge/deploy/.env -f /opt/neuedge/deploy/docker-compose.vps.yml up -d --build
 ```
 
 5. Verify the stack with `docker compose ... ps`.
@@ -537,9 +537,9 @@ docker compose --env-file /opt/iss/deploy/.env -f /opt/iss/deploy/docker-compose
 1. Stop the new stack:
 
 ```bash
-docker compose --env-file /opt/iss/deploy/.env -f /opt/iss/deploy/docker-compose.vps.yml down
+docker compose --env-file /opt/neuedge/deploy/.env -f /opt/neuedge/deploy/docker-compose.vps.yml down
 ```
 
-2. Restore the previous app files under `/opt/iss`.
+2. Restore the previous app files under `/opt/neuedge`.
 3. Start the previous stack again with `docker compose ... up -d --build`.
 4. If schema changes are not backward compatible, restore the matching DB and `App_Data` backups instead of only rolling back code.

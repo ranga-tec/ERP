@@ -63,7 +63,7 @@ public sealed partial class DocumentPdfService
                 });
             },
             fileName: $"SQ-{quote.Number}.pdf",
-            qrPayload: $"ISS:SQ:{quote.Id}",
+            qrPayload: $"NEUEDGE:SQ:{quote.Id}",
             barcodePayload: quote.Number);
     }
 
@@ -121,7 +121,7 @@ public sealed partial class DocumentPdfService
                 });
             },
             fileName: $"SO-{order.Number}.pdf",
-            qrPayload: $"ISS:SO:{order.Id}",
+            qrPayload: $"NEUEDGE:SO:{order.Id}",
             barcodePayload: order.Number);
     }
 
@@ -185,7 +185,7 @@ public sealed partial class DocumentPdfService
                 });
             },
             fileName: $"DN-{dispatch.Number}.pdf",
-            qrPayload: $"ISS:DN:{dispatch.Id}",
+            qrPayload: $"NEUEDGE:DN:{dispatch.Id}",
             barcodePayload: dispatch.Number);
     }
 
@@ -252,7 +252,7 @@ public sealed partial class DocumentPdfService
                 });
             },
             fileName: $"INV-{invoice.Number}.pdf",
-            qrPayload: $"ISS:INV:{invoice.Id}",
+            qrPayload: $"NEUEDGE:INV:{invoice.Id}",
             barcodePayload: invoice.Number);
     }
 
@@ -319,7 +319,7 @@ public sealed partial class DocumentPdfService
                 });
             },
             fileName: $"DDN-{dispatch.Number}.pdf",
-            qrPayload: $"ISS:DDN:{dispatch.Id}",
+            qrPayload: $"NEUEDGE:DDN:{dispatch.Id}",
             barcodePayload: dispatch.Number);
     }
 
@@ -388,7 +388,7 @@ public sealed partial class DocumentPdfService
                 });
             },
             fileName: $"CRT-{cr.Number}.pdf",
-            qrPayload: $"ISS:CRTN:{cr.Id}",
+            qrPayload: $"NEUEDGE:CRTN:{cr.Id}",
             barcodePayload: cr.Number);
     }
 }

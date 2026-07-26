@@ -96,7 +96,7 @@ public sealed partial class DocumentPdfService
                 });
             },
             fileName: $"PAY-{payment.ReferenceNumber}.pdf",
-            qrPayload: $"ISS:PAY:{payment.Id}",
+            qrPayload: $"NEUEDGE:PAY:{payment.Id}",
             barcodePayload: payment.ReferenceNumber);
     }
 
@@ -164,7 +164,7 @@ public sealed partial class DocumentPdfService
                 });
             },
             fileName: $"CN-{note.ReferenceNumber}.pdf",
-            qrPayload: $"ISS:CN:{note.Id}",
+            qrPayload: $"NEUEDGE:CN:{note.Id}",
             barcodePayload: note.ReferenceNumber);
     }
 
@@ -196,7 +196,7 @@ public sealed partial class DocumentPdfService
             meta: meta,
             content: _ => { },
             fileName: $"DBN-{note.ReferenceNumber}.pdf",
-            qrPayload: $"ISS:DBN:{note.Id}",
+            qrPayload: $"NEUEDGE:DBN:{note.Id}",
             barcodePayload: note.ReferenceNumber);
     }
 
@@ -251,7 +251,7 @@ public sealed partial class DocumentPdfService
             meta: meta,
             content: _ => { },
             fileName: $"SINV-{invoice.Number}.pdf",
-            qrPayload: $"ISS:SINV:{invoice.Id}",
+            qrPayload: $"NEUEDGE:SINV:{invoice.Id}",
             barcodePayload: invoice.Number);
     }
 }

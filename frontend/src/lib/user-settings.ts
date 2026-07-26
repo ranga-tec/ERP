@@ -12,8 +12,8 @@ export type UserSettings = {
   defaultPaymentTypeId: string | null;
 };
 
-export const USER_SETTINGS_STORAGE_KEY = "iss_user_settings_v1";
-export const USER_SETTINGS_COOKIE = "iss_user_settings_v1";
+export const USER_SETTINGS_STORAGE_KEY = "neuedge_user_settings_v1";
+export const USER_SETTINGS_COOKIE = "neuedge_user_settings_v1";
 
 export const DEFAULT_USER_SETTINGS: UserSettings = {
   theme: "system",

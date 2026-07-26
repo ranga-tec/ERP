@@ -11,8 +11,8 @@ public sealed class JwtTokenService(IConfiguration configuration)
     public string GenerateToken(ApplicationUser user, IEnumerable<string> roles)
     {
         var jwtSection = configuration.GetSection("Jwt");
-        var issuer = jwtSection["Issuer"] ?? "ISS";
-        var audience = jwtSection["Audience"] ?? "ISS";
+        var issuer = jwtSection["Issuer"] ?? "neuedge";
+        var audience = jwtSection["Audience"] ?? "neuedge";
         var key = jwtSection["Key"] ?? throw new InvalidOperationException("Missing JWT key: Jwt:Key");
 
         var claims = new List<Claim>

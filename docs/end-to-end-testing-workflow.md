@@ -1,6 +1,6 @@
-# ISS End-To-End Testing Workflow
+# neuedge End-To-End Testing Workflow
 
-This document is the full manual testing workflow for the ISS ERP system.
+This document is the full manual testing workflow for the neuedge system.
 
 It is written for testers who need one guided path from system setup and master data creation through procurement, inventory, sales, finance, reporting, and month-end tie-out.
 
@@ -54,7 +54,7 @@ From the repo root:
 
 ```powershell
 docker compose up -d
-dotnet run --project backend/src/ISS.Api/ISS.Api.csproj
+dotnet run --project backend/src/neuedge.Api/neuedge.Api.csproj
 cd frontend
 copy .env.example .env.local
 npm install
@@ -79,7 +79,7 @@ Role-specific testing should be done afterward with `docs/role-based-test-checkl
 
 ### Screenshot 1: Login
 
-![ISS login page](assets/tester-trainer/login-page.png)
+![neuedge login page](assets/tester-trainer/login-page.png)
 
 ## 4. Baseline Test Data
 
@@ -159,7 +159,7 @@ Expected:
 
 ### Screenshot 2: Seeded currencies
 
-![ISS currencies](assets/tester-trainer/master-data-currencies.png)
+![neuedge currencies](assets/tester-trainer/master-data-currencies.png)
 
 ## 7. Phase 1: Master Data Foundation
 
@@ -258,7 +258,7 @@ Expected:
 
 ### Screenshot 3: Purchase order screen
 
-![ISS purchase order page](assets/tester-trainer/procurement-purchase-orders.png)
+![neuedge purchase order page](assets/tester-trainer/procurement-purchase-orders.png)
 
 ## 9. Phase 3: Inventory Validation After Receipt
 
@@ -389,7 +389,7 @@ Expected:
 
 ### What this phase does
 
-ISS does not have a separate stock-take posting screen. The business stock count is recorded through `Stock Adjustments`.
+neuedge does not have a separate stock-take posting screen. The business stock count is recorded through `Stock Adjustments`.
 
 Use this phase when the physical count does not match the system quantity at month-end.
 
@@ -460,11 +460,11 @@ Expected:
 
 ### Screenshot 4: Accounts payable
 
-![ISS accounts payable](assets/tester-trainer/finance-ap.png)
+![neuedge accounts payable](assets/tester-trainer/finance-ap.png)
 
 ### Screenshot 5: Accounts receivable
 
-![ISS accounts receivable](assets/tester-trainer/finance-ar.png)
+![neuedge accounts receivable](assets/tester-trainer/finance-ar.png)
 
 ## 16. Phase 10: Core Month-End Report Checks
 
@@ -533,11 +533,11 @@ Use this exact expected closing position for `SKU-CORE`:
 
 ### Screenshot 6: Costing report
 
-![ISS costing report](assets/tester-trainer/reporting-costing.png)
+![neuedge costing report](assets/tester-trainer/reporting-costing.png)
 
 ### Screenshot 7: Dashboard
 
-![ISS dashboard](assets/tester-trainer/dashboard.png)
+![neuedge dashboard](assets/tester-trainer/dashboard.png)
 
 ## 17. Extension Scenario Set
 
@@ -764,7 +764,7 @@ Severity:
 
 ## 21. Final Tester Note
 
-The most important testing rule for ISS is this:
+The most important testing rule for neuedge is this:
 
 - do not stop at "the transaction posted"
 

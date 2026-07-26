@@ -80,22 +80,22 @@ jobs:
       postgres:
         image: postgres:16-alpine
         env:
-          POSTGRES_DB: iss_ci
+          POSTGRES_DB: neuedge_ci
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres
         ports:
           - 5432:5432
         options: >-
-          --health-cmd "pg_isready -U postgres -d iss_ci"
+          --health-cmd "pg_isready -U postgres -d neuedge_ci"
           --health-interval 10s
           --health-timeout 5s
           --health-retries 10
 
     env:
-      ConnectionStrings__Default: Host=127.0.0.1;Port=5432;Database=iss_ci;Username=postgres;Password=postgres
+      ConnectionStrings__Default: Host=127.0.0.1;Port=5432;Database=neuedge_ci;Username=postgres;Password=postgres
       Database__InitializationMode: None
-      Jwt__Issuer: ISS
-      Jwt__Audience: ISS
+      Jwt__Issuer: neuedge
+      Jwt__Audience: neuedge
       Jwt__Key: ci-only-jwt-key-please-change-32chars-min
       ASPNETCORE_URLS: http://127.0.0.1:5080
 

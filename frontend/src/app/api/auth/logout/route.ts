@@ -1,15 +1,15 @@
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
-import { ISS_TOKEN_COOKIE, issSecureCookies } from "@/lib/env";
+import { NEUEDGE_TOKEN_COOKIE, neuedgeSecureCookies } from "@/lib/env";
 
 export const runtime = "nodejs";
 
 export async function POST() {
   const cookieStore = await cookies();
-  cookieStore.set(ISS_TOKEN_COOKIE, "", {
+  cookieStore.set(NEUEDGE_TOKEN_COOKIE, "", {
     httpOnly: true,
     sameSite: "lax",
-    secure: issSecureCookies(),
+    secure: neuedgeSecureCookies(),
     path: "/",
     maxAge: 0,
   });

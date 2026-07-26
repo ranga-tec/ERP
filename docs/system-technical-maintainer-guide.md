@@ -1,8 +1,8 @@
-﻿# ISS ERP System: Technical Maintainer Guide
+# neuedge System: Technical Maintainer Guide
 
 ## Purpose
 
-This document is the navigation hub for future agents and developers working on the ISS ERP system.
+This document is the navigation hub for future agents and developers working on the neuedge system.
 
 It provides the high-level system context and points to the detailed guides for backend, frontend, and change workflows.
 
@@ -65,19 +65,19 @@ Repo root:
 - `scripts/`
 - `.github/workflows/ci.yml`
 - `docker-compose.yml`
-- `ISS.slnx`
+- `neuedge.slnx`
 
 Backend source projects (`backend/src`):
 
-- `ISS.Api` -> HTTP API, auth, controllers, middleware, health checks, hosted services
-- `ISS.Application` -> application services, interfaces, options, validators
-- `ISS.Domain` -> domain entities, enums, invariants, business rules
-- `ISS.Infrastructure` -> EF Core persistence, Identity integration, PDF/docs, notifications adapters
+- `neuedge.Api` -> HTTP API, auth, controllers, middleware, health checks, hosted services
+- `neuedge.Application` -> application services, interfaces, options, validators
+- `neuedge.Domain` -> domain entities, enums, invariants, business rules
+- `neuedge.Infrastructure` -> EF Core persistence, Identity integration, PDF/docs, notifications adapters
 
 Backend tests (`backend/tests`):
 
-- `ISS.UnitTests` -> domain/application unit tests
-- `ISS.IntegrationTests` -> end-to-end API tests via in-process test host + PostgreSQL
+- `neuedge.UnitTests` -> domain/application unit tests
+- `neuedge.IntegrationTests` -> end-to-end API tests via in-process test host + PostgreSQL
 
 Frontend (`frontend/src`):
 

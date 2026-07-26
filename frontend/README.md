@@ -1,12 +1,12 @@
-# ISS Frontend (Next.js)
+# neuedge Frontend (Next.js)
 
-This is the web UI for the ISS ERP system.
+This is the web UI for neuedge.
 
 ## Purpose
 
 - Authenticated ERP frontend (master data, procurement, inventory, sales, service, finance, reporting, admin)
 - Proxies API calls to the backend (`/api/backend/[...path]`)
-- Stores auth JWT in an HTTP-only cookie (`iss_token`)
+- Stores auth JWT in an HTTP-only cookie (`neuedge_token`)
 
 Current UI coverage includes:
 
@@ -32,13 +32,13 @@ Open `http://localhost:3000`.
 
 Required `.env.local` value:
 
-- `ISS_API_BASE_URL` (defaults to `http://localhost:5257` if omitted)
+- `NEUEDGE_API_BASE_URL` (defaults to `http://localhost:5257` if omitted)
 
 Optional deployment-sensitive values:
 
-- `ISS_SECURE_COOKIES` (`true` | `false`; defaults to `true` in production)
-- `ISS_BACKEND_PROXY_TIMEOUT_MS` (defaults to `30000`)
-- `NEXT_PUBLIC_ISS_ALLOW_SELF_REGISTRATION` (`true` | `false`)
+- `NEUEDGE_SECURE_COOKIES` (`true` | `false`; defaults to `true` in production)
+- `NEUEDGE_BACKEND_PROXY_TIMEOUT_MS` (defaults to `30000`)
+- `NEXT_PUBLIC_NEUEDGE_ALLOW_SELF_REGISTRATION` (`true` | `false`)
 
 ## Key Frontend Architecture Files
 
@@ -71,7 +71,7 @@ Optional deployment-sensitive values:
 npm run build
 ```
 
-This is the primary local check for TypeScript and route compilation issues.
+This is the primary local check for TypeScript and route compilation issues. The production build uses Next's default builder.
 
 ## System-Level Docs
 

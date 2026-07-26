@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { issApiBaseUrl } from "@/lib/env";
+import { neuedgeApiBaseUrl } from "@/lib/env";
 
 type AuthCapabilities = {
   registrationAllowed: boolean;
@@ -11,7 +11,7 @@ type AuthCapabilities = {
 export const runtime = "nodejs";
 
 export async function GET() {
-  const resp = await fetch(new URL("/api/auth/capabilities", issApiBaseUrl()), {
+  const resp = await fetch(new URL("/api/auth/capabilities", neuedgeApiBaseUrl()), {
     cache: "no-store",
   });
 

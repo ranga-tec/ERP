@@ -10,7 +10,7 @@ const searchInputClass =
   "min-w-[15rem] rounded-xl border-[var(--table-grid-strong)] bg-white/90 shadow-none dark:bg-[var(--surface)]";
 const selectClass =
   "min-w-[10rem] rounded-xl border-[var(--table-grid-strong)] bg-white/90 shadow-none dark:bg-[var(--surface)]";
-const workspaceStorageKey = "iss_finance_accounts_workspace_mode_v1";
+const workspaceStorageKey = "neuedge_finance_accounts_workspace_mode_v1";
 
 type WorkspaceMode = "classic" | "priority";
 type StatusFilter = "active" | "inactive" | "all";

@@ -1,4 +1,4 @@
-# ISS Section Scripts
+# neuedge Section Scripts
 
 Use these scripts as the base recording plan for both marketing and training videos.
 
@@ -6,7 +6,7 @@ Use these scripts as the base recording plan for both marketing and training vid
 
 ### Marketing Cut
 
-- Goal: show that ISS is structured, role-based, and easy to navigate.
+- Goal: show that neuedge is structured, role-based, and easy to navigate.
 - Route flow: `/login` -> `/` -> sidebar search -> `/settings`
 - Screen flow:
   1. Show login screen.
@@ -15,7 +15,7 @@ Use these scripts as the base recording plan for both marketing and training vid
   4. Use sidebar search once.
   5. Open settings and briefly show Sri Lanka defaults.
 - Voiceover beats:
-  - `ISS brings operations, inventory, service, finance, and reporting into one structured workspace.`
+  - `neuedge brings operations, inventory, service, finance, and reporting into one structured workspace.`
   - `Users land in a role-based dashboard and move quickly through modules using the searchable sidebar.`
 
 ### Guided Tutorial
@@ -76,7 +76,7 @@ Use these scripts as the base recording plan for both marketing and training vid
   3. Show currencies including `LKR`.
   4. Show taxes and payment types.
 - Voiceover beats:
-  - `ISS keeps operational data consistent through controlled master-data management.`
+  - `neuedge keeps operational data consistent through controlled master-data management.`
   - `Warehouses, items, customers, suppliers, taxes, currencies, and payment types stay aligned across every module.`
 
 ### Guided Tutorial
@@ -121,7 +121,7 @@ Use these scripts as the base recording plan for both marketing and training vid
   2. Show GRN `Receive From PO` style workflow.
   3. End on supplier invoice or AP effect.
 - Voiceover beats:
-  - `ISS connects purchasing, receipt, and supplier liability in one traceable flow.`
+  - `neuedge connects purchasing, receipt, and supplier liability in one traceable flow.`
   - `Buying activity becomes stock movement and finance visibility without manual reconciliation.`
 
 ### Guided Tutorial
@@ -167,7 +167,7 @@ Use these scripts as the base recording plan for both marketing and training vid
   2. Show dispatch.
   3. Show invoice and final amount.
 - Voiceover beats:
-  - `ISS turns demand into dispatch and billing with visible stock and receivable impact.`
+  - `neuedge turns demand into dispatch and billing with visible stock and receivable impact.`
   - `Sales teams and finance stay aligned from shipment to invoice.`
 
 ### Guided Tutorial
@@ -202,7 +202,7 @@ Use these scripts as the base recording plan for both marketing and training vid
 
 ### Marketing Cut
 
-- Goal: show that ISS is not only inventory and finance; it supports after-sales service execution.
+- Goal: show that neuedge is not only inventory and finance; it supports after-sales service execution.
 - Route flow:
   - `/service/equipment-units`
   - `/service/contracts`
@@ -215,7 +215,7 @@ Use these scripts as the base recording plan for both marketing and training vid
   3. Open a service job.
   4. Show estimate and handover.
 - Voiceover beats:
-  - `ISS supports workshop and field-service operations from installed equipment through billing handover.`
+  - `neuedge supports workshop and field-service operations from installed equipment through billing handover.`
   - `Warranty, contract, labor, expense, and material flows stay connected to the same service record.`
 
 ### Guided Tutorial
@@ -293,7 +293,7 @@ Use these scripts as the base recording plan for both marketing and training vid
   3. Show payments allocation.
   4. Show petty cash or notes.
 - Voiceover beats:
-  - `ISS connects real operations to receivables, payables, payments, and cash controls.`
+  - `neuedge connects real operations to receivables, payables, payments, and cash controls.`
   - `The finance team sees the consequence of each transaction, not just a disconnected ledger line.`
 
 ### Guided Tutorial
@@ -332,7 +332,7 @@ Use these scripts as the base recording plan for both marketing and training vid
   3. Pause on one clear before/after change.
 - Voiceover beats:
   - `Every important change can be traced.`
-  - `ISS helps teams answer who changed what and when.`
+  - `neuedge helps teams answer who changed what and when.`
 
 ### Guided Tutorial
 
@@ -349,7 +349,7 @@ Use these scripts as the base recording plan for both marketing and training vid
 
 ### Marketing Cut
 
-- Goal: show that ISS turns transactions into insight.
+- Goal: show that neuedge turns transactions into insight.
 - Route flow:
   - `/reporting`
   - `/reporting/costing`
@@ -361,7 +361,7 @@ Use these scripts as the base recording plan for both marketing and training vid
   3. Jump to aging.
   4. End on stock ledger or tax summary.
 - Voiceover beats:
-  - `ISS converts transaction history into actionable operational and financial reporting.`
+  - `neuedge converts transaction history into actionable operational and financial reporting.`
   - `Teams can verify stock, cash exposure, service performance, and trend data from the same platform.`
 
 ### Guided Tutorial
@@ -404,7 +404,7 @@ Use these scripts as the base recording plan for both marketing and training vid
   3. Show notifications.
   4. End on settings.
 - Voiceover beats:
-  - `ISS includes the administration tools needed for rollout, user management, and operational support.`
+  - `neuedge includes the administration tools needed for rollout, user management, and operational support.`
   - `Teams can onboard data, manage users, and maintain system behavior without leaving the platform.`
 
 ### Guided Tutorial

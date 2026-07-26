@@ -18,7 +18,7 @@ WORKDIR /app
 
 ENV ASPNETCORE_ENVIRONMENT=Production \
     Database__InitializationMode=Migrate \
-    ISS_API_BASE_URL=http://127.0.0.1:8080 \
+    NEUEDGE_API_BASE_URL=http://127.0.0.1:8080 \
     NODE_ENV=production \
     PORT=3000
 

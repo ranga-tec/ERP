@@ -1,6 +1,6 @@
 # Frontend Data Grid Framework
 
-This document describes the reusable editable grid module used for transaction-line editing in the ISS frontend.
+This document describes the reusable editable grid module used for transaction-line editing in the neuedge frontend.
 
 Primary module path:
 
@@ -28,7 +28,7 @@ The document screen still owns:
 - save/delete APIs
 - document-specific toolbars and warnings
 
-This keeps the grid portable enough to reuse in other ISS areas or copy into another React/Tailwind application.
+This keeps the grid portable enough to reuse in other neuedge areas or copy into another React/Tailwind application.
 
 ## Current entrypoints
 

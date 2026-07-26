@@ -103,7 +103,7 @@ Common field-service systems do not make users discover work through disconnecte
 
 ## Target Design Direction
 
-ISS should keep its existing service documents and accounting controls, but the user-facing service module should move to a workspace model:
+neuedge should keep its existing service documents and accounting controls, but the user-facing service module should move to a workspace model:
 
 1. Service command center for supervisors and coordinators.
 2. Job cockpit for each job.

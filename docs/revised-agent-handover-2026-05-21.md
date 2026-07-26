@@ -1,6 +1,6 @@
 # Revised Agent Handover - 2026-05-21
 
-Use this document to resume the ISS ERP work in a fresh chat without rediscovering the recent context.
+Use this document to resume the neuedge work in a fresh chat without rediscovering the recent context.
 
 ## Environment
 
@@ -21,7 +21,7 @@ Use this document to resume the ISS ERP work in a fresh chat without rediscoveri
 
 There are currently local changes for the service job materials UI and service costing DTO:
 
-- `backend/src/ISS.Application/Services/ServiceCostingService.cs`
+- `backend/src/neuedge.Application/Services/ServiceCostingService.cs`
 - `frontend/src/app/(app)/service/jobs/[id]/page.tsx`
 - `frontend/src/app/(app)/service/jobs/ServiceJobMaterialDispositionAddForm.tsx`
 - `docs/testing-input-output-checklist.md`
@@ -37,7 +37,7 @@ Before pushing, run:
 
 ```powershell
 git status --short
-dotnet build backend/src/ISS.Application/ISS.Application.csproj --nologo
+dotnet build backend/src/neuedge.Application/neuedge.Application.csproj --nologo
 cd frontend
 npx eslint "src/app/(app)/service/jobs/[id]/page.tsx" "src/app/(app)/service/jobs/ServiceJobMaterialDispositionAddForm.tsx"
 ```
@@ -65,8 +65,8 @@ Backend endpoints added:
 
 Key files:
 
-- `backend/src/ISS.Application/Services/SalesService.cs`
-- `backend/src/ISS.Api/Controllers/Sales/InvoicesController.cs`
+- `backend/src/neuedge.Application/Services/SalesService.cs`
+- `backend/src/neuedge.Api/Controllers/Sales/InvoicesController.cs`
 - `frontend/src/app/(app)/sales/invoices/page.tsx`
 - `frontend/src/app/(app)/sales/invoices/InvoiceCreateForm.tsx`
 
@@ -81,7 +81,7 @@ Implemented:
 
 Key files:
 
-- `backend/src/ISS.Application/Services/SalesService.cs`
+- `backend/src/neuedge.Application/Services/SalesService.cs`
 - `frontend/src/app/(app)/sales/customer-returns/page.tsx`
 - `frontend/src/app/(app)/sales/customer-returns/[id]/page.tsx`
 - `frontend/src/app/(app)/sales/customer-returns/CustomerReturnLineAddForm.tsx`
@@ -141,9 +141,9 @@ Migration:
 
 Key files:
 
-- `backend/src/ISS.Domain/Service/ServiceJobMaterialDisposition.cs`
-- `backend/src/ISS.Application/Services/ServiceManagementService.cs`
-- `backend/src/ISS.Api/Controllers/Service/ServiceJobsController.cs`
+- `backend/src/neuedge.Domain/Service/ServiceJobMaterialDisposition.cs`
+- `backend/src/neuedge.Application/Services/ServiceManagementService.cs`
+- `backend/src/neuedge.Api/Controllers/Service/ServiceJobsController.cs`
 - `frontend/src/app/(app)/service/jobs/ServiceJobMaterialDispositionActions.tsx`
 - `frontend/src/app/(app)/service/jobs/ServiceJobMaterialDispositionAddForm.tsx`
 
@@ -174,7 +174,7 @@ Backend DTO update:
 
 Validation already run for this local work:
 
-- `dotnet build backend/src/ISS.Application/ISS.Application.csproj --nologo` passed.
+- `dotnet build backend/src/neuedge.Application/neuedge.Application.csproj --nologo` passed.
 - Focused ESLint for job materials files passed.
 - Backend restarted and health returned `200`.
 
@@ -282,7 +282,7 @@ Start backend:
 
 ```powershell
 $repo='D:\VScode Projects\ISS'
-$backendArgs=@('-NoProfile','-ExecutionPolicy','Bypass','-Command',"Set-Location '$repo'; `$env:ASPNETCORE_ENVIRONMENT='Development'; dotnet run --no-build --project backend/src/ISS.Api/ISS.Api.csproj --urls http://127.0.0.1:5257")
+$backendArgs=@('-NoProfile','-ExecutionPolicy','Bypass','-Command',"Set-Location '$repo'; `$env:ASPNETCORE_ENVIRONMENT='Development'; dotnet run --no-build --project backend/src/neuedge.Api/neuedge.Api.csproj --urls http://127.0.0.1:5257")
 Start-Process -FilePath powershell.exe -ArgumentList $backendArgs -WorkingDirectory $repo -WindowStyle Hidden -RedirectStandardOutput (Join-Path $repo '.local-api-uat.out.log') -RedirectStandardError (Join-Path $repo '.local-api-uat.err.log')
 ```
 

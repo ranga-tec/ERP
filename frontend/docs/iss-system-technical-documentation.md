@@ -1,4 +1,4 @@
-# ISS ERP System Technical Documentation (Frontend + Backend)
+# neuedge System Technical Documentation (Frontend + Backend)
 
 Generated from code inspection on 2026-03-20.
 
@@ -141,7 +141,7 @@ The following features were implemented after the initial documentation pass:
 
 ## 1. Scope and Purpose
 
-This document describes the current implementation of the ISS ERP system in this repository, with emphasis on:
+This document describes the current implementation of the neuedge system in this repository, with emphasis on:
 
 - Architecture (frontend and backend)
 - Runtime request flow and authentication
@@ -167,10 +167,10 @@ Top-level (relevant to this document):
 
 Backend solution projects (`backend/src`):
 
-- `ISS.Api` - HTTP API, auth, controllers, middleware, hosted services
-- `ISS.Application` - application services and abstractions
-- `ISS.Domain` - entities, enums, invariants, domain validation
-- `ISS.Infrastructure` - EF Core persistence, Identity, PDF rendering, notifications
+- `neuedge.Api` - HTTP API, auth, controllers, middleware, hosted services
+- `neuedge.Application` - application services and abstractions
+- `neuedge.Domain` - entities, enums, invariants, domain validation
+- `neuedge.Infrastructure` - EF Core persistence, Identity, PDF rendering, notifications
 
 ## 3. System Architecture Summary
 
@@ -181,7 +181,7 @@ Backend solution projects (`backend/src`):
 3. UI pages fetch data via:
    - server components -> `backendFetchJson()` -> backend directly
    - client components -> `api-client.ts` -> `/api/backend/*` -> backend
-4. Next catch-all proxy route `src/app/api/backend/[...path]/route.ts` forwards to the ASP.NET backend (`ISS_API_BASE_URL`).
+4. Next catch-all proxy route `src/app/api/backend/[...path]/route.ts` forwards to the ASP.NET backend (`NEUEDGE_API_BASE_URL`).
 5. ASP.NET Core controllers call application services and/or EF Core via `IIssDbContext`.
 6. EF Core (`IssDbContext`) persists to PostgreSQL and auto-records audit logs on save.
 
@@ -280,7 +280,7 @@ File: `frontend/src/lib/backend.server.ts`
 Behavior:
 
 - Reads `iss_token` from Next cookies
-- Builds backend URL using `ISS_API_BASE_URL` (default `http://localhost:5257`)
+- Builds backend URL using `NEUEDGE_API_BASE_URL` (default `http://localhost:5257`)
 - Adds bearer token if present
 - Uses `cache: \"no-store\"`
 - Throws on non-2xx with backend text body
@@ -631,7 +631,7 @@ From project files (`backend/src/*.csproj`):
 
 ## 5.2 Backend composition root and startup behavior
 
-File: `backend/src/ISS.Api/Program.cs`
+File: `backend/src/neuedge.Api/Program.cs`
 
 Key startup behavior:
 
@@ -640,7 +640,7 @@ Key startup behavior:
 - Registers `JwtTokenService` and `NotificationDispatcherHostedService`
 - Enables controllers + Swagger
 - Applies startup DB initialization based on `Database__InitializationMode`
-- Seeds Identity roles from `ISS.Api.Security.Roles.All`
+- Seeds Identity roles from `neuedge.Api.Security.Roles.All`
 - Adds global exception middleware
 
 Important operational note:
@@ -651,10 +651,10 @@ Important operational note:
 
 Relevant files:
 
-- `backend/src/ISS.Api/appsettings.json`
-- `backend/src/ISS.Api/appsettings.Development.json`
-- `backend/src/ISS.Application/Options/NotificationOptions.cs`
-- `backend/src/ISS.Application/Options/NotificationDispatcherOptions.cs`
+- `backend/src/neuedge.Api/appsettings.json`
+- `backend/src/neuedge.Api/appsettings.Development.json`
+- `backend/src/neuedge.Application/Options/NotificationOptions.cs`
+- `backend/src/neuedge.Application/Options/NotificationDispatcherOptions.cs`
 
 Key config sections:
 
@@ -672,10 +672,10 @@ Key config sections:
 
 Relevant files:
 
-- `backend/src/ISS.Api/Controllers/AuthController.cs`
-- `backend/src/ISS.Api/Services/JwtTokenService.cs`
-- `backend/src/ISS.Api/Services/CurrentUser.cs`
-- `backend/src/ISS.Api/Security/Roles.cs`
+- `backend/src/neuedge.Api/Controllers/AuthController.cs`
+- `backend/src/neuedge.Api/Services/JwtTokenService.cs`
+- `backend/src/neuedge.Api/Services/CurrentUser.cs`
+- `backend/src/neuedge.Api/Security/Roles.cs`
 
 Implementation notes:
 
@@ -701,7 +701,7 @@ Role set used across controllers:
 
 ## 5.5 Global exception handling
 
-File: `backend/src/ISS.Api/Middleware/ExceptionHandlingMiddleware.cs`
+File: `backend/src/neuedge.Api/Middleware/ExceptionHandlingMiddleware.cs`
 
 Handled mappings:
 
@@ -719,8 +719,8 @@ Response shape:
 
 Primary files:
 
-- `backend/src/ISS.Infrastructure/Persistence/IssDbContext.cs`
-- `backend/src/ISS.Application/Persistence/IIssDbContext.cs`
+- `backend/src/neuedge.Infrastructure/Persistence/IssDbContext.cs`
+- `backend/src/neuedge.Application/Persistence/IIssDbContext.cs`
 
 Key characteristics:
 
@@ -752,10 +752,10 @@ This is the backend source for the frontend `/audit-logs` page.
 
 Key files:
 
-- `backend/src/ISS.Domain/Common/Guard.cs`
-- `backend/src/ISS.Domain/Common/DomainValidationException.cs`
-- `backend/src/ISS.Domain/Common/AuditableEntity.cs`
-- entity files under `backend/src/ISS.Domain/*`
+- `backend/src/neuedge.Domain/Common/Guard.cs`
+- `backend/src/neuedge.Domain/Common/DomainValidationException.cs`
+- `backend/src/neuedge.Domain/Common/AuditableEntity.cs`
+- entity files under `backend/src/neuedge.Domain/*`
 
 Conventions:
 
@@ -774,7 +774,7 @@ Examples inspected:
 
 ## 5.8 Application services (business workflow orchestration)
 
-DI registration: `backend/src/ISS.Application/DependencyInjection.cs`
+DI registration: `backend/src/neuedge.Application/DependencyInjection.cs`
 
 Registered services:
 
@@ -789,7 +789,7 @@ Registered services:
 
 ### 5.8.1 DocumentNumberService
 
-File: `backend/src/ISS.Application/Services/DocumentNumberService.cs`
+File: `backend/src/neuedge.Application/Services/DocumentNumberService.cs`
 
 Behavior:
 
@@ -798,7 +798,7 @@ Behavior:
 
 ### 5.8.2 InventoryService (movement engine)
 
-File: `backend/src/ISS.Application/Services/InventoryService.cs`
+File: `backend/src/neuedge.Application/Services/InventoryService.cs`
 
 Responsibilities:
 
@@ -811,7 +811,7 @@ This service is a core dependency for Procurement, Sales, and Service posting fl
 
 ### 5.8.3 InventoryOperationsService
 
-File: `backend/src/ISS.Application/Services/InventoryOperationsService.cs`
+File: `backend/src/neuedge.Application/Services/InventoryOperationsService.cs`
 
 Responsibilities:
 
@@ -822,7 +822,7 @@ Responsibilities:
 
 ### 5.8.4 ProcurementService
 
-File: `backend/src/ISS.Application/Services/ProcurementService.cs`
+File: `backend/src/neuedge.Application/Services/ProcurementService.cs`
 
 Responsibilities:
 
@@ -839,7 +839,7 @@ Responsibilities:
 
 ### 5.8.5 SalesService
 
-File: `backend/src/ISS.Application/Services/SalesService.cs`
+File: `backend/src/neuedge.Application/Services/SalesService.cs`
 
 Responsibilities:
 
@@ -854,7 +854,7 @@ Responsibilities:
 
 ### 5.8.6 ServiceManagementService
 
-File: `backend/src/ISS.Application/Services/ServiceManagementService.cs`
+File: `backend/src/neuedge.Application/Services/ServiceManagementService.cs`
 
 Responsibilities:
 
@@ -870,7 +870,7 @@ Responsibilities:
 
 ### 5.8.7 FinanceService
 
-File: `backend/src/ISS.Application/Services/FinanceService.cs`
+File: `backend/src/neuedge.Application/Services/FinanceService.cs`
 
 Responsibilities:
 
@@ -887,7 +887,7 @@ Cross-domain significance:
 
 ## 5.9 API controller design and routing
 
-Approximate controller count: 33 (`backend/src/ISS.Api/Controllers`)
+Approximate controller count: 33 (`backend/src/neuedge.Api/Controllers`)
 
 Controller design pattern:
 
@@ -916,9 +916,9 @@ Examples inspected:
 
 Files:
 
-- `backend/src/ISS.Application/Abstractions/IDocumentPdfService.cs`
-- `backend/src/ISS.Infrastructure/Documents/DocumentPdfService.cs`
-- partial document renderers in `backend/src/ISS.Infrastructure/Documents/*`
+- `backend/src/neuedge.Application/Abstractions/IDocumentPdfService.cs`
+- `backend/src/neuedge.Infrastructure/Documents/DocumentPdfService.cs`
+- partial document renderers in `backend/src/neuedge.Infrastructure/Documents/*`
 
 Capabilities:
 
@@ -935,9 +935,9 @@ Frontend integration:
 
 Files:
 
-- `backend/src/ISS.Application/Services/NotificationService.cs`
-- `backend/src/ISS.Api/Services/NotificationDispatcherHostedService.cs`
-- `backend/src/ISS.Infrastructure/Notifications/*`
+- `backend/src/neuedge.Application/Services/NotificationService.cs`
+- `backend/src/neuedge.Api/Services/NotificationDispatcherHostedService.cs`
+- `backend/src/neuedge.Infrastructure/Notifications/*`
 
 Architecture:
 
@@ -956,7 +956,7 @@ Adapters:
 
 Primary file:
 
-- `backend/src/ISS.Api/Controllers/Admin/ImportController.cs`
+- `backend/src/neuedge.Api/Controllers/Admin/ImportController.cs`
 
 What it does:
 
@@ -983,8 +983,8 @@ Change impact:
 
 Projects:
 
-- `backend/tests/ISS.UnitTests`
-- `backend/tests/ISS.IntegrationTests`
+- `backend/tests/neuedge.UnitTests`
+- `backend/tests/neuedge.IntegrationTests`
 
 Observed test stack:
 
@@ -1108,10 +1108,10 @@ Frontend touchpoints:
 
 Backend touchpoints:
 
-- `backend/src/ISS.Api/Program.cs`
-- `backend/src/ISS.Api/Controllers/AuthController.cs`
-- `backend/src/ISS.Api/Services/JwtTokenService.cs`
-- Identity config in `backend/src/ISS.Infrastructure/DependencyInjection.cs`
+- `backend/src/neuedge.Api/Program.cs`
+- `backend/src/neuedge.Api/Controllers/AuthController.cs`
+- `backend/src/neuedge.Api/Services/JwtTokenService.cs`
+- Identity config in `backend/src/neuedge.Infrastructure/DependencyInjection.cs`
 
 Be careful with claim names because the frontend session decoder expects standard JWT + `ClaimTypes.*` claims.
 
@@ -1147,7 +1147,7 @@ This is acceptable for display-only session metadata, but should not be used for
 
 ## 8.4 Migration mode still matters for long-lived local databases
 
-File: `backend/src/ISS.Api/Program.cs`
+File: `backend/src/neuedge.Api/Program.cs`
 
 Impact:
 
@@ -1158,8 +1158,8 @@ Impact:
 
 Files:
 
-- `backend/src/ISS.Api/Controllers/ReportingController.cs`
-- `backend/src/ISS.Api/Controllers/InventoryController.cs`
+- `backend/src/neuedge.Api/Controllers/ReportingController.cs`
+- `backend/src/neuedge.Api/Controllers/InventoryController.cs`
 
 Observed pattern:
 
@@ -1215,45 +1215,45 @@ For non-trivial changes, use this sequence:
 
 ### Backend composition and infrastructure
 
-- `backend/src/ISS.Api/Program.cs`
-- `backend/src/ISS.Api/Middleware/ExceptionHandlingMiddleware.cs`
-- `backend/src/ISS.Application/DependencyInjection.cs`
-- `backend/src/ISS.Infrastructure/DependencyInjection.cs`
-- `backend/src/ISS.Infrastructure/Persistence/IssDbContext.cs`
+- `backend/src/neuedge.Api/Program.cs`
+- `backend/src/neuedge.Api/Middleware/ExceptionHandlingMiddleware.cs`
+- `backend/src/neuedge.Application/DependencyInjection.cs`
+- `backend/src/neuedge.Infrastructure/DependencyInjection.cs`
+- `backend/src/neuedge.Infrastructure/Persistence/IssDbContext.cs`
 
 ### Backend business orchestration
 
-- `backend/src/ISS.Application/Services/DocumentNumberService.cs`
-- `backend/src/ISS.Application/Services/InventoryService.cs`
-- `backend/src/ISS.Application/Services/InventoryOperationsService.cs`
-- `backend/src/ISS.Application/Services/ProcurementService.cs`
-- `backend/src/ISS.Application/Services/SalesService.cs`
-- `backend/src/ISS.Application/Services/ServiceManagementService.cs`
-- `backend/src/ISS.Application/Services/FinanceService.cs`
-- `backend/src/ISS.Application/Services/NotificationService.cs`
+- `backend/src/neuedge.Application/Services/DocumentNumberService.cs`
+- `backend/src/neuedge.Application/Services/InventoryService.cs`
+- `backend/src/neuedge.Application/Services/InventoryOperationsService.cs`
+- `backend/src/neuedge.Application/Services/ProcurementService.cs`
+- `backend/src/neuedge.Application/Services/SalesService.cs`
+- `backend/src/neuedge.Application/Services/ServiceManagementService.cs`
+- `backend/src/neuedge.Application/Services/FinanceService.cs`
+- `backend/src/neuedge.Application/Services/NotificationService.cs`
 
 ### Backend auth / admin operations
 
-- `backend/src/ISS.Api/Controllers/AuthController.cs`
-- `backend/src/ISS.Api/Controllers/Admin/UsersController.cs`
-- `backend/src/ISS.Api/Controllers/Admin/NotificationsController.cs`
-- `backend/src/ISS.Api/Controllers/Admin/ImportController.cs`
-- `backend/src/ISS.Api/Services/JwtTokenService.cs`
-- `backend/src/ISS.Api/Services/NotificationDispatcherHostedService.cs`
+- `backend/src/neuedge.Api/Controllers/AuthController.cs`
+- `backend/src/neuedge.Api/Controllers/Admin/UsersController.cs`
+- `backend/src/neuedge.Api/Controllers/Admin/NotificationsController.cs`
+- `backend/src/neuedge.Api/Controllers/Admin/ImportController.cs`
+- `backend/src/neuedge.Api/Services/JwtTokenService.cs`
+- `backend/src/neuedge.Api/Services/NotificationDispatcherHostedService.cs`
 
 ### PDF and notification infrastructure
 
-- `backend/src/ISS.Application/Abstractions/IDocumentPdfService.cs`
-- `backend/src/ISS.Infrastructure/Documents/DocumentPdfService.cs`
-- `backend/src/ISS.Application/Abstractions/INotificationSenders.cs`
-- `backend/src/ISS.Infrastructure/Notifications/SmtpEmailSender.cs`
-- `backend/src/ISS.Infrastructure/Notifications/TwilioSmsSender.cs`
+- `backend/src/neuedge.Application/Abstractions/IDocumentPdfService.cs`
+- `backend/src/neuedge.Infrastructure/Documents/DocumentPdfService.cs`
+- `backend/src/neuedge.Application/Abstractions/INotificationSenders.cs`
+- `backend/src/neuedge.Infrastructure/Notifications/SmtpEmailSender.cs`
+- `backend/src/neuedge.Infrastructure/Notifications/TwilioSmsSender.cs`
 
 ### Tests
 
-- `backend/tests/ISS.UnitTests/Domain/*.cs`
-- `backend/tests/ISS.IntegrationTests/EndToEndTests.cs`
-- `backend/tests/ISS.IntegrationTests/Fixtures/*`
+- `backend/tests/neuedge.UnitTests/Domain/*.cs`
+- `backend/tests/neuedge.IntegrationTests/EndToEndTests.cs`
+- `backend/tests/neuedge.IntegrationTests/Fixtures/*`
 
 ## 11. What This Means for Your Upcoming Changes
 

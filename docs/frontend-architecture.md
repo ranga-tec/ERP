@@ -1,4 +1,4 @@
-﻿# ISS ERP Frontend Architecture and UI Integration Guide
+# neuedge Frontend Architecture and UI Integration Guide
 
 This guide is focused on the Next.js frontend structure, auth/proxy flow, UI composition patterns, and how the frontend integrates with backend APIs.
 
