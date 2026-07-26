@@ -4,6 +4,9 @@ using ISS.Application.Abstractions;
 using ISS.Application.Persistence;
 using ISS.Domain.Finance;
 using ISS.Domain.MasterData;
+using ISS.Domain.Procurement;
+using ISS.Domain.Sales;
+using ISS.Domain.Service;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -299,6 +302,78 @@ public sealed class ItemsController(
         return CreatedAtAction(nameof(Get), new { id = item.Id }, created);
     }
 
+    /// <summary>
+    /// Returns a human-readable reason the item must stay active, or null when it can be retired.
+    /// Ongoing obligations count: stock still held, documents still in flight, and equipment sold
+    /// from this item that is still under warranty or still being worked on.
+    /// Settled history alone does not block, otherwise anything ever traded could never be retired.
+    /// </summary>
+    private async Task<string?> DescribeDeactivationBlockerAsync(Guid itemId, CancellationToken cancellationToken)
+    {
+        var onHand = await dbContext.InventoryMovements.AsNoTracking()
+            .Where(x => x.ItemId == itemId)
+            .SumAsync(x => (decimal?)x.Quantity, cancellationToken) ?? 0m;
+        if (onHand > 0)
+        {
+            return $"{onHand:0.####} still on hand. Issue or write off the remaining stock first.";
+        }
+
+        // A live equipment unit means a machine of this model is still out with a customer and may
+        // come back for warranty or service, so the item has to stay orderable and serviceable.
+        var now = DateTimeOffset.UtcNow;
+        var liveUnits = await dbContext.EquipmentUnits.AsNoTracking()
+            .Where(x => x.ItemId == itemId && x.IsActive)
+            .Select(x => new { x.WarrantyUntil })
+            .ToListAsync(cancellationToken);
+        if (liveUnits.Count > 0)
+        {
+            var underWarranty = liveUnits.Count(x => x.WarrantyUntil != null && x.WarrantyUntil >= now);
+            return underWarranty > 0
+                ? $"{liveUnits.Count} unit(s) of this item are registered to customers, {underWarranty} still under warranty. Retire those equipment units first."
+                : $"{liveUnits.Count} unit(s) of this item are still registered to customers. Retire those equipment units first.";
+        }
+
+        var unitsInOpenJobs = await (
+            from job in dbContext.ServiceJobs.AsNoTracking()
+            join unit in dbContext.EquipmentUnits.AsNoTracking() on job.EquipmentUnitId equals unit.Id
+            where unit.ItemId == itemId
+                  && job.Status != ServiceJobStatus.Closed
+                  && job.Status != ServiceJobStatus.Cancelled
+            select job.Id).CountAsync(cancellationToken);
+        if (unitsInOpenJobs > 0)
+        {
+            return $"{unitsInOpenJobs} open service job(s) cover equipment sold from this item.";
+        }
+
+        var openSalesOrders = await dbContext.SalesOrders.AsNoTracking()
+            .CountAsync(x => x.Status != SalesOrderStatus.Closed
+                             && x.Status != SalesOrderStatus.Cancelled
+                             && x.Lines.Any(l => l.ItemId == itemId), cancellationToken);
+        if (openSalesOrders > 0)
+        {
+            return $"{openSalesOrders} open sales order(s) still contain it.";
+        }
+
+        var openPurchaseOrders = await dbContext.PurchaseOrders.AsNoTracking()
+            .CountAsync(x => x.Status != PurchaseOrderStatus.Closed
+                             && x.Status != PurchaseOrderStatus.Cancelled
+                             && x.Lines.Any(l => l.ItemId == itemId), cancellationToken);
+        if (openPurchaseOrders > 0)
+        {
+            return $"{openPurchaseOrders} open purchase order(s) still contain it.";
+        }
+
+        var draftRequisitions = await dbContext.MaterialRequisitions.AsNoTracking()
+            .CountAsync(x => x.Status == MaterialRequisitionStatus.Draft
+                             && x.Lines.Any(l => l.ItemId == itemId), cancellationToken);
+        if (draftRequisitions > 0)
+        {
+            return $"{draftRequisitions} draft material requisition(s) still contain it.";
+        }
+
+        return null;
+    }
+
     [HttpPut("{id:guid}")]
     [Authorize(Roles = $"{Roles.Admin},{Roles.Inventory},{Roles.Finance}")]
     public async Task<ActionResult<ItemDto>> Update(Guid id, UpdateItemRequest request, CancellationToken cancellationToken)
@@ -320,6 +395,15 @@ public sealed class ItemsController(
         if (classificationError is not null)
         {
             return BadRequest(classificationError);
+        }
+
+        if (item.IsActive && !request.IsActive)
+        {
+            var blocker = await DescribeDeactivationBlockerAsync(id, cancellationToken);
+            if (blocker is not null)
+            {
+                return BadRequest($"Cannot deactivate this item: {blocker}");
+            }
         }
 
         var accountAssignmentError = await ValidateAccountAssignmentsAsync(
