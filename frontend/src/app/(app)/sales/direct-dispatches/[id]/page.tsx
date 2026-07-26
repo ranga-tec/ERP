@@ -6,7 +6,7 @@ import { Card, SecondaryLink } from "@/components/ui";
 import { DirectDispatchActions } from "../DirectDispatchActions";
 import { DirectDispatchLineAddForm } from "../DirectDispatchLineAddForm";
 import { DirectDispatchLinesEditor } from "../DirectDispatchLinesEditor";
-import { DirectDispatchLoadFromMrnForm } from "../DirectDispatchLoadFromMrnForm";
+import { DirectDispatchMrnPlanForm } from "../DirectDispatchMrnPlanForm";
 import { DocumentCollaborationPanel } from "@/components/DocumentCollaborationPanel";
 import { StockAvailabilityModal } from "@/components/StockAvailabilityModal";
 import { DocumentDirectEditNotice } from "@/components/DocumentDirectEditNotice";
@@ -17,6 +17,7 @@ type DirectDispatchDto = {
   warehouseId: string;
   customerId?: string | null;
   serviceJobId?: string | null;
+  materialRequisitionId?: string | null;
   dispatchedAt: string;
   status: number;
   warrantyUntil?: string | null;
@@ -113,8 +114,25 @@ export default async function DirectDispatchDetailPage({
 
       {isDraft && dispatch.serviceJobId ? (
         <Card>
-          <div className="mb-3 text-sm font-semibold">Load From MRN</div>
-          <DirectDispatchLoadFromMrnForm directDispatchId={dispatch.id} serviceJobId={dispatch.serviceJobId} />
+          <div className="mb-3 flex flex-col gap-2 lg:flex-row lg:items-start lg:justify-between">
+            <div>
+              <div className="text-sm font-semibold">Dispatch Against Request</div>
+              <p className="mt-1 max-w-3xl text-sm text-zinc-500">
+                This is the working grid for a job request. Choosing the MRN shows its requested
+                items; enter how much is going out now, in full or in part. It already reflects the
+                current draft lines, so a separate add-line form is not shown while it is in use.
+              </p>
+            </div>
+            <div className="rounded-full border border-[var(--input-border)] bg-[var(--surface-soft)] px-3 py-1 text-xs font-medium text-[var(--muted-foreground)]">
+              {dispatch.lines.length} draft line(s)
+            </div>
+          </div>
+          <DirectDispatchMrnPlanForm
+            directDispatchId={dispatch.id}
+            serviceJobId={dispatch.serviceJobId}
+            linkedRequisitionId={dispatch.materialRequisitionId}
+            items={items}
+          />
         </Card>
       ) : null}
 
@@ -122,7 +140,7 @@ export default async function DirectDispatchDetailPage({
         <>
           {startInEditMode ? (
             <DocumentDirectEditNotice addLineHref={`/sales/direct-dispatches/${dispatch.id}`} />
-          ) : (
+          ) : dispatch.serviceJobId ? null : (
             <Card>
               <div className="mb-3 text-sm font-semibold">Add line</div>
               <DirectDispatchLineAddForm
@@ -146,6 +164,7 @@ export default async function DirectDispatchDetailPage({
         </>
       ) : null}
 
+      {isDraft && dispatch.serviceJobId ? null : (
       <Card>
         <div className="mb-3 text-sm font-semibold">Lines</div>
         <DirectDispatchLinesEditor
@@ -166,6 +185,7 @@ export default async function DirectDispatchDetailPage({
           canEdit={isDraft}
         />
       </Card>
+      )}
 
       <DocumentCollaborationPanel referenceType="DDN" referenceId={id} />
     </div>

@@ -560,12 +560,14 @@ public sealed class IssDbContext(
             entity.Property(x => x.Number).HasMaxLength(32);
             entity.Property(x => x.Reason).HasMaxLength(2000);
             entity.Property(x => x.ServiceIntervalDays);
+            entity.HasIndex(x => x.MaterialRequisitionId);
             entity.HasMany(x => x.Lines).WithOne().HasForeignKey(x => x.DirectDispatchId).OnDelete(DeleteBehavior.Cascade);
         });
         builder.Entity<DirectDispatchLine>(entity =>
         {
             entity.Property(x => x.Quantity).HasPrecision(18, 4);
             entity.Property(x => x.BatchNumber).HasMaxLength(128);
+            entity.HasIndex(x => x.MaterialRequisitionLineId);
             entity.HasMany(x => x.Serials).WithOne().HasForeignKey(x => x.DirectDispatchLineId).OnDelete(DeleteBehavior.Cascade);
         });
         builder.Entity<DirectDispatchLineSerial>(entity =>

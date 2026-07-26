@@ -286,13 +286,14 @@ public sealed class SalesService(
         decimal quantity,
         string? batchNumber,
         IReadOnlyCollection<string>? serialNumbers,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        Guid? materialRequisitionLineId = null)
     {
         var dispatch = await dbContext.DirectDispatches.Include(x => x.Lines).ThenInclude(l => l.Serials)
                          .FirstOrDefaultAsync(x => x.Id == directDispatchId, cancellationToken)
                      ?? throw new NotFoundException("Direct dispatch not found.");
 
-        var line = dispatch.AddLine(itemId, quantity, batchNumber);
+        var line = dispatch.AddLine(itemId, quantity, batchNumber, materialRequisitionLineId);
         if (serialNumbers is { Count: > 0 })
         {
             foreach (var serial in serialNumbers)

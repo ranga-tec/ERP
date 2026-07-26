@@ -65,6 +65,13 @@ public sealed class DirectDispatch : AuditableEntity
     public Guid? CustomerId { get; private set; }
     public Guid? ServiceJobId { get; private set; }
     public string? Reason { get; private set; }
+
+    /// <summary>
+    /// The material requisition this dispatch is fulfilling, when it was raised from a job
+    /// request. Persisted so a later dispatch can tell how much of each requested line has
+    /// already gone out, the same way a goods receipt tracks against its purchase order.
+    /// </summary>
+    public Guid? MaterialRequisitionId { get; private set; }
     public DateTimeOffset? WarrantyUntil { get; private set; }
     public ISS.Domain.Service.ServiceCoverageScope WarrantyCoverage { get; private set; }
     public int? ServiceIntervalDays { get; private set; }
@@ -73,11 +80,17 @@ public sealed class DirectDispatch : AuditableEntity
 
     public List<DirectDispatchLine> Lines { get; private set; } = new();
 
-    public DirectDispatchLine AddLine(Guid itemId, decimal quantity, string? batchNumber)
+    public void LinkMaterialRequisition(Guid? materialRequisitionId)
+    {
+        EnsureDraftEditable();
+        MaterialRequisitionId = materialRequisitionId;
+    }
+
+    public DirectDispatchLine AddLine(Guid itemId, decimal quantity, string? batchNumber, Guid? materialRequisitionLineId = null)
     {
         EnsureDraftEditable();
 
-        var line = new DirectDispatchLine(Id, itemId, Guard.Positive(quantity, nameof(quantity)), batchNumber);
+        var line = new DirectDispatchLine(Id, itemId, Guard.Positive(quantity, nameof(quantity)), batchNumber, materialRequisitionLineId);
         Lines.Add(line);
         return line;
     }
@@ -146,18 +159,22 @@ public sealed class DirectDispatchLine : Entity
 {
     private DirectDispatchLine() { }
 
-    public DirectDispatchLine(Guid directDispatchId, Guid itemId, decimal quantity, string? batchNumber)
+    public DirectDispatchLine(Guid directDispatchId, Guid itemId, decimal quantity, string? batchNumber, Guid? materialRequisitionLineId = null)
     {
         DirectDispatchId = directDispatchId;
         ItemId = itemId;
         Quantity = quantity;
         BatchNumber = batchNumber?.Trim();
+        MaterialRequisitionLineId = materialRequisitionLineId;
     }
 
     public Guid DirectDispatchId { get; private set; }
     public Guid ItemId { get; private set; }
     public decimal Quantity { get; private set; }
     public string? BatchNumber { get; private set; }
+
+    /// <summary>The requested line this dispatch line fulfils, when it came from an MRN.</summary>
+    public Guid? MaterialRequisitionLineId { get; private set; }
 
     public List<DirectDispatchLineSerial> Serials { get; private set; } = new();
 
