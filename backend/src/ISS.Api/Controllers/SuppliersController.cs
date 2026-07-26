@@ -2,6 +2,7 @@ using ISS.Api.Security;
 using ISS.Application.Abstractions;
 using ISS.Application.Persistence;
 using ISS.Domain.MasterData;
+using ISS.Domain.Procurement;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -73,9 +74,56 @@ public sealed class SuppliersController(IIssDbContext dbContext, ICurrentUser cu
             return BadRequest("Selected company does not exist.");
         }
 
+        if (supplier.IsActive && !request.IsActive)
+        {
+            var blocker = await DescribeDeactivationBlockerAsync(id, cancellationToken);
+            if (blocker is not null)
+            {
+                return BadRequest($"Cannot deactivate this supplier: {blocker}");
+            }
+        }
+
         supplier.Update(companyId, request.Code, request.Name, request.Phone, request.Email, request.Address, request.IsActive, request.IsAuthorized);
         await dbContext.SaveChangesAsync(cancellationToken);
         return Ok(new SupplierDto(supplier.Id, supplier.CompanyId, null, supplier.Code, supplier.Name, supplier.Phone, supplier.Email, supplier.Address, supplier.IsActive, supplier.IsAuthorized));
+    }
+
+    /// <summary>
+    /// Returns why the supplier must stay active, or null when it can be retired.
+    /// Money still owed and procurement still in flight block; settled history does not.
+    /// </summary>
+    private async Task<string?> DescribeDeactivationBlockerAsync(Guid supplierId, CancellationToken cancellationToken)
+    {
+        var outstanding = await dbContext.AccountsPayableEntries.AsNoTracking()
+            .Where(x => x.SupplierId == supplierId && x.Outstanding > 0)
+            .SumAsync(x => (decimal?)x.Outstanding, cancellationToken) ?? 0m;
+        if (outstanding > 0)
+        {
+            return $"{outstanding:0.00} still owed to them. Settle or write it off first.";
+        }
+
+        var openOrders = await dbContext.PurchaseOrders.AsNoTracking()
+            .CountAsync(x => x.SupplierId == supplierId
+                             && x.Status != PurchaseOrderStatus.Closed
+                             && x.Status != PurchaseOrderStatus.Cancelled,
+                cancellationToken);
+        if (openOrders > 0)
+        {
+            return $"{openOrders} open purchase order(s) are still with them.";
+        }
+
+        // goods receipts reach the supplier through their purchase order
+        var draftReceipts = await (
+            from receipt in dbContext.GoodsReceipts.AsNoTracking()
+            join order in dbContext.PurchaseOrders.AsNoTracking() on receipt.PurchaseOrderId equals order.Id
+            where order.SupplierId == supplierId && receipt.Status == GoodsReceiptStatus.Draft
+            select receipt.Id).CountAsync(cancellationToken);
+        if (draftReceipts > 0)
+        {
+            return $"{draftReceipts} draft goods receipt(s) reference them.";
+        }
+
+        return null;
     }
 
     [HttpDelete("{id:guid}")]

@@ -1,6 +1,8 @@
 using ISS.Api.Security;
 using ISS.Application.Persistence;
 using ISS.Domain.MasterData;
+using ISS.Domain.Sales;
+using ISS.Domain.Service;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -46,6 +48,50 @@ public sealed class CustomersController(IIssDbContext dbContext) : ControllerBas
         return CreatedAtAction(nameof(Get), new { id = customer.Id }, new CustomerDto(customer.Id, customer.Code, customer.Name, customer.Phone, customer.Email, customer.Address, customer.IsActive));
     }
 
+    /// <summary>
+    /// Returns why the customer must stay active, or null when it can be retired.
+    /// Money still owed and work still in flight block; settled history does not.
+    /// </summary>
+    private async Task<string?> DescribeDeactivationBlockerAsync(Guid customerId, CancellationToken cancellationToken)
+    {
+        var outstanding = await dbContext.AccountsReceivableEntries.AsNoTracking()
+            .Where(x => x.CustomerId == customerId && x.Outstanding > 0)
+            .SumAsync(x => (decimal?)x.Outstanding, cancellationToken) ?? 0m;
+        if (outstanding > 0)
+        {
+            return $"{outstanding:0.00} still outstanding on their account. Settle or write it off first.";
+        }
+
+        var openJobs = await dbContext.ServiceJobs.AsNoTracking()
+            .CountAsync(x => x.CustomerId == customerId
+                             && x.Status != ServiceJobStatus.Closed
+                             && x.Status != ServiceJobStatus.Cancelled,
+                cancellationToken);
+        if (openJobs > 0)
+        {
+            return $"{openJobs} service job(s) are still open for them.";
+        }
+
+        var openOrders = await dbContext.SalesOrders.AsNoTracking()
+            .CountAsync(x => x.CustomerId == customerId
+                             && x.Status != SalesOrderStatus.Closed
+                             && x.Status != SalesOrderStatus.Cancelled,
+                cancellationToken);
+        if (openOrders > 0)
+        {
+            return $"{openOrders} open sales order(s) are still theirs.";
+        }
+
+        var liveUnits = await dbContext.EquipmentUnits.AsNoTracking()
+            .CountAsync(x => x.CustomerId == customerId && x.IsActive, cancellationToken);
+        if (liveUnits > 0)
+        {
+            return $"{liveUnits} equipment unit(s) are still registered to them and may return for service.";
+        }
+
+        return null;
+    }
+
     [HttpPut("{id:guid}")]
     [Authorize(Roles = $"{Roles.Admin},{Roles.Sales},{Roles.Service},{Roles.Finance}")]
     public async Task<ActionResult<CustomerDto>> Update(Guid id, UpdateCustomerRequest request, CancellationToken cancellationToken)
@@ -54,6 +100,15 @@ public sealed class CustomersController(IIssDbContext dbContext) : ControllerBas
         if (customer is null)
         {
             return NotFound();
+        }
+
+        if (customer.IsActive && !request.IsActive)
+        {
+            var blocker = await DescribeDeactivationBlockerAsync(id, cancellationToken);
+            if (blocker is not null)
+            {
+                return BadRequest($"Cannot deactivate this customer: {blocker}");
+            }
         }
 
         customer.Update(request.Code, request.Name, request.Phone, request.Email, request.Address, request.IsActive);

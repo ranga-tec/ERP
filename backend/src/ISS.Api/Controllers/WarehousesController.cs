@@ -1,5 +1,6 @@
 using ISS.Api.Security;
 using ISS.Application.Persistence;
+using ISS.Domain.Inventory;
 using ISS.Domain.MasterData;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -117,9 +118,53 @@ public sealed class WarehousesController(IIssDbContext dbContext) : ControllerBa
             return NotFound();
         }
 
+        if (warehouse.IsActive && !request.IsActive)
+        {
+            var blocker = await DescribeDeactivationBlockerAsync(id, cancellationToken);
+            if (blocker is not null)
+            {
+                return BadRequest($"Cannot deactivate this warehouse: {blocker}");
+            }
+        }
+
         warehouse.Update(request.Code, request.Name, request.Address, request.IsActive);
         await dbContext.SaveChangesAsync(cancellationToken);
         return Ok(new WarehouseDto(warehouse.Id, warehouse.Code, warehouse.Name, warehouse.Address, warehouse.IsActive));
+    }
+
+    /// <summary>
+    /// Returns why the warehouse must stay active, or null when it can be retired.
+    /// Stock still held there and documents still pointing at it block.
+    /// </summary>
+    private async Task<string?> DescribeDeactivationBlockerAsync(Guid warehouseId, CancellationToken cancellationToken)
+    {
+        var distinctItemsOnHand = await dbContext.InventoryMovements.AsNoTracking()
+            .Where(x => x.WarehouseId == warehouseId)
+            .GroupBy(x => x.ItemId)
+            .Where(g => g.Sum(x => x.Quantity) > 0)
+            .CountAsync(cancellationToken);
+        if (distinctItemsOnHand > 0)
+        {
+            return $"{distinctItemsOnHand} item(s) still hold stock there. Transfer or write off the balance first.";
+        }
+
+        var draftAdjustments = await dbContext.StockAdjustments.AsNoTracking()
+            .CountAsync(x => x.WarehouseId == warehouseId && x.Status == StockAdjustmentStatus.Draft, cancellationToken);
+        if (draftAdjustments > 0)
+        {
+            return $"{draftAdjustments} draft stock adjustment(s) target it.";
+        }
+
+        var openTransfers = await dbContext.StockTransfers.AsNoTracking()
+            .CountAsync(x => (x.FromWarehouseId == warehouseId || x.ToWarehouseId == warehouseId)
+                             && x.Status == StockTransferStatus.Draft,
+                cancellationToken);
+        if (openTransfers > 0)
+        {
+            return $"{openTransfers} draft stock transfer(s) move stock in or out of it.";
+        }
+
+        return null;
     }
 
     [HttpPut("{warehouseId:guid}/bins/{binId:guid}")]

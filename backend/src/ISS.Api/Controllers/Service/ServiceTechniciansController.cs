@@ -98,11 +98,50 @@ public sealed class ServiceTechniciansController(IIssDbContext dbContext) : Cont
             return Conflict("A technician with this code already exists.");
         }
 
+        if (technician.IsActive && !request.IsActive)
+        {
+            var blocker = await DescribeDeactivationBlockerAsync(id, cancellationToken);
+            if (blocker is not null)
+            {
+                return BadRequest($"Cannot deactivate this technician: {blocker}");
+            }
+        }
+
         technician.Rename(code, request.Name);
         technician.Update(request.DefaultCostRate, request.DefaultBillingRate, request.Phone, request.Notes, request.IsActive);
         await dbContext.SaveChangesAsync(cancellationToken);
 
         return Ok(ToDto(technician));
+    }
+
+    /// <summary>
+    /// Returns why the technician must stay active, or null when they can be retired.
+    /// Work still assigned to them blocks; completed history does not.
+    /// </summary>
+    private async Task<string?> DescribeDeactivationBlockerAsync(Guid technicianId, CancellationToken cancellationToken)
+    {
+        var pendingAssignments = await dbContext.ServiceJobAssignments.AsNoTracking()
+            .CountAsync(x => x.TechnicianId == technicianId
+                             && x.ApprovalStatus == ServiceJobAssignmentApprovalStatus.Pending,
+                cancellationToken);
+        if (pendingAssignments > 0)
+        {
+            return $"{pendingAssignments} job assignment(s) are still awaiting approval. Approve or reject them first.";
+        }
+
+        var openJobAssignments = await (
+            from assignment in dbContext.ServiceJobAssignments.AsNoTracking()
+            join job in dbContext.ServiceJobs.AsNoTracking() on assignment.ServiceJobId equals job.Id
+            where assignment.TechnicianId == technicianId
+                  && job.Status != ServiceJobStatus.Closed
+                  && job.Status != ServiceJobStatus.Cancelled
+            select job.Id).Distinct().CountAsync(cancellationToken);
+        if (openJobAssignments > 0)
+        {
+            return $"{openJobAssignments} open service job(s) still have them assigned.";
+        }
+
+        return null;
     }
 
     [HttpDelete("{id:guid}")]
