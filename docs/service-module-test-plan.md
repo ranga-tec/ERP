@@ -164,6 +164,41 @@ movement, which sections 9.1 and 11 later reconcile against.
 > opening-stock adjustment creates real inventory value. Never create a shared-password test admin in
 > production.
 
+### 4.1 Seeding it automatically
+
+`scripts/seed-service-test-data.py` creates all of the above plus the extra records the later sections
+need. It is idempotent, so re-running only fills gaps, and it refuses to run against a non-local host.
+
+```powershell
+python scripts/seed-service-test-data.py --email <your-user> --password '<your-password>'
+```
+
+Beyond the table above it adds:
+
+| Record | Why |
+| --- | --- |
+| `CUS-SVC2` | a second customer, so customer pickers are not single-option |
+| `SP-BATCH` (batch-tracked) with `LOT-2026-A` 40 and `LOT-2026-B` 25 | exercises the available-batch picker and batch validation in 9.1 |
+| `SP-SERIAL` (serial-tracked) with serials `CB-0001`..`CB-0004` | exercises serial selection and the "post without a serial" rejection in 13.2 |
+| `TECH2`, `TECH3` | assignment approve/reject in 8.2 needs more than one technician |
+| `SN-GEN-0002` .. `SN-GEN-0005` | the entitlement matrix below |
+| Annual maintenance contract on `SN-GEN-0003` | the `ServiceContract` entitlement path |
+| Three demo jobs | so Command Center, Dispatch Board and Technician Workbench are not empty on first look |
+
+The five equipment units cover every entitlement path, verified after seeding:
+
+| Unit | Warranty | Contract | Resulting source | Billing treatment |
+| --- | --- | --- | --- | --- |
+| `SN-GEN-0001` | none | none | `None` | `Billable` |
+| `SN-GEN-0002` | active, labour + parts | none | `ManufacturerWarranty` | `CoveredNoCharge` |
+| `SN-GEN-0003` | none | active, labour + parts | `ServiceContract` | `CoveredNoCharge` |
+| `SN-GEN-0004` | active, labour only | none | `ManufacturerWarranty` | `PartiallyCovered` |
+| `SN-GEN-0005` | expired | none | `None` | `Billable` |
+
+The three demo jobs are prefixed `DEMO` in their problem description. They exist only so the dashboards
+render; delete them if you want a clean slate before the closeout gauntlet in section 10. Note that a job
+open against a unit blocks that unit from being deactivated, which is expected behaviour, not a defect.
+
 ---
 
 ## 5. Equipment And Contracts
