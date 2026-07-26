@@ -6,6 +6,7 @@ import { apiPostNoContent } from "@/lib/api-client";
 import { ItemLookupField } from "@/components/ItemLookupField";
 import { Button, Input, Textarea } from "@/components/ui";
 import { LineStockInsight } from "@/components/LineStockInsight";
+import { AvailableBatchPicker } from "@/components/AvailableBatchPicker";
 
 type ItemRef = { id: string; sku: string; name: string; trackingType: number; defaultUnitCost: number };
 type WarehouseRef = { id: string; code: string; name: string };
@@ -106,7 +107,9 @@ export function StockTransferLineAddForm({
 
       <div className="grid gap-3 sm:grid-cols-2">
         <div>
-          <label className="mb-1 block text-sm font-medium">Batch (optional)</label>
+          <label className="mb-1 block text-sm font-medium">
+            Batch{selectedItem?.trackingType === 2 ? "" : " (optional)"}
+          </label>
           <Input value={batchNumber} onChange={(e) => setBatchNumber(e.target.value)} />
         </div>
         <div>
@@ -114,6 +117,16 @@ export function StockTransferLineAddForm({
           <Textarea value={serials} onChange={(e) => setSerials(e.target.value)} placeholder="One per line or comma-separated" />
         </div>
       </div>
+
+      {selectedItem?.trackingType === 2 ? (
+        <AvailableBatchPicker
+          warehouseId={warehouseId}
+          itemId={itemId}
+          value={batchNumber}
+          onChange={setBatchNumber}
+          requiredQuantity={quantity}
+        />
+      ) : null}
 
       <LineStockInsight warehouses={warehouses} warehouseId={warehouseId} itemId={itemId} batchNumber={batchNumber} />
 

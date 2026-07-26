@@ -177,11 +177,14 @@ public sealed partial class DocumentPdfService(IIssDbContext dbContext) : IDocum
     private static IContainer CellMeta(IContainer container) =>
         container.PaddingBottom(2).DefaultTextStyle(x => x.FontSize(9));
 
+    // PaddingRight keeps a right-aligned column (Qty, Unit Cost) from touching the
+    // left-aligned one beside it, which printed headers like "Unit CostBatch".
     private static IContainer CellHeader(IContainer container) =>
         container
             .BorderBottom(1)
             .BorderColor(Colors.Grey.Lighten2)
             .PaddingVertical(4)
+            .PaddingRight(6)
             .DefaultTextStyle(x => x.SemiBold().FontColor(Colors.Grey.Darken2).FontSize(9));
 
     private static IContainer CellBody(IContainer container) =>
@@ -189,6 +192,7 @@ public sealed partial class DocumentPdfService(IIssDbContext dbContext) : IDocum
             .BorderBottom(1)
             .BorderColor(Colors.Grey.Lighten4)
             .PaddingVertical(3)
+            .PaddingRight(6)
             .DefaultTextStyle(x => x.FontSize(9));
 
     private static string SupplierLabel(Supplier? supplier, Guid fallbackId)

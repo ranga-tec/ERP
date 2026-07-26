@@ -7,6 +7,7 @@ import { ItemLookupField } from "@/components/ItemLookupField";
 import { Button, Input, Textarea } from "@/components/ui";
 import { LineStockInsight } from "@/components/LineStockInsight";
 import { AvailableSerialPicker } from "@/components/AvailableSerialPicker";
+import { AvailableBatchPicker } from "@/components/AvailableBatchPicker";
 
 type ItemRef = { id: string; sku: string; name: string; trackingType: number };
 type WarehouseRef = { id: string; code: string; name: string };
@@ -99,10 +100,22 @@ export function MaterialRequisitionLineAddForm({
           <Input value={quantity} onChange={(e) => setQuantity(e.target.value)} inputMode="decimal" required />
         </div>
         <div>
-          <label className="mb-1 block text-sm font-medium">Batch (optional)</label>
+          <label className="mb-1 block text-sm font-medium">
+            Batch{selectedItem?.trackingType === 2 ? "" : " (optional)"}
+          </label>
           <Input value={batchNumber} onChange={(e) => setBatchNumber(e.target.value)} />
         </div>
       </div>
+
+      {selectedItem?.trackingType === 2 ? (
+        <AvailableBatchPicker
+          warehouseId={warehouseId}
+          itemId={itemId}
+          value={batchNumber}
+          onChange={setBatchNumber}
+          requiredQuantity={quantity}
+        />
+      ) : null}
 
       <div>
         <label className="mb-1 block text-sm font-medium">Serials{selectedItem?.trackingType === 1 ? "" : " (optional)"}</label>
