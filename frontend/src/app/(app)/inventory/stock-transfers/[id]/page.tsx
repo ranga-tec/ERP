@@ -6,7 +6,7 @@ import { StockTransferActions } from "../StockTransferActions";
 import { StockTransferLineAddForm } from "../StockTransferLineAddForm";
 import { StockTransferLineRow } from "../StockTransferLineRow";
 import { DocumentCollaborationPanel } from "@/components/DocumentCollaborationPanel";
-import { StockAvailabilityExplorer } from "@/components/StockAvailabilityExplorer";
+import { StockAvailabilityModal } from "@/components/StockAvailabilityModal";
 
 type StockTransferDto = {
   id: string;
@@ -87,8 +87,13 @@ export default async function StockTransferDetailPage({ params }: { params: Prom
         </Card>
 
           <Card>
-            <div className="mb-3 text-sm font-semibold">Source stock visibility</div>
-            <StockAvailabilityExplorer warehouses={warehouses} items={items} initialWarehouseId={transfer.fromWarehouseId} />
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <div className="text-sm font-semibold">Source stock visibility</div>
+                <div className="mt-1 text-xs text-zinc-500">Open stock lookup when you need warehouse, batch, or total availability.</div>
+              </div>
+              <StockAvailabilityModal warehouses={warehouses} items={items} initialWarehouseId={transfer.fromWarehouseId} />
+            </div>
           </Card>
         </>
       ) : null}

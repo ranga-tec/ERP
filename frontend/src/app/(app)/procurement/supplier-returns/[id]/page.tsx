@@ -6,7 +6,7 @@ import { SupplierReturnActions } from "../SupplierReturnActions";
 import { SupplierReturnLineAddForm } from "../SupplierReturnLineAddForm";
 import { SupplierReturnLinesEditor } from "../SupplierReturnLinesEditor";
 import { DocumentCollaborationPanel } from "@/components/DocumentCollaborationPanel";
-import { StockAvailabilityExplorer } from "@/components/StockAvailabilityExplorer";
+import { StockAvailabilityModal } from "@/components/StockAvailabilityModal";
 import { DocumentDirectEditNotice } from "@/components/DocumentDirectEditNotice";
 
 type SupplierReturnDto = {
@@ -102,8 +102,13 @@ export default async function SupplierReturnDetailPage({
           )}
 
           <Card>
-            <div className="mb-3 text-sm font-semibold">Stock visibility</div>
-            <StockAvailabilityExplorer warehouses={warehouses} items={items} initialWarehouseId={sr.warehouseId} />
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <div className="text-sm font-semibold">Stock visibility</div>
+                <div className="mt-1 text-xs text-zinc-500">Open stock lookup when you need warehouse, batch, or total availability.</div>
+              </div>
+              <StockAvailabilityModal warehouses={warehouses} items={items} initialWarehouseId={sr.warehouseId} />
+            </div>
           </Card>
         </>
       ) : null}
