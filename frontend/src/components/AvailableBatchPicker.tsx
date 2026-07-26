@@ -36,13 +36,19 @@ export function AvailableBatchPicker({
 
   useEffect(() => {
     if (!hasLookup) {
-      setBatches(null);
       return;
     }
 
     let ignore = false;
-    setBusy(true);
-    setError(null);
+    // deferred like AvailableSerialPicker: setState in an effect body triggers
+    // cascading renders and is rejected by react-hooks/set-state-in-effect
+    const resetHandle = window.setTimeout(() => {
+      if (!ignore) {
+        setBatches(null);
+        setBusy(true);
+        setError(null);
+      }
+    }, 0);
 
     const qs = new URLSearchParams({ warehouseId, itemId });
     apiGet<OnHandDto[]>(`inventory/onhand?${qs.toString()}`)
@@ -73,9 +79,12 @@ export function AvailableBatchPicker({
 
     return () => {
       ignore = true;
+      window.clearTimeout(resetHandle);
     };
   }, [hasLookup, warehouseId, itemId]);
 
+  // derived rather than cleared from the effect, so no setState during render sync
+  const visibleBatches = hasLookup ? batches : null;
   const required = Number(requiredQuantity);
   const needed = Number.isFinite(required) && required > 0 ? required : 0;
   const selected = value.trim();
@@ -99,13 +108,13 @@ export function AvailableBatchPicker({
       {!hasLookup ? <div className="mt-3 text-xs text-zinc-500">Select an item to see its batches.</div> : null}
       {hasLookup && busy ? <div className="mt-3 text-xs text-zinc-500">Loading batches...</div> : null}
       {error ? <div className="mt-3 text-xs text-red-700 dark:text-red-300">{error}</div> : null}
-      {hasLookup && !busy && batches?.length === 0 ? (
+      {hasLookup && !busy && visibleBatches?.length === 0 ? (
         <div className="mt-3 text-xs text-red-700 dark:text-red-300">No batch stock is available in this warehouse.</div>
       ) : null}
 
-      {batches && batches.length > 0 ? (
+      {visibleBatches && visibleBatches.length > 0 ? (
         <div className="mt-3 grid max-h-44 gap-2 overflow-auto sm:grid-cols-2 lg:grid-cols-3">
-          {batches.map((batch) => {
+          {visibleBatches.map((batch) => {
             const isSelected = selected.toLowerCase() === batch.batchNumber.toLowerCase();
             const short = needed > 0 && batch.onHand < needed;
             return (
