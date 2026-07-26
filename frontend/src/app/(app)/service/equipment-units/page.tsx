@@ -20,6 +20,7 @@ type EquipmentUnitDto = {
   nextServiceDueAt?: string | null;
   nextRepairDueAt?: string | null;
   hasActiveWarranty: boolean;
+  isActive: boolean;
   createdAt: string;
   createdByName?: string | null;
   lastModifiedAt?: string | null;
@@ -31,7 +32,7 @@ type CustomerDto = { id: string; code: string; name: string };
 
 export default async function EquipmentUnitsPage() {
   const [units, items, customers] = await Promise.all([
-    backendFetchJson<EquipmentUnitDto[]>("/service/equipment-units?take=100"),
+    backendFetchJson<EquipmentUnitDto[]>("/service/equipment-units?take=100&includeInactive=true"),
     backendFetchJson<ItemDto[]>("/items/options"),
     backendFetchJson<CustomerDto[]>("/customers"),
   ]);
@@ -65,7 +66,16 @@ export default async function EquipmentUnitsPage() {
         <SearchableTable
           placeholder="Search serial, item, customer, warranty..."
           emptyMessage="No equipment units yet."
-          emptyColSpan={10}
+          emptyColSpan={11}
+          filter={{
+            label: "Filter by status",
+            defaultValue: "active",
+            options: [
+              { value: "active", label: "Active only" },
+              { value: "inactive", label: "Inactive only" },
+              { value: "all", label: "All statuses" },
+            ],
+          }}
           headers={
             <thead>
               <tr className="border-b border-zinc-200 text-left text-xs uppercase tracking-wide text-zinc-500 dark:border-zinc-800">
@@ -76,6 +86,7 @@ export default async function EquipmentUnitsPage() {
                 <th className="py-2 pr-3">Warranty</th>
                 <th className="py-2 pr-3">Coverage</th>
                 <th className="py-2 pr-3">In Warranty</th>
+                <th className="py-2 pr-3">Status</th>
                 <th className="py-2 pr-3">Created</th>
                 <th className="py-2 pr-3">Modified</th>
                 <th className="py-2 pr-3">Actions</th>
@@ -90,6 +101,7 @@ export default async function EquipmentUnitsPage() {
                 return (
                 <SearchableRow
                   key={unit.id}
+                  filterKey={unit.isActive ? "active" : "inactive"}
                   searchText={[
                     unit.serialNumber,
                     item?.sku,
@@ -98,6 +110,7 @@ export default async function EquipmentUnitsPage() {
                     customer?.name,
                     coverage,
                     unit.hasActiveWarranty ? "active warranty yes" : "inactive warranty no",
+                    unit.isActive ? "status active" : "status inactive retired",
                   ].filter(Boolean).join(" ")}
                 >
                 <tr key={unit.id} className="border-b border-zinc-100 dark:border-zinc-900">
@@ -120,6 +133,15 @@ export default async function EquipmentUnitsPage() {
                   </td>
                   <td className="py-2 pr-3 text-zinc-500">{coverageLabel[unit.warrantyCoverage] ?? unit.warrantyCoverage}</td>
                   <td className="py-2 pr-3">{unit.hasActiveWarranty ? "Yes" : "No"}</td>
+                  <td className="py-2 pr-3">
+                    {unit.isActive ? (
+                      <span className="text-zinc-500">Active</span>
+                    ) : (
+                      <span className="rounded bg-zinc-200 px-1.5 py-0.5 text-[11px] font-medium text-zinc-700 dark:bg-zinc-700 dark:text-zinc-200">
+                        Inactive
+                      </span>
+                    )}
+                  </td>
                   <td className="py-2 pr-3 align-top text-xs">
                     <AuditStamp at={unit.createdAt} by={unit.createdByName} />
                   </td>

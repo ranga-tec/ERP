@@ -18,6 +18,7 @@ type EquipmentUnitDto = {
   nextServiceDueAt?: string | null;
   nextRepairDueAt?: string | null;
   hasActiveWarranty: boolean;
+  isActive: boolean;
 };
 
 type ItemDto = { id: string; sku: string; name: string };

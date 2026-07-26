@@ -14,6 +14,7 @@ type EquipmentUnitDto = {
   serviceIntervalDays?: number | null;
   nextServiceDueAt?: string | null;
   nextRepairDueAt?: string | null;
+  isActive: boolean;
 };
 
 type CustomerRef = { id: string; code: string; name: string };
@@ -45,6 +46,7 @@ export function EquipmentUnitEditForm({
   const [serviceIntervalDays, setServiceIntervalDays] = useState(unit.serviceIntervalDays?.toString() ?? "");
   const [nextServiceDueAt, setNextServiceDueAt] = useState(toDateInput(unit.nextServiceDueAt));
   const [nextRepairDueAt, setNextRepairDueAt] = useState(toDateInput(unit.nextRepairDueAt));
+  const [isActive, setIsActive] = useState(unit.isActive ? "true" : "false");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -70,6 +72,7 @@ export function EquipmentUnitEditForm({
         serviceIntervalDays: serviceIntervalDays ? Number(serviceIntervalDays) : null,
         nextServiceDueAt: nextServiceDueAt ? new Date(nextServiceDueAt).toISOString() : null,
         nextRepairDueAt: nextRepairDueAt ? new Date(nextRepairDueAt).toISOString() : null,
+        isActive: isActive === "true",
       });
       router.refresh();
     } catch (err) {
@@ -133,6 +136,20 @@ export function EquipmentUnitEditForm({
         <div>
           <label className="mb-1 block text-sm font-medium">Next repair date</label>
           <Input type="date" value={nextRepairDueAt} onChange={(event) => setNextRepairDueAt(event.target.value)} />
+        </div>
+      </div>
+
+      <div className="grid gap-3 sm:grid-cols-4">
+        <div>
+          <label className="mb-1 block text-sm font-medium">Status</label>
+          <Select value={isActive} onChange={(event) => setIsActive(event.target.value)}>
+            <option value="true">Active</option>
+            <option value="false">Inactive</option>
+          </Select>
+          <p className="mt-1 text-xs text-zinc-500">
+            Inactive units stay on file and keep their job history, but are hidden from equipment
+            pickers and cannot start a new job.
+          </p>
         </div>
       </div>
 

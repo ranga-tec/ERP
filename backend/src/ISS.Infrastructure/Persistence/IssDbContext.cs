@@ -615,6 +615,7 @@ public sealed class IssDbContext(
             entity.HasIndex(x => x.SerialNumber).IsUnique();
             entity.Property(x => x.SerialNumber).HasMaxLength(128);
             entity.Property(x => x.ServiceIntervalDays);
+            entity.Property(x => x.IsActive).HasDefaultValue(true);
         });
 
         builder.Entity<ServiceContract>(entity =>

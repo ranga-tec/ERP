@@ -19,6 +19,7 @@ public sealed class EquipmentUnit : AuditableEntity
     {
         ItemId = itemId;
         SerialNumber = Guard.NotNullOrWhiteSpace(serialNumber, nameof(SerialNumber), maxLength: 128);
+        IsActive = true;
         Update(customerId, purchasedAt, warrantyUntil, warrantyCoverage, serviceIntervalDays, nextServiceDueAt, nextRepairDueAt);
     }
 
@@ -32,6 +33,14 @@ public sealed class EquipmentUnit : AuditableEntity
     public DateTimeOffset? NextServiceDueAt { get; private set; }
     public DateTimeOffset? NextRepairDueAt { get; private set; }
 
+    /// <summary>
+    /// Retired units stay on file for job history but are hidden from equipment pickers
+    /// and cannot be used to open a new job.
+    /// </summary>
+    public bool IsActive { get; private set; } = true;
+
+    public void SetActive(bool isActive) => IsActive = isActive;
+
     public void Update(
         Guid customerId,
         DateTimeOffset? purchasedAt,
@@ -39,7 +48,8 @@ public sealed class EquipmentUnit : AuditableEntity
         ServiceCoverageScope warrantyCoverage,
         int? serviceIntervalDays = null,
         DateTimeOffset? nextServiceDueAt = null,
-        DateTimeOffset? nextRepairDueAt = null)
+        DateTimeOffset? nextRepairDueAt = null,
+        bool? isActive = null)
     {
         if (warrantyUntil is null && warrantyCoverage != ServiceCoverageScope.None)
         {
@@ -63,6 +73,11 @@ public sealed class EquipmentUnit : AuditableEntity
         ServiceIntervalDays = serviceIntervalDays;
         NextServiceDueAt = nextServiceDueAt ?? CalculateNextServiceDueAt(purchasedAt, warrantyUntil, serviceIntervalDays);
         NextRepairDueAt = nextRepairDueAt;
+
+        if (isActive is not null)
+        {
+            IsActive = isActive.Value;
+        }
     }
 
     public bool HasActiveWarranty(DateTimeOffset when)

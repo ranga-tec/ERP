@@ -90,13 +90,28 @@ public sealed class ServiceManagementService(
         int? serviceIntervalDays = null,
         DateTimeOffset? nextServiceDueAt = null,
         DateTimeOffset? nextRepairDueAt = null,
+        bool? isActive = null,
         CancellationToken cancellationToken = default)
     {
         var unit = await dbContext.EquipmentUnits
             .FirstOrDefaultAsync(x => x.Id == equipmentUnitId, cancellationToken)
             ?? throw new NotFoundException("Equipment unit not found.");
 
-        unit.Update(customerId, purchasedAt, warrantyUntil, warrantyCoverage, serviceIntervalDays, nextServiceDueAt, nextRepairDueAt);
+        if (isActive is false && unit.IsActive)
+        {
+            var openJobs = await dbContext.ServiceJobs.AsNoTracking()
+                .CountAsync(x => x.EquipmentUnitId == equipmentUnitId
+                                 && x.Status != ServiceJobStatus.Closed
+                                 && x.Status != ServiceJobStatus.Cancelled,
+                    cancellationToken);
+            if (openJobs > 0)
+            {
+                throw new DomainValidationException(
+                    $"Cannot deactivate this equipment unit: {openJobs} job(s) are still open against it.");
+            }
+        }
+
+        unit.Update(customerId, purchasedAt, warrantyUntil, warrantyCoverage, serviceIntervalDays, nextServiceDueAt, nextRepairDueAt, isActive);
         await dbContext.SaveChangesAsync(cancellationToken);
     }
 
@@ -169,6 +184,13 @@ public sealed class ServiceManagementService(
         string? responsibleOfficerName = null,
         CancellationToken cancellationToken = default)
     {
+        var isRetiredUnit = await dbContext.EquipmentUnits.AsNoTracking()
+            .AnyAsync(x => x.Id == equipmentUnitId && !x.IsActive, cancellationToken);
+        if (isRetiredUnit)
+        {
+            throw new DomainValidationException("This equipment unit is inactive. Reactivate it before opening a new job.");
+        }
+
         var entitlement = await EvaluateServiceEntitlementAsync(equipmentUnitId, customerId, clock.UtcNow, cancellationToken);
         var number = await documentNumberService.NextAsync("SJ", "SJ", cancellationToken);
         var job = new ServiceJob(

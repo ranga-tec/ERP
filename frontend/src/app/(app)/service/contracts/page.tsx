@@ -7,7 +7,7 @@ import { ServiceContractCreateForm } from "./ServiceContractCreateForm";
 import { ServiceContractEditForm } from "./ServiceContractEditForm";
 
 type CustomerDto = { id: string; code: string; name: string };
-type EquipmentUnitDto = { id: string; serialNumber: string; itemId: string; customerId: string };
+type EquipmentUnitDto = { id: string; serialNumber: string; itemId: string; customerId: string; isActive: boolean };
 type ItemDto = { id: string; sku: string; name: string };
 type ServiceContractSummaryDto = {
   id: string;
@@ -41,14 +41,16 @@ export default async function ServiceContractsPage() {
   const [contracts, customers, units, items] = await Promise.all([
     backendFetchJson<ServiceContractSummaryDto[]>("/service/contracts"),
     backendFetchJson<CustomerDto[]>("/customers"),
-    backendFetchJson<EquipmentUnitDto[]>("/service/equipment-units?take=2000"),
+    // include retired units so existing contracts still resolve their serial number;
+    // the picker below is limited to active ones
+    backendFetchJson<EquipmentUnitDto[]>("/service/equipment-units?take=2000&includeInactive=true"),
     backendFetchJson<ItemDto[]>("/items/options"),
   ]);
 
   const customerById = new Map(customers.map((customer) => [customer.id, customer]));
   const unitById = new Map(units.map((unit) => [unit.id, unit]));
   const itemById = new Map(items.map((item) => [item.id, item]));
-  const equipmentUnitOptions = units.map((unit) => {
+  const equipmentUnitOptions = units.filter((unit) => unit.isActive).map((unit) => {
     const item = itemById.get(unit.itemId);
     const customer = customerById.get(unit.customerId);
     return {

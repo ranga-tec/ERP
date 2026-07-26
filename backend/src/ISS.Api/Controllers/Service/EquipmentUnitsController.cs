@@ -34,6 +34,7 @@ public sealed class EquipmentUnitsController(
         DateTimeOffset? NextServiceDueAt,
         DateTimeOffset? NextRepairDueAt,
         bool HasActiveWarranty,
+        bool IsActive,
         DateTimeOffset CreatedAt,
         string? CreatedByName,
         DateTimeOffset? LastModifiedAt,
@@ -70,15 +71,25 @@ public sealed class EquipmentUnitsController(
         ServiceCoverageScope? WarrantyCoverage,
         int? ServiceIntervalDays,
         DateTimeOffset? NextServiceDueAt,
-        DateTimeOffset? NextRepairDueAt);
+        DateTimeOffset? NextRepairDueAt,
+        bool? IsActive);
 
+    /// <param name="includeInactive">
+    /// Defaults to false so equipment pickers never offer a retired unit. The maintenance
+    /// list passes true and filters in the UI.
+    /// </param>
     [HttpGet]
-    public async Task<ActionResult<IReadOnlyList<EquipmentUnitDto>>> List([FromQuery] int skip = 0, [FromQuery] int take = 100, CancellationToken cancellationToken = default)
+    public async Task<ActionResult<IReadOnlyList<EquipmentUnitDto>>> List(
+        [FromQuery] int skip = 0,
+        [FromQuery] int take = 100,
+        [FromQuery] bool includeInactive = false,
+        CancellationToken cancellationToken = default)
     {
         skip = Math.Max(0, skip);
         take = Math.Clamp(take, 1, 5000);
 
         var rows = await dbContext.EquipmentUnits.AsNoTracking()
+            .Where(x => includeInactive || x.IsActive)
             .OrderBy(x => x.SerialNumber)
             .Skip(skip)
             .Take(take)
@@ -219,6 +230,7 @@ public sealed class EquipmentUnitsController(
             unit.NextServiceDueAt,
             unit.NextRepairDueAt,
             unit.HasActiveWarranty(DateTimeOffset.UtcNow),
+            unit.IsActive,
             unit.CreatedAt,
             LookupUser(unit.CreatedBy, userLabels),
             unit.LastModifiedAt,
@@ -262,6 +274,7 @@ public sealed class EquipmentUnitsController(
             request.ServiceIntervalDays,
             request.NextServiceDueAt,
             request.NextRepairDueAt,
+            request.IsActive,
             cancellationToken);
         return await Get(id, cancellationToken);
     }

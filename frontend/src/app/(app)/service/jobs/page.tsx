@@ -35,7 +35,7 @@ type ServiceJobDto = {
   entitlementSummary?: string | null;
 };
 
-type EquipmentUnitDto = { id: string; serialNumber: string; itemId: string; customerId: string };
+type EquipmentUnitDto = { id: string; serialNumber: string; itemId: string; customerId: string; isActive: boolean };
 type CustomerDto = { id: string; code: string; name: string };
 type ItemDto = { id: string; sku: string; name: string };
 
@@ -80,7 +80,9 @@ const billingTreatmentLabel: Record<number, string> = {
 export default async function ServiceJobsPage() {
   const [jobs, units, customers, items] = await Promise.all([
     backendFetchJson<ServiceJobDto[]>("/service/jobs?take=100"),
-    backendFetchJson<EquipmentUnitDto[]>("/service/equipment-units?take=2000"),
+    // include retired units so existing jobs still resolve their serial number;
+    // the picker below is limited to active ones
+    backendFetchJson<EquipmentUnitDto[]>("/service/equipment-units?take=2000&includeInactive=true"),
     backendFetchJson<CustomerDto[]>("/customers"),
     backendFetchJson<ItemDto[]>("/items/options"),
   ]);
@@ -88,7 +90,7 @@ export default async function ServiceJobsPage() {
   const unitById = new Map(units.map((u) => [u.id, u]));
   const customerById = new Map(customers.map((c) => [c.id, c]));
   const itemById = new Map(items.map((item) => [item.id, item]));
-  const equipmentUnitOptions = units.map((unit) => {
+  const equipmentUnitOptions = units.filter((unit) => unit.isActive).map((unit) => {
     const item = itemById.get(unit.itemId);
     const customer = customerById.get(unit.customerId);
     return {
