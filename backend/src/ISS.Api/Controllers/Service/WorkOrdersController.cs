@@ -5,7 +5,9 @@ using ISS.Application.Common;
 using ISS.Application.Persistence;
 using ISS.Application.Services;
 using ISS.Domain.Service;
+using ISS.Infrastructure.Identity;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -19,7 +21,8 @@ public sealed class WorkOrdersController(
     ServiceManagementService serviceManagementService,
     IDocumentPdfService pdfService,
     AccessControlService accessControl,
-    NotificationService notificationService) : ControllerBase
+    NotificationService notificationService,
+    UserManager<ApplicationUser> userManager) : ControllerBase
 {
     public sealed record WorkOrderTimeEntryDto(
         Guid Id,
@@ -336,6 +339,17 @@ public sealed class WorkOrdersController(
 
         var recipientUserId = entry?.TechnicianUserId;
         if (entry is null || recipientUserId is null || recipientUserId == Guid.Empty)
+        {
+            return;
+        }
+
+        // TechnicianUserId holds whatever the time entry was tagged with, and the UI tags it with
+        // a ServiceTechnician id. Technicians have no login, so that id is not a user. Notifying
+        // it violates the UserNotifications foreign key and rolls the approval back with a 500,
+        // so only notify when the id really is a user account.
+        var recipientIsUser = await userManager.Users.AsNoTracking()
+            .AnyAsync(x => x.Id == recipientUserId.Value, cancellationToken);
+        if (!recipientIsUser)
         {
             return;
         }
