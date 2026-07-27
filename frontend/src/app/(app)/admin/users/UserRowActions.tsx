@@ -2,8 +2,8 @@
 
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
-import { apiDeleteNoContent, apiGet, apiPostNoContent, apiPut } from "@/lib/api-client";
-import { Input, SecondaryButton } from "@/components/ui";
+import { apiDeleteNoContent, apiGet, apiGetOrNull, apiPostNoContent, apiPut } from "@/lib/api-client";
+import { Button, Input, SecondaryButton } from "@/components/ui";
 
 const ALL_ROLES = [
   "Admin",
@@ -21,6 +21,17 @@ type PermissionDefinitionDto = {
   action: string;
   label: string;
   description: string;
+};
+
+type TechnicianProfileDto = {
+  technicianId: string;
+  code: string;
+  name: string;
+  defaultCostRate: number;
+  defaultBillingRate: number;
+  phone?: string | null;
+  notes?: string | null;
+  isActive: boolean;
 };
 
 type UserPermissionsDto = {
@@ -49,10 +60,65 @@ export function UserRowActions({
   const [hasExplicitPermissions, setHasExplicitPermissions] = useState(false);
   const [permissionsLoaded, setPermissionsLoaded] = useState(false);
   const [newPassword, setNewPassword] = useState("Passw0rd2");
+  const [showTechnician, setShowTechnician] = useState(false);
+  const [technician, setTechnician] = useState<TechnicianProfileDto | null>(null);
+  const [technicianLoaded, setTechnicianLoaded] = useState(false);
+  const [techCode, setTechCode] = useState("");
+  const [techCostRate, setTechCostRate] = useState("0");
+  const [techBillingRate, setTechBillingRate] = useState("0");
+  const [techPhone, setTechPhone] = useState("");
+  const [techActive, setTechActive] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const roles = useMemo(() => Array.from(selected.values()).sort(), [selected]);
+
+  async function toggleTechnicianPanel() {
+    const next = !showTechnician;
+    setShowTechnician(next);
+    if (!next || technicianLoaded) return;
+
+    setError(null);
+    setBusy(true);
+    try {
+      const profile = await apiGetOrNull<TechnicianProfileDto>(`admin/users/${userId}/technician`);
+      setTechnician(profile);
+      if (profile) {
+        setTechCode(profile.code);
+        setTechCostRate(String(profile.defaultCostRate));
+        setTechBillingRate(String(profile.defaultBillingRate));
+        setTechPhone(profile.phone ?? "");
+        setTechActive(profile.isActive);
+      }
+      setTechnicianLoaded(true);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function saveTechnician() {
+    setError(null);
+    setBusy(true);
+    try {
+      const saved = await apiPut<TechnicianProfileDto>(`admin/users/${userId}/technician`, {
+        code: techCode.trim() || null,
+        defaultCostRate: Number(techCostRate) || 0,
+        defaultBillingRate: Number(techBillingRate) || 0,
+        phone: techPhone.trim() || null,
+        notes: technician?.notes ?? null,
+        isActive: techActive,
+      });
+      setTechnician(saved);
+      setTechCode(saved.code);
+      router.refresh();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setBusy(false);
+    }
+  }
 
   function toggle(role: string) {
     setSelected((prev) => {
@@ -180,10 +246,50 @@ export function UserRowActions({
         <SecondaryButton type="button" disabled={busy} onClick={togglePermissionsPanel}>
           {showPermissions ? "Hide access" : "Access settings"}
         </SecondaryButton>
+        <SecondaryButton type="button" disabled={busy} onClick={toggleTechnicianPanel}>
+          {showTechnician ? "Hide technician" : "Technician profile"}
+        </SecondaryButton>
         <SecondaryButton type="button" disabled={busy} onClick={toggleLock}>
           {isLocked ? "Enable" : "Disable"}
         </SecondaryButton>
       </div>
+
+      {showTechnician ? (
+        <div className="rounded-md border border-zinc-200 bg-zinc-50 p-3 text-sm dark:border-zinc-800 dark:bg-zinc-900">
+          <div className="mb-2 text-xs text-zinc-500">
+            {technician
+              ? `Linked technician ${technician.code}. Renaming the user renames the technician.`
+              : "This staff member is not a technician yet. Saving creates their technician profile and makes them assignable to jobs."}
+          </div>
+          <div className="grid gap-3 sm:grid-cols-4">
+            <div>
+              <label className="mb-1 block text-xs font-medium text-zinc-500">Technician code</label>
+              <Input value={techCode} onChange={(e) => setTechCode(e.target.value)} placeholder="auto" disabled={busy} />
+            </div>
+            <div>
+              <label className="mb-1 block text-xs font-medium text-zinc-500">Cost rate / hr</label>
+              <Input value={techCostRate} onChange={(e) => setTechCostRate(e.target.value)} inputMode="decimal" disabled={busy} />
+            </div>
+            <div>
+              <label className="mb-1 block text-xs font-medium text-zinc-500">Billing rate / hr</label>
+              <Input value={techBillingRate} onChange={(e) => setTechBillingRate(e.target.value)} inputMode="decimal" disabled={busy} />
+            </div>
+            <div>
+              <label className="mb-1 block text-xs font-medium text-zinc-500">Phone</label>
+              <Input value={techPhone} onChange={(e) => setTechPhone(e.target.value)} disabled={busy} />
+            </div>
+          </div>
+          <label className="mt-3 inline-flex items-center gap-2 text-xs">
+            <input type="checkbox" checked={techActive} onChange={(e) => setTechActive(e.target.checked)} disabled={busy} />
+            Available for job assignment
+          </label>
+          <div className="mt-3">
+            <Button type="button" disabled={busy} onClick={saveTechnician}>
+              {busy ? "Saving..." : technician ? "Save technician profile" : "Make technician"}
+            </Button>
+          </div>
+        </div>
+      ) : null}
 
       {showRoles ? (
         <div className="rounded-md border border-zinc-200 bg-zinc-50 p-2 text-sm dark:border-zinc-800 dark:bg-zinc-900">

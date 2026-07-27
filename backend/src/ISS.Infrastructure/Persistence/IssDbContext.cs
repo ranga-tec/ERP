@@ -642,6 +642,8 @@ public sealed class IssDbContext(
             entity.Property(x => x.Notes).HasMaxLength(2000);
             entity.Property(x => x.DefaultCostRate).HasPrecision(18, 4);
             entity.Property(x => x.DefaultBillingRate).HasPrecision(18, 4);
+            // one technician profile per staff login; filtered so unlinked subcontractors still fit
+            entity.HasIndex(x => x.UserId).IsUnique().HasFilter("\"UserId\" IS NOT NULL");
         });
 
         builder.Entity<ServiceJob>(entity =>

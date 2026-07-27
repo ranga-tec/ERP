@@ -50,6 +50,14 @@ export async function apiGet<T>(path: string): Promise<T> {
   return (await resp.json()) as T;
 }
 
+/** GET for endpoints that answer 204 when the record simply does not exist yet. */
+export async function apiGetOrNull<T>(path: string): Promise<T | null> {
+  const resp = await ensureOk(await fetch(backendUrl(path), { method: "GET" }));
+  if (resp.status === 204) return null;
+  const text = await resp.text();
+  return text.trim().length === 0 ? null : (JSON.parse(text) as T);
+}
+
 export async function apiPost<T>(path: string, body: unknown): Promise<T> {
   const resp = await ensureOk(
     await fetch(backendUrl(path), {

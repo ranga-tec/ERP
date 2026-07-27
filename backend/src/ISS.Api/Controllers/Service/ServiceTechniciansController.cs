@@ -20,7 +20,8 @@ public sealed class ServiceTechniciansController(IIssDbContext dbContext) : Cont
         decimal DefaultBillingRate,
         string? Phone,
         string? Notes,
-        bool IsActive);
+        bool IsActive,
+        Guid? UserId);
 
     public sealed record CreateServiceTechnicianRequest(
         string Code,
@@ -52,7 +53,8 @@ public sealed class ServiceTechniciansController(IIssDbContext dbContext) : Cont
                 x.DefaultBillingRate,
                 x.Phone,
                 x.Notes,
-                x.IsActive))
+                x.IsActive,
+                x.UserId))
             .ToListAsync(cancellationToken);
 
         return Ok(technicians);
@@ -173,5 +175,6 @@ public sealed class ServiceTechniciansController(IIssDbContext dbContext) : Cont
             technician.DefaultBillingRate,
             technician.Phone,
             technician.Notes,
-            technician.IsActive);
+            technician.IsActive,
+            technician.UserId);
 }

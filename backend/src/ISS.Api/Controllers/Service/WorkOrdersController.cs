@@ -343,19 +343,25 @@ public sealed class WorkOrdersController(
             return;
         }
 
-        // TechnicianUserId holds whatever the time entry was tagged with, and the UI tags it with
-        // a ServiceTechnician id. Technicians have no login, so that id is not a user. Notifying
-        // it violates the UserNotifications foreign key and rolls the approval back with a 500,
-        // so only notify when the id really is a user account.
+        // TechnicianUserId holds a ServiceTechnician id - the add-entry endpoint validates it as
+        // one. Technicians are staff, so resolve through to the linked login and notify that.
+        // Falls back to treating the id as a user for entries tagged with a user directly, and
+        // gives up rather than violating the UserNotifications foreign key.
+        var linkedUserId = await dbContext.ServiceTechnicians.AsNoTracking()
+            .Where(x => x.Id == recipientUserId.Value && x.UserId != null)
+            .Select(x => x.UserId)
+            .FirstOrDefaultAsync(cancellationToken);
+
+        var notifyUserId = linkedUserId ?? recipientUserId.Value;
         var recipientIsUser = await userManager.Users.AsNoTracking()
-            .AnyAsync(x => x.Id == recipientUserId.Value, cancellationToken);
+            .AnyAsync(x => x.Id == notifyUserId, cancellationToken);
         if (!recipientIsUser)
         {
             return;
         }
 
         notificationService.EnqueueInApp(
-            recipientUserId.Value,
+            notifyUserId,
             title,
             $"{entry.TechnicianName}: {message}",
             $"/service/work-orders/{workOrderId}",

@@ -12,10 +12,12 @@ public sealed class ServiceTechnician : AuditableEntity
         decimal defaultCostRate,
         decimal defaultBillingRate,
         string? phone,
-        string? notes)
+        string? notes,
+        Guid? userId = null)
     {
         Code = Guard.NotNullOrWhiteSpace(code, nameof(Code), maxLength: 32);
         Name = Guard.NotNullOrWhiteSpace(name, nameof(Name), maxLength: 256);
+        UserId = userId;
         Update(defaultCostRate, defaultBillingRate, phone, notes, true);
     }
 
@@ -26,6 +28,15 @@ public sealed class ServiceTechnician : AuditableEntity
     public string? Phone { get; private set; }
     public string? Notes { get; private set; }
     public bool IsActive { get; private set; }
+
+    /// <summary>
+    /// The staff login this technician is. Technicians are staff, so they are created and
+    /// maintained from the user module rather than entered a second time here. Nullable so a
+    /// subcontractor with no login can still be recorded and assigned work.
+    /// </summary>
+    public Guid? UserId { get; private set; }
+
+    public void LinkUser(Guid? userId) => UserId = userId;
 
     public void Rename(string code, string name)
     {

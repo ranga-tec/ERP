@@ -16,6 +16,7 @@ type ServiceTechnicianDto = {
   phone?: string | null;
   notes?: string | null;
   isActive: boolean;
+  userId?: string | null;
 };
 
 export function ServiceTechnicianRow({ technician }: { technician: ServiceTechnicianDto }) {
@@ -49,6 +50,13 @@ export function ServiceTechnicianRow({ technician }: { technician: ServiceTechni
       </td>
       <td className="py-2 pr-3">
         {technician.defaultBillingRate.toFixed(2)}
+      </td>
+      <td className="py-2 pr-3">
+        {technician.userId ? (
+          <span className="text-emerald-700 dark:text-emerald-300">Staff login</span>
+        ) : (
+          <span className="text-zinc-500">Subcontractor</span>
+        )}
       </td>
       <td className="py-2 pr-3">
         {technician.phone ?? "-"}

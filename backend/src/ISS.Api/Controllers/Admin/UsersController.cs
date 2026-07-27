@@ -1,6 +1,7 @@
 using ISS.Api.Security;
 using ISS.Application.Persistence;
 using ISS.Domain.MasterData;
+using ISS.Domain.Service;
 using ISS.Infrastructure.Identity;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
@@ -27,7 +28,8 @@ public sealed class UsersController(
         string? DisplayName,
         bool IsLocked,
         DateTimeOffset? LockoutEnd,
-        IReadOnlyList<string> Roles);
+        IReadOnlyList<string> Roles,
+        string? TechnicianCode);
 
     public sealed record CreateUserRequest(Guid? CompanyId, string Email, string Password, string? DisplayName, string[] Roles);
     public sealed record SetCompanyRequest(Guid CompanyId);
@@ -36,6 +38,28 @@ public sealed class UsersController(
     public sealed record PermissionDefinitionDto(string Key, string Module, string Action, string Label, string Description);
     public sealed record UserPermissionsDto(Guid UserId, bool HasExplicitOverrides, IReadOnlyList<string> EffectivePermissions);
     public sealed record SetUserPermissionsRequest(string[] Permissions);
+
+    /// <summary>
+    /// The service-technician profile attached to a staff login. Technicians are staff, so they
+    /// are created here rather than entered a second time in the service module.
+    /// </summary>
+    public sealed record UserTechnicianProfileDto(
+        Guid TechnicianId,
+        string Code,
+        string Name,
+        decimal DefaultCostRate,
+        decimal DefaultBillingRate,
+        string? Phone,
+        string? Notes,
+        bool IsActive);
+
+    public sealed record SaveUserTechnicianProfileRequest(
+        string? Code,
+        decimal DefaultCostRate,
+        decimal DefaultBillingRate,
+        string? Phone,
+        string? Notes,
+        bool IsActive);
 
     [HttpGet]
     public async Task<ActionResult<IReadOnlyList<UserDto>>> List(
@@ -303,6 +327,94 @@ public sealed class UsersController(
         return NoContent();
     }
 
+    [HttpGet("{id:guid}/technician")]
+    public async Task<ActionResult<UserTechnicianProfileDto?>> GetTechnicianProfile(Guid id, CancellationToken cancellationToken)
+    {
+        var technician = await dbContext.ServiceTechnicians.AsNoTracking()
+            .FirstOrDefaultAsync(x => x.UserId == id, cancellationToken);
+
+        return technician is null ? Ok(null) : Ok(MapTechnician(technician));
+    }
+
+    /// <summary>Creates the technician profile for this user, or updates it if one already exists.</summary>
+    [HttpPut("{id:guid}/technician")]
+    public async Task<ActionResult<UserTechnicianProfileDto>> SaveTechnicianProfile(
+        Guid id,
+        SaveUserTechnicianProfileRequest request,
+        CancellationToken cancellationToken)
+    {
+        var user = await userManager.FindByIdAsync(id.ToString());
+        if (user is null)
+        {
+            return NotFound();
+        }
+
+        var name = !string.IsNullOrWhiteSpace(user.DisplayName)
+            ? user.DisplayName!
+            : user.Email ?? user.UserName ?? id.ToString();
+
+        var technician = await dbContext.ServiceTechnicians.FirstOrDefaultAsync(x => x.UserId == id, cancellationToken);
+
+        if (technician is null)
+        {
+            var code = string.IsNullOrWhiteSpace(request.Code) ? await NextTechnicianCodeAsync(cancellationToken) : request.Code.Trim();
+            if (await dbContext.ServiceTechnicians.AsNoTracking().AnyAsync(x => x.Code == code, cancellationToken))
+            {
+                return Conflict($"A technician with code '{code}' already exists.");
+            }
+
+            technician = new ServiceTechnician(
+                code, name, request.DefaultCostRate, request.DefaultBillingRate,
+                request.Phone, request.Notes, id);
+            await dbContext.ServiceTechnicians.AddAsync(technician, cancellationToken);
+        }
+        else
+        {
+            var code = string.IsNullOrWhiteSpace(request.Code) ? technician.Code : request.Code.Trim();
+            if (await dbContext.ServiceTechnicians.AsNoTracking().AnyAsync(x => x.Id != technician.Id && x.Code == code, cancellationToken))
+            {
+                return Conflict($"A technician with code '{code}' already exists.");
+            }
+
+            // keep the technician name following the staff login, so there is one place to rename
+            technician.Rename(code, name);
+            technician.Update(request.DefaultCostRate, request.DefaultBillingRate, request.Phone, request.Notes, request.IsActive);
+        }
+
+        await dbContext.SaveChangesAsync(cancellationToken);
+        return Ok(MapTechnician(technician));
+    }
+
+    private async Task<string> NextTechnicianCodeAsync(CancellationToken cancellationToken)
+    {
+        var existing = await dbContext.ServiceTechnicians.AsNoTracking()
+            .Select(x => x.Code)
+            .ToListAsync(cancellationToken);
+
+        var taken = existing.ToHashSet(StringComparer.OrdinalIgnoreCase);
+        for (var n = 1; n < 10000; n++)
+        {
+            var candidate = $"TECH{n}";
+            if (!taken.Contains(candidate))
+            {
+                return candidate;
+            }
+        }
+
+        return $"TECH{Guid.NewGuid():N}"[..12];
+    }
+
+    private static UserTechnicianProfileDto MapTechnician(ServiceTechnician technician)
+        => new(
+            technician.Id,
+            technician.Code,
+            technician.Name,
+            technician.DefaultCostRate,
+            technician.DefaultBillingRate,
+            technician.Phone,
+            technician.Notes,
+            technician.IsActive);
+
     private async Task<UserDto> ToDtoAsync(ApplicationUser user)
     {
         var roles = await userManager.GetRolesAsync(user);
@@ -311,6 +423,10 @@ public sealed class UsersController(
         var company = await dbContext.Companies.AsNoTracking()
             .Where(x => x.Id == user.CompanyId)
             .Select(x => new { x.Code, x.Name })
+            .FirstOrDefaultAsync(HttpContext.RequestAborted);
+        var technicianCode = await dbContext.ServiceTechnicians.AsNoTracking()
+            .Where(x => x.UserId == user.Id)
+            .Select(x => x.Code)
             .FirstOrDefaultAsync(HttpContext.RequestAborted);
 
         return new UserDto(
@@ -322,7 +438,8 @@ public sealed class UsersController(
             user.DisplayName,
             isLocked,
             lockoutEnd,
-            roles.OrderBy(x => x).ToArray());
+            roles.OrderBy(x => x).ToArray(),
+            technicianCode);
     }
 
     private static string[] NormalizeRoles(string[]? roles)

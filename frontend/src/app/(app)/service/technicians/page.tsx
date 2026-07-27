@@ -14,6 +14,7 @@ type ServiceTechnicianDto = {
   phone?: string | null;
   notes?: string | null;
   isActive: boolean;
+  userId?: string | null;
 };
 
 export default async function ServiceTechniciansPage() {
@@ -24,9 +25,14 @@ export default async function ServiceTechniciansPage() {
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold">Technicians</h1>
-          <p className="mt-1 text-sm text-zinc-500">Maintain service technicians used on job detail labor entries.</p>
+          <p className="mt-1 text-sm text-zinc-500">
+            Technicians used on job detail labour entries. Staff technicians are created from
+            Admin &rsaquo; Users (open the user and use &ldquo;Technician profile&rdquo;) so nobody is
+            entered twice &mdash; add them here only when they have no system login, such as a
+            subcontractor.
+          </p>
         </div>
-        <AppFormModal title="Create Technician" description="Add a technician with default cost and billing rates for labour entries." buttonLabel="+ New Technician">
+        <AppFormModal title="Create Technician" description="For technicians with no system login, such as subcontractors. Staff technicians are created from Admin > Users." buttonLabel="+ New Technician">
           <ServiceTechnicianCreateForm />
         </AppFormModal>
       </div>
@@ -36,7 +42,7 @@ export default async function ServiceTechniciansPage() {
         <SearchableTable
           placeholder="Search technician code, name, phone, notes..."
           emptyMessage="No technicians yet."
-          emptyColSpan={8}
+          emptyColSpan={9}
           headers={
             <thead>
               <tr className="border-b border-zinc-200 text-left text-xs uppercase tracking-wide text-zinc-500 dark:border-zinc-800">
@@ -44,6 +50,7 @@ export default async function ServiceTechniciansPage() {
                 <th className="py-2 pr-3">Name</th>
                 <th className="py-2 pr-3">Cost Rate</th>
                 <th className="py-2 pr-3">Billing Rate</th>
+                <th className="py-2 pr-3">Source</th>
                 <th className="py-2 pr-3">Phone</th>
                 <th className="py-2 pr-3">Notes</th>
                 <th className="py-2 pr-3">Status</th>
@@ -61,6 +68,7 @@ export default async function ServiceTechniciansPage() {
                     technician.phone,
                     technician.notes,
                     technician.isActive ? "active" : "inactive",
+                    technician.userId ? "staff login" : "subcontractor",
                   ].filter(Boolean).join(" ")}
                 >
                 <ServiceTechnicianRow key={technician.id} technician={technician} />

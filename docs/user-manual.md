@@ -700,7 +700,7 @@ What to input:
 | Field | Example |
 | --- | --- |
 | Service job | Selected job |
-| Technician | Technician master record |
+| Technician | Technician master record (staff technicians come from `Admin -> Users`) |
 | Work date | Labour date |
 | Hours | Normal/billable hours |
 | Cost rate | Technician cost |
@@ -1013,6 +1013,35 @@ What to check:
 - A creator can create drafts but cannot approve if approve permission is not granted.
 - An approver can see approval requests for their permitted documents.
 - Backend blocks unauthorized actions even if the user opens a URL manually.
+
+### 9.1.1 Making A User A Technician
+
+Technicians are staff, so they are not entered a second time in the service module. On
+`Admin -> Users`, open the staff member's row and use **Technician profile**:
+
+| Field | Example |
+| --- | --- |
+| Technician code | Leave blank to auto-generate (`TECH5`) |
+| Cost rate / hr | Internal labour cost used for job costing |
+| Billing rate / hr | Default rate charged to the customer |
+| Phone | Contact number |
+| Available for job assignment | Untick to retire the technician |
+
+Output:
+
+- The user becomes selectable as a technician on job assignments and labour entries.
+- The users list shows `Technician TECHn` under their name.
+- Approval and submission notifications for their labour entries reach their inbox.
+- Renaming the user renames the technician record.
+
+`Service -> Technicians` still allows creating a technician directly, but only for people with
+no system login, such as a subcontractor. That list shows Staff login vs Subcontractor so you
+can tell the two apart.
+
+What to check:
+
+- A staff technician exists exactly once, with a login and a technician code.
+- Deactivating the technician profile does not disable the login, and vice versa.
 
 ### 9.2 Notifications
 

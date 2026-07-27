@@ -13,6 +13,7 @@ type UserDto = {
   isLocked: boolean;
   lockoutEnd?: string | null;
   roles: string[];
+  technicianCode?: string | null;
 };
 
 type CompanyDto = { id: string; code: string; name: string; isActive: boolean };
@@ -62,7 +63,12 @@ export default async function AdminUsersPage() {
                 <tr key={u.id} className="border-b border-zinc-100 align-top dark:border-zinc-900">
                   <td className="py-2 pr-3 font-mono text-xs">{u.email}</td>
                   <td className="py-2 pr-3 text-sm">{u.companyCode ?? u.companyId.slice(0, 8)}</td>
-                  <td className="py-2 pr-3">{u.displayName ?? "—"}</td>
+                  <td className="py-2 pr-3">
+                    <div>{u.displayName ?? "—"}</div>
+                    {u.technicianCode ? (
+                      <div className="text-xs text-zinc-500">Technician {u.technicianCode}</div>
+                    ) : null}
+                  </td>
                   <td className="py-2 pr-3">
                     <div className="flex flex-wrap gap-1">
                       {(u.roles?.length ? u.roles : ["(none)"]).map((r) => (
