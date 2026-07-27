@@ -3,7 +3,7 @@ import { Card } from "@/components/ui";
 import { OnHandQuery } from "./OnHandQuery";
 
 type WarehouseDto = { id: string; code: string; name: string };
-type ItemDto = { id: string; sku: string; name: string };
+type ItemDto = { id: string; sku: string; name: string; unitOfMeasure: string };
 
 export default async function OnHandPage() {
   const [warehouses, items] = await Promise.all([

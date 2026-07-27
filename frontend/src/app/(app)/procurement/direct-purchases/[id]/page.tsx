@@ -163,6 +163,7 @@ export default async function DirectPurchaseDetailPage({
                     directPurchaseId={dp.id}
                     line={l}
                     itemLabel={itemLabel}
+                    unitOfMeasure={item?.unitOfMeasure ?? ""}
                     canEdit={isDraft}
                     startInEditMode={startInEditMode}
                   />

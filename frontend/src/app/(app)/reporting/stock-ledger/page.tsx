@@ -4,7 +4,7 @@ import { TransactionLink } from "@/components/TransactionLink";
 import { Button, Card, SecondaryLink, Select, Table } from "@/components/ui";
 
 type WarehouseDto = { id: string; code: string; name: string };
-type ItemDto = { id: string; sku: string; name: string };
+type ItemDto = { id: string; sku: string; name: string; unitOfMeasure: string };
 
 type StockLedgerRow = {
   occurredAt: string;
@@ -188,8 +188,8 @@ export default async function StockLedgerPage({
                   </div>
                 </td>
                 <td className="py-2 pr-3 text-xs text-zinc-500">{movementTypeLabel[row.movementType] ?? row.movementType}</td>
-                <td className="py-2 pr-3 text-xs font-medium">{signedNumber(row.quantity)}</td>
-                <td className="py-2 pr-3 text-xs">{number(row.runningQuantity)}</td>
+                <td className="py-2 pr-3 text-xs font-medium">{signedNumber(row.quantity)} {items.find((item) => item.id === row.itemId)?.unitOfMeasure ?? ""}</td>
+                <td className="py-2 pr-3 text-xs">{number(row.runningQuantity)} {items.find((item) => item.id === row.itemId)?.unitOfMeasure ?? ""}</td>
                 <td className="py-2 pr-3 text-xs">{number(row.unitCost)}</td>
                 <td className="py-2 pr-3 text-xs">{signedNumber(row.lineValue)}</td>
                 <td className="py-2 pr-3 text-xs">

@@ -5,13 +5,14 @@ import { Button, Card, Select, Table } from "@/components/ui";
 import { ReorderAlertsCreatePrButton } from "./ReorderAlertsCreatePrButton";
 
 type WarehouseDto = { id: string; code: string; name: string };
-type ItemDto = { id: string; sku: string; name: string };
+type ItemDto = { id: string; sku: string; name: string; unitOfMeasure: string };
 type ReorderAlertDto = {
   warehouseId: string;
   itemId: string;
   reorderPoint: number;
   reorderQuantity: number;
   onHand: number;
+  unitOfMeasure?: string | null;
 };
 
 export default async function ReorderAlertsPage({ searchParams }: { searchParams?: Promise<{ warehouseId?: string }> }) {
@@ -92,9 +93,9 @@ export default async function ReorderAlertsPage({ searchParams }: { searchParams
                       {itemById.get(alert.itemId)?.sku ?? alert.itemId}
                     </ItemInlineLink>
                   </td>
-                  <td className="py-2 pr-3">{alert.onHand}</td>
-                  <td className="py-2 pr-3">{alert.reorderPoint}</td>
-                  <td className="py-2 pr-3">{alert.reorderQuantity}</td>
+                  <td className="py-2 pr-3">{alert.onHand} {alert.unitOfMeasure ?? itemById.get(alert.itemId)?.unitOfMeasure ?? ""}</td>
+                  <td className="py-2 pr-3">{alert.reorderPoint} {alert.unitOfMeasure ?? itemById.get(alert.itemId)?.unitOfMeasure ?? ""}</td>
+                  <td className="py-2 pr-3">{alert.reorderQuantity} {alert.unitOfMeasure ?? itemById.get(alert.itemId)?.unitOfMeasure ?? ""}</td>
                   <td className="py-2 pr-3">
                     <ListViewEditActions
                       viewHref={`/master-data/items/${alert.itemId}`}

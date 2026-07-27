@@ -27,7 +27,7 @@ type GoodsReceiptDto = {
 
 type PurchaseOrderSummaryDto = { id: string; number: string };
 type WarehouseDto = { id: string; code: string; name: string };
-type ItemDto = { id: string; sku: string; name: string; trackingType: number; defaultUnitCost: number };
+type ItemDto = { id: string; sku: string; name: string; trackingType: number; defaultUnitCost: number; unitOfMeasure: string };
 type GoodsReceiptReceiptPlanDto = {
   lines: {
     purchaseOrderLineId: string;

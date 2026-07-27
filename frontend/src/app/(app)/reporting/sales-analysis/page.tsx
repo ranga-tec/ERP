@@ -48,6 +48,7 @@ type SalesAnalysisItemDto = {
   netSales: number;
   taxTotal: number;
   grossSales: number;
+  unitOfMeasure?: string | null;
 };
 
 type SalesAnalysisReportDto = {
@@ -69,6 +70,7 @@ type SalesAnalysisReportDto = {
   topCustomers: SalesAnalysisCustomerDto[];
   topItems: SalesAnalysisItemDto[];
 };
+type ItemDto = { id: string; unitOfMeasure: string };
 
 function normalizeDateInput(value?: string | null) {
   if (!value) {
@@ -137,7 +139,11 @@ export default async function SalesAnalysisPage({
   if (to) qs.set("to", to);
   const pdfHref = `/api/backend/reporting/sales-analysis/pdf?${qs.toString()}`;
 
-  const report = await backendFetchJson<SalesAnalysisReportDto>(`/reporting/sales-analysis?${qs.toString()}`);
+  const [report, items] = await Promise.all([
+    backendFetchJson<SalesAnalysisReportDto>(`/reporting/sales-analysis?${qs.toString()}`),
+    backendFetchJson<ItemDto[]>("/items"),
+  ]);
+  const itemUnitById = new Map(items.map((item) => [item.id, item.unitOfMeasure]));
   const locale = settings.locale;
   const currencyCode = report.baseCurrencyCode || settings.baseCurrencyCode;
 
@@ -313,7 +319,7 @@ export default async function SalesAnalysisPage({
                       <ItemInlineLink itemId={row.itemId}>{row.itemName}</ItemInlineLink>
                     </div>
                   </td>
-                  <td className="py-2 pr-3 text-right">{formatNumber(row.quantity, locale, 2)}</td>
+                  <td className="py-2 pr-3 text-right">{formatNumber(row.quantity, locale, 2)} {row.unitOfMeasure ?? itemUnitById.get(row.itemId) ?? ""}</td>
                   <td className="py-2 pr-3 text-right">{formatMoney(row.netSales, locale, currencyCode)}</td>
                   <td className="py-2 pr-3 text-right">{formatMoney(row.taxTotal, locale, currencyCode)}</td>
                   <td className="py-2 pr-3 text-right font-medium">{formatMoney(row.grossSales, locale, currencyCode)}</td>

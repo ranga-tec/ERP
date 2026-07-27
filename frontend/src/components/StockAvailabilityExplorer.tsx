@@ -6,8 +6,8 @@ import { apiGet } from "@/lib/api-client";
 import { Button, Input, SecondaryButton, Select, Table } from "@/components/ui";
 
 type WarehouseRef = { id: string; code: string; name: string };
-type ItemRef = { id: string; sku: string; name: string };
-type OnHandRowDto = { warehouseId: string; itemId: string; batchNumber?: string | null; onHand: number };
+type ItemRef = { id: string; sku: string; name: string; unitOfMeasure: string };
+type OnHandRowDto = { warehouseId: string; itemId: string; batchNumber?: string | null; onHand: number; unitOfMeasure?: string | null };
 type GroupMode = "total" | "warehouse" | "batch" | "warehouse-batch";
 type DisplayRow = { key: string; warehouseId?: string; batchLabel?: string; onHand: number };
 
@@ -267,7 +267,7 @@ export function StockAvailabilityExplorer({
             ) : groupMode === "total" ? (
               <div className="mt-4 rounded-xl border border-zinc-200 bg-zinc-50/80 p-4 dark:border-zinc-800 dark:bg-zinc-900/60">
                 <div className="text-xs uppercase tracking-wide text-zinc-500">{groupModeLabel[groupMode]}</div>
-                <div className="mt-2 text-3xl font-semibold">{number(totalOnHand)}</div>
+                <div className="mt-2 text-3xl font-semibold">{number(totalOnHand)} {selectedItem?.unitOfMeasure ?? ""}</div>
               </div>
             ) : (
               <div className="mt-4 overflow-auto">
@@ -294,7 +294,7 @@ export function StockAvailabilityExplorer({
                         {groupMode === "batch" || groupMode === "warehouse-batch" ? (
                           <td className="py-2 pr-3">{row.batchLabel ?? "No batch"}</td>
                         ) : null}
-                        <td className="py-2 pr-3 font-medium">{number(row.onHand)}</td>
+                        <td className="py-2 pr-3 font-medium">{number(row.onHand)} {results[0]?.unitOfMeasure ?? selectedItem?.unitOfMeasure ?? ""}</td>
                       </tr>
                     ))}
                   </tbody>

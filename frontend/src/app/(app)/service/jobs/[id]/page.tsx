@@ -53,7 +53,7 @@ type ServiceJobDto = {
 
 type EquipmentUnitDto = { id: string; serialNumber: string; itemId: string; customerId: string };
 type CustomerDto = { id: string; code: string; name: string };
-type ItemDto = { id: string; sku: string; name: string };
+type ItemDto = { id: string; sku: string; name: string; unitOfMeasure: string };
 type TechnicianDto = {
   id: string;
   code: string;
@@ -2057,7 +2057,7 @@ export default async function ServiceJobDetailPage({
                                   <td className="py-2 pl-3 pr-3">
                                     <ItemInlineLink itemId={line.itemId}>{line.itemSku} - {line.itemName}</ItemInlineLink>
                                   </td>
-                                  <td className="py-2 pr-3 text-right">{line.quantity}</td>
+                                  <td className="py-2 pr-3 text-right">{line.quantity} {itemById.get(line.itemId)?.unitOfMeasure ?? ""}</td>
                                   <td className="py-2 pr-3 text-right">{money(line.unitCost)}</td>
                                   <td className="py-2 pr-3 text-right">{money(line.lineTotal)}</td>
                                 </tr>
@@ -2107,7 +2107,7 @@ export default async function ServiceJobDetailPage({
           <AppFormModal title="Save Material Return Draft" description="Draft not-needed, wrongly-issued, or supplier-rejected returns before posting usable stock back." buttonLabel="+ Material Return" variant="secondary" disabled={!canAddJobActivity}>
             <ServiceJobMaterialDispositionAddForm
               serviceJobId={job.id}
-              materialLines={costing.materialLines}
+              materialLines={costing.materialLines.map((line) => ({ ...line, unitOfMeasure: itemById.get(line.itemId)?.unitOfMeasure ?? "" }))}
               dailySheets={dailySheets}
               allowedKinds={["1", "2", "4"]}
               submitLabel="Save Material Return Draft"
@@ -2202,7 +2202,7 @@ export default async function ServiceJobDetailPage({
           <AppFormModal title="Save Damage Draft" description="Record issued material that is damaged or unusable." buttonLabel="+ Damage Draft" variant="secondary" disabled={!canAddJobActivity}>
             <ServiceJobMaterialDispositionAddForm
               serviceJobId={job.id}
-              materialLines={costing.materialLines}
+              materialLines={costing.materialLines.map((line) => ({ ...line, unitOfMeasure: itemById.get(line.itemId)?.unitOfMeasure ?? "" }))}
               dailySheets={dailySheets}
               allowedKinds={["3"]}
               submitLabel="Save Damage Draft"

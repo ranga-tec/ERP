@@ -29,6 +29,7 @@ export function MaterialRequisitionLineRow({
   warehouseId,
   warehouses,
   itemLabel,
+  unitOfMeasure,
   trackingType,
   canEdit,
   startInEditMode = false,
@@ -39,6 +40,7 @@ export function MaterialRequisitionLineRow({
   warehouseId: string;
   warehouses: WarehouseRef[];
   itemLabel: ReactNode;
+  unitOfMeasure: string;
   trackingType?: number;
   canEdit: boolean;
   startInEditMode?: boolean;
@@ -138,7 +140,7 @@ export function MaterialRequisitionLineRow({
         {isEditing ? (
           <Input value={quantity} onChange={(e) => setQuantity(e.target.value)} inputMode="decimal" className="min-w-20" />
         ) : (
-          line.quantity
+          `${line.quantity} ${unitOfMeasure}`
         )}
       </td>
       <td className="py-2 pr-3">

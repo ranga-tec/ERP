@@ -48,6 +48,7 @@ export function StockAdjustmentLineRow({
   warehouseId,
   warehouses,
   itemLabel,
+  unitOfMeasure,
   canEdit,
   startInEditMode = false,
 }: {
@@ -57,6 +58,7 @@ export function StockAdjustmentLineRow({
   warehouseId: string;
   warehouses: WarehouseRef[];
   itemLabel: ReactNode;
+  unitOfMeasure: string;
   canEdit: boolean;
   startInEditMode?: boolean;
 }) {
@@ -152,17 +154,17 @@ export function StockAdjustmentLineRow({
           {editing ? (
             <Input value={countedQuantity} onChange={(e) => setCountedQuantity(e.target.value)} inputMode="decimal" className="min-w-20" />
           ) : (
-            line.countedQuantity == null ? "-" : formatNumber(line.countedQuantity)
+            line.countedQuantity == null ? "-" : `${formatNumber(line.countedQuantity)} ${unitOfMeasure}`
           )}
         </td>
         <td className="py-2 pr-3">
-          {line.systemQuantity == null ? "-" : formatNumber(line.systemQuantity)}
+          {line.systemQuantity == null ? "-" : `${formatNumber(line.systemQuantity)} ${unitOfMeasure}`}
         </td>
         <td className="py-2 pr-3">
           {editing ? (
             <span className="text-xs text-zinc-500">Calculated on save/post</span>
           ) : (
-            formatSignedNumber(line.quantityDelta)
+            `${formatSignedNumber(line.quantityDelta)} ${unitOfMeasure}`
           )}
         </td>
         <td className="py-2 pr-3">

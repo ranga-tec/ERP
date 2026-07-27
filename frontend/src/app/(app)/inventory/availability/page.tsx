@@ -4,7 +4,7 @@ import { InventoryAvailabilityBrowser } from "./InventoryAvailabilityBrowser";
 
 type WarehouseDto = { id: string; code: string; name: string };
 type WarehouseBinDto = { id: string; warehouseId: string; code: string; name: string; zone?: string | null; rack?: string | null; shelf?: string | null };
-type ItemDto = { id: string; sku: string; name: string };
+type ItemDto = { id: string; sku: string; name: string; unitOfMeasure: string };
 
 export default async function InventoryAvailabilityPage() {
   const [warehouses, bins, items] = await Promise.all([

@@ -13,6 +13,7 @@ type DirectDispatchSummaryDto = {
   warehouseId: string;
   customerId?: string | null;
   serviceJobId?: string | null;
+  serviceJobNumber?: string | null;
   dispatchedAt: string;
   status: number;
   reason?: string | null;
@@ -34,7 +35,6 @@ export default async function DirectDispatchesPage() {
   ]);
 
   const customerById = new Map(customers.map((c) => [c.id, c]));
-  const jobById = new Map(jobs.map((j) => [j.id, j]));
   const warehouseById = new Map(warehouses.map((w) => [w.id, w]));
 
   return (
@@ -67,7 +67,8 @@ export default async function DirectDispatchesPage() {
           }>
               {rows.map((r) => {
                 const customer = r.customerId ? customerById.get(r.customerId)?.code ?? r.customerId : "-";
-                const job = r.serviceJobId ? jobById.get(r.serviceJobId)?.number ?? r.serviceJobId : "-";
+                // the number comes from the server; a job id with no number means the job is gone
+                const job = r.serviceJobId ? r.serviceJobNumber ?? "Job removed" : "-";
                 const warehouse = warehouseById.get(r.warehouseId)?.code ?? r.warehouseId;
                 const status = statusLabel[r.status] ?? String(r.status);
                 return (
@@ -80,10 +81,14 @@ export default async function DirectDispatchesPage() {
                   </td>
                   <td className="py-2 pr-3">{customer}</td>
                   <td className="py-2 pr-3 font-mono text-xs">
-                    {r.serviceJobId ? (
+                    {r.serviceJobId && r.serviceJobNumber ? (
                       <TransactionLink referenceType="SJ" referenceId={r.serviceJobId} monospace>
-                        {jobById.get(r.serviceJobId)?.number ?? r.serviceJobId}
+                        {r.serviceJobNumber}
                       </TransactionLink>
+                    ) : r.serviceJobId ? (
+                      <span className="text-zinc-500" title="The service job this was issued against no longer exists.">
+                        Job removed
+                      </span>
                     ) : (
                       "-"
                     )}

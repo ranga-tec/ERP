@@ -19,7 +19,7 @@ type StockTransferDto = {
 };
 
 type WarehouseDto = { id: string; code: string; name: string };
-type ItemDto = { id: string; sku: string; name: string; trackingType: number; defaultUnitCost: number };
+type ItemDto = { id: string; sku: string; name: string; trackingType: number; defaultUnitCost: number; unitOfMeasure: string };
 
 const statusLabel: Record<number, string> = {
   0: "Draft",
@@ -119,6 +119,7 @@ export default async function StockTransferDetailPage({ params }: { params: Prom
                     warehouseId={transfer.fromWarehouseId}
                     warehouses={warehouses}
                     itemLabel={itemLabel}
+                    unitOfMeasure={item?.unitOfMeasure ?? ""}
                     canEdit={isDraft}
                   />
                 );
@@ -139,4 +140,3 @@ export default async function StockTransferDetailPage({ params }: { params: Prom
     </div>
   );
 }
-

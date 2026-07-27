@@ -28,7 +28,7 @@ type StockAdjustmentDto = {
 };
 
 type WarehouseDto = { id: string; code: string; name: string };
-type ItemDto = { id: string; sku: string; name: string; trackingType: number; defaultUnitCost: number };
+type ItemDto = { id: string; sku: string; name: string; trackingType: number; defaultUnitCost: number; unitOfMeasure: string };
 
 const statusLabel: Record<number, string> = {
   0: "Draft",
@@ -136,6 +136,7 @@ export default async function StockAdjustmentDetailPage({
                     warehouseId={adj.warehouseId}
                     warehouses={warehouses}
                     itemLabel={itemLabel}
+                    unitOfMeasure={item?.unitOfMeasure ?? ""}
                     canEdit={isDraft}
                     startInEditMode={startInEditMode}
                   />
@@ -157,4 +158,3 @@ export default async function StockAdjustmentDetailPage({
     </div>
   );
 }
-

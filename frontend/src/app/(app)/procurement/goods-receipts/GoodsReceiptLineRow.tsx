@@ -26,11 +26,13 @@ export function GoodsReceiptLineRow({
   goodsReceiptId,
   line,
   itemLabel,
+  unitOfMeasure,
   canEdit,
 }: {
   goodsReceiptId: string;
   line: GoodsReceiptLineDto;
   itemLabel: ReactNode;
+  unitOfMeasure: string;
   canEdit: boolean;
 }) {
   const router = useRouter();
@@ -104,7 +106,7 @@ export function GoodsReceiptLineRow({
         {isEditing ? (
           <Input value={quantity} onChange={(e) => setQuantity(e.target.value)} inputMode="decimal" className="min-w-24" />
         ) : (
-          line.quantity
+          `${line.quantity} ${unitOfMeasure}`
         )}
       </td>
       <td className="py-2 pr-3">

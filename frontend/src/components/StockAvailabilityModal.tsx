@@ -5,7 +5,7 @@ import { Button, SecondaryButton } from "@/components/ui";
 import { StockAvailabilityExplorer } from "@/components/StockAvailabilityExplorer";
 
 type WarehouseRef = { id: string; code: string; name: string };
-type ItemRef = { id: string; sku: string; name: string };
+type ItemRef = { id: string; sku: string; name: string; unitOfMeasure: string };
 
 export function StockAvailabilityModal({
   warehouses,

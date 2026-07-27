@@ -13,8 +13,8 @@ namespace ISS.Api.Controllers;
 [Authorize(Roles = $"{Roles.Admin},{Roles.Inventory},{Roles.Reporting},{Roles.Service}")]
 public sealed class InventoryController(IIssDbContext dbContext, InventoryService inventoryService, ProcurementService procurementService) : ControllerBase
 {
-    public sealed record OnHandDto(Guid WarehouseId, Guid? WarehouseBinId, Guid ItemId, string? BatchNumber, decimal OnHand);
-    public sealed record InventoryAvailabilityDto(Guid WarehouseId, Guid? WarehouseBinId, Guid ItemId, string? BatchNumber, string? SerialNumber, decimal OnHand, decimal UnitCost, decimal InventoryValue);
+    public sealed record OnHandDto(Guid WarehouseId, Guid? WarehouseBinId, Guid ItemId, string? BatchNumber, decimal OnHand, string? UnitOfMeasure);
+    public sealed record InventoryAvailabilityDto(Guid WarehouseId, Guid? WarehouseBinId, Guid ItemId, string? BatchNumber, string? SerialNumber, decimal OnHand, decimal UnitCost, decimal InventoryValue, string? UnitOfMeasure);
     public sealed record SerialOnHandDto(string SerialNumber);
 
     [HttpGet("onhand")]
@@ -26,7 +26,9 @@ public sealed class InventoryController(IIssDbContext dbContext, InventoryServic
         CancellationToken cancellationToken)
     {
         var rows = await inventoryService.GetOnHandBreakdownAsync(warehouseId, itemId, warehouseBinId, batchNumber, cancellationToken);
-        return Ok(rows.Select(row => new OnHandDto(row.WarehouseId, row.WarehouseBinId, row.ItemId, row.BatchNumber, row.OnHand)).ToList());
+        var itemIds = rows.Select(row => row.ItemId).Distinct().ToList();
+        var units = await dbContext.Items.AsNoTracking().Where(item => itemIds.Contains(item.Id)).ToDictionaryAsync(item => item.Id, item => item.UnitOfMeasure, cancellationToken);
+        return Ok(rows.Select(row => new OnHandDto(row.WarehouseId, row.WarehouseBinId, row.ItemId, row.BatchNumber, row.OnHand, units.GetValueOrDefault(row.ItemId))).ToList());
     }
 
     [HttpGet("availability")]
@@ -39,6 +41,8 @@ public sealed class InventoryController(IIssDbContext dbContext, InventoryServic
         CancellationToken cancellationToken)
     {
         var rows = await inventoryService.GetInventoryAvailabilityAsync(warehouseId, itemId, warehouseBinId, batchNumber, serialNumber, cancellationToken);
+        var itemIds = rows.Select(row => row.ItemId).Distinct().ToList();
+        var units = await dbContext.Items.AsNoTracking().Where(item => itemIds.Contains(item.Id)).ToDictionaryAsync(item => item.Id, item => item.UnitOfMeasure, cancellationToken);
         return Ok(rows.Select(row => new InventoryAvailabilityDto(
             row.WarehouseId,
             row.WarehouseBinId,
@@ -47,7 +51,8 @@ public sealed class InventoryController(IIssDbContext dbContext, InventoryServic
             row.SerialNumber,
             row.OnHand,
             row.UnitCost,
-            row.InventoryValue)).ToList());
+            row.InventoryValue,
+            units.GetValueOrDefault(row.ItemId))).ToList());
     }
 
     [HttpGet("serials-on-hand")]
@@ -70,7 +75,7 @@ public sealed class InventoryController(IIssDbContext dbContext, InventoryServic
         return Ok(serials.Select(serial => new SerialOnHandDto(serial)).ToList());
     }
 
-    public sealed record ReorderAlertDto(Guid WarehouseId, Guid ItemId, decimal ReorderPoint, decimal ReorderQuantity, decimal OnHand);
+    public sealed record ReorderAlertDto(Guid WarehouseId, Guid ItemId, decimal ReorderPoint, decimal ReorderQuantity, decimal OnHand, string? UnitOfMeasure);
     public sealed record CreateReorderPurchaseRequisitionRequest(Guid WarehouseId, string? Notes, bool Submit = false);
     public sealed record CreateReorderPurchaseRequisitionResponseDto(Guid PurchaseRequisitionId, string PurchaseRequisitionNumber, int LineCount, decimal TotalSuggestedQuantity);
 
@@ -85,13 +90,14 @@ public sealed class InventoryController(IIssDbContext dbContext, InventoryServic
 
         var settings = await settingsQuery.ToListAsync(cancellationToken);
         var alerts = new List<ReorderAlertDto>();
+        var itemUnits = await dbContext.Items.AsNoTracking().ToDictionaryAsync(item => item.Id, item => item.UnitOfMeasure, cancellationToken);
 
         foreach (var s in settings)
         {
             var onHand = await inventoryService.GetOnHandAsync(s.WarehouseId, s.ItemId, batchNumber: null, cancellationToken);
             if (onHand <= s.ReorderPoint)
             {
-                alerts.Add(new ReorderAlertDto(s.WarehouseId, s.ItemId, s.ReorderPoint, s.ReorderQuantity, onHand));
+                alerts.Add(new ReorderAlertDto(s.WarehouseId, s.ItemId, s.ReorderPoint, s.ReorderQuantity, onHand, itemUnits.GetValueOrDefault(s.ItemId)));
             }
         }
 

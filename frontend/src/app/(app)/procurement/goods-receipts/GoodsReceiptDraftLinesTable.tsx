@@ -20,6 +20,7 @@ type ItemRef = {
   sku: string;
   name: string;
   trackingType: number;
+  unitOfMeasure: string;
 };
 
 function normalizeSearch(value: string): string {
@@ -104,6 +105,7 @@ export function GoodsReceiptDraftLinesTable({
                   goodsReceiptId={goodsReceiptId}
                   line={line}
                   itemLabel={itemLabel}
+                  unitOfMeasure={item?.unitOfMeasure ?? ""}
                   canEdit={canEdit}
                 />
               );

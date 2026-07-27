@@ -4,8 +4,8 @@ import { useEffect, useState } from "react";
 import { apiGet } from "@/lib/api-client";
 import { SecondaryButton } from "@/components/ui";
 
-type OnHandDto = { batchNumber?: string | null; onHand: number };
-type BatchOnHand = { batchNumber: string; onHand: number };
+type OnHandDto = { batchNumber?: string | null; onHand: number; unitOfMeasure?: string | null };
+type BatchOnHand = { batchNumber: string; onHand: number; unitOfMeasure?: string | null };
 
 function formatQty(value: number): string {
   return Number.isInteger(value) ? String(value) : value.toFixed(4).replace(/0+$/, "").replace(/\.$/, "");
@@ -56,6 +56,7 @@ export function AvailableBatchPicker({
         if (ignore) return;
         // roll bins up per batch: the picker only needs batch + total quantity
         const totals = new Map<string, number>();
+        const unitOfMeasure = rows.find((row) => row.unitOfMeasure)?.unitOfMeasure;
         for (const row of rows) {
           const batch = row.batchNumber?.trim();
           if (!batch) continue;
@@ -64,7 +65,7 @@ export function AvailableBatchPicker({
         setBatches(
           [...totals.entries()]
             .filter(([, onHand]) => onHand > 0)
-            .map(([batchNumber, onHand]) => ({ batchNumber, onHand }))
+            .map(([batchNumber, onHand]) => ({ batchNumber, onHand, unitOfMeasure }))
             .sort((a, b) => a.batchNumber.localeCompare(b.batchNumber)),
         );
       })
@@ -131,7 +132,7 @@ export function AvailableBatchPicker({
               >
                 <span className="truncate font-mono">{batch.batchNumber}</span>
                 <span className={short ? "shrink-0 text-red-700 dark:text-red-300" : "shrink-0 text-zinc-500"}>
-                  {formatQty(batch.onHand)}
+                  {formatQty(batch.onHand)} {batch.unitOfMeasure ?? ""}
                   {short ? " short" : ""}
                 </span>
               </button>

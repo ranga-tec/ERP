@@ -43,7 +43,7 @@ type ServiceEstimateDto = {
 
 type ServiceJobDto = { id: string; number: string; customerId: string; status: number };
 type CustomerDto = { id: string; code: string; name: string };
-type ItemDto = { id: string; sku: string; name: string; defaultUnitCost: number };
+type ItemDto = { id: string; sku: string; name: string; defaultUnitCost: number; unitOfMeasure: string };
 type TaxDto = { id: string; code: string; name: string; ratePercent: number; isActive: boolean };
 
 const statusLabel: Record<number, string> = {

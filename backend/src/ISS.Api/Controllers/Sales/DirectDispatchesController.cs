@@ -28,6 +28,8 @@ public sealed class DirectDispatchesController(
         Guid WarehouseId,
         Guid? CustomerId,
         Guid? ServiceJobId,
+        /// <summary>Null when the job is gone, which the list shows rather than printing an id.</summary>
+        string? ServiceJobNumber,
         DateTimeOffset DispatchedAt,
         DirectDispatchStatus Status,
         DateTimeOffset? WarrantyUntil,
@@ -98,6 +100,12 @@ public sealed class DirectDispatchesController(
                 x.WarehouseId,
                 x.CustomerId,
                 x.ServiceJobId,
+                x.ServiceJobId == null
+                    ? null
+                    : dbContext.ServiceJobs
+                        .Where(job => job.Id == x.ServiceJobId)
+                        .Select(job => job.Number)
+                        .FirstOrDefault(),
                 x.DispatchedAt,
                 x.Status,
                 x.WarrantyUntil,

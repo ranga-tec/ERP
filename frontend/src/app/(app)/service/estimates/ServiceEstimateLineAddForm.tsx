@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { apiPostNoContent } from "@/lib/api-client";
 import { Button, Input, Select } from "@/components/ui";
 
-type ItemRef = { id: string; sku: string; name: string; defaultUnitCost: number };
+type ItemRef = { id: string; sku: string; name: string; defaultUnitCost: number; unitOfMeasure: string };
 type TaxRef = { id: string; code: string; name: string; ratePercent: number; isActive: boolean };
 
 const KIND_PART = "1";
@@ -125,7 +125,9 @@ export function ServiceEstimateLineAddForm({
           </Select>
         </div>
         <div>
-          <label className="mb-1 block text-sm font-medium">Qty / Hrs</label>
+          <label className="mb-1 block text-sm font-medium">
+            Qty / Hrs{selectedItem?.unitOfMeasure ? <span className="ml-1 text-xs font-normal text-zinc-500">({selectedItem.unitOfMeasure})</span> : null}
+          </label>
           <Input value={quantity} onChange={(e) => setQuantity(e.target.value)} inputMode="decimal" required />
         </div>
         <div>

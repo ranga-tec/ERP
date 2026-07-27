@@ -313,6 +313,90 @@ and strip the auto-appended sentence from the form's note-building code so new n
 
 ---
 
+## Part C — Referenced document numbers rendered as raw ids
+
+Unrelated to units, but the same shape of task and found while testing, so it belongs in the same
+handover.
+
+### The defect
+
+List and detail pages resolve a referenced service job's number by fetching a **page** of jobs and
+joining client-side:
+
+```tsx
+const jobById = new Map(jobs.map((j) => [j.id, j]));            // from /service/jobs?take=200
+...
+{jobById.get(r.serviceJobId)?.number ?? r.serviceJobId}          // falls back to the raw GUID
+```
+
+The fallback prints a 36-character GUID in the column and, worse, links it as though it were a
+document. It fires whenever the job is not in the fetched page — or does not exist at all.
+
+Both cases are real. On the local database, two AOD rows reference service jobs that have been
+deleted:
+
+```
+ Number    | ServiceJobId                         | job_exists
+ DDN000003 | 0479972a-e504-4127-a01a-eade793ee63b | f
+ DDN000008 | b998fc68-3620-45ff-80cb-e46408afebbd | f
+```
+
+`DirectDispatches.ServiceJobId` has **no foreign key constraint** (confirmed against
+`pg_constraint`), so nothing stopped the job being removed underneath it. Other soft references to
+`ServiceJobId` are likely in the same state — check before assuming.
+
+### The fix, already applied to AOD
+
+Resolve the number on the server and let null mean "gone":
+
+1. Add `string? ServiceJobNumber` to the summary/detail DTO.
+2. Project it in the query:
+
+```csharp
+x.ServiceJobId == null
+    ? null
+    : dbContext.ServiceJobs
+        .Where(job => job.Id == x.ServiceJobId)
+        .Select(job => job.Number)
+        .FirstOrDefault(),
+```
+
+3. In the page, render the link only when the number resolved, and a muted `Job removed` otherwise.
+   **Never fall back to printing the id.**
+4. Delete the now-unused `jobById` map and, if nothing else on the page needs it, the
+   `/service/jobs?take=N` fetch as well. That removes the pagination fragility entirely.
+
+Reference implementation: `backend/src/ISS.Api/Controllers/Sales/DirectDispatchesController.cs`
+(`DirectDispatchSummaryDto`) and `frontend/src/app/(app)/sales/direct-dispatches/page.tsx`.
+
+### Still to do
+
+| Page | File |
+| --- | --- |
+| Direct purchases list | `procurement/direct-purchases/page.tsx` |
+| Direct purchase detail | `procurement/direct-purchases/[id]/page.tsx` |
+| AOD detail | `sales/direct-dispatches/[id]/page.tsx` |
+| Service estimates list | `service/estimates/page.tsx` |
+| Service estimate detail | `service/estimates/[id]/page.tsx` |
+| Expense claims list | `service/expense-claims/page.tsx` |
+| Expense claim detail | `service/expense-claims/[id]/page.tsx` |
+| Handovers list | `service/handovers/page.tsx` |
+| Handover detail | `service/handovers/[id]/page.tsx` |
+| Petty cash IOUs | `finance/petty-cash-ious/page.tsx` — uses `jobs.find(...)` rather than a map, same defect |
+
+Controllers to add `ServiceJobNumber` to: `DirectPurchasesController`, `ServiceEstimatesController`,
+`ServiceExpenseClaimsController`, `ServiceHandoversController`, and whichever controller serves
+petty cash IOUs. Note several have both a summary and a detail DTO — do both.
+
+### Worth deciding separately
+
+Whether `ServiceJobId` on these documents should have a real foreign key with
+`OnDelete(DeleteBehavior.Restrict)`. It would stop the orphaning at the source, but the migration
+will fail while orphaned rows exist, so it needs those rows nulled first — a data change that should
+be an explicit decision, not a side effect of a migration.
+
+---
+
 ## Working notes for this repo
 
 - Backend: `cd backend && dotnet build ISS.sln`. **Stop the API before building** or the build fails

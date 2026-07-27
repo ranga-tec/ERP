@@ -11,6 +11,7 @@ export type BillingItemRef = {
   name: string;
   defaultUnitCost?: number;
   defaultUnitPrice?: number;
+  unitOfMeasure: string;
 };
 
 export type BillingTaxRef = { id: string; code: string; name: string; ratePercent: number; isActive: boolean };
@@ -528,9 +529,9 @@ export function ServiceJobBillingBuilder({
                     <div className="text-xs text-zinc-500">{m.itemName}</div>
                   </td>
                   <td className="px-2 py-2 font-mono text-xs text-zinc-500">{m.materialRequisitionNumber}</td>
-                  <td className="px-2 py-2 text-right">{m.remainingQuantity}</td>
+                  <td className="px-2 py-2 text-right">{m.remainingQuantity} {items.find((item) => item.id === m.itemId)?.unitOfMeasure ?? ""}</td>
                   <td className="px-2 py-2 text-right text-zinc-500">{money(m.unitCost)}</td>
-                  <td className="px-2 py-2"><NumCell value={row.quantity} onChange={(v) => patchRow(setMaterialRows, m.materialRequisitionLineId, { quantity: v })} disabled={disabled || busy} /></td>
+                  <td className="px-2 py-2"><NumCell value={row.quantity} onChange={(v) => patchRow(setMaterialRows, m.materialRequisitionLineId, { quantity: v })} disabled={disabled || busy} /><div className="mt-1 text-[11px] text-zinc-500">{items.find((item) => item.id === m.itemId)?.unitOfMeasure ?? ""}</div></td>
                   <td className="px-2 py-2">
                     <NumCell value={row.unitPrice} onChange={(v) => patchRow(setMaterialRows, m.materialRequisitionLineId, { unitPrice: v })} disabled={disabled || busy} />
                     {price > 0 ? (
@@ -607,7 +608,7 @@ export function ServiceJobBillingBuilder({
                       {l.technicianName} &middot; {new Date(l.workDate).toLocaleDateString()}
                     </div>
                   </td>
-                  <td className="px-2 py-2 text-right">{l.hoursWorked.toFixed(2)}</td>
+                    <td className="px-2 py-2 text-right">{l.hoursWorked.toFixed(2)} hrs</td>
                   <td className="px-2 py-2 text-right text-zinc-500">{money(l.labourCost)}</td>
                   <td className="px-2 py-2">
                     <NumCell value={row.quantity} onChange={(v) => patchRow(setLabourRows, l.timeEntryId, { quantity: v })} disabled={disabled || busy || labourMode === 0} />
@@ -687,7 +688,7 @@ export function ServiceJobBillingBuilder({
                     </div>
                   </td>
                   <td className="px-2 py-2 text-right text-zinc-500">{money(e.lineTotal)}</td>
-                  <td className="px-2 py-2"><NumCell value={row.quantity} onChange={(v) => patchRow(setExpenseRows, e.expenseClaimLineId, { quantity: v })} disabled={disabled || busy || expenseMode === 0} /></td>
+                    <td className="px-2 py-2"><NumCell value={row.quantity} onChange={(v) => patchRow(setExpenseRows, e.expenseClaimLineId, { quantity: v })} disabled={disabled || busy || expenseMode === 0} /></td>
                   <td className="px-2 py-2"><NumCell value={row.unitPrice} onChange={(v) => patchRow(setExpenseRows, e.expenseClaimLineId, { unitPrice: v })} disabled={disabled || busy || expenseMode === 0} /></td>
                   <td className="px-2 py-2"><NumCell value={row.discountPercent} onChange={(v) => patchRow(setExpenseRows, e.expenseClaimLineId, { discountPercent: v })} disabled={disabled || busy || expenseMode === 0} /></td>
                   <td className="px-2 py-2"><NumCell value={row.taxPercent} onChange={(v) => patchRow(setExpenseRows, e.expenseClaimLineId, { taxPercent: v })} disabled={disabled || busy || expenseMode === 0} /></td>

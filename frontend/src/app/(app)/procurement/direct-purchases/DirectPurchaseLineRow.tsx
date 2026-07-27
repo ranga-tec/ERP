@@ -29,12 +29,14 @@ export function DirectPurchaseLineRow({
   directPurchaseId,
   line,
   itemLabel,
+  unitOfMeasure,
   canEdit,
   startInEditMode = false,
 }: {
   directPurchaseId: string;
   line: DirectPurchaseLineDto;
   itemLabel: ReactNode;
+  unitOfMeasure: string;
   canEdit: boolean;
   startInEditMode?: boolean;
 }) {
@@ -141,7 +143,7 @@ export function DirectPurchaseLineRow({
         {editing ? (
           <Input value={quantity} onChange={(e) => setQuantity(e.target.value)} inputMode="decimal" className="min-w-20" />
         ) : (
-          line.quantity
+          `${line.quantity} ${unitOfMeasure}`
         )}
       </td>
       <td className="py-2 pr-3">

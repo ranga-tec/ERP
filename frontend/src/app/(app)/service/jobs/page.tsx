@@ -37,7 +37,7 @@ type ServiceJobDto = {
 
 type EquipmentUnitDto = { id: string; serialNumber: string; itemId: string; customerId: string; isActive: boolean };
 type CustomerDto = { id: string; code: string; name: string };
-type ItemDto = { id: string; sku: string; name: string };
+type ItemDto = { id: string; sku: string; name: string; unitOfMeasure: string };
 
 const statusLabel: Record<number, string> = {
   0: "Draft",

@@ -7,7 +7,7 @@ import { ItemInlineLink } from "@/components/InlineLink";
 import { ItemLookupField } from "@/components/ItemLookupField";
 import { Button, Input, SecondaryButton } from "@/components/ui";
 
-type ItemRef = { id: string; sku: string; name: string };
+type ItemRef = { id: string; sku: string; name: string; unitOfMeasure: string };
 type ServiceExpenseClaimLineDto = {
   id: string;
   itemId?: string | null;
@@ -136,7 +136,7 @@ export function ServiceExpenseClaimLineRow({
         {isEditing ? (
           <Input value={quantity} onChange={(event) => setQuantity(event.target.value)} inputMode="decimal" className="min-w-20" />
         ) : (
-          line.quantity
+          `${line.quantity} ${items.find((item) => item.id === (line.itemId ?? ""))?.unitOfMeasure ?? ""}`
         )}
       </td>
       <td className="py-2 pr-3">

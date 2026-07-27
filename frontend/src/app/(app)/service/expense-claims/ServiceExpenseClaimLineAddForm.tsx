@@ -6,7 +6,7 @@ import { apiPostNoContent } from "@/lib/api-client";
 import { ItemLookupField } from "@/components/ItemLookupField";
 import { Button, Input } from "@/components/ui";
 
-type ItemRef = { id: string; sku: string; name: string };
+type ItemRef = { id: string; sku: string; name: string; unitOfMeasure: string };
 
 export function ServiceExpenseClaimLineAddForm({
   claimId,
@@ -86,7 +86,9 @@ export function ServiceExpenseClaimLineAddForm({
 
       <div className="grid gap-3 sm:grid-cols-3">
         <div>
-          <label className="mb-1 block text-sm font-medium">Quantity</label>
+          <label className="mb-1 block text-sm font-medium">
+            Quantity{items.find((item) => item.id === itemId)?.unitOfMeasure ? <span className="ml-1 text-xs font-normal text-zinc-500">({items.find((item) => item.id === itemId)?.unitOfMeasure})</span> : null}
+          </label>
           <Input value={quantity} onChange={(event) => setQuantity(event.target.value)} inputMode="decimal" required />
         </div>
         <div>

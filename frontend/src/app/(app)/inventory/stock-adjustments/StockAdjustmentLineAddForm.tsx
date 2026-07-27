@@ -7,7 +7,7 @@ import { ItemLookupField } from "@/components/ItemLookupField";
 import { Button, Input, Textarea } from "@/components/ui";
 import { LineStockInsight } from "@/components/LineStockInsight";
 
-type ItemRef = { id: string; sku: string; name: string; trackingType: number; defaultUnitCost: number };
+type ItemRef = { id: string; sku: string; name: string; trackingType: number; defaultUnitCost: number; unitOfMeasure: string };
 type WarehouseRef = { id: string; code: string; name: string };
 
 function parseList(text: string): string[] {
@@ -89,7 +89,7 @@ export function StockAdjustmentLineAddForm({
           <ItemLookupField items={items} value={itemId} onChange={setItemId} />
         </div>
         <div>
-          <label className="mb-1 block text-sm font-medium">Counted qty</label>
+          <label className="mb-1 block text-sm font-medium">Counted qty{selectedItem?.unitOfMeasure ? <span className="ml-1 text-xs font-normal text-zinc-500">({selectedItem.unitOfMeasure})</span> : null}</label>
           <Input value={countedQuantity} onChange={(e) => setCountedQuantity(e.target.value)} inputMode="decimal" required />
           <div className="mt-1 text-xs text-zinc-500">Enter the real counted stock. The system will calculate the variance.</div>
         </div>

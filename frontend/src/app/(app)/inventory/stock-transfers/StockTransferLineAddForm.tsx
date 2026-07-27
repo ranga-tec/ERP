@@ -8,7 +8,7 @@ import { Button, Input, Textarea } from "@/components/ui";
 import { LineStockInsight } from "@/components/LineStockInsight";
 import { AvailableBatchPicker } from "@/components/AvailableBatchPicker";
 
-type ItemRef = { id: string; sku: string; name: string; trackingType: number; defaultUnitCost: number };
+type ItemRef = { id: string; sku: string; name: string; trackingType: number; defaultUnitCost: number; unitOfMeasure: string };
 type WarehouseRef = { id: string; code: string; name: string };
 
 function parseList(text: string): string[] {
@@ -90,7 +90,7 @@ export function StockTransferLineAddForm({
           <ItemLookupField items={items} value={itemId} onChange={setItemId} />
         </div>
         <div>
-          <label className="mb-1 block text-sm font-medium">Move qty</label>
+          <label className="mb-1 block text-sm font-medium">Move qty{selectedItem?.unitOfMeasure ? <span className="ml-1 text-xs font-normal text-zinc-500">({selectedItem.unitOfMeasure})</span> : null}</label>
           <Input value={quantity} onChange={(e) => setQuantity(e.target.value)} inputMode="decimal" required />
           <div className="mt-1 text-xs text-zinc-500">Enter the quantity to move out of the source warehouse.</div>
         </div>

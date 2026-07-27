@@ -52,7 +52,7 @@ type ServiceExpenseClaimDto = {
 };
 
 type ServiceJobDto = { id: string; number: string };
-type ItemDto = { id: string; sku: string; name: string };
+type ItemDto = { id: string; sku: string; name: string; unitOfMeasure: string };
 type PaymentTypeDto = { id: string; code: string; name: string; isActive: boolean };
 type PettyCashFundDto = { id: string; code: string; name: string; balance: number; isActive: boolean };
 type ServiceEstimateSummaryDto = { id: string; number: string; revisionNumber: number; status: number; total: number; serviceJobId: string };

@@ -16,6 +16,7 @@ type ItemRef = {
   sku: string;
   name: string;
   trackingType: number;
+  unitOfMeasure: string;
 };
 
 type ReceiptPlanLine = {
@@ -405,6 +406,7 @@ export function GoodsReceiptReceiptPlanForm({
       header: "Ordered",
       kind: "display",
       align: "right",
+      unit: (line) => itemById.get(line.itemId)?.unitOfMeasure ?? null,
       render: (line) => formatGridNumber(line.orderedQuantity),
     },
     {
@@ -412,6 +414,7 @@ export function GoodsReceiptReceiptPlanForm({
       header: "Posted",
       kind: "display",
       align: "right",
+      unit: (line) => itemById.get(line.itemId)?.unitOfMeasure ?? null,
       render: (line) => formatGridNumber(line.previouslyReceivedQuantity),
     },
     {
@@ -419,6 +422,7 @@ export function GoodsReceiptReceiptPlanForm({
       header: "Other Drafts",
       kind: "display",
       align: "right",
+      unit: (line) => itemById.get(line.itemId)?.unitOfMeasure ?? null,
       render: (line) => formatGridNumber(line.reservedInOtherDraftsQuantity),
     },
     {
@@ -426,6 +430,7 @@ export function GoodsReceiptReceiptPlanForm({
       header: "Available",
       kind: "display",
       align: "right",
+      unit: (line) => itemById.get(line.itemId)?.unitOfMeasure ?? null,
       cellClassName: "font-medium",
       render: (line) => formatGridNumber(line.availableQuantity),
     },
@@ -434,6 +439,7 @@ export function GoodsReceiptReceiptPlanForm({
       header: "This GRN Qty",
       kind: "number",
       align: "right",
+      unit: (line) => itemById.get(line.itemId)?.unitOfMeasure ?? null,
       getValue: (line) => line.quantity,
       setValue: (line, value) => ({ ...line, quantity: value }),
       placeholder: "0",

@@ -11,6 +11,7 @@ type MaterialLineRef = {
   itemSku: string;
   itemName: string;
   quantity: number;
+  unitOfMeasure: string;
 };
 type DispositionDto = { id: string };
 type DailySheetRef = { id: string; number: string; status: number };
@@ -111,7 +112,7 @@ export function ServiceJobMaterialDispositionAddForm({
             <option value="" disabled>Select...</option>
             {uniqueLines.map((line) => (
               <option key={line.materialRequisitionLineId} value={line.materialRequisitionLineId}>
-                {line.materialRequisitionNumber} - {line.itemSku} - {line.itemName} ({line.quantity})
+                {line.materialRequisitionNumber} - {line.itemSku} - {line.itemName} ({line.quantity} {line.unitOfMeasure})
               </option>
             ))}
           </Select>
@@ -126,7 +127,9 @@ export function ServiceJobMaterialDispositionAddForm({
           </Select>
         </div>
         <div>
-          <label className="mb-1 block text-sm font-medium">Quantity</label>
+          <label className="mb-1 block text-sm font-medium">
+            Quantity{uniqueLines.find((line) => line.materialRequisitionLineId === lineId)?.unitOfMeasure ? <span className="ml-1 text-xs font-normal text-zinc-500">({uniqueLines.find((line) => line.materialRequisitionLineId === lineId)?.unitOfMeasure})</span> : null}
+          </label>
           <Input value={quantity} onChange={(event) => setQuantity(event.target.value)} inputMode="decimal" disabled={disabled || busy} />
         </div>
         <div>

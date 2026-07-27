@@ -148,6 +148,7 @@ export default async function MaterialRequisitionDetailPage({
                     warehouses={warehouses}
                     itemLabel={itemLabel}
                     trackingType={item?.trackingType}
+                    unitOfMeasure={item?.unitOfMeasure ?? ""}
                     canEdit={isDraft && canEdit}
                     startInEditMode={startInEditMode}
                   />
@@ -169,4 +170,3 @@ export default async function MaterialRequisitionDetailPage({
     </div>
   );
 }
-

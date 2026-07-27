@@ -7,7 +7,7 @@ import { Button, Input, SecondaryButton, Select, Table } from "@/components/ui";
 
 type WarehouseRef = { id: string; code: string; name: string };
 type WarehouseBinRef = { id: string; warehouseId: string; code: string; name: string; zone?: string | null; rack?: string | null; shelf?: string | null };
-type ItemRef = { id: string; sku: string; name: string };
+type ItemRef = { id: string; sku: string; name: string; unitOfMeasure: string };
 type InventoryAvailabilityDto = {
   warehouseId: string;
   warehouseBinId?: string | null;
@@ -234,7 +234,7 @@ export function InventoryAvailabilityBrowser({
                       <td className="py-2 pr-3">{binLocation(row.warehouseBinId ? binById.get(row.warehouseBinId) : undefined)}</td>
                       <td className="py-2 pr-3 font-mono text-xs text-zinc-500">{row.batchNumber?.trim() ? row.batchNumber : "-"}</td>
                       <td className="py-2 pr-3 font-mono text-xs text-zinc-500">{row.serialNumber?.trim() ? row.serialNumber : "-"}</td>
-                      <td className="py-2 pr-3 font-medium">{number(row.onHand)}</td>
+                      <td className="py-2 pr-3 font-medium">{number(row.onHand)} {item?.unitOfMeasure ?? ""}</td>
                       <td className="py-2 pr-3">{money(row.unitCost)}</td>
                       <td className="py-2 pr-3">{money(row.inventoryValue)}</td>
                     </tr>
