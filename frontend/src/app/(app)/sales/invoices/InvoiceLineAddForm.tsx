@@ -6,7 +6,7 @@ import { apiPostNoContent } from "@/lib/api-client";
 import { ItemLookupField } from "@/components/ItemLookupField";
 import { Button, Input, Select } from "@/components/ui";
 
-type ItemRef = { id: string; sku: string; name: string; defaultUnitPrice?: number };
+type ItemRef = { id: string; sku: string; name: string; defaultUnitPrice?: number; unitOfMeasure: string };
 type TaxRef = { id: string; code: string; name: string; ratePercent: number; isActive: boolean };
 
 export function InvoiceLineAddForm({
@@ -19,6 +19,9 @@ export function InvoiceLineAddForm({
   taxes: TaxRef[];
 }) {
   const router = useRouter();
+  // the item's unit, so the operator can see they are typing litres and not pieces
+  const selectedItemUom = items.find((i) => i.id === itemId)?.unitOfMeasure ?? "";
+
   const taxOptions = useMemo(
     () =>
       taxes
@@ -104,7 +107,9 @@ export function InvoiceLineAddForm({
           />
         </div>
         <div>
-          <label className="mb-1 block text-sm font-medium">Qty</label>
+          <label className="mb-1 block text-sm font-medium">
+            Qty{selectedItemUom ? <span className="ml-1 text-xs font-normal text-zinc-500">({selectedItemUom})</span> : null}
+          </label>
           <Input value={quantity} onChange={(e) => setQuantity(e.target.value)} inputMode="decimal" required />
         </div>
         <div>

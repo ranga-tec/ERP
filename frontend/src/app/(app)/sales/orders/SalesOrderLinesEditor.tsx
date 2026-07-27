@@ -31,6 +31,7 @@ type SalesOrderLinesEditorProps = {
   lines: SalesOrderLineDto[];
   itemLabelById: Map<string, ReactNode>;
   itemSearchLabelById: Map<string, string>;
+  itemUomById: Map<string, string>;
   canEdit: boolean;
   startInEditMode?: boolean;
 };
@@ -57,6 +58,7 @@ export function SalesOrderLinesEditor({
   lines,
   itemLabelById,
   itemSearchLabelById,
+  itemUomById,
   canEdit,
   startInEditMode = false,
 }: SalesOrderLinesEditorProps) {
@@ -175,6 +177,7 @@ export function SalesOrderLinesEditor({
       header: "Qty",
       kind: "number",
       align: "right",
+      unit: (line) => itemUomById.get(line.itemId) ?? null,
       getValue: (line) => line.quantity,
       setValue: (line, value) => ({ ...line, quantity: value }),
       inputClassName: "min-w-20",
@@ -210,7 +213,7 @@ export function SalesOrderLinesEditor({
           }, 0),
         ),
     },
-  ], [itemLabelById]);
+  ], [itemLabelById, itemUomById]);
 
   const columns: EditableDataTableColumn<EditableSalesOrderLine>[] = canEdit
     ? [

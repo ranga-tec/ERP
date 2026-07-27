@@ -128,6 +128,7 @@ export default async function PurchaseRequisitionDetailPage({
             ]),
           )}
           itemSearchLabelById={new Map(items.map((item) => [item.id, `${item.sku} ${item.name}`.toLowerCase()]))}
+          itemUomById={new Map(items.map((item) => [item.id, item.unitOfMeasure]))}
           baseUomByItemId={new Map(items.map((item) => [item.id, item.unitOfMeasure]))}
           startInEditMode={startInEditMode}
           canEdit={isDraft}

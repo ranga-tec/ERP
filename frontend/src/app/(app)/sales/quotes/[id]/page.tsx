@@ -20,7 +20,7 @@ type SalesQuoteDto = {
 };
 
 type CustomerDto = { id: string; code: string; name: string };
-type ItemDto = { id: string; sku: string; name: string; defaultUnitPrice?: number };
+type ItemDto = { id: string; sku: string; name: string; defaultUnitPrice?: number; unitOfMeasure: string };
 
 const statusLabel: Record<number, string> = {
   0: "Draft",
@@ -114,6 +114,7 @@ export default async function QuoteDetailPage({
             ]),
           )}
           itemSearchLabelById={new Map(items.map((item) => [item.id, `${item.sku} ${item.name}`.toLowerCase()]))}
+          itemUomById={new Map(items.map((item) => [item.id, item.unitOfMeasure]))}
           startInEditMode={startInEditMode}
           canEdit={isDraft}
         />

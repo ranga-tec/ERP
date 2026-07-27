@@ -22,7 +22,7 @@ type MaterialRequisitionDto = {
 
 type ServiceJobDto = { id: string; number: string };
 type WarehouseDto = { id: string; code: string; name: string };
-type ItemDto = { id: string; sku: string; name: string; trackingType: number };
+type ItemDto = { id: string; sku: string; name: string; trackingType: number; unitOfMeasure: string };
 type CurrentUserPermissionsDto = { userId: string; permissions: string[] };
 
 const statusLabel: Record<number, string> = {

@@ -29,6 +29,7 @@ type RfqLinesEditorProps = {
   lines: RfqLineDto[];
   itemLabelById: Map<string, ReactNode>;
   itemSearchLabelById: Map<string, string>;
+  itemUomById: Map<string, string>;
   canEdit: boolean;
   startInEditMode?: boolean;
 };
@@ -55,6 +56,7 @@ export function RfqLinesEditor({
   lines,
   itemLabelById,
   itemSearchLabelById,
+  itemUomById,
   canEdit,
   startInEditMode = false,
 }: RfqLinesEditorProps) {
@@ -177,6 +179,7 @@ export function RfqLinesEditor({
       header: "Qty",
       kind: "number",
       align: "right",
+      unit: (line) => itemUomById.get(line.itemId) ?? null,
       getValue: (line) => line.quantity,
       setValue: (line, value) => ({ ...line, quantity: value }),
       inputClassName: "min-w-24",
@@ -198,7 +201,7 @@ export function RfqLinesEditor({
       inputClassName: "min-w-56",
       renderDisplay: (line) => line.notes || "-",
     },
-  ], [itemLabelById]);
+  ], [itemLabelById, itemUomById]);
 
   const columns: EditableDataTableColumn<EditableRfqLine>[] = canEdit
     ? [

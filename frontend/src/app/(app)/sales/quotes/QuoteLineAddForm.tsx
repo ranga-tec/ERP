@@ -6,7 +6,7 @@ import { apiPostNoContent } from "@/lib/api-client";
 import { ItemLookupField } from "@/components/ItemLookupField";
 import { Button, Input } from "@/components/ui";
 
-type ItemRef = { id: string; sku: string; name: string; defaultUnitPrice?: number };
+type ItemRef = { id: string; sku: string; name: string; defaultUnitPrice?: number; unitOfMeasure: string };
 
 export function QuoteLineAddForm({ quoteId, items }: { quoteId: string; items: ItemRef[] }) {
   const router = useRouter();
@@ -16,6 +16,11 @@ export function QuoteLineAddForm({ quoteId, items }: { quoteId: string; items: I
   const [unitPrice, setUnitPrice] = useState("0");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // the item's unit, so the operator can see they are typing litres and not pieces
+
+  const selectedItemUom = items.find((i) => i.id === itemId)?.unitOfMeasure ?? "";
+
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -67,7 +72,9 @@ export function QuoteLineAddForm({ quoteId, items }: { quoteId: string; items: I
           />
         </div>
         <div>
-          <label className="mb-1 block text-sm font-medium">Qty</label>
+          <label className="mb-1 block text-sm font-medium">
+            Qty{selectedItemUom ? <span className="ml-1 text-xs font-normal text-zinc-500">({selectedItemUom})</span> : null}
+          </label>
           <Input value={quantity} onChange={(e) => setQuantity(e.target.value)} inputMode="decimal" required />
         </div>
         <div>

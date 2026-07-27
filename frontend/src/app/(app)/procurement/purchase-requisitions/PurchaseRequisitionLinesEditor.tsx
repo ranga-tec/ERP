@@ -29,6 +29,7 @@ type PurchaseRequisitionLinesEditorProps = {
   lines: PurchaseRequisitionLineDto[];
   itemLabelById: Map<string, ReactNode>;
   itemSearchLabelById: Map<string, string>;
+  itemUomById: Map<string, string>;
   baseUomByItemId: Map<string, string>;
   canEdit: boolean;
   startInEditMode?: boolean;
@@ -56,6 +57,7 @@ export function PurchaseRequisitionLinesEditor({
   lines,
   itemLabelById,
   itemSearchLabelById,
+  itemUomById,
   baseUomByItemId,
   canEdit,
   startInEditMode = false,
@@ -180,6 +182,7 @@ export function PurchaseRequisitionLinesEditor({
       header: "Qty (Base)",
       kind: "number",
       align: "right",
+      unit: (line) => itemUomById.get(line.itemId) ?? null,
       getValue: (line) => line.quantity,
       setValue: (line, value) => ({ ...line, quantity: value }),
       inputClassName: "min-w-24",
@@ -193,12 +196,6 @@ export function PurchaseRequisitionLinesEditor({
         ),
     },
     {
-      key: "baseUom",
-      header: "Base UoM",
-      kind: "display",
-      render: (line) => baseUomByItemId.get(line.itemId) ?? "-",
-    },
-    {
       key: "notes",
       header: "Notes",
       kind: "text",
@@ -207,7 +204,7 @@ export function PurchaseRequisitionLinesEditor({
       inputClassName: "min-w-56",
       renderDisplay: (line) => line.notes || "-",
     },
-  ], [baseUomByItemId, itemLabelById]);
+  ], [itemLabelById, itemUomById]);
 
   const columns: EditableDataTableColumn<EditablePurchaseRequisitionLine>[] = canEdit
     ? [

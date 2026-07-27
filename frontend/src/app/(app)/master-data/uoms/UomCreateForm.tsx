@@ -35,7 +35,10 @@ export function UomCreateForm() {
       <div className="grid gap-3 sm:grid-cols-2">
         <div>
           <label className="mb-1 block text-sm font-medium">Code</label>
-          <Input value={code} onChange={(e) => setCode(e.target.value)} required />
+          <Input value={code} onChange={(e) => setCode(e.target.value)} placeholder="L, KG, PCS" required />
+          <div className="mt-1 text-xs text-zinc-500">
+            This is the symbol printed beside every quantity, so use L or KG rather than a number.
+          </div>
         </div>
         <div>
           <label className="mb-1 block text-sm font-medium">Name</label>

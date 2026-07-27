@@ -209,6 +209,15 @@ public sealed partial class DocumentPdfService(IIssDbContext dbContext) : IDocum
 
     private static string FormatMoney(decimal amount) => amount.ToString("0.00");
     private static string FormatQty(decimal qty) => qty.ToString("0.####");
+
+    /// <summary>
+    /// Quantity with the item's unit of measure, so a document reads "12 L" rather than a bare
+    /// number. Falls back to the plain quantity when the item is unknown.
+    /// </summary>
+    private static string FormatQty(decimal qty, ISS.Domain.MasterData.Item? item)
+        => item is null || string.IsNullOrWhiteSpace(item.UnitOfMeasure)
+            ? FormatQty(qty)
+            : $"{FormatQty(qty)} {item.UnitOfMeasure}";
     private static string FormatPercent(decimal percent) => percent.ToString("0.##");
 
     private static byte[] QrPngBytes(string payload)

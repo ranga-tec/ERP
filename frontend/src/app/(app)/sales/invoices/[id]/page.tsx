@@ -56,7 +56,7 @@ type ServiceJobCostingDto = {
 };
 
 type CustomerDto = { id: string; code: string; name: string };
-type ItemDto = { id: string; sku: string; name: string; defaultUnitPrice?: number };
+type ItemDto = { id: string; sku: string; name: string; defaultUnitPrice?: number; unitOfMeasure: string };
 type TaxDto = { id: string; code: string; name: string; ratePercent: number; isActive: boolean };
 
 const statusLabel: Record<number, string> = {
@@ -189,6 +189,7 @@ export default async function InvoiceDetailPage({
           lines={invoice.lines}
           itemLabelById={itemLabelById}
           itemSearchLabelById={itemSearchLabelById}
+          itemUomById={new Map(items.map((item) => [item.id, item.unitOfMeasure]))}
           startInEditMode={startInEditMode}
           canEdit={isDraft && canManageInvoices}
         />

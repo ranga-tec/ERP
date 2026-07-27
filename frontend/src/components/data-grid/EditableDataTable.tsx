@@ -1,6 +1,6 @@
 "use client";
 
-import type { ComponentProps } from "react";
+import type { ComponentProps, ReactNode } from "react";
 import { Select as SearchableSelect } from "@/components/SearchableSelect";
 import { LookupCell } from "./LookupCell";
 import type {
@@ -88,6 +88,17 @@ function resolveFooter<Row>(footer: DataGridFooter<Row> | undefined, rows: Row[]
   return typeof footer === "function" ? footer(rows) : footer;
 }
 
+/** Appends the unit of measure to a read-only cell, kept muted so the number still leads. */
+function withUnit(content: ReactNode, unit: string | null | undefined): ReactNode {
+  if (!unit) return content;
+  return (
+    <>
+      {content}
+      <span className="ml-1 text-xs text-zinc-500">{unit}</span>
+    </>
+  );
+}
+
 function renderColumnContent<Row>(
   column: EditableDataTableColumn<Row>,
   row: Row,
@@ -97,11 +108,12 @@ function renderColumnContent<Row>(
   rowIdentifier: string,
 ) {
   if (column.kind === "display") {
-    return column.render(row);
+    return withUnit(column.render(row), column.unit?.(row));
   }
 
   if (!editing || !onRowChange) {
-    return column.renderDisplay ? column.renderDisplay(row) : defaultDisplayValue(column, row);
+    const display = column.renderDisplay ? column.renderDisplay(row) : defaultDisplayValue(column, row);
+    return withUnit(display, column.unit?.(row));
   }
 
   const disabled = column.disabled?.(row) ?? false;

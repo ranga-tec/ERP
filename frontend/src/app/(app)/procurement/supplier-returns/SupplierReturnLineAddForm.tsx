@@ -7,7 +7,7 @@ import { ItemLookupField } from "@/components/ItemLookupField";
 import { Button, Input, Textarea } from "@/components/ui";
 import { LineStockInsight } from "@/components/LineStockInsight";
 
-type ItemRef = { id: string; sku: string; name: string; trackingType: number; defaultUnitCost: number };
+type ItemRef = { id: string; sku: string; name: string; trackingType: number; defaultUnitCost: number; unitOfMeasure: string };
 type WarehouseRef = { id: string; code: string; name: string };
 
 function parseList(text: string): string[] {
@@ -39,6 +39,11 @@ export function SupplierReturnLineAddForm({
   const [error, setError] = useState<string | null>(null);
 
   const selectedItem = itemId ? items.find((i) => i.id === itemId) : undefined;
+
+  // the item's unit, so the operator can see they are typing litres and not pieces
+
+  const selectedItemUom = items.find((i) => i.id === itemId)?.unitOfMeasure ?? "";
+
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -89,7 +94,9 @@ export function SupplierReturnLineAddForm({
           <ItemLookupField items={items} value={itemId} onChange={setItemId} />
         </div>
         <div>
-          <label className="mb-1 block text-sm font-medium">Qty</label>
+          <label className="mb-1 block text-sm font-medium">
+            Qty{selectedItemUom ? <span className="ml-1 text-xs font-normal text-zinc-500">({selectedItemUom})</span> : null}
+          </label>
           <Input value={quantity} onChange={(e) => setQuantity(e.target.value)} inputMode="decimal" required />
         </div>
         <div>

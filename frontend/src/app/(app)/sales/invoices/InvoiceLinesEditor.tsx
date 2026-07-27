@@ -44,6 +44,7 @@ type InvoiceLinesEditorProps = {
   lines: InvoiceLineDto[];
   itemLabelById: Map<string, ReactNode>;
   itemSearchLabelById: Map<string, string>;
+  itemUomById: Map<string, string>;
   canEdit: boolean;
   startInEditMode?: boolean;
 };
@@ -76,6 +77,7 @@ export function InvoiceLinesEditor({
   lines,
   itemLabelById,
   itemSearchLabelById,
+  itemUomById,
   canEdit,
   startInEditMode = false,
 }: InvoiceLinesEditorProps) {
@@ -225,6 +227,7 @@ export function InvoiceLinesEditor({
       header: "Qty",
       kind: "number",
       align: "right",
+      unit: (line) => itemUomById.get(line.itemId) ?? null,
       getValue: (line) => line.quantity,
       setValue: (line, value) => ({ ...line, quantity: value }),
       inputClassName: "min-w-20",
@@ -291,7 +294,7 @@ export function InvoiceLinesEditor({
           }, 0),
         ),
     },
-  ], [itemLabelById]);
+  ], [itemLabelById, itemUomById]);
 
   const columns: EditableDataTableColumn<EditableInvoiceLine>[] = canEdit
     ? [

@@ -121,6 +121,38 @@ What to check:
 - Stock without bin history may show as `Unassigned`.
 - Store users must select the correct warehouse/bin before posting stock movements.
 
+### 3.2.1 Units Of Measure
+
+Every quantity in the system is a quantity *of something*. The unit an item is counted in is set
+once on the item and then shown next to every quantity on every form, grid, and printed document.
+
+What to input on `Master Data -> UoM`:
+
+| Field | Example |
+| --- | --- |
+| Code | `L`, `ML`, `KG`, `PCS`, `HRS` |
+| Name | `Litres`, `Millilitres`, `Kilograms`, `Pieces`, `Hours` |
+
+The **code is the symbol that prints**, so a purchase order line reads `12 L`. A code like `002`
+prints as `12 002`, which tells the reader nothing - use the symbol.
+
+Output:
+
+- The item form only offers units from this list.
+- Saving an item with a unit that is not on this list is refused, naming the unit, so a typo cannot
+  create a private unit that no document or conversion rule understands.
+- Quantity fields on line forms show the selected item's unit beside the label, so the operator can
+  see they are typing litres and not pieces.
+- Quantity columns in every line grid and every PDF print the unit after the number.
+
+`Master Data -> Unit Conversions` records how one unit relates to another, for example 1 L = 1000
+ML. Purchase requisitions use it so you can request in one unit and store in the item's base unit.
+
+What to check:
+
+- Every unit an item uses exists here and is active.
+- Codes are symbols, not sequence numbers.
+
 ### 3.3 Items
 
 Items are used in procurement, inventory, sales, and service.

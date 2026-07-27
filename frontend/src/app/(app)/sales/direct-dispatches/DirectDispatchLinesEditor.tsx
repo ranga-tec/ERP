@@ -36,6 +36,7 @@ type DirectDispatchLinesEditorProps = {
   lines: DirectDispatchLineDto[];
   itemLabelById: Map<string, ReactNode>;
   itemSearchLabelById: Map<string, string>;
+  itemUomById: Map<string, string>;
   canEdit: boolean;
   startInEditMode?: boolean;
 };
@@ -77,6 +78,7 @@ export function DirectDispatchLinesEditor({
   lines,
   itemLabelById,
   itemSearchLabelById,
+  itemUomById,
   canEdit,
   startInEditMode = false,
 }: DirectDispatchLinesEditorProps) {
@@ -211,6 +213,7 @@ export function DirectDispatchLinesEditor({
       header: "Qty",
       kind: "number",
       align: "right",
+      unit: (line) => itemUomById.get(line.itemId) ?? null,
       getValue: (line) => line.quantity,
       setValue: (line, value) => ({ ...line, quantity: value }),
       inputClassName: "min-w-20",
@@ -247,7 +250,7 @@ export function DirectDispatchLinesEditor({
         <span className="font-mono text-xs text-zinc-500">{formatSerials(line.serials)}</span>
       ),
     },
-  ], [itemLabelById]);
+  ], [itemLabelById, itemUomById]);
 
   const columns: EditableDataTableColumn<EditableDirectDispatchLine>[] = canEdit
     ? [

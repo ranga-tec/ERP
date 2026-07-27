@@ -258,6 +258,12 @@ public sealed class ItemsController(
             return BadRequest(accountAssignmentError);
         }
 
+        var unitError = await ValidateUnitOfMeasureAsync(request.UnitOfMeasure, cancellationToken);
+        if (unitError is not null)
+        {
+            return BadRequest(unitError);
+        }
+
         var item = new Item(
             companyId,
             request.Sku,
@@ -422,6 +428,12 @@ public sealed class ItemsController(
         if (accountAssignmentError is not null)
         {
             return BadRequest(accountAssignmentError);
+        }
+
+        var unitError = await ValidateUnitOfMeasureAsync(request.UnitOfMeasure, cancellationToken);
+        if (unitError is not null)
+        {
+            return BadRequest(unitError);
         }
 
         item.Update(
@@ -754,6 +766,27 @@ public sealed class ItemsController(
         }
 
         return Ok(history);
+    }
+
+    /// <summary>
+    /// Keeps the item's unit tied to the UoM master. Without this the field is free text, so a
+    /// typo silently creates a unit that no conversion rule and no other item knows about, and
+    /// every document then prints it.
+    /// </summary>
+    private async Task<string?> ValidateUnitOfMeasureAsync(string unitOfMeasure, CancellationToken cancellationToken)
+    {
+        var code = unitOfMeasure?.Trim();
+        if (string.IsNullOrWhiteSpace(code))
+        {
+            return "Unit of measure is required.";
+        }
+
+        var known = await dbContext.UnitOfMeasures.AsNoTracking()
+            .AnyAsync(x => x.Code == code && x.IsActive, cancellationToken);
+
+        return known
+            ? null
+            : $"'{code}' is not an active unit of measure. Add it under Master Data > UoM first, so documents and conversions agree on what it means.";
     }
 
     private async Task<string?> ValidateClassificationAsync(Guid companyId, Guid? categoryId, Guid? subcategoryId, CancellationToken cancellationToken)

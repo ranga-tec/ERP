@@ -15,7 +15,10 @@ export default async function UomsPage() {
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold">Unit Of Measure</h1>
-          <p className="mt-1 text-sm text-zinc-500">Master list used for item UoM selection.</p>
+          <p className="mt-1 text-sm text-zinc-500">
+            Master list used for item UoM selection. The <span className="font-medium">code</span> is what
+            prints beside quantities on every form and document, so keep it a real symbol &mdash; L, KG, PCS.
+          </p>
         </div>
         <AppFormModal title="Create UoM" description="Add a new unit of measure." buttonLabel="+ New UoM">
           <UomCreateForm />

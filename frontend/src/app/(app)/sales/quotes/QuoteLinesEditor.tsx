@@ -31,6 +31,7 @@ type QuoteLinesEditorProps = {
   lines: QuoteLineDto[];
   itemLabelById: Map<string, ReactNode>;
   itemSearchLabelById: Map<string, string>;
+  itemUomById: Map<string, string>;
   canEdit: boolean;
   startInEditMode?: boolean;
 };
@@ -57,6 +58,7 @@ export function QuoteLinesEditor({
   lines,
   itemLabelById,
   itemSearchLabelById,
+  itemUomById,
   canEdit,
   startInEditMode = false,
 }: QuoteLinesEditorProps) {
@@ -175,6 +177,7 @@ export function QuoteLinesEditor({
       header: "Qty",
       kind: "number",
       align: "right",
+      unit: (line) => itemUomById.get(line.itemId) ?? null,
       getValue: (line) => line.quantity,
       setValue: (line, value) => ({ ...line, quantity: value }),
       inputClassName: "min-w-20",
@@ -210,7 +213,7 @@ export function QuoteLinesEditor({
           }, 0),
         ),
     },
-  ], [itemLabelById]);
+  ], [itemLabelById, itemUomById]);
 
   const columns: EditableDataTableColumn<EditableQuoteLine>[] = canEdit
     ? [

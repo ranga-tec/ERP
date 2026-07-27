@@ -62,9 +62,9 @@ public sealed partial class DocumentPdfService
                     {
                         var item = itemById.GetValueOrDefault(line.ItemId);
                         table.Cell().Element(CellBody).Text(ItemLabel(item, line.ItemId));
-                        table.Cell().Element(CellBody).AlignRight().Text(line.CountedQuantity is null ? "" : FormatQty(line.CountedQuantity.Value));
-                        table.Cell().Element(CellBody).AlignRight().Text(line.SystemQuantity is null ? "" : FormatQty(line.SystemQuantity.Value));
-                        table.Cell().Element(CellBody).AlignRight().Text(FormatQty(line.QuantityDelta));
+                        table.Cell().Element(CellBody).AlignRight().Text(line.CountedQuantity is null ? "" : FormatQty(line.CountedQuantity.Value, item));
+                        table.Cell().Element(CellBody).AlignRight().Text(line.SystemQuantity is null ? "" : FormatQty(line.SystemQuantity.Value, item));
+                        table.Cell().Element(CellBody).AlignRight().Text(FormatQty(line.QuantityDelta, item));
                         table.Cell().Element(CellBody).AlignRight().Text(FormatMoney(line.UnitCost));
                         table.Cell().Element(CellBody).Text(line.BatchNumber ?? "");
                         table.Cell().Element(CellBody).Text(string.Join(", ", line.Serials.Select(s => s.SerialNumber)));
@@ -127,7 +127,7 @@ public sealed partial class DocumentPdfService
                     {
                         var item = itemById.GetValueOrDefault(line.ItemId);
                         table.Cell().Element(CellBody).Text(ItemLabel(item, line.ItemId));
-                        table.Cell().Element(CellBody).AlignRight().Text(FormatQty(line.Quantity));
+                        table.Cell().Element(CellBody).AlignRight().Text(FormatQty(line.Quantity, item));
                         table.Cell().Element(CellBody).AlignRight().Text(FormatMoney(line.UnitCost));
                         table.Cell().Element(CellBody).Text(line.BatchNumber ?? "");
                         table.Cell().Element(CellBody).Text(string.Join(", ", line.Serials.Select(s => s.SerialNumber)));

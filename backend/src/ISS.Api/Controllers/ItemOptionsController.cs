@@ -19,6 +19,7 @@ public sealed class ItemOptionsController(IIssDbContext dbContext, ICurrentUser 
         string Name,
         ItemType Type,
         TrackingType TrackingType,
+        string UnitOfMeasure,
         decimal DefaultUnitCost,
         decimal DefaultUnitPrice,
         bool IsActive);
@@ -35,6 +36,7 @@ public sealed class ItemOptionsController(IIssDbContext dbContext, ICurrentUser 
                 x.Name,
                 x.Type,
                 x.TrackingType,
+                x.UnitOfMeasure,
                 x.DefaultUnitCost,
                 x.DefaultUnitPrice,
                 x.IsActive))

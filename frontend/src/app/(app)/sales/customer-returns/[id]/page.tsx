@@ -24,7 +24,7 @@ type CustomerReturnDto = {
 
 type CustomerDto = { id: string; code: string; name: string };
 type WarehouseDto = { id: string; code: string; name: string };
-type ItemDto = { id: string; sku: string; name: string; trackingType: number; defaultUnitCost: number };
+type ItemDto = { id: string; sku: string; name: string; trackingType: number; defaultUnitCost: number; unitOfMeasure: string };
 type InvoiceSummaryDto = { id: string; number: string; customerId: string; total: number; status: number };
 type InvoiceDto = {
   id: string;
@@ -157,6 +157,7 @@ export default async function CustomerReturnDetailPage({
             ]),
           )}
           itemSearchLabelById={new Map(items.map((item) => [item.id, `${item.sku} ${item.name}`.toLowerCase()]))}
+          itemUomById={new Map(items.map((item) => [item.id, item.unitOfMeasure]))}
           startInEditMode={startInEditMode}
           canEdit={isDraft}
         />

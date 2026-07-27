@@ -33,6 +33,7 @@ type PurchaseOrderLinesEditorProps = {
   lines: PurchaseOrderLineDto[];
   itemLabelById: Map<string, ReactNode>;
   itemSearchLabelById: Map<string, string>;
+  itemUomById: Map<string, string>;
   canEdit: boolean;
   startInEditMode?: boolean;
 };
@@ -60,6 +61,7 @@ export function PurchaseOrderLinesEditor({
   lines,
   itemLabelById,
   itemSearchLabelById,
+  itemUomById,
   canEdit,
   startInEditMode = false,
 }: PurchaseOrderLinesEditorProps) {
@@ -181,6 +183,7 @@ export function PurchaseOrderLinesEditor({
       header: "Ordered",
       kind: "number",
       align: "right",
+      unit: (line) => itemUomById.get(line.itemId) ?? null,
       getValue: (line) => line.orderedQuantity,
       setValue: (line, value) => ({ ...line, orderedQuantity: value }),
       inputClassName: "min-w-24",
@@ -191,6 +194,7 @@ export function PurchaseOrderLinesEditor({
       header: "Received",
       kind: "display",
       align: "right",
+      unit: (line) => itemUomById.get(line.itemId) ?? null,
       render: (line) => formatGridNumber(line.receivedQuantity),
     },
     {
@@ -223,7 +227,7 @@ export function PurchaseOrderLinesEditor({
           }, 0),
         ),
     },
-  ], [itemLabelById]);
+  ], [itemLabelById, itemUomById]);
 
   const columns: EditableDataTableColumn<EditablePurchaseOrderLine>[] = canEdit
     ? [

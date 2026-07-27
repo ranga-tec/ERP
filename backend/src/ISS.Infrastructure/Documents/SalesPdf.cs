@@ -57,7 +57,7 @@ public sealed partial class DocumentPdfService
                     {
                         var item = itemById.GetValueOrDefault(line.ItemId);
                         table.Cell().Element(CellBody).Text(ItemLabel(item, line.ItemId));
-                        table.Cell().Element(CellBody).AlignRight().Text(FormatQty(line.Quantity));
+                        table.Cell().Element(CellBody).AlignRight().Text(FormatQty(line.Quantity, item));
                         table.Cell().Element(CellBody).AlignRight().Text(FormatMoney(line.UnitPrice));
                         table.Cell().Element(CellBody).AlignRight().Text(FormatMoney(line.LineTotal));
                     }
@@ -115,7 +115,7 @@ public sealed partial class DocumentPdfService
                     {
                         var item = itemById.GetValueOrDefault(line.ItemId);
                         table.Cell().Element(CellBody).Text(ItemLabel(item, line.ItemId));
-                        table.Cell().Element(CellBody).AlignRight().Text(FormatQty(line.Quantity));
+                        table.Cell().Element(CellBody).AlignRight().Text(FormatQty(line.Quantity, item));
                         table.Cell().Element(CellBody).AlignRight().Text(FormatMoney(line.UnitPrice));
                         table.Cell().Element(CellBody).AlignRight().Text(FormatMoney(line.LineTotal));
                     }
@@ -179,7 +179,7 @@ public sealed partial class DocumentPdfService
                     {
                         var item = itemById.GetValueOrDefault(line.ItemId);
                         table.Cell().Element(CellBody).Text(ItemLabel(item, line.ItemId));
-                        table.Cell().Element(CellBody).AlignRight().Text(FormatQty(line.Quantity));
+                        table.Cell().Element(CellBody).AlignRight().Text(FormatQty(line.Quantity, item));
                         table.Cell().Element(CellBody).Text(line.BatchNumber ?? "");
                         table.Cell().Element(CellBody).Text(string.Join(", ", line.Serials.Select(s => s.SerialNumber)));
                     }
@@ -266,7 +266,7 @@ public sealed partial class DocumentPdfService
                                 cell.Item().Text(line.Description!).FontSize(8).FontColor(Colors.Grey.Darken1);
                             }
                         });
-                        table.Cell().Element(CellBody).AlignRight().Text(FormatQty(line.Quantity));
+                        table.Cell().Element(CellBody).AlignRight().Text(FormatQty(line.Quantity, item));
                         table.Cell().Element(CellBody).AlignRight().Text(FormatMoney(line.UnitPrice));
                         table.Cell().Element(CellBody).AlignRight().Text(FormatPercent(line.DiscountPercent));
                         table.Cell().Element(CellBody).AlignRight().Text(FormatPercent(line.TaxPercent));
@@ -335,7 +335,7 @@ public sealed partial class DocumentPdfService
                     {
                         var item = itemById.GetValueOrDefault(line.ItemId);
                         table.Cell().Element(CellBody).Text(ItemLabel(item, line.ItemId));
-                        table.Cell().Element(CellBody).AlignRight().Text(FormatQty(line.Quantity));
+                        table.Cell().Element(CellBody).AlignRight().Text(FormatQty(line.Quantity, item));
                         table.Cell().Element(CellBody).Text(line.BatchNumber ?? "");
                         table.Cell().Element(CellBody).Text(string.Join(", ", line.Serials.Select(s => s.SerialNumber)));
                     }
@@ -404,7 +404,7 @@ public sealed partial class DocumentPdfService
                     {
                         var item = itemById.GetValueOrDefault(line.ItemId);
                         table.Cell().Element(CellBody).Text(ItemLabel(item, line.ItemId));
-                        table.Cell().Element(CellBody).AlignRight().Text(FormatQty(line.Quantity));
+                        table.Cell().Element(CellBody).AlignRight().Text(FormatQty(line.Quantity, item));
                         table.Cell().Element(CellBody).Text(line.BatchNumber ?? "");
                         table.Cell().Element(CellBody).Text(string.Join(", ", line.Serials.Select(s => s.SerialNumber)));
                     }

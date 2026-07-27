@@ -30,7 +30,7 @@ type DirectDispatchDto = {
 type CustomerDto = { id: string; code: string; name: string };
 type ServiceJobDto = { id: string; number: string; customerId: string };
 type WarehouseDto = { id: string; code: string; name: string };
-type ItemDto = { id: string; sku: string; name: string; trackingType: number };
+type ItemDto = { id: string; sku: string; name: string; trackingType: number; unitOfMeasure: string };
 
 const statusLabel: Record<number, string> = { 0: "Draft", 1: "Posted", 2: "Voided" };
 const coverageLabel: Record<number, string> = {
@@ -171,6 +171,7 @@ export default async function DirectDispatchDetailPage({
             ]),
           )}
           itemSearchLabelById={new Map(items.map((item) => [item.id, `${item.sku} ${item.name}`.toLowerCase()]))}
+          itemUomById={new Map(items.map((item) => [item.id, item.unitOfMeasure]))}
           startInEditMode={startInEditMode}
           canEdit={isDraft}
         />

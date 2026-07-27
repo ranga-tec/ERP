@@ -19,6 +19,11 @@ type ColumnBase<Row> = {
   key: string;
   header: ReactNode;
   align?: DataGridAlignment;
+  /**
+   * Unit shown after the value when the cell is not being edited, so a quantity reads as
+   * "12 L" rather than a bare number. Returning null leaves the value on its own.
+   */
+  unit?: (row: Row) => string | null | undefined;
   headerClassName?: string;
   cellClassName?: CellClassName<Row>;
   footer?: DataGridFooter<Row>;

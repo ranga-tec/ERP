@@ -127,8 +127,8 @@ public sealed partial class DocumentPdfService
                         h.Cell().Element(CellHeader).Text("Employee");
                         h.Cell().Element(CellHeader).Text("Role");
                         h.Cell().Element(CellHeader).Text("Task");
-                        h.Cell().Element(CellHeader).AlignRight().Text("Normal");
-                        h.Cell().Element(CellHeader).AlignRight().Text("OT");
+                        h.Cell().Element(CellHeader).AlignRight().Text("Normal hrs");
+                        h.Cell().Element(CellHeader).AlignRight().Text("OT hrs");
                         h.Cell().Element(CellHeader).Text("Status");
                     });
 
@@ -217,7 +217,7 @@ public sealed partial class DocumentPdfService
                             table.Cell().Element(CellBody).Text(requisition.Number);
                             table.Cell().Element(CellBody).Text(ItemLabel(item, line.ItemId));
                             table.Cell().Element(CellBody).Text(warehouse?.Code ?? requisition.WarehouseId.ToString());
-                            table.Cell().Element(CellBody).AlignRight().Text(FormatQty(line.Quantity));
+                            table.Cell().Element(CellBody).AlignRight().Text(FormatQty(line.Quantity, item));
                             table.Cell().Element(CellBody).Text(line.BatchNumber ?? "");
                             table.Cell().Element(CellBody).Text(requisition.Status.ToString());
                         }
@@ -257,7 +257,7 @@ public sealed partial class DocumentPdfService
                         var item = itemById.GetValueOrDefault(disposition.ItemId);
                         table.Cell().Element(CellBody).Text(ItemLabel(item, disposition.ItemId));
                         table.Cell().Element(CellBody).Text(disposition.Kind.ToString());
-                        table.Cell().Element(CellBody).AlignRight().Text(FormatQty(disposition.Quantity));
+                        table.Cell().Element(CellBody).AlignRight().Text(FormatQty(disposition.Quantity, item));
                         table.Cell().Element(CellBody).Text(disposition.ChargeTo.ToString());
                         table.Cell().Element(CellBody).Text(disposition.Status.ToString());
                         table.Cell().Element(CellBody).Text(disposition.Reason);
@@ -523,7 +523,7 @@ public sealed partial class DocumentPdfService
                     {
                         var item = itemById.GetValueOrDefault(line.ItemId);
                         table.Cell().Element(CellBody).Text(ItemLabel(item, line.ItemId));
-                        table.Cell().Element(CellBody).AlignRight().Text(FormatQty(line.Quantity));
+                        table.Cell().Element(CellBody).AlignRight().Text(FormatQty(line.Quantity, item));
                         table.Cell().Element(CellBody).Text(line.BatchNumber ?? "");
                         table.Cell().Element(CellBody).Text(string.Join(", ", line.Serials.Select(s => s.SerialNumber)));
                     }
@@ -633,7 +633,7 @@ public sealed partial class DocumentPdfService
 
                         table.Cell().Element(CellBody).Text(line.Kind.ToString());
                         table.Cell().Element(CellBody).Text(description);
-                        table.Cell().Element(CellBody).AlignRight().Text(FormatQty(line.Quantity));
+                        table.Cell().Element(CellBody).AlignRight().Text(FormatQty(line.Quantity, item));
                         table.Cell().Element(CellBody).AlignRight().Text(FormatMoney(line.UnitPrice));
                         table.Cell().Element(CellBody).AlignRight().Text(FormatPercent(line.TaxPercent));
                         table.Cell().Element(CellBody).AlignRight().Text(FormatMoney(line.LineTotal));
@@ -792,7 +792,7 @@ public sealed partial class DocumentPdfService
                         var item = line.ItemId.HasValue ? itemById.GetValueOrDefault(line.ItemId.Value) : null;
                         table.Cell().Element(CellBody).Text(line.ItemId.HasValue ? ItemLabel(item, line.ItemId.Value) : "Ad-hoc / outside buy");
                         table.Cell().Element(CellBody).Text(line.Description);
-                        table.Cell().Element(CellBody).AlignRight().Text(FormatQty(line.Quantity));
+                        table.Cell().Element(CellBody).AlignRight().Text(FormatQty(line.Quantity, item));
                         table.Cell().Element(CellBody).AlignRight().Text(FormatMoney(line.UnitCost));
                         table.Cell().Element(CellBody).Text(line.BillableToCustomer ? "Yes" : "No");
                         table.Cell().Element(CellBody).AlignRight().Text(FormatMoney(line.LineTotal));

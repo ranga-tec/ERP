@@ -39,6 +39,7 @@ type CustomerReturnLinesEditorProps = {
   lines: CustomerReturnLineDto[];
   itemLabelById: Map<string, ReactNode>;
   itemSearchLabelById: Map<string, string>;
+  itemUomById: Map<string, string>;
   canEdit: boolean;
   startInEditMode?: boolean;
 };
@@ -81,6 +82,7 @@ export function CustomerReturnLinesEditor({
   lines,
   itemLabelById,
   itemSearchLabelById,
+  itemUomById,
   canEdit,
   startInEditMode = false,
 }: CustomerReturnLinesEditorProps) {
@@ -221,6 +223,7 @@ export function CustomerReturnLinesEditor({
       header: "Qty",
       kind: "number",
       align: "right",
+      unit: (line) => itemUomById.get(line.itemId) ?? null,
       getValue: (line) => line.quantity,
       setValue: (line, value) => ({ ...line, quantity: value }),
       inputClassName: "min-w-20",
@@ -280,7 +283,7 @@ export function CustomerReturnLinesEditor({
         <span className="font-mono text-xs text-zinc-500">{formatSerials(line.serials)}</span>
       ),
     },
-  ], [itemLabelById]);
+  ], [itemLabelById, itemUomById]);
 
   const columns: EditableDataTableColumn<EditableCustomerReturnLine>[] = canEdit
     ? [
