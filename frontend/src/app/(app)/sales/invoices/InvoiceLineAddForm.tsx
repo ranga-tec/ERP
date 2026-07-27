@@ -6,7 +6,7 @@ import { apiPostNoContent } from "@/lib/api-client";
 import { ItemLookupField } from "@/components/ItemLookupField";
 import { Button, Input, Select } from "@/components/ui";
 
-type ItemRef = { id: string; sku: string; name: string };
+type ItemRef = { id: string; sku: string; name: string; defaultUnitPrice?: number };
 type TaxRef = { id: string; code: string; name: string; ratePercent: number; isActive: boolean };
 
 export function InvoiceLineAddForm({
@@ -90,7 +90,18 @@ export function InvoiceLineAddForm({
       <div className="grid gap-3 sm:grid-cols-6">
         <div className="sm:col-span-2">
           <label className="mb-1 block text-sm font-medium">Item</label>
-          <ItemLookupField items={items} value={itemId} onChange={setItemId} />
+          <ItemLookupField
+            items={items}
+            value={itemId}
+            onChange={(id) => {
+              setItemId(id);
+              // pre-fill the list price; the user can still overwrite it
+              const picked = items.find((i) => i.id === id);
+              if (picked?.defaultUnitPrice) {
+                setUnitPrice(String(picked.defaultUnitPrice));
+              }
+            }}
+          />
         </div>
         <div>
           <label className="mb-1 block text-sm font-medium">Qty</label>

@@ -20,7 +20,7 @@ type SalesQuoteDto = {
 };
 
 type CustomerDto = { id: string; code: string; name: string };
-type ItemDto = { id: string; sku: string; name: string };
+type ItemDto = { id: string; sku: string; name: string; defaultUnitPrice?: number };
 
 const statusLabel: Record<number, string> = {
   0: "Draft",

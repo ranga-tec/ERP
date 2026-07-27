@@ -41,6 +41,7 @@ export function ItemCreateForm({
   const [subcategoryId, setSubcategoryId] = useState<string>("");
   const [barcode, setBarcode] = useState("");
   const [defaultUnitCost, setDefaultUnitCost] = useState("0");
+  const [defaultUnitPrice, setDefaultUnitPrice] = useState("0");
   const [revenueAccountId, setRevenueAccountId] = useState("");
   const [expenseAccountId, setExpenseAccountId] = useState("");
 
@@ -93,6 +94,7 @@ export function ItemCreateForm({
     setBusy(true);
     try {
       const cost = Number(defaultUnitCost);
+      const price = Number(defaultUnitPrice);
       if (Number.isNaN(cost) || cost < 0) {
         throw new Error("Default unit cost must be a non-negative number.");
       }
@@ -108,6 +110,7 @@ export function ItemCreateForm({
         subcategoryId: subcategoryId || null,
         barcode: barcode || null,
         defaultUnitCost: cost,
+        defaultUnitPrice: Number.isFinite(price) && price >= 0 ? price : 0,
         revenueAccountId: revenueAccountId || null,
         expenseAccountId: expenseAccountId || null,
       });
@@ -257,6 +260,17 @@ export function ItemCreateForm({
             onChange={(e) => setDefaultUnitCost(e.target.value)}
             inputMode="decimal"
           />
+        </div>
+        <div>
+          <label className="mb-1 block text-sm font-medium">Default Selling Price</label>
+          <Input
+            value={defaultUnitPrice}
+            onChange={(e) => setDefaultUnitPrice(e.target.value)}
+            inputMode="decimal"
+          />
+          <p className="mt-1 text-xs text-[var(--muted-foreground)]">
+            Pre-fills the unit price on sales lines. The price on each line stays editable.
+          </p>
         </div>
       </div>
 

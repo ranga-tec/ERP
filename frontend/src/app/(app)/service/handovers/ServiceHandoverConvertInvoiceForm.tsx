@@ -18,6 +18,7 @@ type ItemRef = {
   sku: string;
   name: string;
   defaultUnitCost?: number;
+  defaultUnitPrice?: number;
 };
 type TaxRef = { id: string; code: string; name: string; ratePercent: number; isActive: boolean };
 
@@ -163,7 +164,8 @@ export function ServiceHandoverConvertInvoiceForm({
         ...newManualLine("item"),
         itemId: material.itemId,
         quantity: String(material.remainingQuantity > 0 ? material.remainingQuantity : material.netQuantity),
-        unitPrice: "0",
+        // start at the item's list price when there is one; still editable per line
+        unitPrice: String(items.find((i) => i.id === material.itemId)?.defaultUnitPrice ?? 0),
         materialRequisitionLineId: material.materialRequisitionLineId,
         sourceCost: material.unitCost,
       },

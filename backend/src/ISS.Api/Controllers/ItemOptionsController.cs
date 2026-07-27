@@ -20,6 +20,7 @@ public sealed class ItemOptionsController(IIssDbContext dbContext, ICurrentUser 
         ItemType Type,
         TrackingType TrackingType,
         decimal DefaultUnitCost,
+        decimal DefaultUnitPrice,
         bool IsActive);
 
     [HttpGet]
@@ -35,6 +36,7 @@ public sealed class ItemOptionsController(IIssDbContext dbContext, ICurrentUser 
                 x.Type,
                 x.TrackingType,
                 x.DefaultUnitCost,
+                x.DefaultUnitPrice,
                 x.IsActive))
             .ToListAsync(cancellationToken);
 

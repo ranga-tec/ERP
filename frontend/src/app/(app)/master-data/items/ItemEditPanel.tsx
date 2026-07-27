@@ -42,6 +42,7 @@ export function ItemEditPanel({
   const [subcategoryId, setSubcategoryId] = useState(item.subcategoryId ?? "");
   const [barcode, setBarcode] = useState(item.barcode ?? "");
   const [defaultUnitCost, setDefaultUnitCost] = useState(String(item.defaultUnitCost));
+  const [defaultUnitPrice, setDefaultUnitPrice] = useState(String(item.defaultUnitPrice ?? 0));
   const [revenueAccountId, setRevenueAccountId] = useState(item.revenueAccountId ?? "");
   const [expenseAccountId, setExpenseAccountId] = useState(item.expenseAccountId ?? "");
   const [isActive, setIsActive] = useState(item.isActive);
@@ -95,6 +96,7 @@ export function ItemEditPanel({
     setBusy(true);
     try {
       const cost = Number(defaultUnitCost);
+      const price = Number(defaultUnitPrice);
       if (Number.isNaN(cost) || cost < 0) {
         throw new Error("Default unit cost must be a non-negative number.");
       }
@@ -110,6 +112,7 @@ export function ItemEditPanel({
         subcategoryId: subcategoryId || null,
         barcode: barcode || null,
         defaultUnitCost: cost,
+        defaultUnitPrice: Number.isFinite(price) && price >= 0 ? price : 0,
         revenueAccountId: revenueAccountId || null,
         expenseAccountId: expenseAccountId || null,
         isActive,
@@ -276,6 +279,17 @@ export function ItemEditPanel({
             onChange={(e) => setDefaultUnitCost(e.target.value)}
             inputMode="decimal"
           />
+        </div>
+        <div>
+          <label className="mb-1 block text-sm font-medium">Default Selling Price</label>
+          <Input
+            value={defaultUnitPrice}
+            onChange={(e) => setDefaultUnitPrice(e.target.value)}
+            inputMode="decimal"
+          />
+          <p className="mt-1 text-xs text-[var(--muted-foreground)]">
+            Pre-fills the unit price on sales lines. The price on each line stays editable.
+          </p>
         </div>
         <div>
           <label className="mb-1 block text-sm font-medium">Active</label>

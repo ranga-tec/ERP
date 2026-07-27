@@ -43,6 +43,7 @@ public sealed class ItemsController(
         string? SubcategoryName,
         string? Barcode,
         decimal DefaultUnitCost,
+        decimal DefaultUnitPrice,
         Guid? RevenueAccountId,
         string? RevenueAccountCode,
         string? RevenueAccountName,
@@ -63,6 +64,7 @@ public sealed class ItemsController(
         Guid? SubcategoryId,
         string? Barcode,
         decimal DefaultUnitCost,
+        decimal DefaultUnitPrice,
         Guid? RevenueAccountId,
         Guid? ExpenseAccountId);
 
@@ -78,6 +80,7 @@ public sealed class ItemsController(
         Guid? SubcategoryId,
         string? Barcode,
         decimal DefaultUnitCost,
+        decimal DefaultUnitPrice,
         Guid? RevenueAccountId,
         Guid? ExpenseAccountId,
         bool IsActive);
@@ -135,6 +138,7 @@ public sealed class ItemsController(
                 x.Subcategory != null ? x.Subcategory.Name : null,
                 x.Barcode,
                 x.DefaultUnitCost,
+                x.DefaultUnitPrice,
                 x.RevenueAccountId,
                 x.RevenueAccount != null ? x.RevenueAccount.Code : null,
                 x.RevenueAccount != null ? x.RevenueAccount.Name : null,
@@ -169,6 +173,7 @@ public sealed class ItemsController(
                 x.Subcategory != null ? x.Subcategory.Name : null,
                 x.Barcode,
                 x.DefaultUnitCost,
+                x.DefaultUnitPrice,
                 x.RevenueAccountId,
                 x.RevenueAccount != null ? x.RevenueAccount.Code : null,
                 x.RevenueAccount != null ? x.RevenueAccount.Name : null,
@@ -213,6 +218,7 @@ public sealed class ItemsController(
                 x.Subcategory != null ? x.Subcategory.Name : null,
                 x.Barcode,
                 x.DefaultUnitCost,
+                x.DefaultUnitPrice,
                 x.RevenueAccountId,
                 x.RevenueAccount != null ? x.RevenueAccount.Code : null,
                 x.RevenueAccount != null ? x.RevenueAccount.Name : null,
@@ -265,7 +271,8 @@ public sealed class ItemsController(
             request.CategoryId,
             request.SubcategoryId,
             request.RevenueAccountId,
-            request.ExpenseAccountId);
+            request.ExpenseAccountId,
+            request.DefaultUnitPrice);
 
         await dbContext.Items.AddAsync(item, cancellationToken);
         await dbContext.SaveChangesAsync(cancellationToken);
@@ -290,6 +297,7 @@ public sealed class ItemsController(
                 x.Subcategory != null ? x.Subcategory.Name : null,
                 x.Barcode,
                 x.DefaultUnitCost,
+                x.DefaultUnitPrice,
                 x.RevenueAccountId,
                 x.RevenueAccount != null ? x.RevenueAccount.Code : null,
                 x.RevenueAccount != null ? x.RevenueAccount.Name : null,
@@ -430,7 +438,8 @@ public sealed class ItemsController(
             request.CategoryId,
             request.SubcategoryId,
             request.RevenueAccountId,
-            request.ExpenseAccountId);
+            request.ExpenseAccountId,
+            request.DefaultUnitPrice);
 
         await dbContext.SaveChangesAsync(cancellationToken);
 
@@ -454,6 +463,7 @@ public sealed class ItemsController(
                 x.Subcategory != null ? x.Subcategory.Name : null,
                 x.Barcode,
                 x.DefaultUnitCost,
+                x.DefaultUnitPrice,
                 x.RevenueAccountId,
                 x.RevenueAccount != null ? x.RevenueAccount.Code : null,
                 x.RevenueAccount != null ? x.RevenueAccount.Name : null,

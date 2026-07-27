@@ -34,7 +34,8 @@ public sealed class Item : AuditableEntity
         Guid? categoryId = null,
         Guid? subcategoryId = null,
         Guid? revenueAccountId = null,
-        Guid? expenseAccountId = null)
+        Guid? expenseAccountId = null,
+        decimal defaultUnitPrice = 0m)
     {
         CompanyId = companyId == Guid.Empty ? throw new DomainValidationException("Company is required.") : companyId;
         Sku = Guard.NotNullOrWhiteSpace(sku, nameof(Sku), maxLength: 64);
@@ -45,6 +46,7 @@ public sealed class Item : AuditableEntity
         BrandId = brandId;
         Barcode = barcode?.Trim();
         DefaultUnitCost = Guard.NotNegative(defaultUnitCost, nameof(DefaultUnitCost));
+        DefaultUnitPrice = Guard.NotNegative(defaultUnitPrice, nameof(DefaultUnitPrice));
         CategoryId = categoryId;
         SubcategoryId = subcategoryId;
         RevenueAccountId = revenueAccountId;
@@ -67,6 +69,12 @@ public sealed class Item : AuditableEntity
     public ItemSubcategory? Subcategory { get; private set; }
     public string? Barcode { get; private set; }
     public decimal DefaultUnitCost { get; private set; }
+
+    /// <summary>
+    /// List selling price. Used to pre-fill the unit price on sales document lines; the price on
+    /// any given line stays editable, so this is a default rather than an enforced price.
+    /// </summary>
+    public decimal DefaultUnitPrice { get; private set; }
     public Guid? RevenueAccountId { get; private set; }
     public LedgerAccount? RevenueAccount { get; private set; }
     public Guid? ExpenseAccountId { get; private set; }
@@ -116,7 +124,8 @@ public sealed class Item : AuditableEntity
         Guid? categoryId,
         Guid? subcategoryId,
         Guid? revenueAccountId = null,
-        Guid? expenseAccountId = null)
+        Guid? expenseAccountId = null,
+        decimal defaultUnitPrice = 0m)
     {
         CompanyId = companyId == Guid.Empty ? throw new DomainValidationException("Company is required.") : companyId;
         Sku = Guard.NotNullOrWhiteSpace(sku, nameof(Sku), maxLength: 64);
@@ -127,6 +136,7 @@ public sealed class Item : AuditableEntity
         BrandId = brandId;
         Barcode = barcode?.Trim();
         DefaultUnitCost = Guard.NotNegative(defaultUnitCost, nameof(DefaultUnitCost));
+        DefaultUnitPrice = Guard.NotNegative(defaultUnitPrice, nameof(DefaultUnitPrice));
         CategoryId = categoryId;
         SubcategoryId = subcategoryId;
         RevenueAccountId = revenueAccountId;

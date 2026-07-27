@@ -41,6 +41,7 @@ export type ItemDto = {
   subcategoryName?: string | null;
   barcode?: string | null;
   defaultUnitCost: number;
+  defaultUnitPrice: number;
   revenueAccountId?: string | null;
   revenueAccountCode?: string | null;
   revenueAccountName?: string | null;
