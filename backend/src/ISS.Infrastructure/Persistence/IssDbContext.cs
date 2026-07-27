@@ -783,6 +783,7 @@ public sealed class IssDbContext(
             entity.HasIndex(x => x.ClaimedByUserId);
             entity.HasIndex(x => x.SettlementPaymentTypeId);
             entity.HasIndex(x => x.SettlementPettyCashFundId);
+            entity.HasIndex(x => x.PettyCashIouId);
             entity.Property(x => x.Number).HasMaxLength(32);
             entity.Property(x => x.ClaimedByName).HasMaxLength(256);
             entity.Property(x => x.MerchantName).HasMaxLength(256);
@@ -792,6 +793,7 @@ public sealed class IssDbContext(
             entity.Property(x => x.SettlementReference).HasMaxLength(128);
             entity.HasOne<PaymentType>().WithMany().HasForeignKey(x => x.SettlementPaymentTypeId).OnDelete(DeleteBehavior.Restrict);
             entity.HasOne<PettyCashFund>().WithMany().HasForeignKey(x => x.SettlementPettyCashFundId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne<PettyCashIou>().WithMany().HasForeignKey(x => x.PettyCashIouId).OnDelete(DeleteBehavior.Restrict);
             entity.HasMany(x => x.Lines).WithOne().HasForeignKey(x => x.ServiceExpenseClaimId).OnDelete(DeleteBehavior.Cascade);
             entity.HasOne<ServiceJobDailySheet>().WithMany().HasForeignKey(x => x.ServiceJobDailySheetId).OnDelete(DeleteBehavior.SetNull);
         });

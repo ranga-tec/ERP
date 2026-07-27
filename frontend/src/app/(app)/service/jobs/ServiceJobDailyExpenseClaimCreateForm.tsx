@@ -94,7 +94,7 @@ export function ServiceJobDailyExpenseClaimCreateForm({
             disabled={disabled || busy || lockFundingSource}
           >
             <option value="1">Out of Pocket</option>
-            <option value="2">Petty Cash</option>
+            <option value="2">Petty Cash Fund</option>
           </Select>
         </div>
         <div>

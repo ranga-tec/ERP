@@ -20,9 +20,12 @@ type ServiceExpenseClaimSummaryDto = {
   total: number;
   lineCount: number;
   settledAt?: string | null;
+  pettyCashIouId?: string | null;
+  pettyCashIouNumber?: string | null;
 };
 
 type ServiceJobDto = { id: string; number: string; kind: number };
+type PettyCashIouDto = { id: string; number: string; serviceJobId: string; status: number; amount: number };
 type CurrentUserPermissionsDto = { userId: string; permissions: string[] };
 
 const statusLabel: Record<number, string> = {
@@ -35,13 +38,14 @@ const statusLabel: Record<number, string> = {
 
 const fundingSourceLabel: Record<number, string> = {
   1: "Out of Pocket",
-  2: "Petty Cash",
+  2: "Petty Cash Fund",
 };
 
 export default async function ServiceExpenseClaimsPage() {
-  const [claims, jobs, currentUserPermissions] = await Promise.all([
+  const [claims, jobs, pettyCashIous, currentUserPermissions] = await Promise.all([
     backendFetchJson<ServiceExpenseClaimSummaryDto[]>("/service/expense-claims?take=100"),
     backendFetchJson<ServiceJobDto[]>("/service/jobs?take=500"),
+    backendFetchJson<PettyCashIouDto[]>("/finance/petty-cash-ious?take=500"),
     backendFetchJson<CurrentUserPermissionsDto>("/me/permissions"),
   ]);
 
@@ -53,14 +57,14 @@ export default async function ServiceExpenseClaimsPage() {
     <div className="space-y-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-semibold">Petty Cash</h1>
+          <h1 className="text-2xl font-semibold">Expense Vouchers</h1>
           <p className="mt-1 text-sm text-zinc-500">
-            Record out-of-pocket technician spending and petty-cash repair purchases against job orders, then route them to finance for approval and settlement.
+            Money already spent on a job, documented with its bills, then routed to finance for approval and repayment. Repayment comes from the petty cash fund or by payment to the claimant. To issue cash <em>before</em> the spend, raise a petty cash advance (IOU) instead.
           </p>
         </div>
         {canCreate ? (
-          <AppFormModal title="Create Petty Cash Voucher" description="Create a job-linked petty cash or out-of-pocket expense voucher." buttonLabel="+ New Voucher">
-            <ServiceExpenseClaimCreateForm serviceJobs={jobs} />
+          <AppFormModal title="Create Expense Voucher" description="Record spend that has already happened on a job order, and how the claimant gets repaid." buttonLabel="+ New Voucher">
+            <ServiceExpenseClaimCreateForm serviceJobs={jobs} pettyCashIous={pettyCashIous} />
           </AppFormModal>
         ) : null}
       </div>
@@ -70,7 +74,7 @@ export default async function ServiceExpenseClaimsPage() {
         <SearchableTable
           placeholder="Search voucher, job, claimant, funding, status..."
           emptyMessage="No service expense claims yet."
-          emptyColSpan={8}
+          emptyColSpan={9}
           headers={
             <thead>
               <tr className="border-b border-zinc-200 text-left text-xs uppercase tracking-wide text-zinc-500 dark:border-zinc-800">
@@ -78,6 +82,7 @@ export default async function ServiceExpenseClaimsPage() {
                 <th className="py-2 pr-3">Job</th>
                 <th className="py-2 pr-3">Claimed By</th>
                 <th className="py-2 pr-3">Funding</th>
+                <th className="py-2 pr-3">IOU</th>
                 <th className="py-2 pr-3">Date</th>
                 <th className="py-2 pr-3">Status</th>
                 <th className="py-2 pr-3">Total</th>
@@ -98,6 +103,7 @@ export default async function ServiceExpenseClaimsPage() {
                     job?.number,
                     claim.claimedByName,
                     claim.merchantName,
+                    claim.pettyCashIouNumber,
                     funding,
                     status,
                     claim.total.toFixed(2),
@@ -116,6 +122,17 @@ export default async function ServiceExpenseClaimsPage() {
                   </td>
                   <td className="py-2 pr-3">{claim.claimedByName}</td>
                   <td className="py-2 pr-3">{fundingSourceLabel[claim.fundingSource] ?? claim.fundingSource}</td>
+                  <td className="py-2 pr-3 font-mono text-xs">
+                    {claim.pettyCashIouNumber ? (
+                      <Link className="hover:underline" href="/finance/petty-cash-ious">
+                        {claim.pettyCashIouNumber}
+                      </Link>
+                    ) : claim.pettyCashIouId ? (
+                      <span className="text-zinc-400">Advance removed</span>
+                    ) : (
+                      <span className="text-zinc-400">-</span>
+                    )}
+                  </td>
                   <td className="py-2 pr-3 text-zinc-500">{new Date(claim.expenseDate).toLocaleString()}</td>
                   <td className="py-2 pr-3">{statusLabel[claim.status] ?? claim.status}</td>
                   <td className="py-2 pr-3">{claim.total.toFixed(2)}</td>

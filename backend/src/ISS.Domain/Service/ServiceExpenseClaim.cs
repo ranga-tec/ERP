@@ -32,11 +32,13 @@ public sealed class ServiceExpenseClaim : AuditableEntity
         string? merchantName,
         string? receiptReference,
         string? notes,
-        Guid? serviceJobDailySheetId = null)
+        Guid? serviceJobDailySheetId = null,
+        Guid? pettyCashIouId = null)
     {
         Number = Guard.NotNullOrWhiteSpace(number, nameof(number), maxLength: 32);
         ServiceJobId = serviceJobId;
         ServiceJobDailySheetId = serviceJobDailySheetId;
+        PettyCashIouId = pettyCashIouId;
         ClaimedByUserId = claimedByUserId;
         ClaimedByName = Guard.NotNullOrWhiteSpace(claimedByName, nameof(claimedByName), maxLength: 256);
         FundingSource = fundingSource;
@@ -54,6 +56,14 @@ public sealed class ServiceExpenseClaim : AuditableEntity
     public string Number { get; private set; } = null!;
     public Guid ServiceJobId { get; private set; }
     public Guid? ServiceJobDailySheetId { get; private set; }
+
+    /// <summary>
+    /// The petty cash advance this spend was made from, when there was one. Settling an IOU records
+    /// only how much of the advance was spent; without this link nothing says what it was spent on,
+    /// so an advance can be settled at 600 against 100 of documented claims and no screen notices.
+    /// Null for out-of-pocket claims and for petty cash spent outside an advance.
+    /// </summary>
+    public Guid? PettyCashIouId { get; private set; }
     public Guid? ClaimedByUserId { get; private set; }
     public string ClaimedByName { get; private set; } = null!;
     public ServiceExpenseFundingSource FundingSource { get; private set; }
@@ -124,6 +134,23 @@ public sealed class ServiceExpenseClaim : AuditableEntity
     }
 
     public decimal Total => Lines.Sum(x => x.LineTotal);
+
+    /// <summary>
+    /// Points this claim at the advance that funded it, or clears the link. Draft only — once the
+    /// claim is submitted the reconciliation figures on the IOU are being read by approvers, and
+    /// moving a claim between advances underneath them would silently change both.
+    /// </summary>
+    public void LinkPettyCashIou(Guid? pettyCashIouId)
+    {
+        EnsureDraftEditable();
+
+        if (pettyCashIouId is not null && FundingSource != ServiceExpenseFundingSource.PettyCash)
+        {
+            throw new DomainValidationException("Only petty cash claims can be linked to an IOU advance.");
+        }
+
+        PettyCashIouId = pettyCashIouId;
+    }
 
     public void Submit(DateTimeOffset submittedAt)
     {

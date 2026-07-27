@@ -20,6 +20,10 @@ type PettyCashIouDto = {
   status: number;
   pettyCashFundId?: string | null;
   settledAmount?: number | null;
+  claimedAmount: number;
+  claimCount: number;
+  returnedAmount?: number | null;
+  unaccountedAmount?: number | null;
 };
 
 const statusLabel: Record<number, string> = {
@@ -47,11 +51,13 @@ export default async function PettyCashIousPage() {
     <div className="space-y-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-semibold">Petty Cash IOUs</h1>
-          <p className="mt-1 text-sm text-zinc-500">Approved cash advances linked to job order numbers.</p>
+          <h1 className="text-2xl font-semibold">Petty Cash Advances (IOU)</h1>
+          <p className="mt-1 text-sm text-zinc-500">
+            Cash issued from a fund <em>before</em> the spend, against a job order. The holder later settles it: unspent cash returns to the fund, and what was spent should be documented on expense vouchers linked to this advance.
+          </p>
         </div>
         {canCreate ? (
-          <AppFormModal title="Create Petty Cash IOU" description="Request a petty cash advance against a job order." buttonLabel="+ New IOU">
+          <AppFormModal title="Create Petty Cash Advance" description="Request cash up front against a job order, to be settled and accounted for later." buttonLabel="+ New IOU">
             <PettyCashIouCreateForm serviceJobs={jobs.filter((job) => job.status !== 3 && job.status !== 4)} />
           </AppFormModal>
         ) : null}
@@ -67,7 +73,10 @@ export default async function PettyCashIousPage() {
                 <th className="py-2 pr-3">Number</th>
                 <th className="py-2 pr-3">Job</th>
                 <th className="py-2 pr-3">Requester</th>
-                <th className="py-2 pr-3">Amount</th>
+                <th className="py-2 pr-3">Advanced</th>
+                <th className="py-2 pr-3">Settled</th>
+                <th className="py-2 pr-3">Claimed</th>
+                <th className="py-2 pr-3">Unaccounted</th>
                 <th className="py-2 pr-3">Status</th>
                 <th className="py-2 pr-3">Purpose</th>
                 <th className="py-2 pr-3">Actions</th>
@@ -80,6 +89,38 @@ export default async function PettyCashIousPage() {
                   <td className="py-2 pr-3">{jobs.find((job) => job.id === iou.serviceJobId)?.number ?? iou.serviceJobId}</td>
                   <td className="py-2 pr-3 text-zinc-500">{iou.requestedByName}</td>
                   <td className="py-2 pr-3">{iou.amount.toFixed(2)}</td>
+                  <td className="py-2 pr-3">
+                    {iou.settledAmount == null ? (
+                      <span className="text-zinc-400">-</span>
+                    ) : (
+                      <>
+                        {iou.settledAmount.toFixed(2)}
+                        {iou.returnedAmount ? (
+                          <div className="text-xs text-zinc-500">{iou.returnedAmount.toFixed(2)} returned</div>
+                        ) : null}
+                      </>
+                    )}
+                  </td>
+                  <td className="py-2 pr-3">
+                    {iou.claimedAmount.toFixed(2)}
+                    <div className="text-xs text-zinc-500">
+                      {iou.claimCount === 0 ? "no vouchers" : `${iou.claimCount} voucher${iou.claimCount === 1 ? "" : "s"}`}
+                    </div>
+                  </td>
+                  <td className="py-2 pr-3">
+                    {iou.unaccountedAmount == null ? (
+                      <span className="text-xs text-zinc-400">not settled</span>
+                    ) : iou.unaccountedAmount === 0 ? (
+                      <span className="text-xs text-zinc-500">reconciled</span>
+                    ) : (
+                      <span
+                        className="font-semibold text-amber-700 dark:text-amber-400"
+                        title="Declared as spent at settlement but never documented on a petty cash voucher, so it never reached job cost."
+                      >
+                        {iou.unaccountedAmount.toFixed(2)}
+                      </span>
+                    )}
+                  </td>
                   <td className="py-2 pr-3">{statusLabel[iou.status] ?? iou.status}</td>
                   <td className="max-w-sm py-2 pr-3 text-zinc-500">{iou.purpose}</td>
                   <td className="py-2 pr-3">
@@ -88,6 +129,8 @@ export default async function PettyCashIousPage() {
                       status={iou.status}
                       funds={activeFunds}
                       amount={iou.amount}
+                      claimedAmount={iou.claimedAmount}
+                      claimCount={iou.claimCount}
                       permissions={currentPermissions.permissions}
                     />
                   </td>
@@ -95,7 +138,7 @@ export default async function PettyCashIousPage() {
               ))}
               {ious.length === 0 ? (
                 <tr>
-                  <td className="py-6 text-sm text-zinc-500" colSpan={7}>No petty cash IOUs yet.</td>
+                  <td className="py-6 text-sm text-zinc-500" colSpan={10}>No petty cash IOUs yet.</td>
                 </tr>
               ) : null}
             </tbody>

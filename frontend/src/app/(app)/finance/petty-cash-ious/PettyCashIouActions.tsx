@@ -18,12 +18,16 @@ export function PettyCashIouActions({
   status,
   funds,
   amount,
+  claimedAmount = 0,
+  claimCount = 0,
   permissions,
 }: {
   id: string;
   status: number;
   funds: FundRef[];
   amount: number;
+  claimedAmount?: number;
+  claimCount?: number;
   permissions: string[];
 }) {
   const router = useRouter();
@@ -33,7 +37,9 @@ export function PettyCashIouActions({
   const canRelease = permissionSet.has("Finance.PettyCashIou.Release");
   const canSettle = permissionSet.has("Finance.PettyCashIou.Settle");
   const [fundId, setFundId] = useState(funds[0]?.id ?? "");
-  const [settledAmount, setSettledAmount] = useState(String(amount));
+  // Default to what the vouchers actually document, not to the full advance. Defaulting to the
+  // advance is what let 600 be settled against 100 of bills without anyone noticing.
+  const [settledAmount, setSettledAmount] = useState(String(claimCount > 0 ? claimedAmount : amount));
   const [rejectReason, setRejectReason] = useState("");
   const [pending, setPending] = useState<Pending>(null);
   const [busy, setBusy] = useState<string | null>(null);
@@ -56,6 +62,10 @@ export function PettyCashIouActions({
   const settleValue = Number(settledAmount);
   const settleInvalid = !Number.isFinite(settleValue) || settleValue < 0;
   const fundLabel = funds.find((fund) => fund.id === fundId);
+
+  // Anything settled beyond the documented vouchers is cash that left the fund with no bill behind
+  // it, and it never reaches job cost. Surfaced, not blocked - finance decides.
+  const unaccounted = settleInvalid ? 0 : settleValue - claimedAmount;
 
   return (
     <div className="space-y-2">
@@ -100,13 +110,23 @@ export function PettyCashIouActions({
         {status === 3 && canSettle ? (
           <>
             <div>
-              <label className="mb-1 block text-xs font-medium text-zinc-500">Settled amount</label>
+              <label className="mb-1 block text-xs font-medium text-zinc-500">Amount spent</label>
               <Input
                 className="w-32"
                 inputMode="decimal"
                 value={settledAmount}
                 onChange={(event) => setSettledAmount(event.target.value)}
               />
+              <div className="mt-1 text-xs text-zinc-500">
+                {claimCount === 0
+                  ? "No expense vouchers linked to this advance."
+                  : `${money(claimedAmount)} on ${claimCount} voucher${claimCount === 1 ? "" : "s"}`}
+              </div>
+              {!settleInvalid && unaccounted > 0 ? (
+                <div className="mt-1 text-xs text-amber-700 dark:text-amber-400">
+                  {money(unaccounted)} has no voucher behind it and will not reach job cost.
+                </div>
+              ) : null}
             </div>
             <Button type="button" disabled={busy !== null || settleInvalid} onClick={() => setPending("settle")}>
               Settle / Account
@@ -148,15 +168,18 @@ export function PettyCashIouActions({
         onConfirm={() => run("settle", { settledAmount: settleValue })}
         description={
           <>
-            This accounts the advance of <span className="font-semibold">{money(amount)}</span> as settled at{" "}
-            <span className="font-semibold">{money(settleValue)}</span>
-            {settleValue !== amount ? (
+            This accounts the advance of <span className="font-semibold">{money(amount)}</span> as spent at{" "}
+            <span className="font-semibold">{money(settleValue)}</span>, returning{" "}
+            <span className="font-semibold">{money(Math.max(0, amount - settleValue))}</span> to the fund.
+            {unaccounted > 0 ? (
               <span className="text-amber-700 dark:text-amber-300">
                 {" "}
-                — a difference of {money(Math.abs(amount - settleValue))} against the amount advanced
+                Only {money(claimedAmount)} is documented on expense vouchers, so{" "}
+                <span className="font-semibold">{money(unaccounted)}</span> will be recorded as spent with no bill
+                behind it and will never reach this job&apos;s cost.
               </span>
-            ) : null}
-            . Settling closes the IOU.
+            ) : null}{" "}
+            Settling closes the IOU.
           </>
         }
       />

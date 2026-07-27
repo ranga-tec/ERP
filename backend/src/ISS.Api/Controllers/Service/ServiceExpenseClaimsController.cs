@@ -35,7 +35,9 @@ public sealed class ServiceExpenseClaimsController(
         decimal Total,
         int LineCount,
         int BillableUnconvertedLineCount,
-        DateTimeOffset? SettledAt);
+        DateTimeOffset? SettledAt,
+        Guid? PettyCashIouId,
+        string? PettyCashIouNumber);
 
     public sealed record ServiceExpenseClaimLineDto(
         Guid Id,
@@ -73,6 +75,8 @@ public sealed class ServiceExpenseClaimsController(
         Guid? SettlementPettyCashFundId,
         DateTimeOffset? SettledAt,
         string? SettlementReference,
+        Guid? PettyCashIouId,
+        string? PettyCashIouNumber,
         decimal Total,
         int BillableUnconvertedLineCount,
         IReadOnlyList<ServiceExpenseClaimLineDto> Lines);
@@ -85,7 +89,8 @@ public sealed class ServiceExpenseClaimsController(
         string? MerchantName,
         string? ReceiptReference,
         string? Notes,
-        Guid? ServiceJobDailySheetId);
+        Guid? ServiceJobDailySheetId,
+        Guid? PettyCashIouId);
 
     public sealed record AddServiceExpenseClaimLineRequest(
         Guid? ItemId,
@@ -146,7 +151,14 @@ public sealed class ServiceExpenseClaimsController(
                 x.Lines.Sum(l => l.Quantity * l.UnitCost),
                 x.Lines.Count,
                 x.Lines.Count(l => l.BillableToCustomer && l.ConvertedToServiceEstimateLineId == null),
-                x.SettledAt))
+                x.SettledAt,
+                x.PettyCashIouId,
+                x.PettyCashIouId == null
+                    ? null
+                    : dbContext.PettyCashIous
+                        .Where(iou => iou.Id == x.PettyCashIouId)
+                        .Select(iou => iou.Number)
+                        .FirstOrDefault()))
             .ToListAsync(cancellationToken);
 
         return Ok(rows);
@@ -175,6 +187,7 @@ public sealed class ServiceExpenseClaimsController(
             request.ReceiptReference,
             request.Notes,
             request.ServiceJobDailySheetId,
+            request.PettyCashIouId,
             cancellationToken);
 
         return await Get(id, cancellationToken);
@@ -198,6 +211,15 @@ public sealed class ServiceExpenseClaimsController(
             return NotFound();
         }
 
+        // Resolved here rather than joined on the client: a null number means the advance is gone,
+        // which the page must be able to say without ever printing an id.
+        var pettyCashIouNumber = claim.PettyCashIouId is null
+            ? null
+            : await dbContext.PettyCashIous.AsNoTracking()
+                .Where(x => x.Id == claim.PettyCashIouId.Value)
+                .Select(x => x.Number)
+                .FirstOrDefaultAsync(cancellationToken);
+
         return Ok(new ServiceExpenseClaimDto(
             claim.Id,
             claim.Number,
@@ -219,6 +241,8 @@ public sealed class ServiceExpenseClaimsController(
             claim.SettlementPettyCashFundId,
             claim.SettledAt,
             claim.SettlementReference,
+            claim.PettyCashIouId,
+            pettyCashIouNumber,
             claim.Total,
             claim.Lines.Count(line => line.BillableToCustomer && line.ConvertedToServiceEstimateLineId == null),
             claim.Lines.Select(line => new ServiceExpenseClaimLineDto(

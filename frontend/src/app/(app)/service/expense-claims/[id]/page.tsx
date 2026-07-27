@@ -32,6 +32,8 @@ type ServiceExpenseClaimDto = {
   settlementPettyCashFundId?: string | null;
   settledAt?: string | null;
   settlementReference?: string | null;
+  pettyCashIouId?: string | null;
+  pettyCashIouNumber?: string | null;
   total: number;
   billableUnconvertedLineCount: number;
   lines: {
@@ -68,7 +70,7 @@ const statusLabel: Record<number, string> = {
 
 const fundingSourceLabel: Record<number, string> = {
   1: "Out of Pocket",
-  2: "Petty Cash",
+  2: "Petty Cash Fund",
 };
 
 export default async function ServiceExpenseClaimDetailPage({ params }: { params: Promise<{ id: string }> }) {
@@ -111,11 +113,11 @@ export default async function ServiceExpenseClaimDetailPage({ params }: { params
       <div>
         <div className="text-sm text-zinc-500">
           <Link href="/service/expense-claims" className="hover:underline">
-            Petty Cash
+            Expense Vouchers
           </Link>{" "}
           / <span className="font-mono text-xs">{claim.number}</span>
         </div>
-        <h1 className="mt-1 text-2xl font-semibold">Petty Cash Voucher {claim.number}</h1>
+        <h1 className="mt-1 text-2xl font-semibold">Expense Voucher {claim.number}</h1>
         <div className="mt-2 flex flex-wrap gap-3 text-sm text-zinc-600 dark:text-zinc-400">
           <div>
             Job:{" "}
@@ -132,6 +134,11 @@ export default async function ServiceExpenseClaimDetailPage({ params }: { params
         <div className="mt-2 flex flex-wrap gap-3 text-sm text-zinc-500">
           {claim.merchantName ? <div>Merchant: {claim.merchantName}</div> : null}
           {claim.receiptReference ? <div>Receipt ref: {claim.receiptReference}</div> : null}
+          {claim.pettyCashIouNumber ? (
+            <div>Funded by advance: <span className="font-mono text-xs">{claim.pettyCashIouNumber}</span></div>
+          ) : claim.pettyCashIouId ? (
+            <div>Funded by advance: <span className="text-zinc-400">Advance removed</span></div>
+          ) : null}
           {claim.submittedAt ? <div>Submitted: {new Date(claim.submittedAt).toLocaleString()}</div> : null}
           {claim.approvedAt ? <div>Approved: {new Date(claim.approvedAt).toLocaleString()}</div> : null}
           {claim.rejectedAt ? <div>Rejected: {new Date(claim.rejectedAt).toLocaleString()}</div> : null}
@@ -203,7 +210,7 @@ export default async function ServiceExpenseClaimDetailPage({ params }: { params
               <div className="text-sm font-semibold">Voucher lines</div>
               <div className="mt-1 text-xs text-zinc-500">Add expense, item, and billable details before submitting this voucher.</div>
             </div>
-            <AppFormModal title="Add Voucher Line" description="Add an expense line to this draft petty cash voucher." buttonLabel="+ Add Line" variant="secondary">
+            <AppFormModal title="Add Voucher Line" description="Add an expense line, with its bill, to this draft voucher." buttonLabel="+ Add Line" variant="secondary">
               <ServiceExpenseClaimLineAddForm claimId={claim.id} items={items} />
             </AppFormModal>
           </div>
@@ -292,7 +299,7 @@ export default async function ServiceExpenseClaimDetailPage({ params }: { params
         </Card>
       ) : null}
 
-      <DocumentCollaborationPanel referenceType="SEC" referenceId={id} title="Petty Cash Comments & Attachments" />
+      <DocumentCollaborationPanel referenceType="SEC" referenceId={id} title="Voucher Comments & Attachments" />
     </div>
   );
 }

@@ -395,7 +395,7 @@ const pettyCashIouStatusLabel: Record<number, string> = {
 };
 const fundingSourceLabel: Record<number, string> = {
   1: "Out of Pocket",
-  2: "Petty Cash",
+  2: "Petty Cash Fund",
 };
 const handoverStatusLabel: Record<number, string> = {
   0: "Draft",
@@ -682,8 +682,8 @@ const materialViews: { key: MaterialViewKey; label: string }[] = [
   { key: "damage", label: "Damage Material" },
 ];
 const expenseViews: { key: ExpenseViewKey; label: string }[] = [
-  { key: "ious", label: "IOU Advances" },
-  { key: "petty-cash", label: "Petty Cash Expenses" },
+  { key: "ious", label: "Cash Advances (IOU)" },
+  { key: "petty-cash", label: "Vouchers Repaid from Fund" },
   { key: "reimbursements", label: "Out-of-Pocket Claims" },
 ];
 
@@ -1055,9 +1055,11 @@ export default async function ServiceJobDetailPage({
       href: "#job-cost-labor",
     },
     {
-      label: "Approved claims",
+      label: "Approved vouchers",
+      // 2 = Approved, 4 = Settled. 3 is Rejected and must not be counted here - these are the same
+      // statuses ServiceCostingService sums into ApprovedExpenseClaimCost.
       amount: costing.approvedExpenseClaimCost,
-      detail: `${costing.expenseClaimLines.filter((line) => line.status === 2 || line.status === 3).length} approved/settled petty cash line${costing.expenseClaimLines.filter((line) => line.status === 2 || line.status === 3).length === 1 ? "" : "s"}`,
+      detail: `${costing.expenseClaimLines.filter((line) => line.status === 2 || line.status === 4).length} approved/settled voucher line${costing.expenseClaimLines.filter((line) => line.status === 2 || line.status === 4).length === 1 ? "" : "s"}`,
       href: "#job-cost-petty-cash",
     },
   ];
@@ -1776,7 +1778,7 @@ export default async function ServiceJobDetailPage({
       {activeTab === "expenses" ? (
       <CollapsibleCard
         title="Cash and Expenses"
-        summary="Use one focused workflow at a time: IOU advance requests, petty cash vouchers, or out-of-pocket reimbursement claims."
+        summary="Cash advanced before the spend (IOU), or spend already made and repaid after - from the fund, or to the claimant."
         defaultOpen
       >
         <div className="mb-4 flex flex-wrap gap-2">
@@ -1873,18 +1875,18 @@ export default async function ServiceJobDetailPage({
         <div className="rounded-lg border border-[var(--card-border)] p-3">
           <div className="mb-3 flex flex-wrap items-start justify-between gap-2">
             <div>
-              <div className="text-sm font-semibold">Petty Cash Expense</div>
+              <div className="text-sm font-semibold">Voucher Repaid from Fund</div>
               <div className="mt-1 text-xs text-zinc-500">
-                Record expenses paid from company petty cash. Capture the accountant-issued bill number and whether the receiver got cash by handover, bank deposit, or another method.
+                Spend already made on this job, repaid out of the petty cash fund. Capture the accountant-issued bill number and whether the receiver got cash by handover, bank deposit, or another method. If the cash was drawn in advance, link the voucher to that IOU.
               </div>
             </div>
-            <AppFormModal title="Create Petty Cash Voucher" description="Create a petty-cash-funded service expense claim for this job." buttonLabel="+ Petty Cash Voucher" variant="secondary" disabled={!canAddJobActivity}>
+            <AppFormModal title="Create Expense Voucher" description="Record spend on this job that is repaid from the petty cash fund." buttonLabel="+ Expense Voucher" variant="secondary" disabled={!canAddJobActivity}>
               <ServiceJobDailyExpenseClaimCreateForm
                 serviceJobId={job.id}
                 dailySheets={dailySheets}
                 defaultFundingSource="2"
                 lockFundingSource
-                submitLabel="Create Petty Cash Voucher"
+                submitLabel="Create Expense Voucher"
                 disabled={!canAddJobActivity}
               />
             </AppFormModal>
@@ -2697,7 +2699,7 @@ export default async function ServiceJobDetailPage({
           </div>
 
           <div className="overflow-auto">
-            <div id="job-cost-petty-cash" className="mb-2 scroll-mt-24 text-sm font-medium">Petty Cash</div>
+            <div id="job-cost-petty-cash" className="mb-2 scroll-mt-24 text-sm font-medium">Expense Vouchers</div>
             <Table>
               <thead>
                 <tr className="border-b border-zinc-200 text-left text-xs uppercase tracking-wide text-zinc-500 dark:border-zinc-800">

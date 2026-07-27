@@ -62,7 +62,7 @@ const enumMaps: Record<string, Record<string, Record<string, string>>> = {
   },
   ServiceExpenseClaims: {
     Status: { "0": "Draft", "1": "Submitted", "2": "Approved", "3": "Rejected", "4": "Settled" },
-    FundingSource: { "1": "Out of Pocket", "2": "Petty Cash" },
+    FundingSource: { "1": "Out of Pocket", "2": "Petty Cash Fund" },
   },
   ServiceHandovers: {
     Status: { "0": "Draft", "1": "Completed", "2": "Cancelled" },

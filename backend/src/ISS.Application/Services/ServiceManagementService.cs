@@ -558,10 +558,12 @@ public sealed class ServiceManagementService(
         string? receiptReference,
         string? notes,
         Guid? serviceJobDailySheetId = null,
+        Guid? pettyCashIouId = null,
         CancellationToken cancellationToken = default)
     {
         await EnsureServiceJobAcceptsNewCostsAsync(serviceJobId, cancellationToken);
         await EnsureDailySheetBelongsToJobAsync(serviceJobId, serviceJobDailySheetId, cancellationToken);
+        await EnsurePettyCashIouCanFundClaimAsync(serviceJobId, fundingSource, pettyCashIouId, cancellationToken);
 
         var number = await documentNumberService.NextAsync(ReferenceTypes.ServiceExpenseClaim, "SEC", cancellationToken);
         var claim = new ServiceExpenseClaim(
@@ -574,7 +576,8 @@ public sealed class ServiceManagementService(
             merchantName,
             receiptReference,
             notes,
-            serviceJobDailySheetId);
+            serviceJobDailySheetId,
+            pettyCashIouId);
 
         await dbContext.ServiceExpenseClaims.AddAsync(claim, cancellationToken);
         await dbContext.SaveChangesAsync(cancellationToken);
@@ -2620,6 +2623,44 @@ public sealed class ServiceManagementService(
         return await dbContext.ServiceJobDailySheets
             .FirstOrDefaultAsync(x => x.ServiceJobId == serviceJobId && x.Id == dailySheetId, cancellationToken)
             ?? throw new NotFoundException("Service job daily sheet not found.");
+    }
+
+    /// <summary>
+    /// An advance can only fund spend on the job it was drawn for, and only once the cash has
+    /// actually left the fund. Released and Settled both qualify: claims are routinely written up
+    /// after the advance has been squared off.
+    /// </summary>
+    private async Task EnsurePettyCashIouCanFundClaimAsync(
+        Guid serviceJobId,
+        ServiceExpenseFundingSource fundingSource,
+        Guid? pettyCashIouId,
+        CancellationToken cancellationToken)
+    {
+        if (pettyCashIouId is null)
+        {
+            return;
+        }
+
+        if (fundingSource != ServiceExpenseFundingSource.PettyCash)
+        {
+            throw new DomainValidationException("Only petty cash claims can be linked to an IOU advance.");
+        }
+
+        var iou = await dbContext.PettyCashIous.AsNoTracking()
+            .Where(x => x.Id == pettyCashIouId.Value)
+            .Select(x => new { x.ServiceJobId, x.Status, x.Number })
+            .FirstOrDefaultAsync(cancellationToken)
+            ?? throw new NotFoundException("Petty cash IOU not found.");
+
+        if (iou.ServiceJobId != serviceJobId)
+        {
+            throw new DomainValidationException("IOU advance does not belong to this service job.");
+        }
+
+        if (iou.Status is not (PettyCashIouStatus.Released or PettyCashIouStatus.Settled))
+        {
+            throw new DomainValidationException($"IOU {iou.Number} has not been released, so it cannot have funded this expense.");
+        }
     }
 
     private async Task EnsureDailySheetBelongsToJobAsync(Guid serviceJobId, Guid? dailySheetId, CancellationToken cancellationToken)

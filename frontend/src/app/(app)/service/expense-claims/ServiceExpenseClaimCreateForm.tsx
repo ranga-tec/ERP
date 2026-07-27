@@ -7,6 +7,17 @@ import { Button, Input, Select, Textarea } from "@/components/ui";
 
 type ServiceJobRef = { id: string; number: string; kind: number };
 type ServiceExpenseClaimDto = { id: string; number: string };
+type PettyCashIouRef = {
+  id: string;
+  number: string;
+  serviceJobId: string;
+  status: number;
+  amount: number;
+};
+
+// Released and Settled are the only states where cash has actually left the fund, so they are the
+// only advances an expense can have been paid from. The API enforces the same rule.
+const fundedIouStatuses = new Set([3, 4]);
 
 const kindLabel: Record<number, string> = {
   0: "Service",
@@ -18,13 +29,16 @@ const kindLabel: Record<number, string> = {
 
 export function ServiceExpenseClaimCreateForm({
   serviceJobs,
+  pettyCashIous = [],
 }: {
   serviceJobs: ServiceJobRef[];
+  pettyCashIous?: PettyCashIouRef[];
 }) {
   const router = useRouter();
   const [serviceJobId, setServiceJobId] = useState("");
   const [claimedByName, setClaimedByName] = useState("");
   const [fundingSource, setFundingSource] = useState("1");
+  const [pettyCashIouId, setPettyCashIouId] = useState("");
   const [expenseDate, setExpenseDate] = useState("");
   const [merchantName, setMerchantName] = useState("");
   const [receiptReference, setReceiptReference] = useState("");
@@ -45,6 +59,7 @@ export function ServiceExpenseClaimCreateForm({
         merchantName: merchantName.trim() || null,
         receiptReference: receiptReference.trim() || null,
         notes: notes.trim() || null,
+        pettyCashIouId: pettyCashIouId || null,
       });
 
       router.push(`/service/expense-claims/${claim.id}`);
@@ -57,12 +72,29 @@ export function ServiceExpenseClaimCreateForm({
 
   const sortedJobs = serviceJobs.slice().sort((a, b) => b.number.localeCompare(a.number));
 
+  const isPettyCash = fundingSource === "2";
+  const availableIous = pettyCashIous
+    .filter((iou) => iou.serviceJobId === serviceJobId && fundedIouStatuses.has(iou.status))
+    .sort((a, b) => b.number.localeCompare(a.number));
+
+  // An advance belongs to one job and one funding source. Changing either would leave a link the
+  // API rejects, so drop it rather than let the user discover it on submit.
+  function selectJob(nextJobId: string) {
+    setServiceJobId(nextJobId);
+    setPettyCashIouId("");
+  }
+
+  function selectFundingSource(nextFundingSource: string) {
+    setFundingSource(nextFundingSource);
+    setPettyCashIouId("");
+  }
+
   return (
     <form onSubmit={onSubmit} className="space-y-3">
       <div className="grid gap-3 sm:grid-cols-3">
         <div>
           <label className="mb-1 block text-sm font-medium">Job Order</label>
-          <Select value={serviceJobId} onChange={(event) => setServiceJobId(event.target.value)} required>
+          <Select value={serviceJobId} onChange={(event) => selectJob(event.target.value)} required>
             <option value="" disabled>
               Select...
             </option>
@@ -75,9 +107,9 @@ export function ServiceExpenseClaimCreateForm({
         </div>
         <div>
           <label className="mb-1 block text-sm font-medium">Funding source</label>
-          <Select value={fundingSource} onChange={(event) => setFundingSource(event.target.value)}>
+          <Select value={fundingSource} onChange={(event) => selectFundingSource(event.target.value)}>
             <option value="1">Out of Pocket</option>
-            <option value="2">Petty Cash</option>
+            <option value="2">Petty Cash Fund</option>
           </Select>
         </div>
         <div>
@@ -105,6 +137,33 @@ export function ServiceExpenseClaimCreateForm({
         </div>
       </div>
 
+      {isPettyCash ? (
+        <div>
+          <label className="mb-1 block text-sm font-medium">
+            Funded by IOU advance (optional)
+          </label>
+          <Select
+            value={pettyCashIouId}
+            onChange={(event) => setPettyCashIouId(event.target.value)}
+            disabled={!serviceJobId || availableIous.length === 0}
+          >
+            <option value="">Not from an advance</option>
+            {availableIous.map((iou) => (
+              <option key={iou.id} value={iou.id}>
+                {iou.number} - {iou.amount.toFixed(2)} advanced
+              </option>
+            ))}
+          </Select>
+          <p className="mt-1 text-xs text-zinc-500">
+            {!serviceJobId
+              ? "Pick a job order to see its released advances."
+              : availableIous.length === 0
+                ? "This job has no released advances to claim against."
+                : "Linking the advance lets finance see what the cash was actually spent on."}
+          </p>
+        </div>
+      ) : null}
+
       <div>
         <label className="mb-1 block text-sm font-medium">Notes (optional)</label>
         <Textarea
@@ -121,7 +180,7 @@ export function ServiceExpenseClaimCreateForm({
       ) : null}
 
       <Button type="submit" disabled={busy}>
-        {busy ? "Creating..." : "Create Petty Cash Voucher"}
+        {busy ? "Creating..." : "Create Expense Voucher"}
       </Button>
     </form>
   );

@@ -4,6 +4,7 @@ using ISS.Application.Common;
 using ISS.Application.Persistence;
 using ISS.Application.Services;
 using ISS.Domain.Finance;
+using ISS.Domain.Service;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -42,7 +43,11 @@ public sealed class PettyCashIousController(
         DateTimeOffset? SettledAt,
         decimal? SettledAmount,
         string? SettlementReference,
-        string? RejectionReason);
+        string? RejectionReason,
+        decimal ClaimedAmount,
+        int ClaimCount,
+        decimal? ReturnedAmount,
+        decimal? UnaccountedAmount);
 
     public sealed record CreatePettyCashIouRequest(
         Guid ServiceJobId,
@@ -81,10 +86,13 @@ public sealed class PettyCashIousController(
             .OrderByDescending(x => x.RequestedAt)
             .Skip(skip)
             .Take(take)
-            .Select(x => ToDto(x))
             .ToListAsync(cancellationToken);
 
-        return Ok(ious);
+        var totals = await LoadClaimTotalsAsync(ious.Select(x => x.Id).ToList(), cancellationToken);
+
+        return Ok(ious
+            .Select(x => ToDto(x, totals.GetValueOrDefault(x.Id, IouClaimTotals.Empty)))
+            .ToList());
     }
 
     [HttpPost]
@@ -123,11 +131,16 @@ public sealed class PettyCashIousController(
         }
 
         var iou = await dbContext.PettyCashIous.AsNoTracking()
-            .Where(x => x.Id == id)
-            .Select(x => ToDto(x))
-            .FirstOrDefaultAsync(cancellationToken);
+            .FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
 
-        return iou is null ? NotFound() : Ok(iou);
+        if (iou is null)
+        {
+            return NotFound();
+        }
+
+        var totals = await LoadClaimTotalsAsync(new[] { iou.Id }, cancellationToken);
+
+        return Ok(ToDto(iou, totals.GetValueOrDefault(iou.Id, IouClaimTotals.Empty)));
     }
 
     [HttpPost("{id:guid}/submit")]
@@ -250,7 +263,43 @@ public sealed class PettyCashIousController(
         await dbContext.SaveChangesAsync(cancellationToken);
     }
 
-    private static PettyCashIouDto ToDto(PettyCashIou iou)
+    /// <summary>
+    /// Claimed is what the technician actually documented against this advance; settled is what they
+    /// declared they spent. The gap between the two is cash that left the fund with nothing to show
+    /// for it, and it is the whole point of these figures — settlement itself never checks.
+    /// </summary>
+    private sealed record IouClaimTotals(decimal ClaimedAmount, int ClaimCount)
+    {
+        public static readonly IouClaimTotals Empty = new(0m, 0);
+    }
+
+    private async Task<Dictionary<Guid, IouClaimTotals>> LoadClaimTotalsAsync(
+        IReadOnlyCollection<Guid> iouIds,
+        CancellationToken cancellationToken)
+    {
+        if (iouIds.Count == 0)
+        {
+            return new Dictionary<Guid, IouClaimTotals>();
+        }
+
+        // Rejected claims are excluded: they document nothing, so counting them would mask a gap.
+        var rows = await dbContext.ServiceExpenseClaims.AsNoTracking()
+            .Where(x => x.PettyCashIouId != null
+                        && iouIds.Contains(x.PettyCashIouId.Value)
+                        && x.Status != ServiceExpenseClaimStatus.Rejected)
+            .GroupBy(x => x.PettyCashIouId!.Value)
+            .Select(g => new
+            {
+                PettyCashIouId = g.Key,
+                ClaimedAmount = g.Sum(claim => claim.Lines.Sum(line => line.Quantity * line.UnitCost)),
+                ClaimCount = g.Count(),
+            })
+            .ToListAsync(cancellationToken);
+
+        return rows.ToDictionary(x => x.PettyCashIouId, x => new IouClaimTotals(x.ClaimedAmount, x.ClaimCount));
+    }
+
+    private static PettyCashIouDto ToDto(PettyCashIou iou, IouClaimTotals totals)
         => new(
             iou.Id,
             iou.Number,
@@ -273,5 +322,9 @@ public sealed class PettyCashIousController(
             iou.SettledAt,
             iou.SettledAmount,
             iou.SettlementReference,
-            iou.RejectionReason);
+            iou.RejectionReason,
+            totals.ClaimedAmount,
+            totals.ClaimCount,
+            iou.SettledAmount is null ? null : iou.Amount - iou.SettledAmount.Value,
+            iou.SettledAmount is null ? null : iou.SettledAmount.Value - totals.ClaimedAmount);
 }
