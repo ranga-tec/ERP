@@ -585,6 +585,7 @@ public sealed class IssDbContext(
         builder.Entity<SalesInvoiceLine>(entity =>
         {
             entity.HasIndex(x => x.RevenueAccountId);
+            entity.HasIndex(x => x.MaterialRequisitionLineId);
             entity.Property(x => x.Quantity).HasPrecision(18, 4);
             entity.Property(x => x.UnitPrice).HasPrecision(18, 4);
             entity.Property(x => x.DiscountPercent).HasPrecision(18, 4);

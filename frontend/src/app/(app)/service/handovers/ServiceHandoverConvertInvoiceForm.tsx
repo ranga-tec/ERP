@@ -1,8 +1,8 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { apiPost } from "@/lib/api-client";
+import { apiGet, apiPost } from "@/lib/api-client";
 import { Button, Input, SecondaryButton, Select } from "@/components/ui";
 
 type EstimateRef = {
@@ -33,6 +33,23 @@ type ManualLineDraft = {
   discountPercent: string;
   taxCodeId: string;
   taxPercent: string;
+  /** set when the line was pulled from an issued material, so it is not billed twice */
+  materialRequisitionLineId?: string;
+  sourceCost?: number;
+};
+
+type BillableMaterial = {
+  materialRequisitionLineId: string;
+  materialRequisitionNumber: string;
+  itemId: string;
+  itemSku: string;
+  itemName: string;
+  issuedQuantity: number;
+  returnedQuantity: number;
+  netQuantity: number;
+  alreadyInvoicedQuantity: number;
+  remainingQuantity: number;
+  unitCost: number;
 };
 
 function newManualLine(kind: ManualLineKind = "item"): ManualLineDraft {
@@ -46,6 +63,10 @@ function newManualLine(kind: ManualLineKind = "item"): ManualLineDraft {
     taxCodeId: "",
     taxPercent: "0",
   };
+}
+
+function money(value: number): string {
+  return value.toFixed(2);
 }
 
 export function ServiceHandoverConvertInvoiceForm({
@@ -104,6 +125,51 @@ export function ServiceHandoverConvertInvoiceForm({
     );
   }
 
+  const [materials, setMaterials] = useState<BillableMaterial[]>([]);
+  const [materialsOpen, setMaterialsOpen] = useState(false);
+  const [materialSearch, setMaterialSearch] = useState("");
+
+  useEffect(() => {
+    let ignore = false;
+    apiGet<BillableMaterial[]>(`service/handovers/${handoverId}/billable-materials`)
+      .then((rows) => {
+        if (!ignore) setMaterials(rows);
+      })
+      .catch(() => {
+        if (!ignore) setMaterials([]);
+      });
+    return () => {
+      ignore = true;
+    };
+  }, [handoverId]);
+
+  const pulledMaterialLineIds = useMemo(
+    () => new Set(manualLines.map((line) => line.materialRequisitionLineId).filter(Boolean) as string[]),
+    [manualLines],
+  );
+
+  const visibleMaterials = useMemo(() => {
+    const q = materialSearch.trim().toLowerCase();
+    if (!q) return materials;
+    return materials.filter((m) =>
+      `${m.itemSku} ${m.itemName} ${m.materialRequisitionNumber}`.toLowerCase().includes(q));
+  }, [materials, materialSearch]);
+
+  /** Push an issued material into the invoice line grid, where the selling price is set. */
+  function addMaterialLine(material: BillableMaterial) {
+    setManualLines((current) => [
+      ...current,
+      {
+        ...newManualLine("item"),
+        itemId: material.itemId,
+        quantity: String(material.remainingQuantity > 0 ? material.remainingQuantity : material.netQuantity),
+        unitPrice: "0",
+        materialRequisitionLineId: material.materialRequisitionLineId,
+        sourceCost: material.unitCost,
+      },
+    ]);
+  }
+
   function parseManualLines() {
     return manualLines
       .filter((line) => line.itemId)
@@ -132,6 +198,7 @@ export function ServiceHandoverConvertInvoiceForm({
           unitPrice,
           discountPercent,
           taxPercent,
+          materialRequisitionLineId: line.materialRequisitionLineId ?? null,
         };
       });
   }
@@ -251,6 +318,97 @@ export function ServiceHandoverConvertInvoiceForm({
         </div>
       ) : (
         <div className="space-y-3">
+          {materials.length > 0 ? (
+            <div className="rounded-md border border-[var(--card-border)] bg-[var(--surface-soft)]">
+              <button
+                type="button"
+                className="flex w-full items-center justify-between gap-3 px-3 py-2 text-left"
+                onClick={() => setMaterialsOpen((open) => !open)}
+                aria-expanded={materialsOpen}
+              >
+                <span className="text-sm font-semibold">
+                  <span aria-hidden="true" className="mr-2 text-zinc-500">{materialsOpen ? "-" : "+"}</span>
+                  Issued materials ({materials.length})
+                </span>
+                <span className="text-xs text-zinc-500">
+                  Pull what was used on the job instead of looking it up on the MRN
+                </span>
+              </button>
+
+              {materialsOpen ? (
+                <div className="border-t border-[var(--card-border)] p-3">
+                  <Input
+                    className="mb-3 max-w-sm"
+                    placeholder="Search item, SKU or MRN..."
+                    value={materialSearch}
+                    onChange={(e) => setMaterialSearch(e.target.value)}
+                  />
+                  <div className="overflow-auto rounded-md border border-zinc-200 dark:border-zinc-800">
+                    <table className="w-full min-w-[820px] text-sm">
+                      <thead>
+                        <tr className="border-b border-zinc-200 text-left text-xs uppercase tracking-wide text-zinc-500 dark:border-zinc-800">
+                          <th className="px-3 py-2">Item</th>
+                          <th className="px-3 py-2">MRN</th>
+                          <th className="px-3 py-2 text-right">Issued</th>
+                          <th className="px-3 py-2 text-right">Returned</th>
+                          <th className="px-3 py-2 text-right">Invoiced</th>
+                          <th className="px-3 py-2 text-right">Left to bill</th>
+                          <th className="px-3 py-2 text-right">Unit cost</th>
+                          <th className="px-3 py-2"></th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {visibleMaterials.map((m) => {
+                          const pulled = pulledMaterialLineIds.has(m.materialRequisitionLineId);
+                          const fullyBilled = m.remainingQuantity <= 0;
+                          return (
+                            <tr key={m.materialRequisitionLineId} className="border-b border-zinc-100 dark:border-zinc-900">
+                              <td className="px-3 py-2">
+                                <div className="font-mono text-xs">{m.itemSku}</div>
+                                <div className="text-xs text-zinc-500">{m.itemName}</div>
+                              </td>
+                              <td className="px-3 py-2 font-mono text-xs text-zinc-500">{m.materialRequisitionNumber}</td>
+                              <td className="px-3 py-2 text-right">{m.issuedQuantity}</td>
+                              <td className="px-3 py-2 text-right text-zinc-500">{m.returnedQuantity}</td>
+                              <td className="px-3 py-2 text-right text-zinc-500">{m.alreadyInvoicedQuantity}</td>
+                              <td className="px-3 py-2 text-right font-medium">{m.remainingQuantity}</td>
+                              <td className="px-3 py-2 text-right text-zinc-500">{money(m.unitCost)}</td>
+                              <td className="px-3 py-2 text-right">
+                                {pulled ? (
+                                  <span className="text-xs text-emerald-700 dark:text-emerald-300">Added</span>
+                                ) : fullyBilled ? (
+                                  <span className="text-xs text-zinc-400">Fully invoiced</span>
+                                ) : (
+                                  <Button
+                                    type="button"
+                                    className="px-2 py-1 text-xs"
+                                    disabled={disabled || busy}
+                                    onClick={() => addMaterialLine(m)}
+                                  >
+                                    + Add
+                                  </Button>
+                                )}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                        {visibleMaterials.length === 0 ? (
+                          <tr>
+                            <td className="px-3 py-4 text-sm text-zinc-500" colSpan={8}>No matching issued materials.</td>
+                          </tr>
+                        ) : null}
+                      </tbody>
+                    </table>
+                  </div>
+                  <div className="mt-2 text-xs text-zinc-500">
+                    Adding a row drops it into the invoice lines below, where you set the selling price.
+                    Cost is shown for reference only and is never used as the price.
+                  </div>
+                </div>
+              ) : null}
+            </div>
+          ) : null}
+
           <div className="overflow-auto rounded-md border border-zinc-200 dark:border-zinc-800">
             <table className="w-full min-w-[900px] text-sm">
               <thead>
@@ -300,6 +458,17 @@ export function ServiceHandoverConvertInvoiceForm({
                     </td>
                     <td className="px-3 py-2">
                       <Input value={line.unitPrice} onChange={(e) => updateManualLine(line.key, { unitPrice: e.target.value })} inputMode="decimal" disabled={disabled || busy} />
+                      {line.sourceCost !== undefined ? (
+                        <div className="mt-1 whitespace-nowrap text-[11px] text-zinc-500">
+                          cost {money(line.sourceCost)}
+                          {Number(line.unitPrice) > 0 ? (
+                            <span className={Number(line.unitPrice) >= line.sourceCost ? " text-emerald-700 dark:text-emerald-300" : " text-red-700 dark:text-red-300"}>
+                              {Number(line.unitPrice) >= line.sourceCost ? " · margin " : " · below cost "}
+                              {money(Number(line.unitPrice) - line.sourceCost)}
+                            </span>
+                          ) : null}
+                        </div>
+                      ) : null}
                     </td>
                     <td className="px-3 py-2">
                       <Input value={line.discountPercent} onChange={(e) => updateManualLine(line.key, { discountPercent: e.target.value })} inputMode="decimal" disabled={disabled || busy} />

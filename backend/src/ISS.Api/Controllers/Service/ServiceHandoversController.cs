@@ -2,6 +2,10 @@ using ISS.Api.Security;
 using ISS.Application.Abstractions;
 using ISS.Application.Persistence;
 using ISS.Application.Services;
+using ISS.Application.Common;
+using ISS.Domain.Common;
+using ISS.Domain.Inventory;
+using ISS.Domain.Sales;
 using ISS.Domain.Service;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -54,7 +58,22 @@ public sealed class ServiceHandoversController(
         decimal Quantity,
         decimal UnitPrice,
         decimal DiscountPercent,
-        decimal TaxPercent);
+        decimal TaxPercent,
+        Guid? MaterialRequisitionLineId);
+
+    /// <summary>Material issued to the job, with how much of it has already been invoiced.</summary>
+    public sealed record BillableIssuedMaterialDto(
+        Guid MaterialRequisitionLineId,
+        string MaterialRequisitionNumber,
+        Guid ItemId,
+        string ItemSku,
+        string ItemName,
+        decimal IssuedQuantity,
+        decimal ReturnedQuantity,
+        decimal NetQuantity,
+        decimal AlreadyInvoicedQuantity,
+        decimal RemainingQuantity,
+        decimal UnitCost);
     public sealed record ConvertToSalesInvoiceResponse(Guid SalesInvoiceId);
 
     [HttpGet]
@@ -168,6 +187,93 @@ public sealed class ServiceHandoversController(
         return NoContent();
     }
 
+    /// <summary>
+    /// The job's issued materials with cost, so the invoice builder can offer them instead of the
+    /// user going back to the MRN. Quantity already billed is derived from the material link on
+    /// existing invoice lines, so the same issue is not charged twice across invoices.
+    /// </summary>
+    [HttpGet("{id:guid}/billable-materials")]
+    public async Task<ActionResult<IReadOnlyList<BillableIssuedMaterialDto>>> BillableMaterials(Guid id, CancellationToken cancellationToken)
+    {
+        var handover = await dbContext.ServiceHandovers.AsNoTracking()
+            .FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
+        if (handover is null)
+        {
+            return NotFound();
+        }
+
+        var issued = await (
+            from movement in dbContext.InventoryMovements.AsNoTracking()
+            join requisition in dbContext.MaterialRequisitions.AsNoTracking() on movement.ReferenceId equals requisition.Id
+            join item in dbContext.Items.AsNoTracking() on movement.ItemId equals item.Id
+            where movement.ReferenceType == ReferenceTypes.MaterialRequisition
+                  && movement.Type == InventoryMovementType.Consumption
+                  && requisition.ServiceJobId == handover.ServiceJobId
+                  && requisition.Status == MaterialRequisitionStatus.Posted
+            select new
+            {
+                LineId = movement.ReferenceLineId,
+                RequisitionNumber = requisition.Number,
+                ItemId = item.Id,
+                item.Sku,
+                item.Name,
+                Quantity = -movement.Quantity,
+                movement.UnitCost,
+            }).ToListAsync(cancellationToken);
+
+        var lineIds = issued.Where(x => x.LineId != null).Select(x => x.LineId!.Value).Distinct().ToList();
+
+        var returned = lineIds.Count == 0
+            ? new Dictionary<Guid, decimal>()
+            : await dbContext.ServiceJobMaterialDispositions.AsNoTracking()
+                .Where(x => lineIds.Contains(x.MaterialRequisitionLineId)
+                            && x.PostedAt != null && !x.IsVoided
+                            && (x.Kind == ServiceJobMaterialDispositionKind.UnusedReturned
+                                || x.Kind == ServiceJobMaterialDispositionKind.IncorrectReturned
+                                || x.Kind == ServiceJobMaterialDispositionKind.RejectedSupplierReturn))
+                .GroupBy(x => x.MaterialRequisitionLineId)
+                .Select(g => new { LineId = g.Key, Quantity = g.Sum(x => x.Quantity) })
+                .ToDictionaryAsync(x => x.LineId, x => x.Quantity, cancellationToken);
+
+        var invoiced = lineIds.Count == 0
+            ? new Dictionary<Guid, decimal>()
+            : await dbContext.SalesInvoices.AsNoTracking()
+                .Where(x => x.Status != SalesInvoiceStatus.Voided)
+                .SelectMany(x => x.Lines)
+                .Where(x => x.MaterialRequisitionLineId != null && lineIds.Contains(x.MaterialRequisitionLineId!.Value))
+                .GroupBy(x => x.MaterialRequisitionLineId!.Value)
+                .Select(g => new { LineId = g.Key, Quantity = g.Sum(x => x.Quantity) })
+                .ToDictionaryAsync(x => x.LineId, x => x.Quantity, cancellationToken);
+
+        var rows = issued
+            .Where(x => x.LineId != null)
+            .GroupBy(x => x.LineId!.Value)
+            .Select(g =>
+            {
+                var first = g.First();
+                var issuedQty = g.Sum(x => x.Quantity);
+                var returnedQty = returned.GetValueOrDefault(g.Key);
+                var net = issuedQty - returnedQty;
+                var billed = invoiced.GetValueOrDefault(g.Key);
+                return new BillableIssuedMaterialDto(
+                    g.Key,
+                    first.RequisitionNumber,
+                    first.ItemId,
+                    first.Sku,
+                    first.Name,
+                    issuedQty,
+                    returnedQty,
+                    net,
+                    billed,
+                    Math.Max(0m, net - billed),
+                    first.UnitCost);
+            })
+            .OrderBy(x => x.ItemSku)
+            .ToList();
+
+        return Ok(rows);
+    }
+
     [HttpPost("{id:guid}/convert-to-sales-invoice")]
     public async Task<ActionResult<ConvertToSalesInvoiceResponse>> ConvertToSalesInvoice(
         Guid id,
@@ -187,7 +293,8 @@ public sealed class ServiceHandoversController(
                     line.Quantity,
                     line.UnitPrice,
                     line.DiscountPercent,
-                    line.TaxPercent))
+                    line.TaxPercent,
+                    line.MaterialRequisitionLineId))
                 .ToList(),
             cancellationToken);
 

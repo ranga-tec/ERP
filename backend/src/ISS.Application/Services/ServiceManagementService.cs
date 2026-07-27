@@ -25,7 +25,8 @@ public sealed class ServiceManagementService(
         decimal Quantity,
         decimal UnitPrice,
         decimal DiscountPercent,
-        decimal TaxPercent);
+        decimal TaxPercent,
+        Guid? MaterialRequisitionLineId = null);
 
     private sealed record ServiceEntitlementSnapshot(
         Guid? ServiceContractId,
@@ -1181,7 +1182,8 @@ public sealed class ServiceManagementService(
                 line.UnitPrice,
                 line.DiscountPercent,
                 line.TaxPercent,
-                revenueAccountId);
+                revenueAccountId,
+                line.MaterialRequisitionLineId);
             dbContext.DbContext.Add(invoiceLine);
         }
 

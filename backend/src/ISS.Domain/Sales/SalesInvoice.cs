@@ -38,7 +38,8 @@ public sealed class SalesInvoice : AuditableEntity
         decimal unitPrice,
         decimal discountPercent,
         decimal taxPercent,
-        Guid? revenueAccountId = null)
+        Guid? revenueAccountId = null,
+        Guid? materialRequisitionLineId = null)
     {
         EnsureDraftEditable();
 
@@ -49,7 +50,8 @@ public sealed class SalesInvoice : AuditableEntity
             Guard.NotNegative(unitPrice, nameof(unitPrice)),
             Guard.NotNegative(discountPercent, nameof(discountPercent)),
             Guard.NotNegative(taxPercent, nameof(taxPercent)),
-            revenueAccountId);
+            revenueAccountId,
+            materialRequisitionLineId);
 
         Lines.Add(line);
         return line;
@@ -145,7 +147,8 @@ public sealed class SalesInvoiceLine : Entity
         decimal unitPrice,
         decimal discountPercent,
         decimal taxPercent,
-        Guid? revenueAccountId = null)
+        Guid? revenueAccountId = null,
+        Guid? materialRequisitionLineId = null)
     {
         SalesInvoiceId = salesInvoiceId;
         ItemId = itemId;
@@ -154,6 +157,7 @@ public sealed class SalesInvoiceLine : Entity
         DiscountPercent = discountPercent;
         TaxPercent = taxPercent;
         RevenueAccountId = revenueAccountId;
+        MaterialRequisitionLineId = materialRequisitionLineId;
     }
 
     public Guid SalesInvoiceId { get; private set; }
@@ -164,6 +168,13 @@ public sealed class SalesInvoiceLine : Entity
     public decimal TaxPercent { get; private set; }
     public Guid? RevenueAccountId { get; private set; }
     public LedgerAccount? RevenueAccount { get; private set; }
+
+    /// <summary>
+    /// The material issued to the service job that this line bills, when the line was pulled from
+    /// the job's issued materials. Lets a later invoice tell what has already been charged so the
+    /// same issue is not billed twice.
+    /// </summary>
+    public Guid? MaterialRequisitionLineId { get; private set; }
 
     public void Update(decimal quantity, decimal unitPrice, decimal discountPercent, decimal taxPercent, Guid? revenueAccountId = null)
     {
