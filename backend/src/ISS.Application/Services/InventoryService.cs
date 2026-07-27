@@ -19,6 +19,31 @@ public sealed class InventoryService(IIssDbContext dbContext)
         decimal UnitCost,
         decimal InventoryValue);
 
+    /// <summary>
+    /// Builds the insufficient-stock error. The warehouse is named by code, never by id - an
+    /// operator cannot act on a GUID - and the message states what is actually on hand, in the
+    /// item's own unit, so the reader knows how much they can dispatch instead of just that they
+    /// cannot dispatch this.
+    /// </summary>
+    private async Task<DomainValidationException> InsufficientStockAsync(
+        Item item,
+        Guid warehouseId,
+        decimal onHand,
+        decimal requested,
+        CancellationToken cancellationToken)
+    {
+        var warehouseCode = await dbContext.Warehouses.AsNoTracking()
+            .Where(x => x.Id == warehouseId)
+            .Select(x => x.Code)
+            .FirstOrDefaultAsync(cancellationToken);
+
+        var uom = string.IsNullOrWhiteSpace(item.UnitOfMeasure) ? "" : $" {item.UnitOfMeasure}";
+
+        return new DomainValidationException(
+            $"Insufficient stock for item '{item.Sku}' in warehouse '{warehouseCode ?? "unknown"}'. "
+            + $"Tried to issue {requested}{uom} but only {onHand}{uom} is on hand.");
+    }
+
     public async Task<decimal> GetOnHandAsync(Guid warehouseId, Guid itemId, string? batchNumber = null, CancellationToken cancellationToken = default)
     {
         var query = dbContext.InventoryMovements.AsNoTracking()
@@ -321,7 +346,7 @@ public sealed class InventoryService(IIssDbContext dbContext)
             var onHand = await GetOnHandAsync(warehouseId, item.Id, batchNumber, cancellationToken);
             if (onHand - quantity < 0)
             {
-                throw new DomainValidationException($"Insufficient stock for item '{item.Sku}' in warehouse '{warehouseId}'.");
+                throw await InsufficientStockAsync(item, warehouseId, onHand, quantity, cancellationToken);
             }
         }
 
@@ -387,7 +412,7 @@ public sealed class InventoryService(IIssDbContext dbContext)
         var onHand = await GetOnHandAsync(warehouseId, item.Id, batchNumber, cancellationToken);
         if (onHand - quantity < 0)
         {
-            throw new DomainValidationException($"Insufficient stock for item '{item.Sku}' in warehouse '{warehouseId}'.");
+            throw await InsufficientStockAsync(item, warehouseId, onHand, quantity, cancellationToken);
         }
 
         await dbContext.InventoryMovements.AddAsync(
@@ -506,7 +531,7 @@ public sealed class InventoryService(IIssDbContext dbContext)
         var onHand = await GetOnHandAsync(warehouseId, item.Id, batchNumber, cancellationToken);
         if (onHand - quantity < 0)
         {
-            throw new DomainValidationException($"Insufficient stock for item '{item.Sku}' in warehouse '{warehouseId}'.");
+            throw await InsufficientStockAsync(item, warehouseId, onHand, quantity, cancellationToken);
         }
 
         await dbContext.InventoryMovements.AddAsync(
@@ -571,7 +596,7 @@ public sealed class InventoryService(IIssDbContext dbContext)
         var onHand = await GetOnHandAsync(warehouseId, item.Id, batchNumber, cancellationToken);
         if (onHand - quantity < 0)
         {
-            throw new DomainValidationException($"Insufficient stock for item '{item.Sku}' in warehouse '{warehouseId}'.");
+            throw await InsufficientStockAsync(item, warehouseId, onHand, quantity, cancellationToken);
         }
 
         await dbContext.InventoryMovements.AddAsync(

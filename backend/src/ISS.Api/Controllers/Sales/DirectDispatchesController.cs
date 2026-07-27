@@ -70,7 +70,12 @@ public sealed class DirectDispatchesController(
         decimal RequestedQuantity,
         decimal PreviouslyDispatchedQuantity,
         decimal ReservedInOtherDraftsQuantity,
-        decimal AvailableQuantity,
+        // What the requisition still has outstanding. This is a paperwork figure and says nothing
+        // about whether the warehouse can actually supply it - see OnHandQuantity.
+        decimal OutstandingQuantity,
+        decimal OnHandQuantity,
+        // The lesser of the two: what can be entered without the post failing on stock.
+        decimal DispatchableQuantity,
         Guid? DirectDispatchLineId,
         decimal CurrentQuantity,
         string? BatchNumber,
@@ -346,11 +351,22 @@ public sealed class DirectDispatchesController(
             .Where(x => x.MaterialRequisitionLineId != null)
             .ToDictionary(x => x.MaterialRequisitionLineId!.Value);
 
+        // Real stock in the warehouse this AOD dispatches from. Without it the grid can only show
+        // what the requisition asked for, which is why a plan that looks satisfiable fails on post.
+        var itemIds = requisition.Lines.Select(x => x.ItemId).Distinct().ToList();
+        var onHandByItem = await dbContext.InventoryMovements.AsNoTracking()
+            .Where(m => m.WarehouseId == dispatch.WarehouseId && itemIds.Contains(m.ItemId))
+            .GroupBy(m => m.ItemId)
+            .Select(g => new { ItemId = g.Key, Quantity = g.Sum(m => m.Quantity) })
+            .ToDictionaryAsync(x => x.ItemId, x => x.Quantity, cancellationToken);
+
         var lines = requisition.Lines.Select(requested =>
         {
             currentByRequisitionLine.TryGetValue(requested.Id, out var current);
             var previously = posted.GetValueOrDefault(requested.Id);
             var reservedQty = reserved.GetValueOrDefault(requested.Id);
+            var outstanding = Math.Max(0m, requested.Quantity - previously - reservedQty);
+            var onHand = onHandByItem.GetValueOrDefault(requested.ItemId);
 
             return new MrnPlanLineDto(
                 requested.Id,
@@ -358,7 +374,9 @@ public sealed class DirectDispatchesController(
                 requested.Quantity,
                 previously,
                 reservedQty,
-                Math.Max(0m, requested.Quantity - previously - reservedQty),
+                outstanding,
+                onHand,
+                Math.Max(0m, Math.Min(outstanding, onHand)),
                 current?.Id,
                 current?.Quantity ?? 0m,
                 current?.BatchNumber ?? requested.BatchNumber,

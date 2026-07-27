@@ -55,3 +55,6 @@ image.png
 !Logo/image.png
 docs/testing-input-output-checklist.pdf
 frontend/iss_pw*.cjs
+
+# local Release publish output used for production-mode runs
+backend/publish/

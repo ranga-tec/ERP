@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { apiGet, apiPut } from "@/lib/api-client";
 import { Button, Input, Select, Table, Textarea } from "@/components/ui";
 
-type ItemRef = { id: string; sku: string; name: string; trackingType: number };
+type ItemRef = { id: string; sku: string; name: string; trackingType: number; unitOfMeasure?: string };
 
 type MaterialRequisitionSummary = {
   id: string;
@@ -21,7 +21,9 @@ type PlanLine = {
   requestedQuantity: number;
   previouslyDispatchedQuantity: number;
   reservedInOtherDraftsQuantity: number;
-  availableQuantity: number;
+  outstandingQuantity: number;
+  onHandQuantity: number;
+  dispatchableQuantity: number;
   directDispatchLineId?: string | null;
   currentQuantity: number;
   batchNumber?: string | null;
@@ -35,7 +37,9 @@ type EditableLine = {
   itemId: string;
   requestedQuantity: number;
   previouslyDispatchedQuantity: number;
-  availableQuantity: number;
+  outstandingQuantity: number;
+  onHandQuantity: number;
+  dispatchableQuantity: number;
   quantity: string;
   batchNumber: string;
   serials: string;
@@ -60,7 +64,9 @@ function toEditable(line: PlanLine): EditableLine {
     itemId: line.itemId,
     requestedQuantity: line.requestedQuantity,
     previouslyDispatchedQuantity: line.previouslyDispatchedQuantity,
-    availableQuantity: line.availableQuantity,
+    outstandingQuantity: line.outstandingQuantity,
+    onHandQuantity: line.onHandQuantity,
+    dispatchableQuantity: line.dispatchableQuantity,
     quantity: line.currentQuantity > 0 ? String(line.currentQuantity) : "",
     batchNumber: line.batchNumber ?? "",
     serials: line.serials.join("\n"),
@@ -140,8 +146,10 @@ export function DirectDispatchMrnPlanForm({
     setLines((prev) => prev?.map((l) => (l.materialRequisitionLineId === id ? { ...l, ...changes } : l)) ?? prev);
   }
 
+  // Fills what the warehouse can actually supply, not what the requisition asked for. Filling the
+  // outstanding figure produced plans that only failed at post time.
   function fillAllAvailable() {
-    setLines((prev) => prev?.map((l) => ({ ...l, quantity: l.availableQuantity > 0 ? String(l.availableQuantity) : "" })) ?? prev);
+    setLines((prev) => prev?.map((l) => ({ ...l, quantity: l.dispatchableQuantity > 0 ? String(l.dispatchableQuantity) : "" })) ?? prev);
   }
 
   async function onSave() {
@@ -231,7 +239,8 @@ export function DirectDispatchMrnPlanForm({
                 <th className="py-2 pr-3">Item</th>
                 <th className="py-2 pr-3 text-right">Requested</th>
                 <th className="py-2 pr-3 text-right">Already out</th>
-                <th className="py-2 pr-3 text-right">Available</th>
+                <th className="py-2 pr-3 text-right">Outstanding</th>
+                <th className="py-2 pr-3 text-right">In stock</th>
                 <th className="py-2 pr-3">Dispatch now</th>
                 <th className="py-2 pr-3">Batch</th>
                 <th className="py-2 pr-3">Serials</th>
@@ -241,7 +250,9 @@ export function DirectDispatchMrnPlanForm({
               {lines.map((line) => {
                 const item = itemById.get(line.itemId);
                 const qty = num(line.quantity);
-                const over = qty > line.availableQuantity;
+                const overOutstanding = qty > line.outstandingQuantity;
+                const overStock = qty > line.onHandQuantity;
+                const over = overOutstanding || overStock;
                 return (
                   <tr key={line.materialRequisitionLineId} className="border-b border-zinc-100 align-top dark:border-zinc-900">
                     <td className="py-2 pr-3">
@@ -250,7 +261,17 @@ export function DirectDispatchMrnPlanForm({
                     </td>
                     <td className="py-2 pr-3 text-right text-sm">{line.requestedQuantity}</td>
                     <td className="py-2 pr-3 text-right text-sm text-zinc-500">{line.previouslyDispatchedQuantity}</td>
-                    <td className="py-2 pr-3 text-right text-sm">{line.availableQuantity}</td>
+                    <td className="py-2 pr-3 text-right text-sm">{line.outstandingQuantity}</td>
+                    <td
+                      className={
+                        line.onHandQuantity < line.outstandingQuantity
+                          ? "py-2 pr-3 text-right text-sm font-semibold text-amber-700 dark:text-amber-400"
+                          : "py-2 pr-3 text-right text-sm"
+                      }
+                    >
+                      {line.onHandQuantity}
+                      {item?.unitOfMeasure ? <span className="ml-1 text-xs font-normal text-zinc-500">{item.unitOfMeasure}</span> : null}
+                    </td>
                     <td className="py-2 pr-3">
                       <Input
                         value={line.quantity}
@@ -259,9 +280,13 @@ export function DirectDispatchMrnPlanForm({
                         className={over ? "border-red-400" : undefined}
                         onChange={(e) => patch(line.materialRequisitionLineId, { quantity: e.target.value })}
                       />
-                      {over ? (
+                      {overStock ? (
                         <div className="mt-1 text-[11px] text-red-700 dark:text-red-300">
-                          More than the {line.availableQuantity} still outstanding.
+                          Only {line.onHandQuantity}{item?.unitOfMeasure ? ` ${item.unitOfMeasure}` : ""} in stock - posting will fail.
+                        </div>
+                      ) : overOutstanding ? (
+                        <div className="mt-1 text-[11px] text-red-700 dark:text-red-300">
+                          More than the {line.outstandingQuantity} still outstanding.
                         </div>
                       ) : null}
                     </td>
