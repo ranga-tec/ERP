@@ -59,7 +59,8 @@ public sealed class ServiceHandoversController(
         decimal UnitPrice,
         decimal DiscountPercent,
         decimal TaxPercent,
-        Guid? MaterialRequisitionLineId);
+        Guid? MaterialRequisitionLineId,
+        string? Description = null);
 
     /// <summary>Material issued to the job, with how much of it has already been invoiced.</summary>
     public sealed record BillableIssuedMaterialDto(
@@ -74,6 +75,72 @@ public sealed class ServiceHandoversController(
         decimal AlreadyInvoicedQuantity,
         decimal RemainingQuantity,
         decimal UnitCost);
+    /// <summary>Approved billable labour on the job that has not reached an invoice yet.</summary>
+    public sealed record BillableLabourDto(
+        Guid TimeEntryId,
+        DateTimeOffset WorkDate,
+        string TechnicianName,
+        string WorkDescription,
+        decimal HoursWorked,
+        decimal CostRate,
+        decimal LabourCost,
+        decimal BillableHours,
+        decimal BillingRate,
+        decimal TaxPercent,
+        decimal SuggestedTotal);
+
+    /// <summary>Approved billable expense-claim lines that can still be recharged.</summary>
+    public sealed record BillableExpenseDto(
+        Guid ExpenseClaimLineId,
+        string ExpenseClaimNumber,
+        DateTimeOffset ExpenseDate,
+        string Description,
+        decimal Quantity,
+        decimal UnitCost,
+        decimal LineTotal);
+
+    /// <summary>
+    /// Everything the job can still charge the customer for, in one payload, so the billing screen
+    /// does not have to stitch three sources together.
+    /// </summary>
+    public sealed record BillableChargesDto(
+        Guid ServiceJobId,
+        string JobNumber,
+        ServiceCoverageScope EntitlementCoverage,
+        string? EntitlementSummary,
+        bool PartsCoveredByEntitlement,
+        bool LabourCoveredByEntitlement,
+        IReadOnlyList<BillableIssuedMaterialDto> Materials,
+        IReadOnlyList<BillableLabourDto> Labour,
+        IReadOnlyList<BillableExpenseDto> Expenses);
+
+    public sealed record BuildServiceInvoiceRequest(
+        DateTimeOffset? DueDate,
+        decimal HeaderDiscountPercent,
+        decimal HeaderDiscountAmount,
+        IReadOnlyList<ConvertToSalesInvoiceLineRequest>? MaterialLines,
+        ServiceManagementService.ServiceChargeBillingMode LabourMode,
+        Guid? LabourItemId,
+        IReadOnlyList<BuildServiceInvoiceLabourRequest>? LabourCharges,
+        ServiceManagementService.ServiceChargeBillingMode ExpenseMode,
+        Guid? ExpenseItemId,
+        IReadOnlyList<BuildServiceInvoiceExpenseRequest>? ExpenseCharges,
+        IReadOnlyList<ConvertToSalesInvoiceLineRequest>? OtherLines);
+
+    public sealed record BuildServiceInvoiceLabourRequest(
+        Guid TimeEntryId,
+        decimal Quantity,
+        decimal UnitPrice,
+        decimal DiscountPercent,
+        decimal TaxPercent);
+
+    public sealed record BuildServiceInvoiceExpenseRequest(
+        Guid ExpenseClaimLineId,
+        decimal Quantity,
+        decimal UnitPrice,
+        decimal DiscountPercent,
+        decimal TaxPercent);
+
     public sealed record ConvertToSalesInvoiceResponse(Guid SalesInvoiceId);
 
     [HttpGet]
@@ -202,13 +269,20 @@ public sealed class ServiceHandoversController(
             return NotFound();
         }
 
+        return Ok(await LoadBillableMaterialsAsync(handover.ServiceJobId, cancellationToken));
+    }
+
+    private async Task<IReadOnlyList<BillableIssuedMaterialDto>> LoadBillableMaterialsAsync(
+        Guid serviceJobId,
+        CancellationToken cancellationToken)
+    {
         var issued = await (
             from movement in dbContext.InventoryMovements.AsNoTracking()
             join requisition in dbContext.MaterialRequisitions.AsNoTracking() on movement.ReferenceId equals requisition.Id
             join item in dbContext.Items.AsNoTracking() on movement.ItemId equals item.Id
             where movement.ReferenceType == ReferenceTypes.MaterialRequisition
                   && movement.Type == InventoryMovementType.Consumption
-                  && requisition.ServiceJobId == handover.ServiceJobId
+                  && requisition.ServiceJobId == serviceJobId
                   && requisition.Status == MaterialRequisitionStatus.Posted
             select new
             {
@@ -271,7 +345,138 @@ public sealed class ServiceHandoversController(
             .OrderBy(x => x.ItemSku)
             .ToList();
 
-        return Ok(rows);
+        return rows;
+    }
+
+    /// <summary>
+    /// Materials, approved labour and recharged expenses the job can still bill, with what has
+    /// already been charged deducted. This is the single source the billing screen reads.
+    /// </summary>
+    [HttpGet("{id:guid}/billable-charges")]
+    public async Task<ActionResult<BillableChargesDto>> BillableCharges(Guid id, CancellationToken cancellationToken)
+    {
+        var handover = await dbContext.ServiceHandovers.AsNoTracking()
+            .FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
+        if (handover is null)
+        {
+            return NotFound();
+        }
+
+        var job = await dbContext.ServiceJobs.AsNoTracking()
+            .FirstOrDefaultAsync(x => x.Id == handover.ServiceJobId, cancellationToken);
+        if (job is null)
+        {
+            return NotFound();
+        }
+
+        var materials = await LoadBillableMaterialsAsync(handover.ServiceJobId, cancellationToken);
+
+        var labour = await dbContext.WorkOrderTimeEntries.AsNoTracking()
+            .Where(x => x.ServiceJobId == job.Id
+                        && x.Status == WorkOrderTimeEntryStatus.Approved
+                        && x.BillableToCustomer
+                        && x.SalesInvoiceLineId == null)
+            .OrderBy(x => x.WorkDate)
+            .Select(x => new BillableLabourDto(
+                x.Id,
+                x.WorkDate,
+                x.TechnicianName,
+                x.WorkDescription,
+                x.HoursWorked,
+                x.CostRate,
+                x.HoursWorked * x.CostRate,
+                x.BillableHours,
+                x.BillingRate,
+                x.TaxPercent,
+                x.BillableHours * x.BillingRate))
+            .ToListAsync(cancellationToken);
+
+        var expenses = await (
+            from claim in dbContext.ServiceExpenseClaims.AsNoTracking()
+            from line in claim.Lines
+            where claim.ServiceJobId == job.Id
+                  && (claim.Status == ServiceExpenseClaimStatus.Approved || claim.Status == ServiceExpenseClaimStatus.Settled)
+                  && line.BillableToCustomer
+                  && line.SalesInvoiceLineId == null
+            orderby claim.ExpenseDate
+            select new BillableExpenseDto(
+                line.Id,
+                claim.Number,
+                claim.ExpenseDate,
+                line.Description,
+                line.Quantity,
+                line.UnitCost,
+                line.Quantity * line.UnitCost)).ToListAsync(cancellationToken);
+
+        return Ok(new BillableChargesDto(
+            job.Id,
+            job.Number,
+            job.EntitlementCoverage,
+            job.EntitlementSummary,
+            ServiceEntitlementRules.ApplyEstimateUnitPrice(job.EntitlementCoverage, ServiceEstimateLineKind.Part, 1m) == 0m,
+            ServiceEntitlementRules.ApplyEstimateUnitPrice(job.EntitlementCoverage, ServiceEstimateLineKind.Labor, 1m) == 0m,
+            materials,
+            labour,
+            expenses));
+    }
+
+    /// <summary>
+    /// Creates the customer's invoice from the charges chosen on the billing screen. Replaces the
+    /// old direct-line path, which could not see labour or expenses at all.
+    /// </summary>
+    [HttpPost("{id:guid}/build-invoice")]
+    public async Task<ActionResult<ConvertToSalesInvoiceResponse>> BuildInvoice(
+        Guid id,
+        BuildServiceInvoiceRequest request,
+        CancellationToken cancellationToken)
+    {
+        var input = new ServiceManagementService.ServiceInvoiceBuildInput(
+            request.DueDate,
+            request.HeaderDiscountPercent,
+            request.HeaderDiscountAmount,
+            (request.MaterialLines ?? [])
+                .Select(line => new ServiceManagementService.ServiceInvoiceManualLineInput(
+                    line.ItemId,
+                    line.Quantity,
+                    line.UnitPrice,
+                    line.DiscountPercent,
+                    line.TaxPercent,
+                    line.MaterialRequisitionLineId,
+                    line.Description))
+                .ToList(),
+            request.LabourMode,
+            request.LabourItemId,
+            (request.LabourCharges ?? [])
+                .Select(charge => new ServiceManagementService.ServiceInvoiceLabourChargeInput(
+                    charge.TimeEntryId,
+                    charge.Quantity,
+                    charge.UnitPrice,
+                    charge.DiscountPercent,
+                    charge.TaxPercent))
+                .ToList(),
+            request.ExpenseMode,
+            request.ExpenseItemId,
+            (request.ExpenseCharges ?? [])
+                .Select(charge => new ServiceManagementService.ServiceInvoiceExpenseChargeInput(
+                    charge.ExpenseClaimLineId,
+                    charge.Quantity,
+                    charge.UnitPrice,
+                    charge.DiscountPercent,
+                    charge.TaxPercent))
+                .ToList(),
+            (request.OtherLines ?? [])
+                .Select(line => new ServiceManagementService.ServiceInvoiceManualLineInput(
+                    line.ItemId,
+                    line.Quantity,
+                    line.UnitPrice,
+                    line.DiscountPercent,
+                    line.TaxPercent,
+                    MaterialRequisitionLineId: null,
+                    line.Description))
+                .ToList());
+
+        var salesInvoiceId = await serviceManagementService.BuildServiceInvoiceFromChargesAsync(id, input, cancellationToken);
+        return Ok(new ConvertToSalesInvoiceResponse(salesInvoiceId));
     }
 
     [HttpPost("{id:guid}/convert-to-sales-invoice")]
@@ -294,7 +499,8 @@ public sealed class ServiceHandoversController(
                     line.UnitPrice,
                     line.DiscountPercent,
                     line.TaxPercent,
-                    line.MaterialRequisitionLineId))
+                    line.MaterialRequisitionLineId,
+                    line.Description))
                 .ToList(),
             cancellationToken);
 

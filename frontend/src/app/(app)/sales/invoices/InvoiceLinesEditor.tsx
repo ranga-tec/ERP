@@ -23,11 +23,13 @@ type InvoiceLineDto = {
   discountPercent: number;
   taxPercent: number;
   lineTotal: number;
+  description?: string | null;
 };
 
 type EditableInvoiceLine = {
   id: string;
   itemId: string;
+  description?: string | null;
   revenueAccountId?: string | null;
   revenueAccountCode?: string | null;
   revenueAccountName?: string | null;
@@ -54,6 +56,7 @@ function toEditableLines(lines: InvoiceLineDto[]): EditableInvoiceLine[] {
   return lines.map((line) => ({
     id: line.id,
     itemId: line.itemId,
+    description: line.description ?? null,
     revenueAccountId: line.revenueAccountId ?? null,
     revenueAccountCode: line.revenueAccountCode ?? null,
     revenueAccountName: line.revenueAccountName ?? null,
@@ -195,7 +198,17 @@ export function InvoiceLinesEditor({
       key: "item",
       header: "Item",
       kind: "display",
-      render: (line) => itemLabelById.get(line.itemId) ?? line.itemId,
+      // labour and rolled-up charges all share one item, so the description is what
+      // distinguishes the lines
+      render: (line) =>
+        line.description ? (
+          <div>
+            <div>{itemLabelById.get(line.itemId) ?? line.itemId}</div>
+            <div className="text-xs text-zinc-500">{line.description}</div>
+          </div>
+        ) : (
+          itemLabelById.get(line.itemId) ?? line.itemId
+        ),
       footer: "Visible Total",
     },
     {

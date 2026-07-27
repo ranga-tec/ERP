@@ -231,7 +231,28 @@ public sealed class ServiceExpenseClaimLine : Entity
     public Guid? ConvertedToServiceEstimateId { get; private set; }
     public Guid? ConvertedToServiceEstimateLineId { get; private set; }
     public DateTimeOffset? ConvertedToEstimateAt { get; private set; }
+
+    /// <summary>
+    /// The invoice line that charged this expense to the customer. Mirrors the labour entry link,
+    /// so the billing screen can tell what has already been recovered and never offer it twice.
+    /// </summary>
+    public Guid? SalesInvoiceId { get; private set; }
+    public Guid? SalesInvoiceLineId { get; private set; }
+    public DateTimeOffset? InvoicedAt { get; private set; }
+
     public decimal LineTotal => Quantity * UnitCost;
+
+    public void MarkInvoiced(Guid salesInvoiceId, Guid salesInvoiceLineId, DateTimeOffset invoicedAt)
+    {
+        if (!BillableToCustomer)
+        {
+            throw new DomainValidationException("Only billable expense lines can be invoiced.");
+        }
+
+        SalesInvoiceId = salesInvoiceId;
+        SalesInvoiceLineId = salesInvoiceLineId;
+        InvoicedAt = invoicedAt;
+    }
 
     public void Update(
         Guid? itemId,

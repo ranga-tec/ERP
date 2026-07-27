@@ -836,13 +836,68 @@ What to input:
 Output:
 
 - Service taken record is linked to the job.
-- Billing/final invoice path can continue where required.
+- Once completed, the billing screen opens for the final invoice (see 7.16.1).
 
 What to check:
 
 - Customer acknowledgement is captured.
 - Returned items are recorded.
 - Handover status is correct before closing.
+
+### 7.16.1 Building The Final Invoice
+
+On a **completed** Service Taken record, choose the invoice source:
+
+| Source | When to use |
+| --- | --- |
+| Bill what the job actually used | The normal case. No quotation needed. |
+| Bill an approved quotation | The customer signed off a quote and expects that amount. |
+
+The first option opens the billing screen, which lists everything the job has charged, in three
+sections:
+
+| Section | Comes from | Shown |
+| --- | --- | --- |
+| Parts issued | Posted MRNs, less anything returned | Left to bill, unit cost, your selling price |
+| Labour | Approved billable job-sheet entries | Hours worked, labour cost, billable hours, rate |
+| Expenses to recharge | Approved billable expense-claim lines | Claimed amount, recharge amount |
+
+Each section has an **On the invoice** setting:
+
+- **One combined line** (default for Labour and Expenses) - the customer sees `Labour - 48 hrs over
+  2 entries` as a single line. Pick the service item it is billed against.
+- **Itemised** - one invoice line per charge, each named on the invoice.
+- **Do not bill** - leave the section off this invoice. It stays available for a later one.
+
+Below the sections you can add **Additional charges** for anything the job did not record, and set a
+**discount on the whole invoice** as a percentage or a flat amount. That discount is spread across
+the lines in proportion to their value, so each line is taxed on what the customer actually pays.
+Per-line discounts are separate and applied first.
+
+The panel on the right shows the invoice total next to the job cost of what is being billed, so the
+margin is visible before the invoice exists.
+
+Output:
+
+- A draft sales invoice whose every line is linked back to the part, labour entry, or expense that
+  produced it.
+- Those charges disappear from the billing screen, so a second invoice for the same job cannot bill
+  them again.
+- Prices and quantities stay editable on the draft invoice, but new lines are not added there - they
+  are added here, so they stay linked to the work.
+
+What to check:
+
+- Labour hours: the screen warns when billable hours are lower than hours worked, with a **bill all**
+  shortcut. A 12-hour day should not invoice as 1 hour by accident.
+- Parts with no selling price show **no price set** in amber. Set the item's selling price in the
+  item master, or type the price on the line.
+- Under warranty or contract cover, a banner warns that parts and/or labour will be forced to 0.00
+  regardless of the prices entered.
+- Margin at the bottom right is not negative unless you meant it to be.
+
+Billing a job in stages is normal: bill the parts on handover, and bill labour on a second invoice
+once it is approved. Each invoice takes only what is still outstanding.
 
 ### 7.17 Billing And Closeout
 

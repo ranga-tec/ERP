@@ -8,6 +8,7 @@ import { Card, SecondaryLink } from "@/components/ui";
 import { InvoiceActions } from "../InvoiceActions";
 import { InvoiceLineAddForm } from "../InvoiceLineAddForm";
 import { InvoiceLinesEditor } from "../InvoiceLinesEditor";
+import { InvoiceDiscountForm } from "../InvoiceDiscountForm";
 import { DocumentCollaborationPanel } from "@/components/DocumentCollaborationPanel";
 import { DocumentDirectEditNotice } from "@/components/DocumentDirectEditNotice";
 
@@ -18,6 +19,10 @@ type InvoiceDto = {
   invoiceDate: string;
   dueDate?: string | null;
   status: number;
+  linesSubtotal: number;
+  discountPercent: number;
+  discountAmount: number;
+  discountTotal: number;
   subtotal: number;
   taxTotal: number;
   total: number;
@@ -34,6 +39,7 @@ type InvoiceDto = {
     discountPercent: number;
     taxPercent: number;
     lineTotal: number;
+    description?: string | null;
   }[];
 };
 
@@ -124,7 +130,11 @@ export default async function InvoiceDetailPage({
           <div>Total: {invoice.total}</div>
         </div>
         <div className="mt-2 text-sm text-zinc-500">
-          Subtotal: {invoice.subtotal} · Tax: {invoice.taxTotal}
+          Subtotal: {invoice.linesSubtotal.toFixed(2)}
+          {invoice.discountTotal > 0 ? (
+            <> · Invoice discount: -{invoice.discountTotal.toFixed(2)} · Net: {invoice.subtotal.toFixed(2)}</>
+          ) : null}{" "}
+          · Tax: {invoice.taxTotal.toFixed(2)}
         </div>
       </div>
 
@@ -146,7 +156,22 @@ export default async function InvoiceDetailPage({
         )}
       </Card>
 
-      {isDraft && canManageInvoices ? (
+      {isDraft && canManageInvoices && invoice.serviceJobId ? (
+        <Card>
+          <div className="text-sm font-semibold">Charges come from the job</div>
+          <div className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
+            This invoice was raised from service job{" "}
+            <Link className="underline underline-offset-2" href={`/service/jobs/${invoice.serviceJobId}?tab=billing`}>
+              {invoice.serviceJobNumber ?? invoice.serviceJobId}
+            </Link>
+            , so every line is linked to a part issued, labour approved, or an expense recharged.
+            Prices and quantities stay editable here, but new charges are added on the job so they
+            stay linked to the work and cannot be billed twice.
+          </div>
+        </Card>
+      ) : null}
+
+      {isDraft && canManageInvoices && !invoice.serviceJobId ? (
         startInEditMode ? (
           <DocumentDirectEditNotice addLineHref={`/sales/invoices/${invoice.id}`} />
         ) : (
@@ -167,7 +192,52 @@ export default async function InvoiceDetailPage({
           startInEditMode={startInEditMode}
           canEdit={isDraft && canManageInvoices}
         />
+        <div className="mt-4 flex justify-end">
+          <dl className="w-full max-w-xs space-y-1 text-sm">
+            <div className="flex justify-between gap-4">
+              <dt className="text-zinc-500">Lines subtotal</dt>
+              <dd className="tabular-nums">{invoice.linesSubtotal.toFixed(2)}</dd>
+            </div>
+            {invoice.discountTotal > 0 ? (
+              <>
+                <div className="flex justify-between gap-4">
+                  <dt className="text-zinc-500">
+                    Invoice discount{invoice.discountPercent > 0 ? ` (${invoice.discountPercent}%)` : ""}
+                  </dt>
+                  <dd className="tabular-nums">-{invoice.discountTotal.toFixed(2)}</dd>
+                </div>
+                <div className="flex justify-between gap-4">
+                  <dt className="text-zinc-500">Net subtotal</dt>
+                  <dd className="tabular-nums">{invoice.subtotal.toFixed(2)}</dd>
+                </div>
+              </>
+            ) : null}
+            <div className="flex justify-between gap-4">
+              <dt className="text-zinc-500">Tax</dt>
+              <dd className="tabular-nums">{invoice.taxTotal.toFixed(2)}</dd>
+            </div>
+            <div className="flex justify-between gap-4 border-t border-[var(--card-border)] pt-1 font-semibold">
+              <dt>Total</dt>
+              <dd className="tabular-nums">{invoice.total.toFixed(2)}</dd>
+            </div>
+          </dl>
+        </div>
       </Card>
+
+      {isDraft && canManageInvoices ? (
+        <Card>
+          <div className="mb-1 text-sm font-semibold">Discount on the whole invoice</div>
+          <div className="mb-3 text-xs text-zinc-500">
+            Spread across the lines in proportion to their value, so each line is taxed on what the
+            customer actually pays. Per-line discounts are separate and applied first.
+          </div>
+          <InvoiceDiscountForm
+            invoiceId={invoice.id}
+            discountPercent={invoice.discountPercent}
+            discountAmount={invoice.discountAmount}
+          />
+        </Card>
+      ) : null}
 
       {serviceCosting ? (
         <Card>

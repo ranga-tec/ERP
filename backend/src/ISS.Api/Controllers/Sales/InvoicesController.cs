@@ -29,6 +29,10 @@ public sealed class InvoicesController(
         DateTimeOffset InvoiceDate,
         DateTimeOffset? DueDate,
         SalesInvoiceStatus Status,
+        decimal LinesSubtotal,
+        decimal DiscountPercent,
+        decimal DiscountAmount,
+        decimal DiscountTotal,
         decimal Subtotal,
         decimal TaxTotal,
         decimal Total,
@@ -45,13 +49,15 @@ public sealed class InvoicesController(
         decimal UnitPrice,
         decimal DiscountPercent,
         decimal TaxPercent,
-        decimal LineTotal);
+        decimal LineTotal,
+        string? Description);
 
     public sealed record CreateInvoiceRequest(Guid CustomerId, DateTimeOffset? DueDate);
     public sealed record CreateInvoiceFromDispatchRequest(Guid DispatchId, DateTimeOffset? DueDate);
     public sealed record CreateInvoiceFromDirectDispatchRequest(Guid DirectDispatchId, DateTimeOffset? DueDate);
     public sealed record AddInvoiceLineRequest(Guid ItemId, decimal Quantity, decimal UnitPrice, decimal DiscountPercent, decimal TaxPercent);
     public sealed record UpdateInvoiceLineRequest(decimal Quantity, decimal UnitPrice, decimal DiscountPercent, decimal TaxPercent);
+    public sealed record SetInvoiceDiscountRequest(decimal DiscountPercent, decimal DiscountAmount);
 
     [HttpGet]
     public async Task<ActionResult<IReadOnlyList<InvoiceSummaryDto>>> List([FromQuery] int skip = 0, [FromQuery] int take = 100, CancellationToken cancellationToken = default)
@@ -196,6 +202,10 @@ public sealed class InvoicesController(
             invoice.InvoiceDate,
             invoice.DueDate,
             invoice.Status,
+            invoice.LinesSubtotal,
+            invoice.DiscountPercent,
+            invoice.DiscountAmount,
+            invoice.DiscountTotal,
             invoice.Subtotal,
             invoice.TaxTotal,
             invoice.Total,
@@ -211,7 +221,8 @@ public sealed class InvoicesController(
                 l.UnitPrice,
                 l.DiscountPercent,
                 l.TaxPercent,
-                l.LineTotal)).ToList()));
+                l.LineTotal,
+                l.Description)).ToList()));
     }
 
     [HttpGet("{id:guid}/pdf")]
@@ -226,12 +237,45 @@ public sealed class InvoicesController(
         return File(doc.Content, doc.ContentType, doc.FileName);
     }
 
+    /// <summary>
+    /// Sets the whole-invoice discount. Prorated across the lines when the invoice is totalled, so
+    /// tax stays correct at each line's own rate.
+    /// </summary>
+    [HttpPut("{id:guid}/discount")]
+    public async Task<ActionResult> SetDiscount(Guid id, SetInvoiceDiscountRequest request, CancellationToken cancellationToken)
+    {
+        if (!await HasPermissionAsync(AppPermissions.SalesInvoiceEdit, cancellationToken))
+        {
+            return Forbid();
+        }
+
+        var invoice = await dbContext.SalesInvoices
+            .Include(x => x.Lines)
+            .FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
+        if (invoice is null)
+        {
+            return NotFound();
+        }
+
+        invoice.SetHeaderDiscount(request.DiscountPercent, request.DiscountAmount);
+        await dbContext.SaveChangesAsync(cancellationToken);
+        return NoContent();
+    }
+
     [HttpPost("{id:guid}/lines")]
     public async Task<ActionResult> AddLine(Guid id, AddInvoiceLineRequest request, CancellationToken cancellationToken)
     {
         if (!await HasPermissionAsync(AppPermissions.SalesInvoiceEdit, cancellationToken))
         {
             return Forbid();
+        }
+
+        // A service invoice is the sum of what the job accumulated. Typing a line straight onto it
+        // would charge the customer for something no job charge backs, and is how the same part
+        // ends up billed twice. Change it on the job's billing screen instead.
+        if (await IsServiceSourcedAsync(id, cancellationToken))
+        {
+            return BadRequest("This invoice was raised from a service job. Add the charge on the job's billing screen so it stays linked to the work.");
         }
 
         await salesService.AddInvoiceLineAsync(id, request.ItemId, request.Quantity, request.UnitPrice, request.DiscountPercent, request.TaxPercent, cancellationToken);
@@ -281,6 +325,10 @@ public sealed class InvoicesController(
         await NotifyInvoiceCreatorAsync(id, "Sales invoice posted", "Your sales invoice has been posted.", cancellationToken);
         return NoContent();
     }
+
+    /// <summary>True when a service handover raised this invoice, so its lines come from job charges.</summary>
+    private Task<bool> IsServiceSourcedAsync(Guid invoiceId, CancellationToken cancellationToken)
+        => dbContext.ServiceHandovers.AsNoTracking().AnyAsync(x => x.SalesInvoiceId == invoiceId, cancellationToken);
 
     private async Task<bool> HasPermissionAsync(string permissionKey, CancellationToken cancellationToken)
     {

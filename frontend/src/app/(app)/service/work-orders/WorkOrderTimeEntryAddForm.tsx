@@ -36,6 +36,9 @@ export function WorkOrderTimeEntryAddForm({
   const [costRate, setCostRate] = useState("0");
   const [billableToCustomer, setBillableToCustomer] = useState(true);
   const [billableHours, setBillableHours] = useState("1");
+  // billable hours track hours worked until someone deliberately changes them, so a 12-hour day
+  // cannot silently invoice as 1 hour
+  const [billableHoursEdited, setBillableHoursEdited] = useState(false);
   const [billingRate, setBillingRate] = useState("0");
   const [taxPercent, setTaxPercent] = useState("0");
   const [notes, setNotes] = useState("");
@@ -116,6 +119,7 @@ export function WorkOrderTimeEntryAddForm({
       setWorkDate("");
       setWorkDescription("");
       setHoursWorked("1");
+      setBillableHoursEdited(false);
       setCostRate("0");
       setBillableToCustomer(true);
       setBillableHours("1");
@@ -165,7 +169,17 @@ export function WorkOrderTimeEntryAddForm({
         </div>
         <div>
           <label className="mb-1 block text-sm font-medium">Hours Worked</label>
-          <Input value={hoursWorked} onChange={(event) => setHoursWorked(event.target.value)} inputMode="decimal" disabled={disabled || busy} />
+          <Input
+            value={hoursWorked}
+            onChange={(event) => {
+              setHoursWorked(event.target.value);
+              if (!billableHoursEdited) {
+                setBillableHours(event.target.value);
+              }
+            }}
+            inputMode="decimal"
+            disabled={disabled || busy}
+          />
         </div>
         <div>
           <label className="mb-1 block text-sm font-medium">Cost Rate</label>
@@ -185,7 +199,7 @@ export function WorkOrderTimeEntryAddForm({
             checked={billableToCustomer}
             onChange={(event) => {
               setBillableToCustomer(event.target.checked);
-              if (event.target.checked && (!billableHours || Number(billableHours) <= 0)) {
+              if (event.target.checked && !billableHoursEdited) {
                 setBillableHours(hoursWorked);
               }
             }}
@@ -198,10 +212,26 @@ export function WorkOrderTimeEntryAddForm({
           <label className="mb-1 block text-sm font-medium">Billable Hours</label>
           <Input
             value={billableHours}
-            onChange={(event) => setBillableHours(event.target.value)}
+            onChange={(event) => {
+              setBillableHoursEdited(true);
+              setBillableHours(event.target.value);
+            }}
             inputMode="decimal"
             disabled={disabled || busy || !billableToCustomer}
           />
+          {billableToCustomer && Number(billableHours) < Number(hoursWorked) ? (
+            <button
+              type="button"
+              className="mt-1 text-xs text-amber-700 underline dark:text-amber-300"
+              disabled={disabled || busy}
+              onClick={() => {
+                setBillableHoursEdited(false);
+                setBillableHours(hoursWorked);
+              }}
+            >
+              Only {billableHours} of {hoursWorked} hrs will be charged - bill all
+            </button>
+          ) : null}
         </div>
         <div>
           <label className="mb-1 block text-sm font-medium">Billing Rate</label>

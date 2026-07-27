@@ -26,7 +26,52 @@ public sealed class ServiceManagementService(
         decimal UnitPrice,
         decimal DiscountPercent,
         decimal TaxPercent,
-        Guid? MaterialRequisitionLineId = null);
+        Guid? MaterialRequisitionLineId = null,
+        string? Description = null);
+
+    /// <summary>How a group of job charges reaches the customer's invoice.</summary>
+    public enum ServiceChargeBillingMode
+    {
+        /// <summary>Do not bill this group on this invoice.</summary>
+        Skip = 0,
+        /// <summary>One invoice line per charge, so the customer sees the breakdown.</summary>
+        Itemised = 1,
+        /// <summary>A single invoice line for the whole group, billed against one item.</summary>
+        RolledUp = 2
+    }
+
+    /// <summary>One approved labour entry the user chose to bill, at the price they set.</summary>
+    public sealed record ServiceInvoiceLabourChargeInput(
+        Guid TimeEntryId,
+        decimal Quantity,
+        decimal UnitPrice,
+        decimal DiscountPercent,
+        decimal TaxPercent);
+
+    /// <summary>One billable expense-claim line the user chose to recharge.</summary>
+    public sealed record ServiceInvoiceExpenseChargeInput(
+        Guid ExpenseClaimLineId,
+        decimal Quantity,
+        decimal UnitPrice,
+        decimal DiscountPercent,
+        decimal TaxPercent);
+
+    /// <summary>
+    /// Everything the billing screen decided: which charges to bill, at what price, itemised or
+    /// rolled into one line, plus the whole-invoice discount.
+    /// </summary>
+    public sealed record ServiceInvoiceBuildInput(
+        DateTimeOffset? DueDate,
+        decimal HeaderDiscountPercent,
+        decimal HeaderDiscountAmount,
+        IReadOnlyCollection<ServiceInvoiceManualLineInput> MaterialLines,
+        ServiceChargeBillingMode LabourMode,
+        Guid? LabourItemId,
+        IReadOnlyCollection<ServiceInvoiceLabourChargeInput> LabourCharges,
+        ServiceChargeBillingMode ExpenseMode,
+        Guid? ExpenseItemId,
+        IReadOnlyCollection<ServiceInvoiceExpenseChargeInput> ExpenseCharges,
+        IReadOnlyCollection<ServiceInvoiceManualLineInput> OtherLines);
 
     private sealed record ServiceEntitlementSnapshot(
         Guid? ServiceContractId,
@@ -1236,6 +1281,407 @@ public sealed class ServiceManagementService(
         invoiceJob.MarkInvoiced();
         await dbContext.SaveChangesAsync(cancellationToken);
         return invoice.Id;
+    }
+
+    /// <summary>
+    /// Builds the customer's invoice from the charges the job actually accumulated - issued
+    /// materials, approved billable labour, and recharged expenses - at the prices the billing
+    /// screen set. Each group is billed itemised or rolled into a single line, and every charge
+    /// is stamped with the invoice line that billed it so a later invoice cannot bill it again.
+    /// </summary>
+    public async Task<Guid> BuildServiceInvoiceFromChargesAsync(
+        Guid serviceHandoverId,
+        ServiceInvoiceBuildInput input,
+        CancellationToken cancellationToken = default)
+    {
+        var handover = await dbContext.ServiceHandovers.FirstOrDefaultAsync(x => x.Id == serviceHandoverId, cancellationToken)
+            ?? throw new NotFoundException("Service handover not found.");
+
+        if (handover.SalesInvoiceId is { } existingInvoiceId)
+        {
+            return existingInvoiceId;
+        }
+
+        if (handover.Status != ServiceHandoverStatus.Completed)
+        {
+            throw new DomainValidationException("Only completed service handovers can be converted to sales invoice.");
+        }
+
+        var job = await dbContext.ServiceJobs.FirstOrDefaultAsync(x => x.Id == handover.ServiceJobId, cancellationToken)
+            ?? throw new NotFoundException("Service job not found.");
+
+        var materialLines = input.MaterialLines.Where(x => x.ItemId != Guid.Empty).ToList();
+        var otherLines = input.OtherLines.Where(x => x.ItemId != Guid.Empty).ToList();
+        var labourCharges = input.LabourMode == ServiceChargeBillingMode.Skip
+            ? new List<ServiceInvoiceLabourChargeInput>()
+            : input.LabourCharges.ToList();
+        var expenseCharges = input.ExpenseMode == ServiceChargeBillingMode.Skip
+            ? new List<ServiceInvoiceExpenseChargeInput>()
+            : input.ExpenseCharges.ToList();
+
+        if (materialLines.Count == 0 && otherLines.Count == 0 && labourCharges.Count == 0 && expenseCharges.Count == 0)
+        {
+            throw new DomainValidationException("Select at least one charge to bill.");
+        }
+
+        var timeEntries = await LoadBillableTimeEntriesAsync(job.Id, labourCharges, cancellationToken);
+        var expenseClaimLines = await LoadBillableExpenseLinesAsync(job.Id, expenseCharges, cancellationToken);
+
+        if (labourCharges.Count > 0 && input.LabourItemId is null)
+        {
+            throw new DomainValidationException("Choose the service item that labour is billed against.");
+        }
+
+        if (expenseCharges.Count > 0 && input.ExpenseItemId is null)
+        {
+            throw new DomainValidationException("Choose the item that recharged expenses are billed against.");
+        }
+
+        await EnsureItemExistsAsync(input.LabourItemId, "Labour item not found.", cancellationToken);
+        await EnsureItemExistsAsync(input.ExpenseItemId, "Expense item not found.", cancellationToken);
+
+        var number = await documentNumberService.NextAsync(ReferenceTypes.SalesInvoice, "INV", cancellationToken);
+        var invoice = new SalesInvoice(number, job.CustomerId, clock.UtcNow, input.DueDate);
+        await dbContext.SalesInvoices.AddAsync(invoice, cancellationToken);
+
+        foreach (var line in materialLines)
+        {
+            await AddChargeLineAsync(
+                invoice,
+                line.ItemId,
+                line.Quantity,
+                ServiceEntitlementRules.ApplyEstimateUnitPrice(job.EntitlementCoverage, ServiceEstimateLineKind.Part, line.UnitPrice),
+                line.DiscountPercent,
+                line.TaxPercent,
+                line.MaterialRequisitionLineId,
+                line.Description,
+                cancellationToken);
+        }
+
+        await BillLabourAsync(invoice, job, input, labourCharges, timeEntries, cancellationToken);
+        await BillExpensesAsync(invoice, input, expenseCharges, expenseClaimLines, cancellationToken);
+
+        foreach (var line in otherLines)
+        {
+            await AddChargeLineAsync(
+                invoice,
+                line.ItemId,
+                line.Quantity,
+                line.UnitPrice,
+                line.DiscountPercent,
+                line.TaxPercent,
+                materialRequisitionLineId: null,
+                line.Description,
+                cancellationToken);
+        }
+
+        if (invoice.Lines.Count == 0)
+        {
+            throw new DomainValidationException("Nothing was billable on this invoice.");
+        }
+
+        invoice.SetHeaderDiscount(input.HeaderDiscountPercent, input.HeaderDiscountAmount);
+
+        handover.LinkSalesInvoice(invoice.Id, clock.UtcNow);
+        job.MarkInvoiced();
+        await dbContext.SaveChangesAsync(cancellationToken);
+        return invoice.Id;
+    }
+
+    private async Task<Dictionary<Guid, WorkOrderTimeEntry>> LoadBillableTimeEntriesAsync(
+        Guid serviceJobId,
+        IReadOnlyCollection<ServiceInvoiceLabourChargeInput> charges,
+        CancellationToken cancellationToken)
+    {
+        if (charges.Count == 0)
+        {
+            return new Dictionary<Guid, WorkOrderTimeEntry>();
+        }
+
+        var ids = charges.Select(x => x.TimeEntryId).Distinct().ToList();
+        var entries = await dbContext.WorkOrderTimeEntries
+            .Where(x => ids.Contains(x.Id))
+            .ToListAsync(cancellationToken);
+
+        foreach (var id in ids)
+        {
+            var entry = entries.FirstOrDefault(x => x.Id == id)
+                ?? throw new NotFoundException("Labour entry not found.");
+
+            if (entry.ServiceJobId != serviceJobId)
+            {
+                throw new DomainValidationException("A selected labour entry belongs to a different service job.");
+            }
+
+            if (entry.Status != WorkOrderTimeEntryStatus.Approved)
+            {
+                throw new DomainValidationException($"Labour entry '{entry.WorkDescription}' is not approved yet.");
+            }
+
+            if (!entry.BillableToCustomer)
+            {
+                throw new DomainValidationException($"Labour entry '{entry.WorkDescription}' is marked non-billable.");
+            }
+
+            if (entry.SalesInvoiceLineId is not null)
+            {
+                throw new DomainValidationException($"Labour entry '{entry.WorkDescription}' has already been invoiced.");
+            }
+        }
+
+        return entries.ToDictionary(x => x.Id);
+    }
+
+    private async Task<Dictionary<Guid, ServiceExpenseClaimLine>> LoadBillableExpenseLinesAsync(
+        Guid serviceJobId,
+        IReadOnlyCollection<ServiceInvoiceExpenseChargeInput> charges,
+        CancellationToken cancellationToken)
+    {
+        if (charges.Count == 0)
+        {
+            return new Dictionary<Guid, ServiceExpenseClaimLine>();
+        }
+
+        var ids = charges.Select(x => x.ExpenseClaimLineId).Distinct().ToList();
+        var claims = await dbContext.ServiceExpenseClaims
+            .Include(x => x.Lines)
+            .Where(x => x.Lines.Any(line => ids.Contains(line.Id)))
+            .ToListAsync(cancellationToken);
+
+        var result = new Dictionary<Guid, ServiceExpenseClaimLine>();
+        foreach (var id in ids)
+        {
+            var claim = claims.FirstOrDefault(x => x.Lines.Any(line => line.Id == id))
+                ?? throw new NotFoundException("Expense claim line not found.");
+            var claimLine = claim.Lines.First(x => x.Id == id);
+
+            if (claim.ServiceJobId != serviceJobId)
+            {
+                throw new DomainValidationException("A selected expense belongs to a different service job.");
+            }
+
+            if (claim.Status is not (ServiceExpenseClaimStatus.Approved or ServiceExpenseClaimStatus.Settled))
+            {
+                throw new DomainValidationException($"Expense claim {claim.Number} is not approved yet.");
+            }
+
+            if (!claimLine.BillableToCustomer)
+            {
+                throw new DomainValidationException($"Expense '{claimLine.Description}' is marked non-billable.");
+            }
+
+            if (claimLine.SalesInvoiceLineId is not null)
+            {
+                throw new DomainValidationException($"Expense '{claimLine.Description}' has already been invoiced.");
+            }
+
+            result[id] = claimLine;
+        }
+
+        return result;
+    }
+
+    private async Task BillLabourAsync(
+        SalesInvoice invoice,
+        ServiceJob job,
+        ServiceInvoiceBuildInput input,
+        IReadOnlyCollection<ServiceInvoiceLabourChargeInput> charges,
+        IReadOnlyDictionary<Guid, WorkOrderTimeEntry> entries,
+        CancellationToken cancellationToken)
+    {
+        if (charges.Count == 0)
+        {
+            return;
+        }
+
+        var itemId = input.LabourItemId!.Value;
+        var priced = charges
+            .Select(x => new RollupCharge(
+                x.TimeEntryId,
+                x.Quantity,
+                ServiceEntitlementRules.ApplyEstimateUnitPrice(job.EntitlementCoverage, ServiceEstimateLineKind.Labor, x.UnitPrice),
+                x.DiscountPercent,
+                x.TaxPercent))
+            .ToList();
+
+        if (input.LabourMode == ServiceChargeBillingMode.Itemised)
+        {
+            foreach (var charge in priced)
+            {
+                var entry = entries[charge.SourceId];
+                var line = await AddChargeLineAsync(
+                    invoice,
+                    itemId,
+                    charge.Quantity,
+                    charge.UnitPrice,
+                    charge.DiscountPercent,
+                    charge.TaxPercent,
+                    materialRequisitionLineId: null,
+                    $"{entry.WorkDescription} - {entry.TechnicianName}",
+                    cancellationToken);
+                entry.MarkInvoiced(invoice.Id, line.Id, clock.UtcNow);
+            }
+
+            return;
+        }
+
+        foreach (var group in GroupForRollup(priced))
+        {
+            var hours = group.Charges.Sum(x => x.Quantity);
+            var suffix = group.Charges.Count == 1 ? "entry" : "entries";
+            var line = await AddChargeLineAsync(
+                invoice,
+                itemId,
+                group.Quantity,
+                group.UnitPrice,
+                group.DiscountPercent,
+                group.TaxPercent,
+                materialRequisitionLineId: null,
+                $"Labour - {hours:0.##} hrs over {group.Charges.Count} {suffix}",
+                cancellationToken);
+
+            foreach (var charge in group.Charges)
+            {
+                entries[charge.SourceId].MarkInvoiced(invoice.Id, line.Id, clock.UtcNow);
+            }
+        }
+    }
+
+    private async Task BillExpensesAsync(
+        SalesInvoice invoice,
+        ServiceInvoiceBuildInput input,
+        IReadOnlyCollection<ServiceInvoiceExpenseChargeInput> charges,
+        IReadOnlyDictionary<Guid, ServiceExpenseClaimLine> claimLines,
+        CancellationToken cancellationToken)
+    {
+        if (charges.Count == 0)
+        {
+            return;
+        }
+
+        var itemId = input.ExpenseItemId!.Value;
+
+        if (input.ExpenseMode == ServiceChargeBillingMode.Itemised)
+        {
+            foreach (var charge in charges)
+            {
+                var claimLine = claimLines[charge.ExpenseClaimLineId];
+                var line = await AddChargeLineAsync(
+                    invoice,
+                    itemId,
+                    charge.Quantity,
+                    charge.UnitPrice,
+                    charge.DiscountPercent,
+                    charge.TaxPercent,
+                    materialRequisitionLineId: null,
+                    claimLine.Description,
+                    cancellationToken);
+                claimLine.MarkInvoiced(invoice.Id, line.Id, clock.UtcNow);
+            }
+
+            return;
+        }
+
+        var rollup = charges
+            .Select(x => new RollupCharge(x.ExpenseClaimLineId, x.Quantity, x.UnitPrice, x.DiscountPercent, x.TaxPercent))
+            .ToList();
+
+        foreach (var group in GroupForRollup(rollup))
+        {
+            var suffix = group.Charges.Count == 1 ? "item" : "items";
+            var line = await AddChargeLineAsync(
+                invoice,
+                itemId,
+                group.Quantity,
+                group.UnitPrice,
+                group.DiscountPercent,
+                group.TaxPercent,
+                materialRequisitionLineId: null,
+                $"Site expenses - {group.Charges.Count} {suffix}",
+                cancellationToken);
+
+            foreach (var charge in group.Charges)
+            {
+                claimLines[charge.SourceId].MarkInvoiced(invoice.Id, line.Id, clock.UtcNow);
+            }
+        }
+    }
+
+    private sealed record RollupCharge(Guid SourceId, decimal Quantity, decimal UnitPrice, decimal DiscountPercent, decimal TaxPercent);
+
+    private sealed record RollupGroup(
+        decimal Quantity,
+        decimal UnitPrice,
+        decimal DiscountPercent,
+        decimal TaxPercent,
+        IReadOnlyList<RollupCharge> Charges);
+
+    /// <summary>
+    /// Collapses charges into as few invoice lines as can still be priced exactly. Charges are
+    /// grouped by tax rate, because one line carries one rate. Within a group, charges sharing a
+    /// price and discount keep their quantity - so labour still reads as hours - and a mixed group
+    /// falls back to a single unit priced at the group total, which is exact either way.
+    /// </summary>
+    private static IEnumerable<RollupGroup> GroupForRollup(IEnumerable<RollupCharge> charges)
+    {
+        foreach (var group in charges.GroupBy(x => x.TaxPercent))
+        {
+            var rows = group.ToList();
+            var uniform = rows.All(x => x.UnitPrice == rows[0].UnitPrice && x.DiscountPercent == rows[0].DiscountPercent);
+
+            if (uniform)
+            {
+                yield return new RollupGroup(
+                    rows.Sum(x => x.Quantity),
+                    rows[0].UnitPrice,
+                    rows[0].DiscountPercent,
+                    group.Key,
+                    rows);
+                continue;
+            }
+
+            var total = rows.Sum(x => x.Quantity * x.UnitPrice * (1m - (x.DiscountPercent / 100m)));
+            yield return new RollupGroup(1m, decimal.Round(total, 4, MidpointRounding.AwayFromZero), 0m, group.Key, rows);
+        }
+    }
+
+    private async Task<SalesInvoiceLine> AddChargeLineAsync(
+        SalesInvoice invoice,
+        Guid itemId,
+        decimal quantity,
+        decimal unitPrice,
+        decimal discountPercent,
+        decimal taxPercent,
+        Guid? materialRequisitionLineId,
+        string? description,
+        CancellationToken cancellationToken)
+    {
+        var revenueAccountId = await documentAccountMappingService.ResolveRevenueAccountIdAsync(itemId, cancellationToken);
+        var line = invoice.AddLine(
+            itemId,
+            quantity,
+            unitPrice,
+            discountPercent,
+            taxPercent,
+            revenueAccountId,
+            materialRequisitionLineId,
+            description);
+        dbContext.DbContext.Add(line);
+        return line;
+    }
+
+    private async Task EnsureItemExistsAsync(Guid? itemId, string message, CancellationToken cancellationToken)
+    {
+        if (itemId is null)
+        {
+            return;
+        }
+
+        var exists = await dbContext.Items.AsNoTracking().AnyAsync(x => x.Id == itemId.Value, cancellationToken);
+        if (!exists)
+        {
+            throw new NotFoundException(message);
+        }
     }
 
     public async Task MarkServiceJobFinalInvoiceNotRequiredAsync(Guid serviceJobId, string reason, CancellationToken cancellationToken = default)

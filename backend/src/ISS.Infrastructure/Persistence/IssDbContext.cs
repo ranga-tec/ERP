@@ -580,12 +580,15 @@ public sealed class IssDbContext(
         {
             entity.HasIndex(x => x.Number).IsUnique();
             entity.Property(x => x.Number).HasMaxLength(32);
+            entity.Property(x => x.DiscountPercent).HasPrecision(18, 4);
+            entity.Property(x => x.DiscountAmount).HasPrecision(18, 4);
             entity.HasMany(x => x.Lines).WithOne().HasForeignKey(x => x.SalesInvoiceId).OnDelete(DeleteBehavior.Cascade);
         });
         builder.Entity<SalesInvoiceLine>(entity =>
         {
             entity.HasIndex(x => x.RevenueAccountId);
             entity.HasIndex(x => x.MaterialRequisitionLineId);
+            entity.Property(x => x.Description).HasMaxLength(512);
             entity.Property(x => x.Quantity).HasPrecision(18, 4);
             entity.Property(x => x.UnitPrice).HasPrecision(18, 4);
             entity.Property(x => x.DiscountPercent).HasPrecision(18, 4);
@@ -801,6 +804,7 @@ public sealed class IssDbContext(
             entity.HasIndex(x => x.ExpenseAccountId);
             entity.HasIndex(x => x.ConvertedToServiceEstimateId);
             entity.HasIndex(x => x.ConvertedToServiceEstimateLineId);
+            entity.HasIndex(x => x.SalesInvoiceLineId);
             entity.HasOne(x => x.ExpenseAccount).WithMany().HasForeignKey(x => x.ExpenseAccountId).OnDelete(DeleteBehavior.Restrict);
         });
 

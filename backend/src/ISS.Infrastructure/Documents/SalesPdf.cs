@@ -3,6 +3,7 @@ using ISS.Application.Common;
 using ISS.Domain.Sales;
 using Microsoft.EntityFrameworkCore;
 using QuestPDF.Fluent;
+using QuestPDF.Helpers;
 
 namespace ISS.Infrastructure.Documents;
 
@@ -205,10 +206,21 @@ public sealed partial class DocumentPdfService
             ("Invoice date", invoice.InvoiceDate.ToString("u")),
             ("Due date", invoice.DueDate?.ToString("u") ?? ""),
             ("Status", invoice.Status.ToString()),
-            ("Subtotal", FormatMoney(invoice.Subtotal)),
-            ("Tax total", FormatMoney(invoice.TaxTotal)),
-            ("Total", FormatMoney(invoice.Total))
+            ("Subtotal", FormatMoney(invoice.LinesSubtotal))
         };
+
+        // the discount rows only appear when there is one, so a plain invoice reads as before
+        if (invoice.DiscountTotal > 0m)
+        {
+            var discountLabel = invoice.DiscountPercent > 0m
+                ? $"Invoice discount ({FormatPercent(invoice.DiscountPercent)}%)"
+                : "Invoice discount";
+            meta.Add((discountLabel, $"-{FormatMoney(invoice.DiscountTotal)}"));
+            meta.Add(("Net subtotal", FormatMoney(invoice.Subtotal)));
+        }
+
+        meta.Add(("Tax total", FormatMoney(invoice.TaxTotal)));
+        meta.Add(("Total", FormatMoney(invoice.Total)));
 
         return BuildPdf(
             title: "Sales Invoice",
@@ -236,18 +248,29 @@ public sealed partial class DocumentPdfService
                         h.Cell().Element(CellHeader).AlignRight().Text("Unit Price");
                         h.Cell().Element(CellHeader).AlignRight().Text("Discount %");
                         h.Cell().Element(CellHeader).AlignRight().Text("Tax %");
-                        h.Cell().Element(CellHeader).AlignRight().Text("Line Total");
+                        h.Cell().Element(CellHeader).AlignRight().Text("Amount");
                     });
 
+                    // amounts are shown before tax so the lines add up to the subtotal, and the
+                    // discount and tax rows below carry the invoice from that figure to the total
                     foreach (var line in invoice.Lines)
                     {
                         var item = itemById.GetValueOrDefault(line.ItemId);
-                        table.Cell().Element(CellBody).Text(ItemLabel(item, line.ItemId));
+                        // labour and rolled-up charges all bill against one item, so the
+                        // description is what tells the customer which line is which
+                        table.Cell().Element(CellBody).Column(cell =>
+                        {
+                            cell.Item().Text(ItemLabel(item, line.ItemId));
+                            if (!string.IsNullOrWhiteSpace(line.Description))
+                            {
+                                cell.Item().Text(line.Description!).FontSize(8).FontColor(Colors.Grey.Darken1);
+                            }
+                        });
                         table.Cell().Element(CellBody).AlignRight().Text(FormatQty(line.Quantity));
                         table.Cell().Element(CellBody).AlignRight().Text(FormatMoney(line.UnitPrice));
                         table.Cell().Element(CellBody).AlignRight().Text(FormatPercent(line.DiscountPercent));
                         table.Cell().Element(CellBody).AlignRight().Text(FormatPercent(line.TaxPercent));
-                        table.Cell().Element(CellBody).AlignRight().Text(FormatMoney(line.LineTotal));
+                        table.Cell().Element(CellBody).AlignRight().Text(FormatMoney(line.LineSubtotal));
                     }
                 });
             },

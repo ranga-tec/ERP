@@ -148,6 +148,14 @@ public sealed class ServiceJob : AuditableEntity
 
     public void MarkInvoiced()
     {
+        // A job can be billed more than once - a first invoice for parts on handover, a later one
+        // for labour signed off afterwards - so re-invoicing an already-invoiced job is a no-op
+        // rather than an error. What stops double-billing is the per-charge invoice link, not this.
+        if (Status == ServiceJobStatus.Invoiced)
+        {
+            return;
+        }
+
         if (Status is not (ServiceJobStatus.WorkCompleted or ServiceJobStatus.ReadyForInvoice))
         {
             throw new DomainValidationException("Only completed or ready-for-invoice service jobs can be marked invoiced.");
