@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import Image from "next/image";
+import Link from "next/link";
 import { Card, Table } from "@/components/ui";
 import { company } from "@/lib/company";
 
@@ -661,6 +662,13 @@ export default function HelpPage() {
         <ManualImage src="/help/system/finance-ap.png" alt="Accounts payable" />
         <p>Finance controls AR, AP, payments, credit notes, debit notes, petty cash, IOUs, allocations, release, and settlement.</p>
         <FlowTable rows={financeRows} />
+        <p>
+          Petty cash has its own step-by-step guide:{" "}
+          <Link className="font-semibold text-[var(--link)] underline underline-offset-2" href="/help/petty-cash">
+            Petty Cash Help
+          </Link>{" "}
+          covers requesting funds, recording IOU slips, settling with bills, and what every refusal message means.
+        </p>
       </Section>
 
       <Section id="admin" title="8. Admin, Access Permissions, And Notifications">

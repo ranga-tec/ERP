@@ -78,6 +78,7 @@ const sections: NavSection[] = [
       { href: "/service/quality-checks", label: "Inspection / QC" },
       { href: "/service/handovers", label: "Service Taken" },
       { href: "/help", label: "Help" },
+      { href: "/help/petty-cash", label: "Petty Cash Help" },
     ],
   },
   {
