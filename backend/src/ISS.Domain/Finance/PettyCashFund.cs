@@ -206,7 +206,8 @@ public sealed class PettyCashFund : AuditableEntity
         DateTimeOffset occurredAt,
         Guid iouId,
         string? referenceNumber,
-        string? notes)
+        string? notes,
+        Guid? pettyCashRequestLineId = null)
     {
         EnsureActive();
 
@@ -218,7 +219,8 @@ public sealed class PettyCashFund : AuditableEntity
             referenceType: "IOU",
             referenceId: iouId,
             referenceNumber,
-            notes);
+            notes,
+            pettyCashRequestLineId);
     }
 
     private PettyCashTransaction AddTransaction(
@@ -409,8 +411,22 @@ public sealed class PettyCashIou : AuditableEntity
     /// <summary>The funded category the cash came out of, so releasing draws down that sub-account.</summary>
     public Guid? PettyCashRequestLineId { get; private set; }
 
+    /// <summary>Cash handed back so far, across however many instalments it came in.</summary>
+    public decimal ReturnedAmount { get; private set; }
+
+    public DateTimeOffset? LastReturnedAt { get; private set; }
+
     public DateTimeOffset? SettlementApprovedAt { get; private set; }
     public Guid? SettlementApprovedByUserId { get; private set; }
+
+    /// <summary>
+    /// The advance, less what has come back. What is left has to be covered by bills; anything not
+    /// covered is cash the holder cannot account for.
+    /// </summary>
+    public decimal OutstandingAmount => Amount - ReturnedAmount;
+
+    /// <summary>Additions are allowed until head office signs the settlement off.</summary>
+    public bool IsOpenForAccounting => Status is PettyCashIouStatus.Released or PettyCashIouStatus.Settled;
 
     /// <summary>
     /// Cash handed over on a pre-printed slip, with no request behind it. The IOU is created
@@ -515,17 +531,39 @@ public sealed class PettyCashIou : AuditableEntity
         Status = PettyCashIouStatus.Released;
     }
 
-    public void Settle(decimal settledAmount, DateTimeOffset settledAt, string? settlementReference)
+    /// <summary>
+    /// Cash handed back. Holders often return it in instalments, so this accumulates rather than
+    /// replacing, and stays open while the advance is Released or Settled - head office approval is
+    /// what closes the advance, not the first return.
+    /// </summary>
+    public void AddReturn(decimal amount, DateTimeOffset returnedAt)
     {
-        if (Status != PettyCashIouStatus.Released)
-        {
-            throw new DomainValidationException("Only released IOUs can be settled.");
-        }
+        EnsureOpenForAccounting();
+        ReturnedAmount += Guard.Positive(amount, nameof(amount));
+        LastReturnedAt = returnedAt;
+    }
 
-        SettledAmount = Guard.NotNegative(settledAmount, nameof(settledAmount));
+    /// <summary>
+    /// Marks the advance as accounted for. There is no amount to type: what was spent is simply the
+    /// advance less what came back, and the bills behind it are the vouchers linked to this record.
+    /// </summary>
+    public void Settle(DateTimeOffset settledAt, string? settlementReference)
+    {
+        EnsureOpenForAccounting();
+
+        SettledAmount = Amount - ReturnedAmount;
         SettledAt = settledAt;
         SettlementReference = string.IsNullOrWhiteSpace(settlementReference) ? null : Guard.NotNullOrWhiteSpace(settlementReference, nameof(settlementReference), maxLength: 128);
         Status = PettyCashIouStatus.Settled;
+    }
+
+    private void EnsureOpenForAccounting()
+    {
+        if (Status is not (PettyCashIouStatus.Released or PettyCashIouStatus.Settled))
+        {
+            throw new DomainValidationException(
+                "Only a released advance can be accounted for, and only until head office approves the settlement.");
+        }
     }
 
     public void ApproveSettlement(Guid approvedByUserId, DateTimeOffset approvedAt)

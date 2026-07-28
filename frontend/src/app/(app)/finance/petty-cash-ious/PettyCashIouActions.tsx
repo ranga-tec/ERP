@@ -39,9 +39,9 @@ export function PettyCashIouActions({
   const canApproveSettlement = status === 4 && permissionSet.has("Finance.PettyCashIou.Approve");
   const [fundId, setFundId] = useState(funds[0]?.id ?? "");
   const [issueBillNumber, setIssueBillNumber] = useState("");
-  // Default to what the vouchers actually document, not to the full advance. Defaulting to the
-  // advance is what let 600 be settled against 100 of bills without anyone noticing.
-  const [settledAmount, setSettledAmount] = useState(String(claimCount > 0 ? claimedAmount : amount));
+  // Settling no longer takes an amount spent - what was spent is the advance less what came back.
+  // So this is the cash physically handed back, and it may be zero.
+  const [returnedNow, setReturnedNow] = useState("0");
   const [rejectReason, setRejectReason] = useState("");
   const [pending, setPending] = useState<Pending>(null);
   const [busy, setBusy] = useState<string | null>(null);
@@ -61,13 +61,30 @@ export function PettyCashIouActions({
     }
   }
 
-  const settleValue = Number(settledAmount);
-  const settleInvalid = !Number.isFinite(settleValue) || settleValue < 0;
+  async function settleWithReturn() {
+    setError(null);
+    setBusy("settle");
+    try {
+      if (returnValue > 0) {
+        await apiPostNoContent(`finance/petty-cash-ious/${id}/return-balance`, { amount: returnValue });
+      }
+      await apiPostNoContent(`finance/petty-cash-ious/${id}/settle`, {});
+      setPending(null);
+      router.refresh();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  const returnValue = Number(returnedNow);
+  const returnInvalid = !Number.isFinite(returnValue) || returnValue < 0 || returnValue > amount;
   const fundLabel = funds.find((fund) => fund.id === fundId);
 
-  // Anything settled beyond the documented vouchers is cash that left the fund with no bill behind
-  // it, and it never reaches job cost. Surfaced, not blocked - finance decides.
-  const unaccounted = settleInvalid ? 0 : settleValue - claimedAmount;
+  // Whatever did not come back has to be covered by bills; the rest is cash nobody can account for.
+  // Surfaced, not blocked - finance decides.
+  const unaccounted = returnInvalid ? 0 : amount - returnValue - claimedAmount;
 
   return (
     <div className="space-y-2">
@@ -127,25 +144,25 @@ export function PettyCashIouActions({
         {status === 3 && canSettle ? (
           <>
             <div>
-              <label className="mb-1 block text-xs font-medium text-zinc-500">Amount spent</label>
+              <label className="mb-1 block text-xs font-medium text-zinc-500">Cash returned</label>
               <Input
                 className="w-32"
                 inputMode="decimal"
-                value={settledAmount}
-                onChange={(event) => setSettledAmount(event.target.value)}
+                value={returnedNow}
+                onChange={(event) => setReturnedNow(event.target.value)}
               />
               <div className="mt-1 text-xs text-zinc-500">
                 {claimCount === 0
                   ? "No expense vouchers linked to this advance."
                   : `${money(claimedAmount)} on ${claimCount} voucher${claimCount === 1 ? "" : "s"}`}
               </div>
-              {!settleInvalid && unaccounted > 0 ? (
+              {!returnInvalid && unaccounted > 0 ? (
                 <div className="mt-1 text-xs text-amber-700 dark:text-amber-400">
                   {money(unaccounted)} has no voucher behind it and will not reach job cost.
                 </div>
               ) : null}
             </div>
-            <Button type="button" disabled={busy !== null || settleInvalid} onClick={() => setPending("settle")}>
+            <Button type="button" disabled={busy !== null || returnInvalid} onClick={() => setPending("settle")}>
               Settle / Account
             </Button>
           </>
@@ -182,12 +199,12 @@ export function PettyCashIouActions({
         confirmLabel="Settle / Account"
         busy={busy === "settle"}
         onCancel={() => setPending(null)}
-        onConfirm={() => run("settle", { settledAmount: settleValue })}
+        onConfirm={() => void settleWithReturn()}
         description={
           <>
             This accounts the advance of <span className="font-semibold">{money(amount)}</span> as spent at{" "}
-            <span className="font-semibold">{money(settleValue)}</span>, returning{" "}
-            <span className="font-semibold">{money(Math.max(0, amount - settleValue))}</span> to the fund.
+            <span className="font-semibold">{money(amount - returnValue)}</span>, returning{" "}
+            <span className="font-semibold">{money(returnValue)}</span> to the fund.
             {unaccounted > 0 ? (
               <span className="text-amber-700 dark:text-amber-300">
                 {" "}

@@ -471,6 +471,66 @@ public sealed class FinanceService(
         return iou.Id;
     }
 
+    /// <summary>
+    /// A bill the holder brought back. The custodian works entirely on the advance; the expense
+    /// voucher behind it is found or created here so the spend still reaches job costing and finance
+    /// still has a voucher for the books. It stays in draft while bills accumulate - approving the
+    /// settlement is what approves these bills.
+    /// </summary>
+    public async Task AddPettyCashIouBillAsync(
+        Guid iouId,
+        string description,
+        decimal amount,
+        bool billableToCustomer,
+        string? receiptReference,
+        CancellationToken cancellationToken = default)
+    {
+        var iou = await dbContext.PettyCashIous.AsNoTracking()
+            .FirstOrDefaultAsync(x => x.Id == iouId, cancellationToken)
+            ?? throw new NotFoundException("Petty cash IOU not found.");
+
+        if (!iou.IsOpenForAccounting)
+        {
+            throw new DomainValidationException(
+                "Bills can only be added to a released advance, and only until head office approves the settlement.");
+        }
+
+        var claim = await dbContext.ServiceExpenseClaims
+            .Include(x => x.Lines)
+            .FirstOrDefaultAsync(x => x.PettyCashIouId == iouId && x.Status == ServiceExpenseClaimStatus.Draft, cancellationToken);
+
+        if (claim is null)
+        {
+            var number = await documentNumberService.NextAsync(ReferenceTypes.ServiceExpenseClaim, "SEC", cancellationToken);
+            claim = new ServiceExpenseClaim(
+                number,
+                iou.ServiceJobId,
+                iou.RequestedByUserId,
+                iou.RequestedByName,
+                ServiceExpenseFundingSource.PettyCash,
+                clock.UtcNow,
+                merchantName: null,
+                receiptReference,
+                notes: $"Bills accounted against advance {iou.Number}.",
+                serviceJobDailySheetId: null,
+                pettyCashIouId: iou.Id,
+                pettyCashRequestLineId: iou.PettyCashRequestLineId);
+
+            await dbContext.ServiceExpenseClaims.AddAsync(claim, cancellationToken);
+        }
+
+        var line = claim.AddLine(null, description, 1m, amount, billableToCustomer);
+        dbContext.DbContext.Add(line);
+
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    /// <summary>
+    /// Head office signing off the settlement. This is also what approves the bills gathered against
+    /// the advance, so the draft voucher is submitted and approved here and becomes job cost. It is
+    /// deliberately never settled: the cash left the box when the advance was released, and settling
+    /// it would pay the same money out twice.
+    /// </summary>
     public async Task ApprovePettyCashIouSettlementAsync(
         Guid iouId,
         Guid approvedByUserId,
@@ -478,7 +538,19 @@ public sealed class FinanceService(
     {
         var iou = await dbContext.PettyCashIous.FirstOrDefaultAsync(x => x.Id == iouId, cancellationToken)
                   ?? throw new NotFoundException("Petty cash IOU not found.");
+
         iou.ApproveSettlement(approvedByUserId, clock.UtcNow);
+
+        var claim = await dbContext.ServiceExpenseClaims
+            .Include(x => x.Lines)
+            .FirstOrDefaultAsync(x => x.PettyCashIouId == iouId && x.Status == ServiceExpenseClaimStatus.Draft, cancellationToken);
+
+        if (claim is { Lines.Count: > 0 })
+        {
+            claim.Submit(clock.UtcNow);
+            claim.Approve(clock.UtcNow);
+        }
+
         await dbContext.SaveChangesAsync(cancellationToken);
     }
 
@@ -514,36 +586,61 @@ public sealed class FinanceService(
         }
     }
 
-    public async Task SettlePettyCashIouAsync(
+    /// <summary>
+    /// Cash coming back from the holder, in whatever instalments it arrives. It is credited to the
+    /// category the advance was drawn from, so the sub-account is restored rather than the float
+    /// simply going up - releasing debited that category, and this is the matching credit.
+    /// </summary>
+    public async Task ReturnPettyCashIouBalanceAsync(
         Guid iouId,
-        decimal settledAmount,
-        string? settlementReference,
+        decimal amount,
+        string? reference,
         CancellationToken cancellationToken = default)
     {
         var iou = await dbContext.PettyCashIous.FirstOrDefaultAsync(x => x.Id == iouId, cancellationToken)
                   ?? throw new NotFoundException("Petty cash IOU not found.");
 
         var pettyCashFundId = iou.PettyCashFundId
-                              ?? throw new DomainValidationException("IOU must be released from a petty cash fund before settlement.");
+                              ?? throw new DomainValidationException("This advance was never released from a fund.");
+
+        if (amount > iou.OutstandingAmount)
+        {
+            throw new DomainValidationException(
+                $"Returning {amount} is more than the {iou.OutstandingAmount} still outstanding on this advance.");
+        }
 
         var fund = await dbContext.PettyCashFunds
             .Include(x => x.Transactions)
             .FirstOrDefaultAsync(x => x.Id == pettyCashFundId, cancellationToken)
             ?? throw new NotFoundException("Petty cash fund not found.");
 
-        if (settledAmount > iou.Amount)
-        {
-            throw new DomainValidationException("IOU settlement cannot exceed released amount.");
-        }
+        iou.AddReturn(amount, clock.UtcNow);
 
-        iou.Settle(settledAmount, clock.UtcNow, settlementReference);
-        var returnAmount = iou.Amount - settledAmount;
-        if (returnAmount > 0m)
-        {
-            var transaction = fund.RecordIouSettlement(returnAmount, clock.UtcNow, iou.Id, iou.Number, settlementReference);
-            dbContext.DbContext.Add(transaction);
-        }
+        var transaction = fund.RecordIouSettlement(
+            amount,
+            clock.UtcNow,
+            iou.Id,
+            iou.Number,
+            reference ?? $"Balance returned on {iou.Number}.",
+            iou.PettyCashRequestLineId);
+        dbContext.DbContext.Add(transaction);
 
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    /// <summary>
+    /// Closes the accounting on an advance. No amount is passed: what was spent is the advance less
+    /// what came back, and the bills behind it are the vouchers already linked to this record.
+    /// </summary>
+    public async Task SettlePettyCashIouAsync(
+        Guid iouId,
+        string? settlementReference,
+        CancellationToken cancellationToken = default)
+    {
+        var iou = await dbContext.PettyCashIous.FirstOrDefaultAsync(x => x.Id == iouId, cancellationToken)
+                  ?? throw new NotFoundException("Petty cash IOU not found.");
+
+        iou.Settle(clock.UtcNow, settlementReference);
         await dbContext.SaveChangesAsync(cancellationToken);
     }
 

@@ -76,11 +76,13 @@ public sealed class PettyCashIousController(
         string? RejectionReason,
         decimal ClaimedAmount,
         int ClaimCount,
-        decimal? ReturnedAmount,
         decimal? UnaccountedAmount,
         string? IssueBillNumber,
         Guid? PettyCashRequestLineId,
-        DateTimeOffset? SettlementApprovedAt);
+        DateTimeOffset? SettlementApprovedAt,
+        decimal ReturnedAmount,
+        decimal OutstandingAmount,
+        bool IsOpenForAccounting);
 
     public sealed record CreatePettyCashIouRequest(
         Guid ServiceJobId,
@@ -97,7 +99,22 @@ public sealed class PettyCashIousController(
         string? IssueBillNumber,
         Guid? PettyCashRequestLineId);
 
-    public sealed record SettlePettyCashIouRequest(decimal SettledAmount, string? SettlementReference);
+    public sealed record SettlePettyCashIouRequest(string? SettlementReference);
+    public sealed record ReturnPettyCashIouBalanceRequest(decimal Amount, string? Reference);
+
+    public sealed record AddPettyCashIouBillRequest(
+        string Description,
+        decimal Amount,
+        bool BillableToCustomer,
+        string? ReceiptReference);
+
+    public sealed record PettyCashIouBillDto(
+        Guid Id,
+        string Description,
+        decimal Amount,
+        bool BillableToCustomer,
+        string VoucherNumber,
+        ServiceExpenseClaimStatus VoucherStatus);
 
     /// <summary>
     /// Cash handed over on a pre-printed slip, with no request behind it. The slip number is the
@@ -311,8 +328,69 @@ public sealed class PettyCashIousController(
             return Forbid();
         }
 
-        await financeService.SettlePettyCashIouAsync(id, request.SettledAmount, request.SettlementReference, cancellationToken);
+        await financeService.SettlePettyCashIouAsync(id, request.SettlementReference, cancellationToken);
         await NotifyRequesterAsync(id, "IOU settled", "Your IOU request has been settled/accounted.", cancellationToken);
+        return NoContent();
+    }
+
+    /// <summary>The bills gathered against this advance, whichever voucher they ended up on.</summary>
+    [HttpGet("{id:guid}/bills")]
+    public async Task<ActionResult<IReadOnlyList<PettyCashIouBillDto>>> Bills(Guid id, CancellationToken cancellationToken)
+    {
+        if (!await HasPermissionAsync(AppPermissions.PettyCashIouView, cancellationToken))
+        {
+            return Forbid();
+        }
+
+        var rows = await dbContext.ServiceExpenseClaims.AsNoTracking()
+            .Where(claim => claim.PettyCashIouId == id && claim.Status != ServiceExpenseClaimStatus.Rejected)
+            .SelectMany(claim => claim.Lines.Select(line => new PettyCashIouBillDto(
+                line.Id,
+                line.Description,
+                line.Quantity * line.UnitCost,
+                line.BillableToCustomer,
+                claim.Number,
+                claim.Status)))
+            .ToListAsync(cancellationToken);
+
+        return Ok(rows);
+    }
+
+    [HttpPost("{id:guid}/bills")]
+    public async Task<ActionResult> AddBill(Guid id, AddPettyCashIouBillRequest request, CancellationToken cancellationToken)
+    {
+        if (!await HasPermissionAsync(AppPermissions.PettyCashIouSettle, cancellationToken))
+        {
+            return Forbid();
+        }
+
+        await financeService.AddPettyCashIouBillAsync(
+            id,
+            request.Description,
+            request.Amount,
+            request.BillableToCustomer,
+            request.ReceiptReference,
+            cancellationToken);
+
+        return NoContent();
+    }
+
+    /// <summary>
+    /// Cash handed back, in however many instalments it arrives. Credited to the category the
+    /// advance was drawn from, so releasing and returning are matching entries on that sub-account.
+    /// </summary>
+    [HttpPost("{id:guid}/return-balance")]
+    public async Task<ActionResult> ReturnBalance(
+        Guid id,
+        ReturnPettyCashIouBalanceRequest request,
+        CancellationToken cancellationToken)
+    {
+        if (!await HasPermissionAsync(AppPermissions.PettyCashIouSettle, cancellationToken))
+        {
+            return Forbid();
+        }
+
+        await financeService.ReturnPettyCashIouBalanceAsync(id, request.Amount, request.Reference, cancellationToken);
         return NoContent();
     }
 
@@ -443,9 +521,15 @@ public sealed class PettyCashIousController(
             iou.RejectionReason,
             totals.ClaimedAmount,
             totals.ClaimCount,
-            iou.SettledAmount is null ? null : iou.Amount - iou.SettledAmount.Value,
-            iou.SettledAmount is null ? null : iou.SettledAmount.Value - totals.ClaimedAmount,
+            // What is still outstanding after cash came back, less what the bills document. This is
+            // live from the moment cash is released, not only once someone settles.
+            iou.Status is PettyCashIouStatus.Draft or PettyCashIouStatus.Submitted or PettyCashIouStatus.Approved
+                ? null
+                : iou.OutstandingAmount - totals.ClaimedAmount,
             iou.IssueBillNumber,
             iou.PettyCashRequestLineId,
-            iou.SettlementApprovedAt);
+            iou.SettlementApprovedAt,
+            iou.ReturnedAmount,
+            iou.OutstandingAmount,
+            iou.IsOpenForAccounting);
 }
