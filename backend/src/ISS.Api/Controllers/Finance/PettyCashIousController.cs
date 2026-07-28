@@ -5,7 +5,9 @@ using ISS.Application.Persistence;
 using ISS.Application.Services;
 using ISS.Domain.Finance;
 using ISS.Domain.Service;
+using ISS.Infrastructure.Identity;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -19,8 +21,36 @@ public sealed class PettyCashIousController(
     FinanceService financeService,
     ICurrentUser currentUser,
     AccessControlService accessControl,
-    NotificationService notificationService) : ControllerBase
+    NotificationService notificationService,
+    UserManager<ApplicationUser> userManager) : ControllerBase
 {
+    public sealed record PettyCashStaffDto(Guid UserId, string Name, string? Email);
+
+    /// <summary>
+    /// Who cash can be handed to. Lives here rather than under admin or service so Finance can
+    /// reach it: the custodian issuing the cash is the one who needs the list.
+    /// </summary>
+    [HttpGet("staff")]
+    public async Task<ActionResult<IReadOnlyList<PettyCashStaffDto>>> Staff(CancellationToken cancellationToken)
+    {
+        if (!await HasPermissionAsync(AppPermissions.PettyCashIouView, cancellationToken))
+        {
+            return Forbid();
+        }
+
+        var now = DateTimeOffset.UtcNow;
+        var users = await userManager.Users.AsNoTracking()
+            .Where(x => x.LockoutEnd == null || x.LockoutEnd <= now)
+            .OrderBy(x => x.DisplayName ?? x.Email)
+            .Select(x => new PettyCashStaffDto(
+                x.Id,
+                x.DisplayName != null && x.DisplayName != "" ? x.DisplayName : (x.Email ?? x.UserName)!,
+                x.Email))
+            .ToListAsync(cancellationToken);
+
+        return Ok(users);
+    }
+
     public sealed record PettyCashIouDto(
         Guid Id,
         string Number,
@@ -77,6 +107,9 @@ public sealed class PettyCashIousController(
         Guid PettyCashFundId,
         string IssueBillNumber,
         Guid? PettyCashRequestLineId,
+        // The staff member the cash was handed to. The advance is theirs to settle, so this is the
+        // holder of record - not whoever typed the form in.
+        Guid? IssuedToUserId,
         string? IssuedToName);
 
     [HttpGet]
@@ -231,13 +264,16 @@ public sealed class PettyCashIousController(
             return Forbid();
         }
 
+        // The advance belongs to whoever took the cash. Falling back to the current user only
+        // covers the custodian drawing it for themselves.
+        var issuedToUserId = request.IssuedToUserId ?? currentUser.UserId ?? Guid.Empty;
         var issuedToName = string.IsNullOrWhiteSpace(request.IssuedToName)
-            ? User.Identity?.Name ?? "Unknown user"
+            ? await ResolveUserNameAsync(issuedToUserId, cancellationToken)
             : request.IssuedToName;
 
         var id = await financeService.IssuePettyCashIouDirectlyAsync(
             request.ServiceJobId,
-            currentUser.UserId ?? Guid.Empty,
+            issuedToUserId,
             issuedToName,
             request.Amount,
             request.Purpose,
@@ -278,6 +314,16 @@ public sealed class PettyCashIousController(
     private async Task<bool> HasPermissionAsync(string permissionKey, CancellationToken cancellationToken)
         => currentUser.UserId is { } userId
            && await accessControl.HasPermissionAsync(userId, permissionKey, cancellationToken);
+
+    private async Task<string> ResolveUserNameAsync(Guid userId, CancellationToken cancellationToken)
+    {
+        var name = await userManager.Users.AsNoTracking()
+            .Where(x => x.Id == userId)
+            .Select(x => x.DisplayName != null && x.DisplayName != "" ? x.DisplayName : (x.Email ?? x.UserName))
+            .FirstOrDefaultAsync(cancellationToken);
+
+        return string.IsNullOrWhiteSpace(name) ? "Unknown user" : name;
+    }
 
     private async Task NotifyIouSubmittedAsync(Guid id, CancellationToken cancellationToken)
     {

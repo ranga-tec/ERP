@@ -55,6 +55,55 @@ public sealed class ServiceExpenseClaim : AuditableEntity
         Status = ServiceExpenseClaimStatus.Draft;
     }
 
+    /// <summary>
+    /// Cash paid straight out of the float for something bought on the spot - a taxi, a courier -
+    /// where no one is left accountable and the bill is the whole of the support. The voucher is
+    /// created already settled because the money has physically gone; the authority for it was the
+    /// funded category, approved when head office released it. Contrast an advance, which leaves a
+    /// person owing until they settle.
+    /// </summary>
+    public static ServiceExpenseClaim PayDirectlyFromFund(
+        string number,
+        Guid? serviceJobId,
+        Guid? paidByUserId,
+        string paidByName,
+        DateTimeOffset paidAt,
+        string description,
+        decimal amount,
+        bool billableToCustomer,
+        string? merchantName,
+        string receiptReference,
+        string? notes,
+        Guid pettyCashFundId,
+        Guid? pettyCashRequestLineId)
+    {
+        var claim = new ServiceExpenseClaim(
+            number,
+            serviceJobId,
+            paidByUserId,
+            paidByName,
+            ServiceExpenseFundingSource.PettyCash,
+            paidAt,
+            merchantName,
+            Guard.NotNullOrWhiteSpace(receiptReference, nameof(receiptReference), maxLength: 128),
+            notes,
+            serviceJobDailySheetId: null,
+            pettyCashIouId: null,
+            pettyCashRequestLineId);
+
+        // Added while still Draft, since AddLine refuses anything else.
+        claim.AddLine(null, description, 1m, Guard.Positive(amount, nameof(amount)), billableToCustomer);
+
+        claim.Status = ServiceExpenseClaimStatus.Settled;
+        claim.SubmittedAt = paidAt;
+        claim.ApprovedAt = paidAt;
+        claim.SettledAt = paidAt;
+        claim.SettlementPettyCashFundId = pettyCashFundId;
+        claim.SettlementReference = receiptReference;
+
+        return claim;
+    }
+
     public string Number { get; private set; } = null!;
 
     /// <summary>

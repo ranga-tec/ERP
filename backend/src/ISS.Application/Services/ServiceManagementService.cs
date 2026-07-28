@@ -548,6 +548,68 @@ public sealed class ServiceManagementService(
         await dbContext.SaveChangesAsync(cancellationToken);
     }
 
+    /// <summary>
+    /// Records cash already paid out of the float for a one-off purchase. Unlike an advance this
+    /// leaves nobody accountable, so the receipt reference is required - it is the only support the
+    /// voucher will ever have.
+    /// </summary>
+    public async Task<Guid> PayPettyCashDirectlyAsync(
+        Guid? serviceJobId,
+        Guid? paidByUserId,
+        string paidByName,
+        string description,
+        decimal amount,
+        bool billableToCustomer,
+        string? merchantName,
+        string receiptReference,
+        string? notes,
+        Guid pettyCashFundId,
+        Guid? pettyCashRequestLineId,
+        CancellationToken cancellationToken = default)
+    {
+        await EnsureServiceJobAcceptsNewCostsAsync(serviceJobId, cancellationToken);
+        await EnsureRequestLineCanFundClaimAsync(
+            serviceJobId,
+            ServiceExpenseFundingSource.PettyCash,
+            pettyCashRequestLineId,
+            cancellationToken);
+
+        var fund = await dbContext.PettyCashFunds
+            .Include(x => x.Transactions)
+            .FirstOrDefaultAsync(x => x.Id == pettyCashFundId, cancellationToken)
+            ?? throw new NotFoundException("Petty cash fund not found.");
+
+        var number = await documentNumberService.NextAsync(ReferenceTypes.ServiceExpenseClaim, "SEC", cancellationToken);
+        var claim = ServiceExpenseClaim.PayDirectlyFromFund(
+            number,
+            serviceJobId,
+            paidByUserId,
+            paidByName,
+            clock.UtcNow,
+            description,
+            amount,
+            billableToCustomer,
+            merchantName,
+            receiptReference,
+            notes,
+            pettyCashFundId,
+            pettyCashRequestLineId);
+
+        await dbContext.ServiceExpenseClaims.AddAsync(claim, cancellationToken);
+
+        var transaction = fund.RecordExpenseSettlement(
+            claim.Total,
+            clock.UtcNow,
+            claim.Id,
+            receiptReference,
+            notes: $"Paid directly from petty cash on {claim.Number}.",
+            pettyCashRequestLineId);
+        dbContext.DbContext.Add(transaction);
+
+        await dbContext.SaveChangesAsync(cancellationToken);
+        return claim.Id;
+    }
+
     public async Task<Guid> CreateServiceExpenseClaimAsync(
         Guid? serviceJobId,
         Guid? claimedByUserId,

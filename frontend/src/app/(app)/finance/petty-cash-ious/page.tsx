@@ -4,6 +4,7 @@ import { TableSearchInput } from "@/components/TableSearchInput";
 import { Card, Table } from "@/components/ui";
 import { PettyCashIouActions } from "./PettyCashIouActions";
 import { PettyCashIouCreateForm } from "./PettyCashIouCreateForm";
+import { PettyCashIssueForm } from "./PettyCashIssueForm";
 
 type ServiceJobDto = { id: string; number: string; status: number };
 type FundDto = { id: string; code: string; name: string; isActive: boolean };
@@ -37,16 +38,29 @@ const statusLabel: Record<number, string> = {
   7: "Settlement Approved",
 };
 
+type StaffDto = { userId: string; name: string; email?: string | null };
+type FundedCategoryDto = {
+  id: string;
+  requestNumber: string;
+  category: number;
+  serviceJobId?: string | null;
+  customCategoryName?: string | null;
+  purpose: string;
+};
+
 export default async function PettyCashIousPage() {
-  const [jobs, funds, ious, currentPermissions] = await Promise.all([
+  const [jobs, funds, ious, staff, fundedCategories, currentPermissions] = await Promise.all([
     backendFetchJson<ServiceJobDto[]>("/service/jobs?take=500"),
     backendFetchJson<FundDto[]>("/finance/petty-cash-funds"),
     backendFetchJson<PettyCashIouDto[]>("/finance/petty-cash-ious?take=200"),
+    backendFetchJson<StaffDto[]>("/finance/petty-cash-ious/staff"),
+    backendFetchJson<FundedCategoryDto[]>("/finance/petty-cash-requests/funded-lines"),
     backendFetchJson<CurrentPermissionsDto>("/me/permissions"),
   ]);
   const activeFunds = funds.filter((fund) => fund.isActive);
   const permissions = new Set(currentPermissions.permissions);
   const canCreate = permissions.has("Finance.PettyCashIou.Create");
+  const canIssue = permissions.has("Finance.PettyCashIou.Release");
 
   return (
     <div className="space-y-6">
@@ -57,11 +71,28 @@ export default async function PettyCashIousPage() {
             Cash issued from a fund <em>before</em> the spend, against a job order. The holder later settles it: unspent cash returns to the fund, and what was spent should be documented on expense vouchers linked to this advance.
           </p>
         </div>
-        {canCreate ? (
-          <AppFormModal title="Create Petty Cash Advance" description="Request cash up front against a job order, to be settled and accounted for later." buttonLabel="+ New IOU">
-            <PettyCashIouCreateForm serviceJobs={jobs.filter((job) => job.status !== 3 && job.status !== 4)} />
-          </AppFormModal>
-        ) : null}
+        <div className="flex flex-wrap items-center gap-2">
+          {canIssue ? (
+            <AppFormModal
+              title="Issue Cash Now"
+              description="Cash handed out of the float with no prior request - either as someone's advance, or as payment for something already bought."
+              buttonLabel="+ Issue Cash Now"
+              variant="secondary"
+            >
+              <PettyCashIssueForm
+                serviceJobs={jobs.filter((job) => job.status !== 3 && job.status !== 4)}
+                funds={activeFunds}
+                staff={staff}
+                fundedCategories={fundedCategories}
+              />
+            </AppFormModal>
+          ) : null}
+          {canCreate ? (
+            <AppFormModal title="Create Petty Cash Advance" description="Request cash up front against a job order, to be settled and accounted for later." buttonLabel="+ New IOU">
+              <PettyCashIouCreateForm serviceJobs={jobs.filter((job) => job.status !== 3 && job.status !== 4)} />
+            </AppFormModal>
+          ) : null}
+        </div>
       </div>
 
       <Card>

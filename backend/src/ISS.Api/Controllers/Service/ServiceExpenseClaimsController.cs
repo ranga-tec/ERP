@@ -108,6 +108,19 @@ public sealed class ServiceExpenseClaimsController(
         decimal UnitCost,
         bool BillableToCustomer);
 
+    /// <summary>Cash paid straight from the float, with the bill as its only support.</summary>
+    public sealed record PayPettyCashDirectlyRequest(
+        Guid? ServiceJobId,
+        string Description,
+        decimal Amount,
+        bool BillableToCustomer,
+        string? MerchantName,
+        string ReceiptReference,
+        string? Notes,
+        Guid PettyCashFundId,
+        Guid? PettyCashRequestLineId,
+        string? PaidByName);
+
     public sealed record RejectServiceExpenseClaimRequest(string? RejectionReason);
     public sealed record SettleServiceExpenseClaimRequest(Guid? SettlementPaymentTypeId, Guid? SettlementPettyCashFundId, string? SettlementReference);
     public sealed record ConvertBillableLinesToEstimateRequest(Guid? ServiceEstimateId, decimal? TaxPercent, DateTimeOffset? ValidUntil, string? Terms);
@@ -190,6 +203,39 @@ public sealed class ServiceExpenseClaimsController(
             request.Notes,
             request.ServiceJobDailySheetId,
             request.PettyCashIouId,
+            request.PettyCashRequestLineId,
+            cancellationToken);
+
+        return await Get(id, cancellationToken);
+    }
+
+    [HttpPost("pay-directly")]
+    public async Task<ActionResult<ServiceExpenseClaimDto>> PayDirectly(
+        PayPettyCashDirectlyRequest request,
+        CancellationToken cancellationToken)
+    {
+        // Paying cash out is a settlement, not a claim, so it is gated on Settle rather than Create.
+        if (!await HasPermissionAsync(AppPermissions.ServiceExpenseClaimSettle, cancellationToken))
+        {
+            return Forbid();
+        }
+
+        var userIdValue = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        var paidByUserId = Guid.TryParse(userIdValue, out var parsedUserId) ? parsedUserId : (Guid?)null;
+        var fallbackName = User.Identity?.Name ?? User.FindFirstValue(ClaimTypes.Email) ?? "Unknown";
+        var paidByName = string.IsNullOrWhiteSpace(request.PaidByName) ? fallbackName : request.PaidByName.Trim();
+
+        var id = await serviceManagementService.PayPettyCashDirectlyAsync(
+            request.ServiceJobId,
+            paidByUserId,
+            paidByName,
+            request.Description,
+            request.Amount,
+            request.BillableToCustomer,
+            request.MerchantName,
+            request.ReceiptReference,
+            request.Notes,
+            request.PettyCashFundId,
             request.PettyCashRequestLineId,
             cancellationToken);
 
