@@ -24,7 +24,7 @@ public sealed class ServiceExpenseClaim : AuditableEntity
 
     public ServiceExpenseClaim(
         string number,
-        Guid serviceJobId,
+        Guid? serviceJobId,
         Guid? claimedByUserId,
         string claimedByName,
         ServiceExpenseFundingSource fundingSource,
@@ -33,12 +33,14 @@ public sealed class ServiceExpenseClaim : AuditableEntity
         string? receiptReference,
         string? notes,
         Guid? serviceJobDailySheetId = null,
-        Guid? pettyCashIouId = null)
+        Guid? pettyCashIouId = null,
+        Guid? pettyCashRequestLineId = null)
     {
         Number = Guard.NotNullOrWhiteSpace(number, nameof(number), maxLength: 32);
         ServiceJobId = serviceJobId;
         ServiceJobDailySheetId = serviceJobDailySheetId;
         PettyCashIouId = pettyCashIouId;
+        PettyCashRequestLineId = pettyCashRequestLineId;
         ClaimedByUserId = claimedByUserId;
         ClaimedByName = Guard.NotNullOrWhiteSpace(claimedByName, nameof(claimedByName), maxLength: 256);
         FundingSource = fundingSource;
@@ -54,7 +56,14 @@ public sealed class ServiceExpenseClaim : AuditableEntity
     }
 
     public string Number { get; private set; } = null!;
-    public Guid ServiceJobId { get; private set; }
+
+    /// <summary>
+    /// The job this spend belongs to, when it belongs to one. Null for overhead the custodian pays
+    /// under their own name - transportation, emergency callouts - which is real spend but is not
+    /// attributable to any single job and so never enters job costing.
+    /// </summary>
+    public Guid? ServiceJobId { get; private set; }
+
     public Guid? ServiceJobDailySheetId { get; private set; }
 
     /// <summary>
@@ -64,6 +73,12 @@ public sealed class ServiceExpenseClaim : AuditableEntity
     /// Null for out-of-pocket claims and for petty cash spent outside an advance.
     /// </summary>
     public Guid? PettyCashIouId { get; private set; }
+
+    /// <summary>
+    /// The funded category this spend is charged against, so settling it draws down that
+    /// sub-account rather than the float as an undifferentiated whole.
+    /// </summary>
+    public Guid? PettyCashRequestLineId { get; private set; }
     public Guid? ClaimedByUserId { get; private set; }
     public string ClaimedByName { get; private set; } = null!;
     public ServiceExpenseFundingSource FundingSource { get; private set; }

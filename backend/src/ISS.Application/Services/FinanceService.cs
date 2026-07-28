@@ -155,6 +155,193 @@ public sealed class FinanceService(
         return iou.Id;
     }
 
+    public async Task<Guid> CreatePettyCashRequestAsync(
+        Guid pettyCashFundId,
+        Guid requestedByUserId,
+        string requestedByName,
+        DateTimeOffset? neededByAt,
+        string? notes,
+        CancellationToken cancellationToken = default)
+    {
+        var fund = await dbContext.PettyCashFunds.AsNoTracking()
+            .Where(x => x.Id == pettyCashFundId)
+            .Select(x => new { x.Id, x.IsActive })
+            .FirstOrDefaultAsync(cancellationToken)
+            ?? throw new NotFoundException("Petty cash fund not found.");
+
+        if (!fund.IsActive)
+        {
+            throw new DomainValidationException("Inactive petty cash funds cannot receive new requests.");
+        }
+
+        var number = await documentNumberService.NextAsync(ReferenceTypes.PettyCashRequest, "PCR", cancellationToken);
+        var request = new PettyCashRequest(
+            number,
+            pettyCashFundId,
+            requestedByUserId,
+            requestedByName,
+            clock.UtcNow,
+            neededByAt,
+            notes);
+
+        await dbContext.PettyCashRequests.AddAsync(request, cancellationToken);
+        await dbContext.SaveChangesAsync(cancellationToken);
+        return request.Id;
+    }
+
+    public async Task UpdatePettyCashRequestHeaderAsync(
+        Guid requestId,
+        DateTimeOffset? neededByAt,
+        string? notes,
+        CancellationToken cancellationToken = default)
+    {
+        var request = await LoadPettyCashRequestAsync(requestId, cancellationToken);
+        request.UpdateHeader(neededByAt, notes);
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task<Guid> AddPettyCashRequestLineAsync(
+        Guid requestId,
+        PettyCashRequestCategory category,
+        Guid? serviceJobId,
+        string? customCategoryName,
+        string purpose,
+        decimal requestedAmount,
+        CancellationToken cancellationToken = default)
+    {
+        var request = await LoadPettyCashRequestAsync(requestId, cancellationToken);
+        await EnsureJobIsOpenForCategoryAsync(category, serviceJobId, cancellationToken);
+
+        var line = request.AddLine(category, serviceJobId, customCategoryName, purpose, requestedAmount);
+        dbContext.DbContext.Add(line);
+        await dbContext.SaveChangesAsync(cancellationToken);
+        return line.Id;
+    }
+
+    public async Task UpdatePettyCashRequestLineAsync(
+        Guid requestId,
+        Guid lineId,
+        PettyCashRequestCategory category,
+        Guid? serviceJobId,
+        string? customCategoryName,
+        string purpose,
+        decimal requestedAmount,
+        CancellationToken cancellationToken = default)
+    {
+        var request = await LoadPettyCashRequestAsync(requestId, cancellationToken);
+        await EnsureJobIsOpenForCategoryAsync(category, serviceJobId, cancellationToken);
+
+        request.UpdateLine(lineId, category, serviceJobId, customCategoryName, purpose, requestedAmount);
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task RemovePettyCashRequestLineAsync(Guid requestId, Guid lineId, CancellationToken cancellationToken = default)
+    {
+        var request = await LoadPettyCashRequestAsync(requestId, cancellationToken);
+        request.RemoveLine(lineId);
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task SubmitPettyCashRequestAsync(Guid requestId, CancellationToken cancellationToken = default)
+    {
+        var request = await LoadPettyCashRequestAsync(requestId, cancellationToken);
+        request.Submit(clock.UtcNow);
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task ApprovePettyCashRequestAsync(
+        Guid requestId,
+        Guid approvedByUserId,
+        IReadOnlyDictionary<Guid, decimal> approvedAmountsByLineId,
+        CancellationToken cancellationToken = default)
+    {
+        var request = await LoadPettyCashRequestAsync(requestId, cancellationToken);
+        request.Approve(approvedByUserId, clock.UtcNow, approvedAmountsByLineId);
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task RejectPettyCashRequestAsync(Guid requestId, string? reason, CancellationToken cancellationToken = default)
+    {
+        var request = await LoadPettyCashRequestAsync(requestId, cancellationToken);
+        request.Reject(clock.UtcNow, reason);
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task CancelPettyCashRequestAsync(Guid requestId, CancellationToken cancellationToken = default)
+    {
+        var request = await LoadPettyCashRequestAsync(requestId, cancellationToken);
+        request.Cancel();
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    /// <summary>
+    /// Head office paying out against approved lines. One call per line even when a single bank
+    /// transfer covers several: the caller passes the same payment reference for each, which is how
+    /// "funds received separately for each, even in one transfer" is represented. The money reaches
+    /// the custodian's float as a fund transaction tagged with the line, so the category sub-balance
+    /// and the fund balance come from the same ledger.
+    /// </summary>
+    public async Task FundPettyCashRequestLineAsync(
+        Guid requestId,
+        Guid lineId,
+        decimal amount,
+        DateTimeOffset? fundedAt,
+        string? paymentReference,
+        string? notes,
+        CancellationToken cancellationToken = default)
+    {
+        var request = await LoadPettyCashRequestAsync(requestId, cancellationToken);
+
+        var fund = await dbContext.PettyCashFunds
+            .Include(x => x.Transactions)
+            .FirstOrDefaultAsync(x => x.Id == request.PettyCashFundId, cancellationToken)
+            ?? throw new NotFoundException("Petty cash fund not found.");
+
+        var occurredAt = fundedAt ?? clock.UtcNow;
+        var funding = request.RecordFunding(lineId, amount, occurredAt, paymentReference, notes);
+        dbContext.DbContext.Add(funding);
+
+        var transaction = fund.RecordRequestFunding(
+            amount,
+            occurredAt,
+            request.Id,
+            lineId,
+            paymentReference ?? request.Number,
+            notes);
+        dbContext.DbContext.Add(transaction);
+
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    private async Task<PettyCashRequest> LoadPettyCashRequestAsync(Guid requestId, CancellationToken cancellationToken)
+        => await dbContext.PettyCashRequests
+               .Include(x => x.Lines)
+               .ThenInclude(line => line.Fundings)
+               .FirstOrDefaultAsync(x => x.Id == requestId, cancellationToken)
+           ?? throw new NotFoundException("Petty cash request not found.");
+
+    private async Task EnsureJobIsOpenForCategoryAsync(
+        PettyCashRequestCategory category,
+        Guid? serviceJobId,
+        CancellationToken cancellationToken)
+    {
+        if (category != PettyCashRequestCategory.JobWise || serviceJobId is null)
+        {
+            return;
+        }
+
+        var status = await dbContext.ServiceJobs.AsNoTracking()
+            .Where(x => x.Id == serviceJobId.Value)
+            .Select(x => (ServiceJobStatus?)x.Status)
+            .FirstOrDefaultAsync(cancellationToken)
+            ?? throw new NotFoundException("Service job not found.");
+
+        if (status == ServiceJobStatus.Closed)
+        {
+            throw new DomainValidationException("Closed service jobs cannot receive new petty cash requests.");
+        }
+    }
+
     public async Task SubmitPettyCashIouAsync(Guid iouId, CancellationToken cancellationToken = default)
     {
         var iou = await dbContext.PettyCashIous.FirstOrDefaultAsync(x => x.Id == iouId, cancellationToken)
@@ -183,6 +370,8 @@ public sealed class FinanceService(
         Guid iouId,
         Guid pettyCashFundId,
         string? releaseReference,
+        string? issueBillNumber = null,
+        Guid? pettyCashRequestLineId = null,
         CancellationToken cancellationToken = default)
     {
         var iou = await dbContext.PettyCashIous.FirstOrDefaultAsync(x => x.Id == iouId, cancellationToken)
@@ -193,10 +382,122 @@ public sealed class FinanceService(
             .FirstOrDefaultAsync(x => x.Id == pettyCashFundId, cancellationToken)
             ?? throw new NotFoundException("Petty cash fund not found.");
 
-        iou.Release(pettyCashFundId, clock.UtcNow, releaseReference);
-        var transaction = fund.RecordIouRelease(iou.Amount, clock.UtcNow, iou.Id, iou.Number, releaseReference);
+        await EnsureRequestLineIsSpendableAsync(pettyCashRequestLineId, iou.ServiceJobId, cancellationToken);
+
+        iou.Release(pettyCashFundId, clock.UtcNow, releaseReference, issueBillNumber, pettyCashRequestLineId);
+        var transaction = fund.RecordIouRelease(
+            iou.Amount,
+            clock.UtcNow,
+            iou.Id,
+            iou.Number,
+            releaseReference,
+            pettyCashRequestLineId);
         dbContext.DbContext.Add(transaction);
         await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    /// <summary>
+    /// Cash handed over on the spot, without a written request. The custodian's proof is the signed
+    /// bill, so its number is required - there is no approval trail to fall back on.
+    /// </summary>
+    public async Task<Guid> IssuePettyCashIouDirectlyAsync(
+        Guid serviceJobId,
+        Guid issuedToUserId,
+        string issuedToName,
+        decimal amount,
+        string purpose,
+        Guid pettyCashFundId,
+        string issueBillNumber,
+        Guid? pettyCashRequestLineId,
+        CancellationToken cancellationToken = default)
+    {
+        var jobStatus = await dbContext.ServiceJobs.AsNoTracking()
+            .Where(x => x.Id == serviceJobId)
+            .Select(x => (ServiceJobStatus?)x.Status)
+            .FirstOrDefaultAsync(cancellationToken)
+            ?? throw new NotFoundException("Service job not found.");
+
+        if (jobStatus == ServiceJobStatus.Closed)
+        {
+            throw new DomainValidationException("Closed service jobs cannot receive new IOUs.");
+        }
+
+        var fund = await dbContext.PettyCashFunds
+            .Include(x => x.Transactions)
+            .FirstOrDefaultAsync(x => x.Id == pettyCashFundId, cancellationToken)
+            ?? throw new NotFoundException("Petty cash fund not found.");
+
+        await EnsureRequestLineIsSpendableAsync(pettyCashRequestLineId, serviceJobId, cancellationToken);
+
+        var number = await documentNumberService.NextAsync(ReferenceTypes.PettyCashIou, "IOU", cancellationToken);
+        var iou = PettyCashIou.IssueDirectly(
+            number,
+            serviceJobId,
+            issuedToUserId,
+            issuedToName,
+            amount,
+            purpose,
+            clock.UtcNow,
+            pettyCashFundId,
+            issueBillNumber,
+            pettyCashRequestLineId);
+
+        await dbContext.PettyCashIous.AddAsync(iou, cancellationToken);
+
+        var transaction = fund.RecordIouRelease(
+            amount,
+            clock.UtcNow,
+            iou.Id,
+            iou.Number,
+            issueBillNumber,
+            pettyCashRequestLineId);
+        dbContext.DbContext.Add(transaction);
+
+        await dbContext.SaveChangesAsync(cancellationToken);
+        return iou.Id;
+    }
+
+    public async Task ApprovePettyCashIouSettlementAsync(
+        Guid iouId,
+        Guid approvedByUserId,
+        CancellationToken cancellationToken = default)
+    {
+        var iou = await dbContext.PettyCashIous.FirstOrDefaultAsync(x => x.Id == iouId, cancellationToken)
+                  ?? throw new NotFoundException("Petty cash IOU not found.");
+        iou.ApproveSettlement(approvedByUserId, clock.UtcNow);
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    /// <summary>
+    /// A category can only be spent once head office has actually released money for it, and a
+    /// job-wise category only on its own job.
+    /// </summary>
+    private async Task EnsureRequestLineIsSpendableAsync(
+        Guid? pettyCashRequestLineId,
+        Guid? serviceJobId,
+        CancellationToken cancellationToken)
+    {
+        if (pettyCashRequestLineId is null)
+        {
+            return;
+        }
+
+        var line = await dbContext.PettyCashRequests.AsNoTracking()
+            .SelectMany(request => request.Lines)
+            .Where(x => x.Id == pettyCashRequestLineId.Value)
+            .Select(x => new { x.Category, x.ServiceJobId, x.Purpose, Funded = x.Fundings.Sum(f => f.Amount) })
+            .FirstOrDefaultAsync(cancellationToken)
+            ?? throw new NotFoundException("Petty cash request line not found.");
+
+        if (line.Funded <= 0m)
+        {
+            throw new DomainValidationException($"No money has been released for '{line.Purpose}' yet, so nothing can be issued against it.");
+        }
+
+        if (line.Category == PettyCashRequestCategory.JobWise && line.ServiceJobId != serviceJobId)
+        {
+            throw new DomainValidationException($"'{line.Purpose}' was funded for a different job order.");
+        }
     }
 
     public async Task SettlePettyCashIouAsync(

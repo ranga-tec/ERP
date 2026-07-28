@@ -34,6 +34,7 @@ const statusLabel: Record<number, string> = {
   4: "Settled / Accounted",
   5: "Rejected",
   6: "Cancelled",
+  7: "Settlement Approved",
 };
 
 export default async function PettyCashIousPage() {

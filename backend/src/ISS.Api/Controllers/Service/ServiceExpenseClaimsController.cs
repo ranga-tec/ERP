@@ -24,7 +24,7 @@ public sealed class ServiceExpenseClaimsController(
     public sealed record ServiceExpenseClaimSummaryDto(
         Guid Id,
         string Number,
-        Guid ServiceJobId,
+        Guid? ServiceJobId,
         Guid? ServiceJobDailySheetId,
         Guid? ClaimedByUserId,
         string ClaimedByName,
@@ -57,7 +57,7 @@ public sealed class ServiceExpenseClaimsController(
     public sealed record ServiceExpenseClaimDto(
         Guid Id,
         string Number,
-        Guid ServiceJobId,
+        Guid? ServiceJobId,
         Guid? ServiceJobDailySheetId,
         Guid? ClaimedByUserId,
         string ClaimedByName,
@@ -82,7 +82,8 @@ public sealed class ServiceExpenseClaimsController(
         IReadOnlyList<ServiceExpenseClaimLineDto> Lines);
 
     public sealed record CreateServiceExpenseClaimRequest(
-        Guid ServiceJobId,
+        // Null for overhead the custodian pays under their own name, which belongs to no job.
+        Guid? ServiceJobId,
         string? ClaimedByName,
         ServiceExpenseFundingSource FundingSource,
         DateTimeOffset? ExpenseDate,
@@ -90,7 +91,8 @@ public sealed class ServiceExpenseClaimsController(
         string? ReceiptReference,
         string? Notes,
         Guid? ServiceJobDailySheetId,
-        Guid? PettyCashIouId);
+        Guid? PettyCashIouId,
+        Guid? PettyCashRequestLineId);
 
     public sealed record AddServiceExpenseClaimLineRequest(
         Guid? ItemId,
@@ -188,6 +190,7 @@ public sealed class ServiceExpenseClaimsController(
             request.Notes,
             request.ServiceJobDailySheetId,
             request.PettyCashIouId,
+            request.PettyCashRequestLineId,
             cancellationToken);
 
         return await Get(id, cancellationToken);

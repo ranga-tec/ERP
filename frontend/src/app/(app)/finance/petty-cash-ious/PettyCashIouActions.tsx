@@ -36,7 +36,9 @@ export function PettyCashIouActions({
   const canReject = permissionSet.has("Finance.PettyCashIou.Reject");
   const canRelease = permissionSet.has("Finance.PettyCashIou.Release");
   const canSettle = permissionSet.has("Finance.PettyCashIou.Settle");
+  const canApproveSettlement = status === 4 && permissionSet.has("Finance.PettyCashIou.Approve");
   const [fundId, setFundId] = useState(funds[0]?.id ?? "");
+  const [issueBillNumber, setIssueBillNumber] = useState("");
   // Default to what the vouchers actually document, not to the full advance. Defaulting to the
   // advance is what let 600 be settled against 100 of bills without anyone noticing.
   const [settledAmount, setSettledAmount] = useState(String(claimCount > 0 ? claimedAmount : amount));
@@ -101,10 +103,25 @@ export function PettyCashIouActions({
                 </div>
               ) : null}
             </div>
+            <div>
+              <label className="mb-1 block text-xs font-medium text-zinc-500">Signed bill no.</label>
+              <Input
+                className="w-32"
+                value={issueBillNumber}
+                onChange={(event) => setIssueBillNumber(event.target.value)}
+                placeholder="Optional"
+              />
+            </div>
             <Button type="button" disabled={!fundId || busy !== null} onClick={() => setPending("release")}>
               Release Cash
             </Button>
           </>
+        ) : null}
+
+        {canApproveSettlement ? (
+          <Button type="button" disabled={busy !== null} onClick={() => void run("approve-settlement")}>
+            {busy === "approve-settlement" ? "Approving..." : "Approve Settlement"}
+          </Button>
         ) : null}
 
         {status === 3 && canSettle ? (
@@ -134,7 +151,7 @@ export function PettyCashIouActions({
           </>
         ) : null}
 
-        {((status === 1 && !canApprove && !canReject) || (status === 2 && !canRelease) || (status === 3 && !canSettle)) ? (
+        {((status === 1 && !canApprove && !canReject) || (status === 2 && !canRelease) || (status === 3 && !canSettle) || (status === 4 && !canApproveSettlement)) ? (
           <span className="text-xs text-zinc-500">View only</span>
         ) : null}
       </div>
@@ -148,7 +165,7 @@ export function PettyCashIouActions({
         confirmLabel="Release Cash"
         busy={busy === "release"}
         onCancel={() => setPending(null)}
-        onConfirm={() => run("release", { pettyCashFundId: fundId })}
+        onConfirm={() => run("release", { pettyCashFundId: fundId, issueBillNumber: issueBillNumber.trim() || null })}
         description={
           <>
             This pays out <span className="font-semibold">{money(amount)}</span> from{" "}

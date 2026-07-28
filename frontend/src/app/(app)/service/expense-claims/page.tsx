@@ -10,7 +10,7 @@ import { ServiceExpenseClaimCreateForm } from "./ServiceExpenseClaimCreateForm";
 type ServiceExpenseClaimSummaryDto = {
   id: string;
   number: string;
-  serviceJobId: string;
+  serviceJobId?: string | null;
   claimedByUserId?: string | null;
   claimedByName: string;
   fundingSource: number;
@@ -26,6 +26,16 @@ type ServiceExpenseClaimSummaryDto = {
 
 type ServiceJobDto = { id: string; number: string; kind: number };
 type PettyCashIouDto = { id: string; number: string; serviceJobId: string; status: number; amount: number };
+type FundedCategoryDto = {
+  id: string;
+  requestNumber: string;
+  category: number;
+  serviceJobId?: string | null;
+  serviceJobNumber?: string | null;
+  customCategoryName?: string | null;
+  purpose: string;
+  fundedAmount: number;
+};
 type CurrentUserPermissionsDto = { userId: string; permissions: string[] };
 
 const statusLabel: Record<number, string> = {
@@ -42,10 +52,11 @@ const fundingSourceLabel: Record<number, string> = {
 };
 
 export default async function ServiceExpenseClaimsPage() {
-  const [claims, jobs, pettyCashIous, currentUserPermissions] = await Promise.all([
+  const [claims, jobs, pettyCashIous, fundedCategories, currentUserPermissions] = await Promise.all([
     backendFetchJson<ServiceExpenseClaimSummaryDto[]>("/service/expense-claims?take=100"),
     backendFetchJson<ServiceJobDto[]>("/service/jobs?take=500"),
     backendFetchJson<PettyCashIouDto[]>("/finance/petty-cash-ious?take=500"),
+    backendFetchJson<FundedCategoryDto[]>("/finance/petty-cash-requests/funded-lines"),
     backendFetchJson<CurrentUserPermissionsDto>("/me/permissions"),
   ]);
 
@@ -64,7 +75,11 @@ export default async function ServiceExpenseClaimsPage() {
         </div>
         {canCreate ? (
           <AppFormModal title="Create Expense Voucher" description="Record spend that has already happened on a job order, and how the claimant gets repaid." buttonLabel="+ New Voucher">
-            <ServiceExpenseClaimCreateForm serviceJobs={jobs} pettyCashIous={pettyCashIous} />
+            <ServiceExpenseClaimCreateForm
+              serviceJobs={jobs}
+              pettyCashIous={pettyCashIous}
+              fundedCategories={fundedCategories}
+            />
           </AppFormModal>
         ) : null}
       </div>
@@ -92,7 +107,7 @@ export default async function ServiceExpenseClaimsPage() {
           }
         >
               {claims.map((claim) => {
-                const job = jobById.get(claim.serviceJobId);
+                const job = claim.serviceJobId ? jobById.get(claim.serviceJobId) : undefined;
                 const funding = fundingSourceLabel[claim.fundingSource] ?? String(claim.fundingSource);
                 const status = statusLabel[claim.status] ?? String(claim.status);
                 return (
@@ -116,9 +131,13 @@ export default async function ServiceExpenseClaimsPage() {
                     </Link>
                   </td>
                   <td className="py-2 pr-3 font-mono text-xs text-zinc-600 dark:text-zinc-400">
-                    <TransactionLink referenceType="SJ" referenceId={claim.serviceJobId} monospace>
-                      {jobById.get(claim.serviceJobId)?.number ?? claim.serviceJobId}
-                    </TransactionLink>
+                    {claim.serviceJobId ? (
+                      <TransactionLink referenceType="SJ" referenceId={claim.serviceJobId} monospace>
+                        {jobById.get(claim.serviceJobId)?.number ?? "Job removed"}
+                      </TransactionLink>
+                    ) : (
+                      <span className="text-zinc-400">Overhead</span>
+                    )}
                   </td>
                   <td className="py-2 pr-3">{claim.claimedByName}</td>
                   <td className="py-2 pr-3">{fundingSourceLabel[claim.fundingSource] ?? claim.fundingSource}</td>

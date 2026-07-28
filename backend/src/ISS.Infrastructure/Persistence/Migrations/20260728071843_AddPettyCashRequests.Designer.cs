@@ -3,6 +3,7 @@ using System;
 using ISS.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace ISS.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(IssDbContext))]
-    partial class IssDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260728071843_AddPettyCashRequests")]
+    partial class AddPettyCashRequests
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -731,10 +734,6 @@ namespace ISS.Infrastructure.Persistence.Migrations
                     b.Property<DateTimeOffset?>("ExpectedSettlementAt")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<string>("IssueBillNumber")
-                        .HasMaxLength(64)
-                        .HasColumnType("character varying(64)");
-
                     b.Property<DateTimeOffset?>("LastModifiedAt")
                         .HasColumnType("timestamp with time zone");
 
@@ -747,9 +746,6 @@ namespace ISS.Infrastructure.Persistence.Migrations
                         .HasColumnType("character varying(32)");
 
                     b.Property<Guid?>("PettyCashFundId")
-                        .HasColumnType("uuid");
-
-                    b.Property<Guid?>("PettyCashRequestLineId")
                         .HasColumnType("uuid");
 
                     b.Property<string>("Purpose")
@@ -795,12 +791,6 @@ namespace ISS.Infrastructure.Persistence.Migrations
                     b.Property<DateTimeOffset?>("SettledAt")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<DateTimeOffset?>("SettlementApprovedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<Guid?>("SettlementApprovedByUserId")
-                        .HasColumnType("uuid");
-
                     b.Property<string>("SettlementReference")
                         .HasMaxLength(128)
                         .HasColumnType("character varying(128)");
@@ -817,8 +807,6 @@ namespace ISS.Infrastructure.Persistence.Migrations
                         .IsUnique();
 
                     b.HasIndex("PettyCashFundId");
-
-                    b.HasIndex("PettyCashRequestLineId");
 
                     b.HasIndex("RequestedByUserId");
 
@@ -4054,9 +4042,6 @@ namespace ISS.Infrastructure.Persistence.Migrations
                     b.Property<Guid?>("PettyCashIouId")
                         .HasColumnType("uuid");
 
-                    b.Property<Guid?>("PettyCashRequestLineId")
-                        .HasColumnType("uuid");
-
                     b.Property<string>("ReceiptReference")
                         .HasMaxLength(128)
                         .HasColumnType("character varying(128)");
@@ -4071,7 +4056,7 @@ namespace ISS.Infrastructure.Persistence.Migrations
                     b.Property<Guid?>("ServiceJobDailySheetId")
                         .HasColumnType("uuid");
 
-                    b.Property<Guid?>("ServiceJobId")
+                    b.Property<Guid>("ServiceJobId")
                         .HasColumnType("uuid");
 
                     b.Property<DateTimeOffset?>("SettledAt")
@@ -4101,8 +4086,6 @@ namespace ISS.Infrastructure.Persistence.Migrations
                         .IsUnique();
 
                     b.HasIndex("PettyCashIouId");
-
-                    b.HasIndex("PettyCashRequestLineId");
 
                     b.HasIndex("ServiceJobDailySheetId");
 
@@ -5256,11 +5239,6 @@ namespace ISS.Infrastructure.Persistence.Migrations
                         .HasForeignKey("PettyCashFundId")
                         .OnDelete(DeleteBehavior.Restrict);
 
-                    b.HasOne("ISS.Domain.Finance.PettyCashRequestLine", null)
-                        .WithMany()
-                        .HasForeignKey("PettyCashRequestLineId")
-                        .OnDelete(DeleteBehavior.Restrict);
-
                     b.HasOne("ISS.Domain.Service.ServiceJobDailySheet", null)
                         .WithMany()
                         .HasForeignKey("ServiceJobDailySheetId")
@@ -5792,11 +5770,6 @@ namespace ISS.Infrastructure.Persistence.Migrations
                     b.HasOne("ISS.Domain.Finance.PettyCashIou", null)
                         .WithMany()
                         .HasForeignKey("PettyCashIouId")
-                        .OnDelete(DeleteBehavior.Restrict);
-
-                    b.HasOne("ISS.Domain.Finance.PettyCashRequestLine", null)
-                        .WithMany()
-                        .HasForeignKey("PettyCashRequestLineId")
                         .OnDelete(DeleteBehavior.Restrict);
 
                     b.HasOne("ISS.Domain.Service.ServiceJobDailySheet", null)

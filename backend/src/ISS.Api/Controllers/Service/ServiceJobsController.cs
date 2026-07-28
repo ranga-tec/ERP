@@ -522,8 +522,11 @@ public sealed class ServiceJobsController(
             .Select(x => new { ServiceJobId = x.Key, Count = x.Count() })
             .ToDictionaryAsync(x => x.ServiceJobId, x => x.Count, cancellationToken);
         var pendingClaimCounts = await dbContext.ServiceExpenseClaims.AsNoTracking()
-            .Where(x => activeJobIds.Contains(x.ServiceJobId) && (x.Status == ServiceExpenseClaimStatus.Submitted || x.Status == ServiceExpenseClaimStatus.Approved))
-            .GroupBy(x => x.ServiceJobId)
+            // Overhead vouchers carry no job and so belong to no job's pending count.
+            .Where(x => x.ServiceJobId != null
+                        && activeJobIds.Contains(x.ServiceJobId.Value)
+                        && (x.Status == ServiceExpenseClaimStatus.Submitted || x.Status == ServiceExpenseClaimStatus.Approved))
+            .GroupBy(x => x.ServiceJobId!.Value)
             .Select(x => new { ServiceJobId = x.Key, Count = x.Count() })
             .ToDictionaryAsync(x => x.ServiceJobId, x => x.Count, cancellationToken);
         var pendingMrnCounts = await dbContext.MaterialRequisitions.AsNoTracking()

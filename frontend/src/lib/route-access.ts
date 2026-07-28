@@ -34,6 +34,8 @@ const INVENTORY_CORE: AllowedRoles = ["Admin", "Inventory", "Reporting"];
 const permissionAccessRules: PermissionAccessRule[] = [
   { prefix: "/finance/payments", permissions: ["Finance.Payment.View"] },
   { prefix: "/finance/petty-cash-ious", permissions: ["Finance.PettyCashIou.View"] },
+  // Must precede /finance/petty-cash, which is a prefix of this path and would otherwise swallow it.
+  { prefix: "/finance/petty-cash-requests", permissions: ["Finance.PettyCashRequest.View"] },
   { prefix: "/finance/petty-cash", permissions: ["Finance.PettyCashFund.View"] },
   { prefix: "/finance/ar-credit-notes", permissions: ["Finance.CreditNote.View"] },
   { prefix: "/finance/ap-credit-notes", permissions: ["Finance.CreditNote.View"] },

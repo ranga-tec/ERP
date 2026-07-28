@@ -392,6 +392,7 @@ const pettyCashIouStatusLabel: Record<number, string> = {
   4: "Settled / Accounted",
   5: "Rejected",
   6: "Cancelled",
+  7: "Settlement Approved",
 };
 const fundingSourceLabel: Record<number, string> = {
   1: "Out of Pocket",
@@ -886,7 +887,7 @@ export default async function ServiceJobDetailPage({
   const latestHandover = jobHandovers[0] ?? null;
   const latestProgress = [...progressUpdates].sort((a, b) => new Date(b.progressDate).getTime() - new Date(a.progressDate).getTime())[0] ?? null;
   const todayAssignments = assignments.filter((assignment) => sameLocalDate(assignment.assignedDate));
-  const pendingIous = pettyCashIous.filter((iou) => ![4, 5, 6].includes(iou.status));
+  const pendingIous = pettyCashIous.filter((iou) => ![4, 5, 6, 7].includes(iou.status));
   const pendingClaims = expenseClaims.filter((claim) => ![3, 4].includes(claim.status));
   const pendingCloseoutCount = closeoutChecks.reduce((total, check) => total + (check.isClear ? 0 : check.pendingCount), 0);
   const pendingMaterialDisposition = closeoutChecks.find((check) => check.key === "material-disposition")?.pendingCount ?? 0;

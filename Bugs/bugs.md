@@ -51,6 +51,50 @@ you can mark or remove fixed bugs here .
       opens the same explorer in a dialog. The inventory On Hand page keeps it inline, since
       that is that page's whole purpose.
 
+[FIXED] 8. Assistant accountant's petty cash cycle with head office.
+   -> New `PettyCashRequest` aggregate in `ISS.Domain/Finance`, beside the fund and the IOU it sits
+      between. Lines carry the category - Job Wise (names a job, which is what later lets the spend
+      reach job cost), Emergency Operation, Transportation, or Custom with its own name. Head office
+      approves each line on its own and may approve less than asked, then releases money per line;
+      several lines funded by one bank transfer simply share a payment reference, which is how
+      "funds received separately for each even in a single transfer" is represented.
+      Sub-accounts needed no new balance machinery: `PettyCashTransaction` gained a nullable
+      `PettyCashRequestLineId`, so a category's balance is the existing fund ledger filtered by
+      line, and the fund total stays correct for free.
+      Verified end to end: 11000 requested across all four categories, approved at 9000 with the
+      custom line cut to 0, funded 4000+3000 on one reference and 2000 in two parts on another;
+      fund balance moved 4300 -> 13300 and each sub-account matched. Guards confirmed: job-wise
+      without a job, custom without a name, funding before approval, editing after submit,
+      approving above the requested amount, and over-funding a line are all refused.
+      Stage 2 closes the rest of the cycle - issuing, overhead spend, and settlement approval.
+   -> `ServiceExpenseClaim.ServiceJobId` is now nullable, which is what finally lets transportation
+      and emergency spend be recorded at all; before this the table simply had nowhere to put it.
+      Job costing is untouched by that: `ServiceCostingService` matches on the job id, and null
+      never equals a job, so overhead can never leak into a job's cost. All fourteen readers of the
+      column were audited; the ones needing real handling were the job dashboard's pending count,
+      the three cost-gate calls, daily-sheet attachment, and quotation conversion - a voucher with
+      no job cannot become a quotation, because a quotation belongs to a job. The claim PDF also
+      stopped printing a raw job id when the job was missing.
+      Issuing: `IssueBillNumber` is captured at release, and `IssueDirectly` creates an already
+      released IOU for cash handed over verbally, where the signed bill is the only record and so
+      is mandatory. The IOU request form is unchanged, as asked.
+      Settlement now has a head-office step: `SettlementApproved` (7) follows `Settled`, so the
+      custodian saying it adds up and head office agreeing are two different facts.
+      Both IOU releases and voucher settlements now carry the request line, so a category's
+      sub-account is drawn down by what is spent from it, not just topped up by what is funded.
+      Verified end to end: an overhead voucher with no job at all was created, charged to a funded
+      Transportation category and settled for 800; a verbal IOU of 1500 was issued against a signed
+      bill and charged to the Job Wise category, settled at 1200 and approved by head office. The
+      sub-accounts moved 5000 -> 4200 and 4000 -> 2500 accordingly, and the job's costing endpoint
+      still reported the overhead voucher absent. Guards confirmed: charging an unfunded category,
+      charging a job-wise category from a voucher with no job, charging a category from an
+      out-of-pocket voucher, and approving a settlement twice are all refused.
+
 ## Open
-job invoice has to prepare befor pushing the stop button or after it 
-can we  have  unit cost and selling price see by authorized people only using the priviladges section 
+
+
+
+not Urgernt: D:\VScode Projects\ISS\Bugs\image copy 22.png all the audit data of records in all forms should display like in this customer 
+
+
+not urgent audit logs shows ID when click full audit details from customer form grid autid D:\VScode Projects\ISS\Bugs\image copy 23.png

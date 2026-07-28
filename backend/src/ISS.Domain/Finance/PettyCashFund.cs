@@ -9,7 +9,8 @@ public enum PettyCashTransactionType
     ExpenseSettlement = 3,
     Adjustment = 4,
     IouRelease = 5,
-    IouSettlement = 6
+    IouSettlement = 6,
+    RequestFunding = 7
 }
 
 public enum PettyCashTransactionDirection
@@ -47,6 +48,16 @@ public sealed class PettyCashFund : AuditableEntity
     public List<PettyCashTransaction> Transactions { get; private set; } = new();
 
     public decimal Balance => Transactions.Sum(x => x.SignedAmount);
+
+    /// <summary>
+    /// What is left of one funded category. The custodian keeps sub-accounts inside a single float,
+    /// so a category balance is this same ledger filtered to the request line that funded it -
+    /// money in from head office, money out as advances and vouchers charged back to that category.
+    /// </summary>
+    public decimal BalanceForRequestLine(Guid pettyCashRequestLineId)
+        => Transactions
+            .Where(x => x.PettyCashRequestLineId == pettyCashRequestLineId)
+            .Sum(x => x.SignedAmount);
 
     public void Update(
         string code,
@@ -99,7 +110,8 @@ public sealed class PettyCashFund : AuditableEntity
         DateTimeOffset occurredAt,
         Guid referenceId,
         string? referenceNumber,
-        string? notes)
+        string? notes,
+        Guid? pettyCashRequestLineId = null)
     {
         EnsureActive();
         EnsureSufficientBalance(amount);
@@ -112,7 +124,34 @@ public sealed class PettyCashFund : AuditableEntity
             referenceType: "SEC",
             referenceId: referenceId,
             referenceNumber,
-            notes);
+            notes,
+            pettyCashRequestLineId);
+    }
+
+    /// <summary>
+    /// Head office paying out one line of a petty cash request. Carries the request line so the
+    /// category's sub-balance can be read straight off the ledger.
+    /// </summary>
+    public PettyCashTransaction RecordRequestFunding(
+        decimal amount,
+        DateTimeOffset occurredAt,
+        Guid requestId,
+        Guid requestLineId,
+        string? referenceNumber,
+        string? notes)
+    {
+        EnsureActive();
+
+        return AddTransaction(
+            PettyCashTransactionType.RequestFunding,
+            PettyCashTransactionDirection.In,
+            amount,
+            occurredAt,
+            referenceType: "PCR",
+            referenceId: requestId,
+            referenceNumber,
+            notes,
+            pettyCashRequestLineId: requestLineId);
     }
 
     public PettyCashTransaction AddAdjustment(
@@ -144,7 +183,8 @@ public sealed class PettyCashFund : AuditableEntity
         DateTimeOffset occurredAt,
         Guid iouId,
         string? referenceNumber,
-        string? notes)
+        string? notes,
+        Guid? pettyCashRequestLineId = null)
     {
         EnsureActive();
         EnsureSufficientBalance(amount);
@@ -157,7 +197,8 @@ public sealed class PettyCashFund : AuditableEntity
             referenceType: "IOU",
             referenceId: iouId,
             referenceNumber,
-            notes);
+            notes,
+            pettyCashRequestLineId);
     }
 
     public PettyCashTransaction RecordIouSettlement(
@@ -188,7 +229,8 @@ public sealed class PettyCashFund : AuditableEntity
         string? referenceType,
         Guid? referenceId,
         string? referenceNumber,
-        string? notes)
+        string? notes,
+        Guid? pettyCashRequestLineId = null)
     {
         var transaction = new PettyCashTransaction(
             Id,
@@ -199,7 +241,8 @@ public sealed class PettyCashFund : AuditableEntity
             NormalizeOptional(referenceType, nameof(referenceType), 64),
             referenceId,
             NormalizeOptional(referenceNumber, nameof(referenceNumber), 128),
-            NormalizeOptional(notes, nameof(notes), 512));
+            NormalizeOptional(notes, nameof(notes), 512),
+            pettyCashRequestLineId);
 
         Transactions.Add(transaction);
         return transaction;
@@ -245,9 +288,11 @@ public sealed class PettyCashTransaction : Entity
         string? referenceType,
         Guid? referenceId,
         string? referenceNumber,
-        string? notes)
+        string? notes,
+        Guid? pettyCashRequestLineId = null)
     {
         PettyCashFundId = pettyCashFundId;
+        PettyCashRequestLineId = pettyCashRequestLineId;
         Type = type;
         Direction = direction;
         Amount = Guard.Positive(amount, nameof(amount));
@@ -259,6 +304,13 @@ public sealed class PettyCashTransaction : Entity
     }
 
     public Guid PettyCashFundId { get; private set; }
+
+    /// <summary>
+    /// The funded category this movement belongs to, when it belongs to one. Null for fund-level
+    /// movements such as opening balance, top-ups and adjustments, which are not tied to a request.
+    /// </summary>
+    public Guid? PettyCashRequestLineId { get; private set; }
+
     public PettyCashTransactionType Type { get; private set; }
     public PettyCashTransactionDirection Direction { get; private set; }
     public decimal Amount { get; private set; }
@@ -278,7 +330,14 @@ public enum PettyCashIouStatus
     Released = 3,
     Settled = 4,
     Rejected = 5,
-    Cancelled = 6
+    Cancelled = 6,
+
+    /// <summary>
+    /// Head office has checked the returned cash, the bills and any out-of-pocket balance the
+    /// custodian recorded at settlement. Settled means the custodian says it adds up; this means
+    /// head office agrees, and is the point after which the IOU is closed for good.
+    /// </summary>
+    SettlementApproved = 7
 }
 
 public sealed class PettyCashIou : AuditableEntity
@@ -330,6 +389,62 @@ public sealed class PettyCashIou : AuditableEntity
     public decimal? SettledAmount { get; private set; }
     public string? SettlementReference { get; private set; }
 
+    /// <summary>
+    /// The number of the paper bill the holder signed when the cash was handed over. Captured at
+    /// release because that is the moment the signature happens, and it is the custodian's only
+    /// proof for cash issued verbally rather than against a written request.
+    /// </summary>
+    public string? IssueBillNumber { get; private set; }
+
+    /// <summary>The funded category the cash came out of, so releasing draws down that sub-account.</summary>
+    public Guid? PettyCashRequestLineId { get; private set; }
+
+    public DateTimeOffset? SettlementApprovedAt { get; private set; }
+    public Guid? SettlementApprovedByUserId { get; private set; }
+
+    /// <summary>
+    /// Cash handed over without a written request - the verbal case. The IOU is created already
+    /// released, because the money has physically gone and back-dating it through the request
+    /// states would be a fiction. The signed bill number is mandatory here: it is the only record
+    /// that the handover happened at all.
+    /// </summary>
+    public static PettyCashIou IssueDirectly(
+        string number,
+        Guid serviceJobId,
+        Guid requestedByUserId,
+        string requestedByName,
+        decimal amount,
+        string purpose,
+        DateTimeOffset issuedAt,
+        Guid pettyCashFundId,
+        string issueBillNumber,
+        Guid? pettyCashRequestLineId,
+        Guid? serviceJobDailySheetId = null)
+    {
+        var iou = new PettyCashIou(
+            number,
+            serviceJobId,
+            requestedByUserId,
+            requestedByName,
+            amount,
+            purpose,
+            issuedAt,
+            expectedSettlementAt: null,
+            serviceJobDailySheetId)
+        {
+            Status = PettyCashIouStatus.Released,
+            SubmittedAt = issuedAt,
+            ApprovedAt = issuedAt,
+            ApprovedByUserId = requestedByUserId,
+            PettyCashFundId = pettyCashFundId,
+            ReleasedAt = issuedAt,
+            PettyCashRequestLineId = pettyCashRequestLineId,
+            IssueBillNumber = Guard.NotNullOrWhiteSpace(issueBillNumber, nameof(issueBillNumber), maxLength: 64),
+        };
+
+        return iou;
+    }
+
     public void Submit(DateTimeOffset submittedAt)
     {
         if (Status != PettyCashIouStatus.Draft)
@@ -369,7 +484,12 @@ public sealed class PettyCashIou : AuditableEntity
             : Guard.NotNullOrWhiteSpace(rejectionReason, nameof(rejectionReason), maxLength: 512);
     }
 
-    public void Release(Guid pettyCashFundId, DateTimeOffset releasedAt, string? releaseReference)
+    public void Release(
+        Guid pettyCashFundId,
+        DateTimeOffset releasedAt,
+        string? releaseReference,
+        string? issueBillNumber = null,
+        Guid? pettyCashRequestLineId = null)
     {
         if (Status != PettyCashIouStatus.Approved)
         {
@@ -379,6 +499,8 @@ public sealed class PettyCashIou : AuditableEntity
         PettyCashFundId = pettyCashFundId;
         ReleasedAt = releasedAt;
         ReleaseReference = string.IsNullOrWhiteSpace(releaseReference) ? null : Guard.NotNullOrWhiteSpace(releaseReference, nameof(releaseReference), maxLength: 128);
+        IssueBillNumber = string.IsNullOrWhiteSpace(issueBillNumber) ? null : Guard.NotNullOrWhiteSpace(issueBillNumber, nameof(issueBillNumber), maxLength: 64);
+        PettyCashRequestLineId = pettyCashRequestLineId;
         Status = PettyCashIouStatus.Released;
     }
 
@@ -395,9 +517,21 @@ public sealed class PettyCashIou : AuditableEntity
         Status = PettyCashIouStatus.Settled;
     }
 
+    public void ApproveSettlement(Guid approvedByUserId, DateTimeOffset approvedAt)
+    {
+        if (Status != PettyCashIouStatus.Settled)
+        {
+            throw new DomainValidationException("Only a settled IOU can have its settlement approved.");
+        }
+
+        Status = PettyCashIouStatus.SettlementApproved;
+        SettlementApprovedAt = approvedAt;
+        SettlementApprovedByUserId = approvedByUserId;
+    }
+
     public void Cancel()
     {
-        if (Status is PettyCashIouStatus.Released or PettyCashIouStatus.Settled)
+        if (Status is PettyCashIouStatus.Released or PettyCashIouStatus.Settled or PettyCashIouStatus.SettlementApproved)
         {
             throw new DomainValidationException("Released or settled IOUs cannot be cancelled.");
         }

@@ -11,6 +11,14 @@ public static class AppPermissions
     public const string PettyCashIouReject = "Finance.PettyCashIou.Reject";
     public const string PettyCashIouRelease = "Finance.PettyCashIou.Release";
     public const string PettyCashIouSettle = "Finance.PettyCashIou.Settle";
+
+    public const string PettyCashRequestView = "Finance.PettyCashRequest.View";
+    public const string PettyCashRequestCreate = "Finance.PettyCashRequest.Create";
+    public const string PettyCashRequestEdit = "Finance.PettyCashRequest.Edit";
+    public const string PettyCashRequestSubmit = "Finance.PettyCashRequest.Submit";
+    public const string PettyCashRequestApprove = "Finance.PettyCashRequest.Approve";
+    public const string PettyCashRequestReject = "Finance.PettyCashRequest.Reject";
+    public const string PettyCashRequestFund = "Finance.PettyCashRequest.Fund";
     public const string FinancePaymentView = "Finance.Payment.View";
     public const string FinancePaymentCreate = "Finance.Payment.Create";
     public const string FinancePaymentAllocate = "Finance.Payment.Allocate";
@@ -129,6 +137,14 @@ public static class AppPermissions
         new(PettyCashIouReject, "Finance / Petty Cash IOU", "Reject", "Reject IOUs", "Reject submitted IOU requests."),
         new(PettyCashIouRelease, "Finance / Petty Cash IOU", "Release", "Release cash", "Release approved petty cash to the requester."),
         new(PettyCashIouSettle, "Finance / Petty Cash IOU", "Settle", "Settle IOUs", "Record IOU settlement/accounting."),
+
+        new(PettyCashRequestView, "Finance / Petty Cash Requests", "View", "View requests", "Open and review petty cash requests to head office."),
+        new(PettyCashRequestCreate, "Finance / Petty Cash Requests", "Create", "Create requests", "Raise a categorised petty cash request."),
+        new(PettyCashRequestEdit, "Finance / Petty Cash Requests", "Edit", "Edit requests", "Change draft petty cash requests and their category lines."),
+        new(PettyCashRequestSubmit, "Finance / Petty Cash Requests", "Submit", "Submit requests", "Send a petty cash request to head office."),
+        new(PettyCashRequestApprove, "Finance / Petty Cash Requests", "Approve", "Approve requests", "Approve a petty cash request line by line."),
+        new(PettyCashRequestReject, "Finance / Petty Cash Requests", "Reject", "Reject requests", "Reject a submitted petty cash request."),
+        new(PettyCashRequestFund, "Finance / Petty Cash Requests", "Fund", "Release funds", "Record money paid against approved request lines."),
         new(FinancePaymentView, "Finance / Payments", "View", "View payments", "Open and review payment receipts and vouchers."),
         new(FinancePaymentCreate, "Finance / Payments", "Create", "Create payments", "Create incoming or outgoing payment records."),
         new(FinancePaymentAllocate, "Finance / Payments", "Allocate", "Allocate payments", "Allocate payments to receivables or payables."),

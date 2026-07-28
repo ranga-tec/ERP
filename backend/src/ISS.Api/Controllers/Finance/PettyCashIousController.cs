@@ -47,7 +47,10 @@ public sealed class PettyCashIousController(
         decimal ClaimedAmount,
         int ClaimCount,
         decimal? ReturnedAmount,
-        decimal? UnaccountedAmount);
+        decimal? UnaccountedAmount,
+        string? IssueBillNumber,
+        Guid? PettyCashRequestLineId,
+        DateTimeOffset? SettlementApprovedAt);
 
     public sealed record CreatePettyCashIouRequest(
         Guid ServiceJobId,
@@ -58,8 +61,23 @@ public sealed class PettyCashIousController(
         Guid? ServiceJobDailySheetId);
 
     public sealed record RejectPettyCashIouRequest(string? Reason);
-    public sealed record ReleasePettyCashIouRequest(Guid PettyCashFundId, string? ReleaseReference);
+    public sealed record ReleasePettyCashIouRequest(
+        Guid PettyCashFundId,
+        string? ReleaseReference,
+        string? IssueBillNumber,
+        Guid? PettyCashRequestLineId);
+
     public sealed record SettlePettyCashIouRequest(decimal SettledAmount, string? SettlementReference);
+
+    /// <summary>Cash handed over verbally, with no prior request. The signed bill is the record.</summary>
+    public sealed record IssuePettyCashIouDirectlyRequest(
+        Guid ServiceJobId,
+        decimal Amount,
+        string Purpose,
+        Guid PettyCashFundId,
+        string IssueBillNumber,
+        Guid? PettyCashRequestLineId,
+        string? IssuedToName);
 
     [HttpGet]
     public async Task<ActionResult<IReadOnlyList<PettyCashIouDto>>> List(
@@ -190,8 +208,57 @@ public sealed class PettyCashIousController(
             return Forbid();
         }
 
-        await financeService.ReleasePettyCashIouAsync(id, request.PettyCashFundId, request.ReleaseReference, cancellationToken);
+        await financeService.ReleasePettyCashIouAsync(
+            id,
+            request.PettyCashFundId,
+            request.ReleaseReference,
+            request.IssueBillNumber,
+            request.PettyCashRequestLineId,
+            cancellationToken);
         await NotifyRequesterAsync(id, "IOU cash released", "Cash has been released for your IOU request.", cancellationToken);
+        return NoContent();
+    }
+
+    [HttpPost("issue-directly")]
+    public async Task<ActionResult<PettyCashIouDto>> IssueDirectly(
+        IssuePettyCashIouDirectlyRequest request,
+        CancellationToken cancellationToken)
+    {
+        // Issuing without a request is releasing cash, so it is gated on the release permission
+        // rather than the create one.
+        if (!await HasPermissionAsync(AppPermissions.PettyCashIouRelease, cancellationToken))
+        {
+            return Forbid();
+        }
+
+        var issuedToName = string.IsNullOrWhiteSpace(request.IssuedToName)
+            ? User.Identity?.Name ?? "Unknown user"
+            : request.IssuedToName;
+
+        var id = await financeService.IssuePettyCashIouDirectlyAsync(
+            request.ServiceJobId,
+            currentUser.UserId ?? Guid.Empty,
+            issuedToName,
+            request.Amount,
+            request.Purpose,
+            request.PettyCashFundId,
+            request.IssueBillNumber,
+            request.PettyCashRequestLineId,
+            cancellationToken);
+
+        return await Get(id, cancellationToken);
+    }
+
+    [HttpPost("{id:guid}/approve-settlement")]
+    public async Task<ActionResult> ApproveSettlement(Guid id, CancellationToken cancellationToken)
+    {
+        if (!await HasPermissionAsync(AppPermissions.PettyCashIouApprove, cancellationToken))
+        {
+            return Forbid();
+        }
+
+        await financeService.ApprovePettyCashIouSettlementAsync(id, currentUser.UserId ?? Guid.Empty, cancellationToken);
+        await NotifyRequesterAsync(id, "IOU settlement approved", "Head office has approved your IOU settlement.", cancellationToken);
         return NoContent();
     }
 
@@ -326,5 +393,8 @@ public sealed class PettyCashIousController(
             totals.ClaimedAmount,
             totals.ClaimCount,
             iou.SettledAmount is null ? null : iou.Amount - iou.SettledAmount.Value,
-            iou.SettledAmount is null ? null : iou.SettledAmount.Value - totals.ClaimedAmount);
+            iou.SettledAmount is null ? null : iou.SettledAmount.Value - totals.ClaimedAmount,
+            iou.IssueBillNumber,
+            iou.PettyCashRequestLineId,
+            iou.SettlementApprovedAt);
 }

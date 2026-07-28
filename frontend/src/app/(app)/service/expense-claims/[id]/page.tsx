@@ -15,7 +15,7 @@ import { ServiceExpenseClaimLineRow } from "../ServiceExpenseClaimLineRow";
 type ServiceExpenseClaimDto = {
   id: string;
   number: string;
-  serviceJobId: string;
+  serviceJobId?: string | null;
   claimedByUserId?: string | null;
   claimedByName: string;
   fundingSource: number;
@@ -121,9 +121,13 @@ export default async function ServiceExpenseClaimDetailPage({ params }: { params
         <div className="mt-2 flex flex-wrap gap-3 text-sm text-zinc-600 dark:text-zinc-400">
           <div>
             Job:{" "}
-            <TransactionLink referenceType="SJ" referenceId={claim.serviceJobId} monospace>
-              {jobById.get(claim.serviceJobId)?.number ?? claim.serviceJobId}
-            </TransactionLink>
+            {claim.serviceJobId ? (
+              <TransactionLink referenceType="SJ" referenceId={claim.serviceJobId} monospace>
+                {jobById.get(claim.serviceJobId)?.number ?? "Job removed"}
+              </TransactionLink>
+            ) : (
+              <span className="text-zinc-500">Not job related (overhead)</span>
+            )}
           </div>
           <div>Claimed by: {claim.claimedByName}</div>
           <div>Funding: {fundingSourceLabel[claim.fundingSource] ?? claim.fundingSource}</div>

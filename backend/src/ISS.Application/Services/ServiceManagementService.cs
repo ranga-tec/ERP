@@ -549,7 +549,7 @@ public sealed class ServiceManagementService(
     }
 
     public async Task<Guid> CreateServiceExpenseClaimAsync(
-        Guid serviceJobId,
+        Guid? serviceJobId,
         Guid? claimedByUserId,
         string claimedByName,
         ServiceExpenseFundingSource fundingSource,
@@ -559,11 +559,13 @@ public sealed class ServiceManagementService(
         string? notes,
         Guid? serviceJobDailySheetId = null,
         Guid? pettyCashIouId = null,
+        Guid? pettyCashRequestLineId = null,
         CancellationToken cancellationToken = default)
     {
         await EnsureServiceJobAcceptsNewCostsAsync(serviceJobId, cancellationToken);
         await EnsureDailySheetBelongsToJobAsync(serviceJobId, serviceJobDailySheetId, cancellationToken);
         await EnsurePettyCashIouCanFundClaimAsync(serviceJobId, fundingSource, pettyCashIouId, cancellationToken);
+        await EnsureRequestLineCanFundClaimAsync(serviceJobId, fundingSource, pettyCashRequestLineId, cancellationToken);
 
         var number = await documentNumberService.NextAsync(ReferenceTypes.ServiceExpenseClaim, "SEC", cancellationToken);
         var claim = new ServiceExpenseClaim(
@@ -577,7 +579,8 @@ public sealed class ServiceManagementService(
             receiptReference,
             notes,
             serviceJobDailySheetId,
-            pettyCashIouId);
+            pettyCashIouId,
+            pettyCashRequestLineId);
 
         await dbContext.ServiceExpenseClaims.AddAsync(claim, cancellationToken);
         await dbContext.SaveChangesAsync(cancellationToken);
@@ -919,7 +922,8 @@ public sealed class ServiceManagementService(
                 clock.UtcNow,
                 claim.Id,
                 settlementReference ?? claim.Number,
-                notes: $"Expense claim {claim.Number} settled.");
+                notes: $"Expense claim {claim.Number} settled.",
+                claim.PettyCashRequestLineId);
             dbContext.DbContext.Add(transaction);
         }
 
@@ -949,6 +953,12 @@ public sealed class ServiceManagementService(
             throw new DomainValidationException("Only approved or settled expense claims can be converted to a service estimate.");
         }
 
+        // A quotation belongs to a job. Overhead spend has none, so there is nothing to bill it on
+        // to and no job whose estimate pricing could be applied.
+        var claimServiceJobId = claim.ServiceJobId
+                                ?? throw new DomainValidationException(
+                                    $"Voucher {claim.Number} is not linked to a job order, so it cannot be converted to a quotation.");
+
         var linesToConvert = claim.Lines
             .Where(x => x.BillableToCustomer && x.ConvertedToServiceEstimateLineId is null)
             .ToList();
@@ -959,7 +969,7 @@ public sealed class ServiceManagementService(
         }
 
         var estimate = await ResolveDraftEstimateForExpenseConversionAsync(
-            claim.ServiceJobId,
+            claimServiceJobId,
             serviceEstimateId,
             validUntil,
             terms,
@@ -982,7 +992,7 @@ public sealed class ServiceManagementService(
             var lineKind = line.ItemId is { } itemId && itemTypeById.TryGetValue(itemId, out var itemType) && itemType == ItemType.SparePart
                 ? ServiceEstimateLineKind.Part
                 : ServiceEstimateLineKind.Expense;
-            var pricedUnitPrice = await ApplyEstimateUnitPriceAsync(claim.ServiceJobId, lineKind, line.UnitCost, cancellationToken);
+            var pricedUnitPrice = await ApplyEstimateUnitPriceAsync(claimServiceJobId, lineKind, line.UnitCost, cancellationToken);
             var estimateLine = estimate.AddLine(
                 lineKind,
                 line.ItemId,
@@ -2626,12 +2636,60 @@ public sealed class ServiceManagementService(
     }
 
     /// <summary>
+    /// A voucher may only be charged to a funded category that has actually been paid out, and a
+    /// job-wise category only accepts spend on its own job. Without the second rule a category
+    /// could be drained by work it was never funded for.
+    /// </summary>
+    private async Task EnsureRequestLineCanFundClaimAsync(
+        Guid? serviceJobId,
+        ServiceExpenseFundingSource fundingSource,
+        Guid? pettyCashRequestLineId,
+        CancellationToken cancellationToken)
+    {
+        if (pettyCashRequestLineId is null)
+        {
+            return;
+        }
+
+        if (fundingSource != ServiceExpenseFundingSource.PettyCash)
+        {
+            throw new DomainValidationException("Only petty cash vouchers can be charged to a funded category.");
+        }
+
+        var line = await dbContext.PettyCashRequests.AsNoTracking()
+            .SelectMany(request => request.Lines)
+            .Where(x => x.Id == pettyCashRequestLineId.Value)
+            .Select(x => new { x.Category, x.ServiceJobId, x.Purpose, Funded = x.Fundings.Sum(f => f.Amount) })
+            .FirstOrDefaultAsync(cancellationToken)
+            ?? throw new NotFoundException("Petty cash request line not found.");
+
+        if (line.Funded <= 0m)
+        {
+            throw new DomainValidationException($"No money has been released for '{line.Purpose}' yet, so nothing can be charged to it.");
+        }
+
+        if (line.Category == PettyCashRequestCategory.JobWise && line.ServiceJobId != serviceJobId)
+        {
+            throw new DomainValidationException($"'{line.Purpose}' was funded for a different job order.");
+        }
+    }
+
+    /// <summary>
+    /// Overhead vouchers - transportation, emergency callouts - carry no job, so there is no job
+    /// state to gate on and the check simply does not apply.
+    /// </summary>
+    private Task EnsureServiceJobAcceptsNewCostsAsync(Guid? serviceJobId, CancellationToken cancellationToken)
+        => serviceJobId is { } jobId
+            ? EnsureServiceJobAcceptsNewCostsAsync(jobId, cancellationToken)
+            : Task.CompletedTask;
+
+    /// <summary>
     /// An advance can only fund spend on the job it was drawn for, and only once the cash has
     /// actually left the fund. Released and Settled both qualify: claims are routinely written up
     /// after the advance has been squared off.
     /// </summary>
     private async Task EnsurePettyCashIouCanFundClaimAsync(
-        Guid serviceJobId,
+        Guid? serviceJobId,
         ServiceExpenseFundingSource fundingSource,
         Guid? pettyCashIouId,
         CancellationToken cancellationToken)
@@ -2661,6 +2719,21 @@ public sealed class ServiceManagementService(
         {
             throw new DomainValidationException($"IOU {iou.Number} has not been released, so it cannot have funded this expense.");
         }
+    }
+
+    /// <summary>
+    /// Daily sheets belong to a job, so a job-less overhead voucher cannot sit on one.
+    /// </summary>
+    private Task EnsureDailySheetBelongsToJobAsync(Guid? serviceJobId, Guid? dailySheetId, CancellationToken cancellationToken)
+    {
+        if (serviceJobId is { } jobId)
+        {
+            return EnsureDailySheetBelongsToJobAsync(jobId, dailySheetId, cancellationToken);
+        }
+
+        return dailySheetId is null
+            ? Task.CompletedTask
+            : throw new DomainValidationException("A voucher with no job order cannot be attached to a daily sheet.");
     }
 
     private async Task EnsureDailySheetBelongsToJobAsync(Guid serviceJobId, Guid? dailySheetId, CancellationToken cancellationToken)

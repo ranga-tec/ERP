@@ -738,7 +738,9 @@ public sealed partial class DocumentPdfService
 
         var meta = new List<(string Label, string Value)>
         {
-            ("Service job", job?.Number ?? claim.ServiceJobId.ToString()),
+            // No job at all means overhead the custodian carries; a job id with no job behind it
+            // means the job is gone. Neither case may print a raw id at a reader.
+            ("Service job", claim.ServiceJobId is null ? "Not job related" : job?.Number ?? "Job removed"),
             ("Claimed by", claim.ClaimedByName),
             ("Funding source", claim.FundingSource.ToString()),
             ("Expense date", claim.ExpenseDate.ToString("u")),

@@ -169,6 +169,15 @@ public sealed class AccessControlService(
             yield return AppPermissions.PettyCashIouReject;
             yield return AppPermissions.PettyCashIouRelease;
             yield return AppPermissions.PettyCashIouSettle;
+            // Both sides of the request live in Finance. Which user may approve or fund, as opposed
+            // to only raising requests, is narrowed per user through permission overrides.
+            yield return AppPermissions.PettyCashRequestView;
+            yield return AppPermissions.PettyCashRequestCreate;
+            yield return AppPermissions.PettyCashRequestEdit;
+            yield return AppPermissions.PettyCashRequestSubmit;
+            yield return AppPermissions.PettyCashRequestApprove;
+            yield return AppPermissions.PettyCashRequestReject;
+            yield return AppPermissions.PettyCashRequestFund;
             yield return AppPermissions.FinancePaymentView;
             yield return AppPermissions.FinancePaymentCreate;
             yield return AppPermissions.FinancePaymentAllocate;
