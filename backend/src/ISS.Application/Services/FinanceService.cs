@@ -401,25 +401,41 @@ public sealed class FinanceService(
     /// bill, so its number is required - there is no approval trail to fall back on.
     /// </summary>
     public async Task<Guid> IssuePettyCashIouDirectlyAsync(
-        Guid serviceJobId,
+        Guid? serviceJobId,
         Guid issuedToUserId,
         string issuedToName,
         decimal amount,
         string purpose,
         Guid pettyCashFundId,
-        string issueBillNumber,
+        string slipNumber,
         Guid? pettyCashRequestLineId,
         CancellationToken cancellationToken = default)
     {
-        var jobStatus = await dbContext.ServiceJobs.AsNoTracking()
-            .Where(x => x.Id == serviceJobId)
-            .Select(x => (ServiceJobStatus?)x.Status)
-            .FirstOrDefaultAsync(cancellationToken)
-            ?? throw new NotFoundException("Service job not found.");
-
-        if (jobStatus == ServiceJobStatus.Closed)
+        var trimmedSlipNumber = slipNumber?.Trim() ?? string.Empty;
+        if (trimmedSlipNumber.Length == 0)
         {
-            throw new DomainValidationException("Closed service jobs cannot receive new IOUs.");
+            throw new DomainValidationException("The IOU slip number is required - it is the document number for this advance.");
+        }
+
+        // The slip book is the source of numbers, so a clash means the same slip is being entered
+        // twice. Caught here to say so plainly rather than surface a unique-index violation.
+        if (await dbContext.PettyCashIous.AsNoTracking().AnyAsync(x => x.Number == trimmedSlipNumber, cancellationToken))
+        {
+            throw new DomainValidationException($"IOU slip {trimmedSlipNumber} has already been entered.");
+        }
+
+        if (serviceJobId is { } jobId)
+        {
+            var jobStatus = await dbContext.ServiceJobs.AsNoTracking()
+                .Where(x => x.Id == jobId)
+                .Select(x => (ServiceJobStatus?)x.Status)
+                .FirstOrDefaultAsync(cancellationToken)
+                ?? throw new NotFoundException("Service job not found.");
+
+            if (jobStatus == ServiceJobStatus.Closed)
+            {
+                throw new DomainValidationException("Closed service jobs cannot receive new IOUs.");
+            }
         }
 
         var fund = await dbContext.PettyCashFunds
@@ -429,9 +445,8 @@ public sealed class FinanceService(
 
         await EnsureRequestLineIsSpendableAsync(pettyCashRequestLineId, serviceJobId, cancellationToken);
 
-        var number = await documentNumberService.NextAsync(ReferenceTypes.PettyCashIou, "IOU", cancellationToken);
         var iou = PettyCashIou.IssueDirectly(
-            number,
+            trimmedSlipNumber,
             serviceJobId,
             issuedToUserId,
             issuedToName,
@@ -439,7 +454,6 @@ public sealed class FinanceService(
             purpose,
             clock.UtcNow,
             pettyCashFundId,
-            issueBillNumber,
             pettyCashRequestLineId);
 
         await dbContext.PettyCashIous.AddAsync(iou, cancellationToken);
@@ -449,7 +463,7 @@ public sealed class FinanceService(
             clock.UtcNow,
             iou.Id,
             iou.Number,
-            issueBillNumber,
+            notes: $"Cash issued to {issuedToName} on IOU slip {iou.Number}.",
             pettyCashRequestLineId);
         dbContext.DbContext.Add(transaction);
 

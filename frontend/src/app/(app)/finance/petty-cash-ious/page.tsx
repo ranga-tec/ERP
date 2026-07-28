@@ -12,7 +12,7 @@ type CurrentPermissionsDto = { permissions: string[] };
 type PettyCashIouDto = {
   id: string;
   number: string;
-  serviceJobId: string;
+  serviceJobId?: string | null;
   requestedByName: string;
   amount: number;
   purpose: string;
@@ -39,22 +39,12 @@ const statusLabel: Record<number, string> = {
 };
 
 type StaffDto = { userId: string; name: string; email?: string | null };
-type FundedCategoryDto = {
-  id: string;
-  requestNumber: string;
-  category: number;
-  serviceJobId?: string | null;
-  customCategoryName?: string | null;
-  purpose: string;
-};
-
 export default async function PettyCashIousPage() {
-  const [jobs, funds, ious, staff, fundedCategories, currentPermissions] = await Promise.all([
+  const [jobs, funds, ious, staff, currentPermissions] = await Promise.all([
     backendFetchJson<ServiceJobDto[]>("/service/jobs?take=500"),
     backendFetchJson<FundDto[]>("/finance/petty-cash-funds"),
     backendFetchJson<PettyCashIouDto[]>("/finance/petty-cash-ious?take=200"),
     backendFetchJson<StaffDto[]>("/finance/petty-cash-ious/staff"),
-    backendFetchJson<FundedCategoryDto[]>("/finance/petty-cash-requests/funded-lines"),
     backendFetchJson<CurrentPermissionsDto>("/me/permissions"),
   ]);
   const activeFunds = funds.filter((fund) => fund.isActive);
@@ -74,17 +64,12 @@ export default async function PettyCashIousPage() {
         <div className="flex flex-wrap items-center gap-2">
           {canIssue ? (
             <AppFormModal
-              title="Issue Cash Now"
-              description="Cash handed out of the float with no prior request - either as someone's advance, or as payment for something already bought."
-              buttonLabel="+ Issue Cash Now"
+              title="Record IOU Slip"
+              description="Cash handed out on a pre-printed IOU slip. The slip number is the advance's number."
+              buttonLabel="+ Record IOU Slip"
               variant="secondary"
             >
-              <PettyCashIssueForm
-                serviceJobs={jobs.filter((job) => job.status !== 3 && job.status !== 4)}
-                funds={activeFunds}
-                staff={staff}
-                fundedCategories={fundedCategories}
-              />
+              <PettyCashIssueForm funds={activeFunds} staff={staff} />
             </AppFormModal>
           ) : null}
           {canCreate ? (
@@ -118,7 +103,11 @@ export default async function PettyCashIousPage() {
               {ious.map((iou) => (
                 <tr key={iou.id} className="border-b border-zinc-100 align-top dark:border-zinc-900">
                   <td className="py-2 pr-3 font-mono text-xs">{iou.number}</td>
-                  <td className="py-2 pr-3">{jobs.find((job) => job.id === iou.serviceJobId)?.number ?? iou.serviceJobId}</td>
+                  <td className="py-2 pr-3">
+                    {iou.serviceJobId
+                      ? jobs.find((job) => job.id === iou.serviceJobId)?.number ?? "Job removed"
+                      : <span className="text-zinc-400">-</span>}
+                  </td>
                   <td className="py-2 pr-3 text-zinc-500">{iou.requestedByName}</td>
                   <td className="py-2 pr-3">{iou.amount.toFixed(2)}</td>
                   <td className="py-2 pr-3">

@@ -346,7 +346,7 @@ public sealed class PettyCashIou : AuditableEntity
 
     public PettyCashIou(
         string number,
-        Guid serviceJobId,
+        Guid? serviceJobId,
         Guid requestedByUserId,
         string requestedByName,
         decimal amount,
@@ -367,8 +367,18 @@ public sealed class PettyCashIou : AuditableEntity
         Status = PettyCashIouStatus.Draft;
     }
 
+    /// <summary>
+    /// For an advance handed over on a pre-printed slip this is the number printed on that slip -
+    /// the paper is the document, and inventing a second number for it would leave two identities
+    /// for one thing. Advances raised as a request in the system keep a generated number, because
+    /// no slip exists yet when they are created.
+    /// </summary>
     public string Number { get; private set; } = null!;
-    public Guid ServiceJobId { get; private set; }
+
+    /// <summary>Null when the cash was not drawn against a job - the slip records that as
+    /// Location/Dept rather than a job order.</summary>
+    public Guid? ServiceJobId { get; private set; }
+
     public Guid? ServiceJobDailySheetId { get; private set; }
     public Guid RequestedByUserId { get; private set; }
     public string RequestedByName { get; private set; } = null!;
@@ -403,26 +413,27 @@ public sealed class PettyCashIou : AuditableEntity
     public Guid? SettlementApprovedByUserId { get; private set; }
 
     /// <summary>
-    /// Cash handed over without a written request - the verbal case. The IOU is created already
-    /// released, because the money has physically gone and back-dating it through the request
-    /// states would be a fiction. The signed bill number is mandatory here: it is the only record
-    /// that the handover happened at all.
+    /// Cash handed over on a pre-printed slip, with no request behind it. The IOU is created
+    /// already released, because the money has physically gone and walking it back through the
+    /// request states would be a fiction. The slip number is the document number: the paper is the
+    /// original, and the system is recording it rather than issuing its own.
     /// </summary>
     public static PettyCashIou IssueDirectly(
-        string number,
-        Guid serviceJobId,
+        string slipNumber,
+        Guid? serviceJobId,
         Guid requestedByUserId,
         string requestedByName,
         decimal amount,
         string purpose,
         DateTimeOffset issuedAt,
         Guid pettyCashFundId,
-        string issueBillNumber,
         Guid? pettyCashRequestLineId,
         Guid? serviceJobDailySheetId = null)
     {
+        var issueBillNumber = Guard.NotNullOrWhiteSpace(slipNumber, nameof(slipNumber), maxLength: 32);
+
         var iou = new PettyCashIou(
-            number,
+            issueBillNumber,
             serviceJobId,
             requestedByUserId,
             requestedByName,
@@ -439,7 +450,7 @@ public sealed class PettyCashIou : AuditableEntity
             PettyCashFundId = pettyCashFundId,
             ReleasedAt = issuedAt,
             PettyCashRequestLineId = pettyCashRequestLineId,
-            IssueBillNumber = Guard.NotNullOrWhiteSpace(issueBillNumber, nameof(issueBillNumber), maxLength: 64),
+            IssueBillNumber = issueBillNumber,
         };
 
         return iou;

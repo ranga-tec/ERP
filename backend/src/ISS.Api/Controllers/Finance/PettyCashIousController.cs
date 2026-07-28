@@ -54,7 +54,7 @@ public sealed class PettyCashIousController(
     public sealed record PettyCashIouDto(
         Guid Id,
         string Number,
-        Guid ServiceJobId,
+        Guid? ServiceJobId,
         string? ServiceJobNumber,
         Guid? ServiceJobDailySheetId,
         Guid RequestedByUserId,
@@ -99,18 +99,23 @@ public sealed class PettyCashIousController(
 
     public sealed record SettlePettyCashIouRequest(decimal SettledAmount, string? SettlementReference);
 
-    /// <summary>Cash handed over verbally, with no prior request. The signed bill is the record.</summary>
+    /// <summary>
+    /// Cash handed over on a pre-printed slip, with no request behind it. The slip number is the
+    /// document number, so it is required and must not repeat.
+    /// </summary>
     public sealed record IssuePettyCashIouDirectlyRequest(
-        Guid ServiceJobId,
+        string SlipNumber,
         decimal Amount,
         string Purpose,
         Guid PettyCashFundId,
-        string IssueBillNumber,
-        Guid? PettyCashRequestLineId,
         // The staff member the cash was handed to. The advance is theirs to settle, so this is the
         // holder of record - not whoever typed the form in.
         Guid? IssuedToUserId,
-        string? IssuedToName);
+        string? IssuedToName,
+        // Optional, and not on the slip: the job and funded category are attribution, recorded when
+        // they are known rather than asked for at the counter.
+        Guid? ServiceJobId,
+        Guid? PettyCashRequestLineId);
 
     [HttpGet]
     public async Task<ActionResult<IReadOnlyList<PettyCashIouDto>>> List(
@@ -278,7 +283,7 @@ public sealed class PettyCashIousController(
             request.Amount,
             request.Purpose,
             request.PettyCashFundId,
-            request.IssueBillNumber,
+            request.SlipNumber,
             request.PettyCashRequestLineId,
             cancellationToken);
 
