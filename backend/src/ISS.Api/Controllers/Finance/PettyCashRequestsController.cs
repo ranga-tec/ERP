@@ -1,5 +1,6 @@
 using ISS.Api.Security;
 using ISS.Application.Abstractions;
+using ISS.Application.Common;
 using ISS.Application.Persistence;
 using ISS.Application.Services;
 using ISS.Domain.Finance;
@@ -16,7 +17,8 @@ public sealed class PettyCashRequestsController(
     IIssDbContext dbContext,
     FinanceService financeService,
     ICurrentUser currentUser,
-    AccessControlService accessControl) : ControllerBase
+    AccessControlService accessControl,
+    NotificationService notificationService) : ControllerBase
 {
     public sealed record PettyCashRequestLineFundingDto(
         Guid Id,
@@ -416,6 +418,7 @@ public sealed class PettyCashRequestsController(
         }
 
         await financeService.SubmitPettyCashRequestAsync(id, cancellationToken);
+        await NotifyHeadOfficeAsync(id, cancellationToken);
         return NoContent();
     }
 
@@ -437,6 +440,11 @@ public sealed class PettyCashRequestsController(
             approvedAmounts,
             cancellationToken);
 
+        await NotifyRequesterAsync(
+            id,
+            "Petty cash request approved",
+            "approved by head office. Money is released per category from the request page.",
+            cancellationToken);
         return NoContent();
     }
 
@@ -452,6 +460,11 @@ public sealed class PettyCashRequestsController(
         }
 
         await financeService.RejectPettyCashRequestAsync(id, request.Reason, cancellationToken);
+        await NotifyRequesterAsync(
+            id,
+            "Petty cash request rejected",
+            string.IsNullOrWhiteSpace(request.Reason) ? "rejected by head office." : $"rejected by head office. {request.Reason.Trim()}",
+            cancellationToken);
         return NoContent();
     }
 
@@ -488,7 +501,77 @@ public sealed class PettyCashRequestsController(
             request.Notes,
             cancellationToken);
 
+        var reference = string.IsNullOrWhiteSpace(request.PaymentReference) ? "" : $" ({request.PaymentReference.Trim()})";
+        await NotifyRequesterAsync(
+            id,
+            "Petty cash released",
+            $"head office released {request.Amount:0.00}{reference} into your fund.",
+            cancellationToken);
+
         return NoContent();
+    }
+
+    /// <summary>
+    /// Goes to whoever can act on it - approve or release - rather than to a fixed role, so the
+    /// people who actually hold the permission are the ones told there is money to decide about.
+    /// </summary>
+    private async Task NotifyHeadOfficeAsync(Guid id, CancellationToken cancellationToken)
+    {
+        var request = await dbContext.PettyCashRequests.AsNoTracking()
+            .Where(x => x.Id == id)
+            .Select(x => new
+            {
+                x.Id,
+                x.Number,
+                x.RequestedByName,
+                Total = x.Lines.Sum(line => line.RequestedAmount),
+                LineCount = x.Lines.Count,
+            })
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (request is null)
+        {
+            return;
+        }
+
+        var recipients = await accessControl.GetActiveUserIdsWithAnyPermissionAsync(
+            [AppPermissions.PettyCashRequestApprove, AppPermissions.PettyCashRequestFund],
+            excludeUserId: currentUser.UserId,
+            cancellationToken);
+
+        notificationService.EnqueueInAppForUsers(
+            recipients,
+            "Petty cash request waiting",
+            $"{request.Number} from {request.RequestedByName} is waiting for approval. "
+            + $"{request.Total:0.00} across {request.LineCount} categor{(request.LineCount == 1 ? "y" : "ies")}.",
+            $"/finance/petty-cash-requests/{request.Id}",
+            ReferenceTypes.PettyCashRequest,
+            request.Id);
+
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    private async Task NotifyRequesterAsync(Guid id, string title, string message, CancellationToken cancellationToken)
+    {
+        var request = await dbContext.PettyCashRequests.AsNoTracking()
+            .Where(x => x.Id == id)
+            .Select(x => new { x.Id, x.Number, x.RequestedByUserId })
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (request is null || request.RequestedByUserId == Guid.Empty)
+        {
+            return;
+        }
+
+        notificationService.EnqueueInApp(
+            request.RequestedByUserId,
+            title,
+            $"{request.Number}: {message}",
+            $"/finance/petty-cash-requests/{request.Id}",
+            ReferenceTypes.PettyCashRequest,
+            request.Id);
+
+        await dbContext.SaveChangesAsync(cancellationToken);
     }
 
     private async Task<bool> HasPermissionAsync(string permissionKey, CancellationToken cancellationToken)
