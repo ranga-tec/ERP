@@ -162,9 +162,13 @@ public sealed class PettyCashIousController(
             .ToListAsync(cancellationToken);
 
         var totals = await LoadClaimTotalsAsync(ious.Select(x => x.Id).ToList(), cancellationToken);
+        var jobNumbers = await LoadJobNumbersAsync(ious, cancellationToken);
 
         return Ok(ious
-            .Select(x => ToDto(x, totals.GetValueOrDefault(x.Id, IouClaimTotals.Empty)))
+            .Select(x => ToDto(
+                x,
+                totals.GetValueOrDefault(x.Id, IouClaimTotals.Empty),
+                x.ServiceJobId is { } jobId ? jobNumbers.GetValueOrDefault(jobId) : null))
             .ToList());
     }
 
@@ -212,8 +216,12 @@ public sealed class PettyCashIousController(
         }
 
         var totals = await LoadClaimTotalsAsync(new[] { iou.Id }, cancellationToken);
+        var jobNumbers = await LoadJobNumbersAsync(new[] { iou }, cancellationToken);
 
-        return Ok(ToDto(iou, totals.GetValueOrDefault(iou.Id, IouClaimTotals.Empty)));
+        return Ok(ToDto(
+            iou,
+            totals.GetValueOrDefault(iou.Id, IouClaimTotals.Empty),
+            iou.ServiceJobId is { } jobId ? jobNumbers.GetValueOrDefault(jobId) : null));
     }
 
     [HttpPost("{id:guid}/submit")]
@@ -469,6 +477,25 @@ public sealed class PettyCashIousController(
         public static readonly IouClaimTotals Empty = new(0m, 0);
     }
 
+    /// <summary>
+    /// Job numbers resolved here rather than joined on the page: a null means the job is gone, and
+    /// the screen can say so instead of printing an id at somebody.
+    /// </summary>
+    private async Task<Dictionary<Guid, string>> LoadJobNumbersAsync(
+        IReadOnlyCollection<PettyCashIou> ious,
+        CancellationToken cancellationToken)
+    {
+        var jobIds = ious.Where(x => x.ServiceJobId != null).Select(x => x.ServiceJobId!.Value).Distinct().ToList();
+        if (jobIds.Count == 0)
+        {
+            return new Dictionary<Guid, string>();
+        }
+
+        return await dbContext.ServiceJobs.AsNoTracking()
+            .Where(x => jobIds.Contains(x.Id))
+            .ToDictionaryAsync(x => x.Id, x => x.Number, cancellationToken);
+    }
+
     private async Task<Dictionary<Guid, IouClaimTotals>> LoadClaimTotalsAsync(
         IReadOnlyCollection<Guid> iouIds,
         CancellationToken cancellationToken)
@@ -495,12 +522,12 @@ public sealed class PettyCashIousController(
         return rows.ToDictionary(x => x.PettyCashIouId, x => new IouClaimTotals(x.ClaimedAmount, x.ClaimCount));
     }
 
-    private static PettyCashIouDto ToDto(PettyCashIou iou, IouClaimTotals totals)
+    private static PettyCashIouDto ToDto(PettyCashIou iou, IouClaimTotals totals, string? serviceJobNumber)
         => new(
             iou.Id,
             iou.Number,
             iou.ServiceJobId,
-            null,
+            serviceJobNumber,
             iou.ServiceJobDailySheetId,
             iou.RequestedByUserId,
             iou.RequestedByName,
