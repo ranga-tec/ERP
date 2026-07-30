@@ -19,6 +19,10 @@ type SupplierDto = {
 };
 
 const actionButtonClass = "px-2 py-1 text-xs";
+const activeBadgeClass =
+  "rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300";
+const inactiveBadgeClass =
+  "rounded-full bg-zinc-100 px-2 py-0.5 text-xs font-medium text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400";
 
 export function SupplierRow({ supplier }: { supplier: SupplierDto }) {
   const router = useRouter();
@@ -86,10 +90,21 @@ export function SupplierRow({ supplier }: { supplier: SupplierDto }) {
       <td className="py-2 pr-3 text-zinc-500">{supplier.phone ?? "-"}</td>
       <td className="py-2 pr-3 text-zinc-500">{supplier.email ?? "-"}</td>
       <td className="py-2 pr-3 text-zinc-500">{supplier.address ?? "-"}</td>
-      <td className="py-2 pr-3">{supplier.isActive ? "Yes" : "No"}</td>
-      <td className="py-2 pr-3">{supplier.isAuthorized ? "Yes" : "No"}</td>
+      {/* Badges rather than the words Yes and No, so state reads at a glance down the column. */}
       <td className="py-2 pr-3">
-        <div className="flex flex-wrap items-center gap-2">
+        <span className={supplier.isActive ? activeBadgeClass : inactiveBadgeClass}>
+          {supplier.isActive ? "Active" : "Inactive"}
+        </span>
+      </td>
+      <td className="py-2 pr-3">
+        <span className={supplier.isAuthorized ? activeBadgeClass : inactiveBadgeClass}>
+          {supplier.isAuthorized ? "Authorized" : "Not authorized"}
+        </span>
+      </td>
+      <td className="py-2 pr-3">
+        {/* No wrapping: Edit/Delete/audit splitting over two lines is what makes these grids look
+            broken once a row is tall enough to allow it. */}
+        <div className="flex items-center gap-2 whitespace-nowrap">
           <AppFormModal title={`Edit Supplier ${supplier.code}`} description="Update supplier details, approval, and active state." buttonLabel="Edit" variant="secondary" onOpen={beginEdit}>
             {({ close }) => (
               <form className="space-y-3" onSubmit={(event) => { event.preventDefault(); void saveEdit(close); }}>

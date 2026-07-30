@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { apiPost } from "@/lib/api-client";
-import { Button, Input } from "@/components/ui";
+import { Button, Input, Select } from "@/components/ui";
 
 type SupplierDto = {
   id: string;
@@ -16,14 +16,18 @@ type SupplierDto = {
   isAuthorized: boolean;
 };
 
-export function SupplierCreateForm() {
+/**
+ * The dialog does not close itself, so a form that never calls close leaves the user looking at
+ * blank fields with no sign the record saved - and clicking again creates a duplicate.
+ */
+export function SupplierCreateForm({ close }: { close?: () => void }) {
   const router = useRouter();
   const [code, setCode] = useState("");
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
   const [address, setAddress] = useState("");
-  const [isAuthorized, setIsAuthorized] = useState(true);
+  const [isAuthorized, setIsAuthorized] = useState("true");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -35,17 +39,18 @@ export function SupplierCreateForm() {
       await apiPost<SupplierDto>("suppliers", {
         code,
         name,
-        phone: phone || null,
-        email: email || null,
-        address: address || null,
-        isAuthorized,
+        phone: phone.trim() || null,
+        email: email.trim() || null,
+        address: address.trim() || null,
+        isAuthorized: isAuthorized === "true",
       });
       setCode("");
       setName("");
       setPhone("");
       setEmail("");
       setAddress("");
-      setIsAuthorized(true);
+      setIsAuthorized("true");
+      close?.();
       router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
@@ -83,15 +88,14 @@ export function SupplierCreateForm() {
         <Input value={address} onChange={(e) => setAddress(e.target.value)} />
       </div>
 
-      <label className="flex items-center gap-2 text-sm">
-        <input
-          type="checkbox"
-          checked={isAuthorized}
-          onChange={(e) => setIsAuthorized(e.target.checked)}
-          className="h-4 w-4 rounded border-zinc-300"
-        />
-        Authorized original supplier
-      </label>
+      {/* A dropdown, matching the edit form. The same field was a checkbox here and Yes/No there. */}
+      <div className="sm:w-1/2 sm:pr-1.5">
+        <label className="mb-1 block text-sm font-medium">Authorized original supplier</label>
+        <Select value={isAuthorized} onChange={(e) => setIsAuthorized(e.target.value)}>
+          <option value="true">Yes</option>
+          <option value="false">No</option>
+        </Select>
+      </div>
 
       {error ? (
         <div className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-900 dark:border-red-900/40 dark:bg-red-950/40 dark:text-red-100">
@@ -100,7 +104,7 @@ export function SupplierCreateForm() {
       ) : null}
 
       <Button type="submit" disabled={busy}>
-        {busy ? "Creating…" : "Create Supplier"}
+        {busy ? "Creating..." : "Create Supplier"}
       </Button>
     </form>
   );

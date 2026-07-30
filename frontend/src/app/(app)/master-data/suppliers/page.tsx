@@ -27,7 +27,7 @@ export default async function SuppliersPage() {
           <p className="mt-1 text-sm text-zinc-500">Supplier master data.</p>
         </div>
         <AppFormModal title="Create Supplier" description="Add a supplier master record." buttonLabel="+ New Supplier">
-          <SupplierCreateForm />
+          {({ close }) => <SupplierCreateForm close={close} />}
         </AppFormModal>
       </div>
 
