@@ -67,54 +67,70 @@ function ItemListRow({
         highlight ? "bg-[var(--surface-soft)]" : "",
       ].join(" ")}
     >
-      <td className="py-2 pr-3 font-mono text-xs">{item.sku}</td>
-      <td className="py-2 pr-3">{item.name}</td>
-      <td className="py-2 pr-3">{itemTypeLabel[item.type] ?? item.type}</td>
-      <td className="py-2 pr-3">{trackingLabel[item.trackingType] ?? item.trackingType}</td>
-      <td className="py-2 pr-3">{item.unitOfMeasure}</td>
+      <td className="py-2 pr-3">
+        <div className="font-mono text-xs text-zinc-500">{item.sku}</div>
+        <div className="max-w-[24ch] truncate font-medium" title={item.name}>
+          {item.name}
+        </div>
+        {item.barcode ? (
+          <div className="font-mono text-[11px] text-zinc-400">{item.barcode}</div>
+        ) : null}
+      </td>
+      <td className="py-2 pr-3">
+        <div>{itemTypeLabel[item.type] ?? item.type}</div>
+        <div className="text-xs text-zinc-500">
+          {trackingLabel[item.trackingType] ?? item.trackingType} &middot; {item.unitOfMeasure}
+        </div>
+      </td>
       <td className="py-2 pr-3 text-zinc-500">
         {item.categoryCode ? (
-          <>
-            <span className="font-mono text-xs">{item.categoryCode}</span> {item.categoryName ?? ""}
-          </>
+          <div className="max-w-[22ch] truncate" title={`${item.categoryCode} ${item.categoryName ?? ""}`}>
+            {item.categoryName ?? item.categoryCode}
+          </div>
         ) : (
-          "-"
+          <span className="text-zinc-400">-</span>
         )}
-      </td>
-      <td className="py-2 pr-3 text-zinc-500">
         {item.subcategoryCode ? (
+          <div
+            className="max-w-[22ch] truncate text-xs text-zinc-400"
+            title={`${item.subcategoryCode} ${item.subcategoryName ?? ""}`}
+          >
+            {item.subcategoryName ?? item.subcategoryCode}
+          </div>
+        ) : null}
+      </td>
+      <td className="py-2 pr-3 text-zinc-500">{brandCode || <span className="text-zinc-400">-</span>}</td>
+      <td className="py-2 pr-3 text-right font-mono tabular-nums">{item.defaultUnitCost.toFixed(2)}</td>
+      <td className="py-2 pr-3 text-right font-mono tabular-nums">{item.defaultUnitPrice.toFixed(2)}</td>
+      <td className="py-2 pr-3 text-xs text-zinc-500">
+        {item.revenueAccountCode || item.expenseAccountCode ? (
           <>
-            <span className="font-mono text-xs">{item.subcategoryCode}</span> {item.subcategoryName ?? ""}
+            <div title={item.revenueAccountName ?? ""}>
+              <span className="text-zinc-400">Inc</span> {item.revenueAccountCode ?? "-"}
+            </div>
+            <div title={item.expenseAccountName ?? ""}>
+              <span className="text-zinc-400">Exp</span> {item.expenseAccountCode ?? "-"}
+            </div>
           </>
         ) : (
-          "-"
+          <span className="text-zinc-400">-</span>
         )}
       </td>
-      <td className="py-2 pr-3 text-zinc-500">{brandCode || "-"}</td>
-      <td className="py-2 pr-3 font-mono text-xs text-zinc-500">{item.barcode ?? "-"}</td>
-      <td className="py-2 pr-3">{item.defaultUnitCost}</td>
-      <td className="py-2 pr-3">{item.defaultUnitPrice}</td>
-      <td className="py-2 pr-3 text-zinc-500">
-        {item.revenueAccountCode ? (
-          <>
-            <span className="font-mono text-xs">{item.revenueAccountCode}</span> {item.revenueAccountName ?? ""}
-          </>
-        ) : (
-          "-"
-        )}
-      </td>
-      <td className="py-2 pr-3 text-zinc-500">
-        {item.expenseAccountCode ? (
-          <>
-            <span className="font-mono text-xs">{item.expenseAccountCode}</span> {item.expenseAccountName ?? ""}
-          </>
-        ) : (
-          "-"
-        )}
-      </td>
-      <td className="py-2 pr-3">{item.isActive ? "Yes" : "No"}</td>
       <td className="py-2 pr-3">
-        <div className="flex flex-wrap items-center gap-2">
+        <span
+          className={
+            item.isActive
+              ? "rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300"
+              : "rounded-full bg-zinc-100 px-2 py-0.5 text-xs font-medium text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400"
+          }
+        >
+          {item.isActive ? "Active" : "Inactive"}
+        </span>
+      </td>
+      <td className="py-2 pr-3">
+        {/* One line, no wrapping: the actions splitting over two rows is what made the grid look
+            broken. Links folded in here too rather than owning a column for a single button. */}
+        <div className="flex items-center gap-2 whitespace-nowrap">
           <Link href={`/master-data/items/${item.id}`} className={actionLinkClassName}>
             View
           </Link>
@@ -128,21 +144,19 @@ function ItemListRow({
               accountOptions={accountOptions}
             />
           </AppFormModal>
+          <SecondaryLink
+            href={`/api/backend/items/${item.id}/label/pdf`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="px-2 py-1 text-xs"
+          >
+            PDF
+          </SecondaryLink>
           <SecondaryButton type="button" className={actionButtonClass} onClick={() => void deleteItem()} disabled={busy}>
             {busy ? "Deleting..." : "Delete"}
           </SecondaryButton>
         </div>
         {error ? <div className="mt-2 text-xs text-red-700 dark:text-red-300">{error}</div> : null}
-      </td>
-      <td className="py-2 pr-3">
-        <SecondaryLink
-          href={`/api/backend/items/${item.id}/label/pdf`}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="px-2 py-1 text-xs"
-        >
-          PDF
-        </SecondaryLink>
       </td>
     </tr>
   );
@@ -315,22 +329,18 @@ export function ItemListPanel({
         <Table>
           <thead>
             <tr className="border-b border-zinc-200 text-left text-xs uppercase tracking-wide text-zinc-500 dark:border-zinc-800">
-              <th className="py-2 pr-3">SKU</th>
-              <th className="py-2 pr-3">Name</th>
+              {/* Sixteen columns forced every cell to wrap, which is what made this grid unreadable.
+                  Related fields are stacked inside a cell instead: SKU/name/barcode, type/tracking/UoM,
+                  category/subcategory, and the two account codes. */}
+              <th className="py-2 pr-3">Item</th>
               <th className="py-2 pr-3">Type</th>
-              <th className="py-2 pr-3">Tracking</th>
-              <th className="py-2 pr-3">UoM</th>
               <th className="py-2 pr-3">Category</th>
-              <th className="py-2 pr-3">Subcategory</th>
               <th className="py-2 pr-3">Brand</th>
-              <th className="py-2 pr-3">Barcode</th>
-              <th className="py-2 pr-3">Default Cost</th>
-              <th className="py-2 pr-3">Selling Price</th>
-              <th className="py-2 pr-3">Income Acct</th>
-              <th className="py-2 pr-3">Expense Acct</th>
-              <th className="py-2 pr-3">Active</th>
+              <th className="py-2 pr-3 text-right">Cost</th>
+              <th className="py-2 pr-3 text-right">Price</th>
+              <th className="py-2 pr-3">Accounts</th>
+              <th className="py-2 pr-3">Status</th>
               <th className="py-2 pr-3">Actions</th>
-              <th className="py-2 pr-3">Links</th>
             </tr>
           </thead>
           <tbody>
@@ -349,7 +359,7 @@ export function ItemListPanel({
             ))}
             {filteredItems.length === 0 ? (
               <tr>
-                <td className="py-6 text-sm text-zinc-500" colSpan={15}>
+                <td className="py-6 text-sm text-zinc-500" colSpan={9}>
                   No items match the current filters.
                 </td>
               </tr>

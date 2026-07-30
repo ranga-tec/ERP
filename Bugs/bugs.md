@@ -92,9 +92,42 @@ you can mark or remove fixed bugs here .
 
 ## Open
 
+D:\VScode Projects\ISS\Bugs\image copy 26.png we implemented petty cache flow . in petty cache fund screen when request and recive money from head office check whay this 7 is typed .
+  also check when request money for existing petty cache fund here cash movement brak down also needed to be updated when cash recieved .
+  sfter sinse this project is getting conplex we need to have a skill with policies and standereds . so any codex or claude or gemini or agent
+  working he has to follwo exactly and when they see somwhere its not up to the standered they have to fix is first place. we should have a common coding standeredm prefix standered UI standered etc. can you analyse
+  and create one  ? UI standered is modeldialog box is a must for create edit and  should eliminate as much as possible adding header records first and adding details after creating the record but adding all in one model dialog. and just like in customer page create edit audit data system has to show all the audit daya of a record trough a  link D:\VScode Projects\ISS\Bugs\image copy 26.png. records cannot be deleted but inactive. 
 
+   [PARTLY FIXED 2026-07-30] The two petty cash bugs above are done. The standards skill is NOT
+   started - left deliberately, not forgotten.
+   -> The "7" was PettyCashTransactionType.RequestFunding, added for head office funding and never
+      given a label in transactionTypeLabel on finance/petty-cash/[id]/page.tsx, so the Type column
+      printed the raw enum. Labelled it "Head Office Funding".
+      Worse, and the real bug: type 7 was in no bucket of the Cash Movement Breakdown, so the table
+      silently stopped tallying - it read 4300 against a true balance of 6300, with nothing on
+      screen saying 2000 was missing. Added a "Received from head office" row, plus a catch-all
+      "Other movements" row that appears only when non-zero, so a future transaction type that
+      nobody buckets shows up instead of vanishing. Verified: breakdown reconciles to 6300 exactly.
+
+   BEFORE BUILDING THE STANDARDS SKILL, read this. The standards are already violated in the
+   existing code, so this is a document plus a remediation backlog, not just a document:
+     - "records cannot be deleted, only inactive": 19 controllers hard-delete with
+       dbContext.X.Remove(...), including Customers - the very page the screenshot holds up as the
+       reference. 41 controllers expose HttpDelete.
+     - "modal dialog for create/edit": 77 of 110 pages use AppFormModal, so roughly 33 do not.
+     - "audit link on every record": only 12 pages carry AuditTrailButton.
+     - "no header first, then details": the petty cash request flow does exactly this - create the
+       request, then add category lines. It was built that way in July 2026 before this standard
+       was stated, and is a violation to schedule, not an argument against the rule.
+   The open question for whoever picks it up: standards only (rules for new work), or standards
+   plus the audit above as a backlog. The client's "when they see somewhere its not up to the
+   standard they have to fix it first place" implies the second, which is much the larger job -
+   the hard-delete change alone touches 19 controllers and their screens.
 
 not Urgernt: D:\VScode Projects\ISS\Bugs\image copy 22.png all the audit data of records in all forms should display like in this customer 
 
 
 not urgent audit logs shows ID when click full audit details from customer form grid autid D:\VScode Projects\ISS\Bugs\image copy 23.png
+
+Item master form grid need fixing . see jumbled items D:\VScode Projects\ISS\Bugs\image copy 24.png
+

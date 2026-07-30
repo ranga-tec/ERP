@@ -30,6 +30,8 @@ type PettyCashFundDto = {
   }[];
 };
 
+// Mirrors PettyCashTransactionType. Every value must appear here: an unmapped type falls through
+// to its raw number in the Type column, which is what happened when head office funding was added.
 const transactionTypeLabel: Record<number, string> = {
   1: "Opening Balance",
   2: "Top Up",
@@ -37,6 +39,7 @@ const transactionTypeLabel: Record<number, string> = {
   4: "Adjustment",
   5: "IOU Cash Release",
   6: "IOU Settlement Return",
+  7: "Head Office Funding",
 };
 
 const directionLabel: Record<number, string> = {
@@ -58,33 +61,52 @@ export default async function PettyCashFundDetailPage({ params }: { params: Prom
   const canTopUp = permissions.has("Finance.PettyCashFund.TopUp");
   const canAdjust = permissions.has("Finance.PettyCashFund.Adjust");
 
+  const sumOf = (predicate: (type: number, direction: number) => boolean) =>
+    fund.transactions
+      .filter((transaction) => predicate(transaction.type, transaction.direction))
+      .reduce((sum, transaction) => sum + transaction.amount, 0);
+
+  const classifiedTypes = [1, 2, 3, 4, 5, 6, 7];
+
   const movementRows = [
     {
       label: "Opening balance / top ups",
-      in: fund.transactions.filter((transaction) => transaction.type === 1 || transaction.type === 2).reduce((sum, transaction) => sum + transaction.amount, 0),
+      in: sumOf((type) => type === 1 || type === 2),
+      out: 0,
+    },
+    {
+      label: "Received from head office",
+      in: sumOf((type) => type === 7),
       out: 0,
     },
     {
       label: "IOU cash released",
       in: 0,
-      out: fund.transactions.filter((transaction) => transaction.type === 5).reduce((sum, transaction) => sum + transaction.amount, 0),
+      out: sumOf((type) => type === 5),
     },
     {
       label: "IOU settlement returns",
-      in: fund.transactions.filter((transaction) => transaction.type === 6).reduce((sum, transaction) => sum + transaction.amount, 0),
+      in: sumOf((type) => type === 6),
       out: 0,
     },
     {
       label: "Petty cash expense settlements",
       in: 0,
-      out: fund.transactions.filter((transaction) => transaction.type === 3).reduce((sum, transaction) => sum + transaction.amount, 0),
+      out: sumOf((type) => type === 3),
     },
     {
       label: "Adjustments",
-      in: fund.transactions.filter((transaction) => transaction.type === 4 && transaction.direction === 1).reduce((sum, transaction) => sum + transaction.amount, 0),
-      out: fund.transactions.filter((transaction) => transaction.type === 4 && transaction.direction === 2).reduce((sum, transaction) => sum + transaction.amount, 0),
+      in: sumOf((type, direction) => type === 4 && direction === 1),
+      out: sumOf((type, direction) => type === 4 && direction === 2),
     },
-  ];
+    // A movement type nobody bucketed still has to show, or the breakdown quietly stops tallying to
+    // the balance - which is how head office funding went missing from this table.
+    {
+      label: "Other movements",
+      in: sumOf((type, direction) => !classifiedTypes.includes(type) && direction === 1),
+      out: sumOf((type, direction) => !classifiedTypes.includes(type) && direction === 2),
+    },
+  ].filter((row) => row.label !== "Other movements" || row.in > 0 || row.out > 0);
 
   return (
     <div className="space-y-6">
