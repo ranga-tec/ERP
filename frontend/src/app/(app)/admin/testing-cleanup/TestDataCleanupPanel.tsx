@@ -42,6 +42,48 @@ const actions: CleanupAction[] = [
     description: "Clears service contracts, jobs, daily sheets, staff/progress entries, IOUs, expenses, MRNs, material dispositions, QC, and handovers.",
     impact: "Also removes service stock movements and service petty-cash ledger entries. Keeps equipment units, technicians, and petty cash funds.",
   },
+  {
+    key: "sales",
+    label: "Clear Sales",
+    path: "admin/test-data/clear-sales",
+    description: "Clears sales quotes, orders, dispatches, direct dispatches (AOD), invoices, and customer returns.",
+    impact: "Also removes AR entries and sales stock movements, and resets invoice links on labour and expense lines.",
+  },
+  {
+    key: "petty-cash",
+    label: "Clear Petty Cash",
+    path: "admin/test-data/clear-petty-cash",
+    description: "Clears petty cash funds, their ledgers, head office requests with their category lines, and all IOU advances.",
+    impact: "Expense vouchers are kept; their links to funds, advances and categories are released.",
+  },
+  {
+    key: "procurement-requests",
+    label: "Clear PR / RFQ / Direct Purchase",
+    path: "admin/test-data/clear-procurement-requests",
+    description: "Clears purchase requisitions, RFQs, direct purchases, and supplier returns.",
+    impact: "Also removes their stock movements and AP entries. Purchase orders and GRNs are cleared separately.",
+  },
+  {
+    key: "inventory-documents",
+    label: "Clear Adjustments / Transfers",
+    path: "admin/test-data/clear-inventory-documents",
+    description: "Clears stock adjustments and stock transfers.",
+    impact: "Also removes the stock movements those documents posted, so on-hand quantities change.",
+  },
+  {
+    key: "finance",
+    label: "Clear Payments / Notes",
+    path: "admin/test-data/clear-finance",
+    description: "Clears payments, credit notes, debit notes, and their allocations.",
+    impact: "Also empties the AR and AP ledgers entirely, including entries raised by documents that remain.",
+  },
+  {
+    key: "equipment-units",
+    label: "Clear Equipment Units",
+    path: "admin/test-data/clear-equipment-units",
+    description: "Clears equipment units and the service contracts attached to them.",
+    impact: "Refused while any service job still exists, because jobs reference units without a foreign key and would be left pointing at nothing. Clear jobs first.",
+  },
 ];
 
 export function TestDataCleanupPanel() {
