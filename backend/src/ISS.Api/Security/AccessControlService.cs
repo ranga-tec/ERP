@@ -178,6 +178,18 @@ public sealed class AccessControlService(
             yield return AppPermissions.PettyCashRequestApprove;
             yield return AppPermissions.PettyCashRequestReject;
             yield return AppPermissions.PettyCashRequestFund;
+            yield return AppPermissions.PettyCashReturnView;
+            yield return AppPermissions.PettyCashReturnCreate;
+            yield return AppPermissions.PettyCashReturnSubmit;
+            yield return AppPermissions.PettyCashReturnReceive;
+            yield return AppPermissions.PettyCashReturnReject;
+            yield return AppPermissions.PettyCashReturnCancel;
+            yield return AppPermissions.PettyCashReallocationView;
+            yield return AppPermissions.PettyCashReallocationCreate;
+            yield return AppPermissions.PettyCashReallocationSubmit;
+            yield return AppPermissions.PettyCashReallocationApprove;
+            yield return AppPermissions.PettyCashReallocationReject;
+            yield return AppPermissions.PettyCashReallocationCancel;
             yield return AppPermissions.FinancePaymentView;
             yield return AppPermissions.FinancePaymentCreate;
             yield return AppPermissions.FinancePaymentAllocate;

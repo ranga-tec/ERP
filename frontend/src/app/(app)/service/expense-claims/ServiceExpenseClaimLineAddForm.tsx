@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { apiPostNoContent } from "@/lib/api-client";
 import { ItemLookupField } from "@/components/ItemLookupField";
-import { Button, Input } from "@/components/ui";
+import { Button, DecimalInput, Input } from "@/components/ui";
 
 type ItemRef = { id: string; sku: string; name: string; unitOfMeasure: string };
 
@@ -89,11 +89,11 @@ export function ServiceExpenseClaimLineAddForm({
           <label className="mb-1 block text-sm font-medium">
             Quantity{items.find((item) => item.id === itemId)?.unitOfMeasure ? <span className="ml-1 text-xs font-normal text-zinc-500">({items.find((item) => item.id === itemId)?.unitOfMeasure})</span> : null}
           </label>
-          <Input value={quantity} onChange={(event) => setQuantity(event.target.value)} inputMode="decimal" required />
+          <DecimalInput value={quantity} onChange={(event) => setQuantity(event.target.value)} required />
         </div>
         <div>
           <label className="mb-1 block text-sm font-medium">Unit cost</label>
-          <Input value={unitCost} onChange={(event) => setUnitCost(event.target.value)} inputMode="decimal" required />
+          <DecimalInput value={unitCost} onChange={(event) => setUnitCost(event.target.value)} required />
         </div>
         <label className="flex items-center gap-2 rounded-xl border border-[var(--input-border)] bg-[var(--surface)] px-3 py-2 text-sm shadow-[var(--shadow-control)]">
           <input

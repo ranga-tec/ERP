@@ -131,15 +131,17 @@ public sealed class TestDataCleanupController(IIssDbContext dbContext) : Control
         await using var tx = await dbContext.DbContext.Database.BeginTransactionAsync(cancellationToken);
         await dbContext.DbContext.Database.ExecuteSqlRawAsync(
             """
-            DELETE FROM "DocumentComments" WHERE "ReferenceType" IN ('PCF', 'IOU', 'PCR');
-            DELETE FROM "DocumentAttachments" WHERE "ReferenceType" IN ('PCF', 'IOU', 'PCR');
-            DELETE FROM "NotificationOutboxItems" WHERE "ReferenceType" IN ('PCF', 'IOU', 'PCR');
+            DELETE FROM "DocumentComments" WHERE "ReferenceType" IN ('PCF', 'IOU', 'PCR', 'PCRTN', 'PCRAL');
+            DELETE FROM "DocumentAttachments" WHERE "ReferenceType" IN ('PCF', 'IOU', 'PCR', 'PCRTN', 'PCRAL');
+            DELETE FROM "NotificationOutboxItems" WHERE "ReferenceType" IN ('PCF', 'IOU', 'PCR', 'PCRTN', 'PCRAL');
             -- Expense vouchers are service documents and are deliberately kept, so their references
             -- into petty cash are released rather than the vouchers deleted.
             UPDATE "ServiceExpenseClaims"
                SET "PettyCashIouId" = NULL, "PettyCashRequestLineId" = NULL, "SettlementPettyCashFundId" = NULL;
             DELETE FROM "PettyCashTransaction";
             DELETE FROM "PettyCashIous";
+            DELETE FROM "PettyCashReallocations";
+            DELETE FROM "PettyCashReturns";
             DELETE FROM "PettyCashRequestLineFunding";
             DELETE FROM "PettyCashRequestLine";
             DELETE FROM "PettyCashRequests";
@@ -148,7 +150,7 @@ public sealed class TestDataCleanupController(IIssDbContext dbContext) : Control
             cancellationToken);
         await tx.CommitAsync(cancellationToken);
 
-        return Ok(new CleanupResponse("petty-cash", "Cleared petty cash funds, their ledgers, head office requests and category lines, and all IOU advances. Expense vouchers are kept, with their petty cash links released."));
+        return Ok(new CleanupResponse("petty-cash", "Cleared petty cash funds, ledgers, requests, returns, category reallocations, and IOU advances. Expense vouchers are kept, with their petty cash links released."));
     }
 
     [HttpPost("clear-equipment-units")]

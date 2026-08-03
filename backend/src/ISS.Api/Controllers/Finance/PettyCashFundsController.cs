@@ -29,7 +29,8 @@ public sealed class PettyCashFundsController(
         string? ReferenceType,
         Guid? ReferenceId,
         string? ReferenceNumber,
-        string? Notes);
+        string? Notes,
+        Guid? PettyCashRequestLineId);
 
     public sealed record PettyCashFundSummaryDto(
         Guid Id,
@@ -169,7 +170,8 @@ public sealed class PettyCashFundsController(
                     x.ReferenceType,
                     x.ReferenceId,
                     x.ReferenceNumber,
-                    x.Notes))
+                    x.Notes,
+                    x.PettyCashRequestLineId))
                 .ToList()));
     }
 

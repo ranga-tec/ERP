@@ -1,5 +1,7 @@
+using ISS.Application.Abstractions;
+using ISS.Application.Services;
 using ISS.Infrastructure.Persistence;
-using Microsoft.Extensions.DependencyInjection;
+using Microsoft.EntityFrameworkCore;
 using Npgsql;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
@@ -50,10 +52,12 @@ public sealed class IssApiFixture : IAsyncLifetime
             await WaitForDatabaseReadyAsync(_connectionString, usingExternalDatabase, dbReadyCts.Token);
         }
 
-        _factory = new IssApiFactory(_connectionString);
-
         var resetExistingDb = ReadBooleanEnvironmentVariable(ResetExistingDatabaseEnvVar);
-        await EnsureDatabaseCreatedAsync(_factory, resetDatabase: !usingExternalDatabase || resetExistingDb);
+        await EnsureDatabaseCreatedAsync(
+            _connectionString,
+            resetDatabase: usingExternalDatabase && resetExistingDb);
+
+        _factory = new IssApiFactory(_connectionString);
 
         Client = _factory.CreateClient();
         var httpTimeoutSeconds = ReadPositiveIntEnvironmentVariable(HttpTimeoutSecondsEnvVar, DefaultHttpTimeoutSeconds);
@@ -73,10 +77,12 @@ public sealed class IssApiFixture : IAsyncLifetime
         }
     }
 
-    private static async Task EnsureDatabaseCreatedAsync(IssApiFactory factory, bool resetDatabase)
+    private static async Task EnsureDatabaseCreatedAsync(string connectionString, bool resetDatabase)
     {
-        using var scope = factory.Services.CreateScope();
-        var db = scope.ServiceProvider.GetRequiredService<IssDbContext>();
+        var options = new DbContextOptionsBuilder<IssDbContext>()
+            .UseNpgsql(connectionString)
+            .Options;
+        await using var db = new IssDbContext(options, new FixtureCurrentUser(), new SystemClock());
         using var cts = new CancellationTokenSource(TimeSpan.FromMinutes(3));
 
         if (resetDatabase)
@@ -86,6 +92,12 @@ public sealed class IssApiFixture : IAsyncLifetime
 
         await db.Database.EnsureCreatedAsync(cts.Token);
         await ReferenceDataSeeder.SeedAsync(db, cts.Token);
+    }
+
+    private sealed class FixtureCurrentUser : ICurrentUser
+    {
+        public Guid? UserId => null;
+        public Guid? CompanyId => null;
     }
 
     private static bool ReadBooleanEnvironmentVariable(string name)

@@ -19,6 +19,18 @@ public static class AppPermissions
     public const string PettyCashRequestApprove = "Finance.PettyCashRequest.Approve";
     public const string PettyCashRequestReject = "Finance.PettyCashRequest.Reject";
     public const string PettyCashRequestFund = "Finance.PettyCashRequest.Fund";
+    public const string PettyCashReturnView = "Finance.PettyCashReturn.View";
+    public const string PettyCashReturnCreate = "Finance.PettyCashReturn.Create";
+    public const string PettyCashReturnSubmit = "Finance.PettyCashReturn.Submit";
+    public const string PettyCashReturnReceive = "Finance.PettyCashReturn.Receive";
+    public const string PettyCashReturnReject = "Finance.PettyCashReturn.Reject";
+    public const string PettyCashReturnCancel = "Finance.PettyCashReturn.Cancel";
+    public const string PettyCashReallocationView = "Finance.PettyCashReallocation.View";
+    public const string PettyCashReallocationCreate = "Finance.PettyCashReallocation.Create";
+    public const string PettyCashReallocationSubmit = "Finance.PettyCashReallocation.Submit";
+    public const string PettyCashReallocationApprove = "Finance.PettyCashReallocation.Approve";
+    public const string PettyCashReallocationReject = "Finance.PettyCashReallocation.Reject";
+    public const string PettyCashReallocationCancel = "Finance.PettyCashReallocation.Cancel";
     public const string FinancePaymentView = "Finance.Payment.View";
     public const string FinancePaymentCreate = "Finance.Payment.Create";
     public const string FinancePaymentAllocate = "Finance.Payment.Allocate";
@@ -145,6 +157,18 @@ public static class AppPermissions
         new(PettyCashRequestApprove, "Finance / Petty Cash Requests", "Approve", "Approve requests", "Approve a petty cash request line by line."),
         new(PettyCashRequestReject, "Finance / Petty Cash Requests", "Reject", "Reject requests", "Reject a submitted petty cash request."),
         new(PettyCashRequestFund, "Finance / Petty Cash Requests", "Fund", "Release funds", "Record money paid against approved request lines."),
+        new(PettyCashReturnView, "Finance / Petty Cash Returns", "View", "View returns", "Open and review petty cash returned to head office."),
+        new(PettyCashReturnCreate, "Finance / Petty Cash Returns", "Create", "Prepare returns", "Prepare a category-by-category return of unused petty cash."),
+        new(PettyCashReturnSubmit, "Finance / Petty Cash Returns", "Submit", "Submit returns", "Submit reconciled petty cash for head-office receipt."),
+        new(PettyCashReturnReceive, "Finance / Petty Cash Returns", "Receive", "Confirm receipt", "Confirm that head office physically received a petty cash return."),
+        new(PettyCashReturnReject, "Finance / Petty Cash Returns", "Reject", "Reject returns", "Reject a submitted petty cash return with a reason."),
+        new(PettyCashReturnCancel, "Finance / Petty Cash Returns", "Cancel", "Cancel drafts", "Cancel a draft petty cash return."),
+        new(PettyCashReallocationView, "Finance / Petty Cash Reallocation", "View", "View reallocations", "Open and review transfers between funded petty cash categories."),
+        new(PettyCashReallocationCreate, "Finance / Petty Cash Reallocation", "Create", "Request reallocations", "Prepare a documented transfer between funded petty cash categories."),
+        new(PettyCashReallocationSubmit, "Finance / Petty Cash Reallocation", "Submit", "Submit reallocations", "Submit category reallocations to head office."),
+        new(PettyCashReallocationApprove, "Finance / Petty Cash Reallocation", "Approve", "Approve reallocations", "Approve and post a category-to-category petty cash reallocation."),
+        new(PettyCashReallocationReject, "Finance / Petty Cash Reallocation", "Reject", "Reject reallocations", "Reject a submitted category reallocation with a reason."),
+        new(PettyCashReallocationCancel, "Finance / Petty Cash Reallocation", "Cancel", "Cancel drafts", "Cancel a draft category reallocation."),
         new(FinancePaymentView, "Finance / Payments", "View", "View payments", "Open and review payment receipts and vouchers."),
         new(FinancePaymentCreate, "Finance / Payments", "Create", "Create payments", "Create incoming or outgoing payment records."),
         new(FinancePaymentAllocate, "Finance / Payments", "Allocate", "Allocate payments", "Allocate payments to receivables or payables."),

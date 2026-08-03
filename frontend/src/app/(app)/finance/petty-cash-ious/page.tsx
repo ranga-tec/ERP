@@ -1,19 +1,33 @@
 import { backendFetchJson } from "@/lib/backend.server";
+import Link from "next/link";
 import { AppFormModal } from "@/components/AppFormModal";
 import { TableSearchInput } from "@/components/TableSearchInput";
 import { Card, Table } from "@/components/ui";
 import { PettyCashIouActions } from "./PettyCashIouActions";
 import { PettyCashIouCreateForm } from "./PettyCashIouCreateForm";
-import { PettyCashIssueForm } from "./PettyCashIssueForm";
 
 type ServiceJobDto = { id: string; number: string; status: number };
 type FundDto = { id: string; code: string; name: string; isActive: boolean };
 type CurrentPermissionsDto = { permissions: string[] };
+type StaffDto = { userId: string; name: string; email?: string | null };
+type FundedCategoryDto = {
+  id: string;
+  requestNumber: string;
+  pettyCashFundId: string;
+  category: number;
+  serviceJobId?: string | null;
+  serviceJobNumber?: string | null;
+  customCategoryName?: string | null;
+  purpose: string;
+  fundedAmount: number;
+  availableBalance: number;
+};
 type PettyCashIouDto = {
   id: string;
   number: string;
   serviceJobId?: string | null;
   requestedByName: string;
+  issuedToName?: string | null;
   amount: number;
   purpose: string;
   requestedAt: string;
@@ -25,6 +39,7 @@ type PettyCashIouDto = {
   claimCount: number;
   returnedAmount?: number | null;
   unaccountedAmount?: number | null;
+  issueBillNumber?: string | null;
 };
 
 const statusLabel: Record<number, string> = {
@@ -38,19 +53,23 @@ const statusLabel: Record<number, string> = {
   7: "Settlement Approved",
 };
 
-type StaffDto = { userId: string; name: string; email?: string | null };
 export default async function PettyCashIousPage() {
-  const [jobs, funds, ious, staff, currentPermissions] = await Promise.all([
+  const [jobs, funds, ious, currentPermissions] = await Promise.all([
     backendFetchJson<ServiceJobDto[]>("/service/jobs?take=500"),
     backendFetchJson<FundDto[]>("/finance/petty-cash-funds"),
     backendFetchJson<PettyCashIouDto[]>("/finance/petty-cash-ious?take=200"),
-    backendFetchJson<StaffDto[]>("/finance/petty-cash-ious/staff"),
     backendFetchJson<CurrentPermissionsDto>("/me/permissions"),
   ]);
   const activeFunds = funds.filter((fund) => fund.isActive);
   const permissions = new Set(currentPermissions.permissions);
   const canCreate = permissions.has("Finance.PettyCashIou.Create");
-  const canIssue = permissions.has("Finance.PettyCashIou.Release");
+  const canRelease = permissions.has("Finance.PettyCashIou.Release");
+  const [staff, fundedCategories] = canRelease
+    ? await Promise.all([
+        backendFetchJson<StaffDto[]>("/finance/petty-cash-ious/staff"),
+        backendFetchJson<FundedCategoryDto[]>("/finance/petty-cash-requests/funded-lines"),
+      ])
+    : [[], []] as [StaffDto[], FundedCategoryDto[]];
 
   return (
     <div className="space-y-6">
@@ -62,16 +81,6 @@ export default async function PettyCashIousPage() {
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          {canIssue ? (
-            <AppFormModal
-              title="Record IOU Slip"
-              description="Cash handed out on a pre-printed IOU slip. The slip number is the advance's number."
-              buttonLabel="+ Record IOU Slip"
-              variant="secondary"
-            >
-              <PettyCashIssueForm funds={activeFunds} staff={staff} />
-            </AppFormModal>
-          ) : null}
           {canCreate ? (
             <AppFormModal title="Create Petty Cash Advance" description="Request cash up front against a job order, to be settled and accounted for later." buttonLabel="+ New IOU">
               <PettyCashIouCreateForm serviceJobs={jobs.filter((job) => job.status !== 3 && job.status !== 4)} />
@@ -102,13 +111,25 @@ export default async function PettyCashIousPage() {
             <tbody>
               {ious.map((iou) => (
                 <tr key={iou.id} className="border-b border-zinc-100 align-top dark:border-zinc-900">
-                  <td className="py-2 pr-3 font-mono text-xs">{iou.number}</td>
+                  <td className="py-2 pr-3 font-mono text-xs">
+                    <Link href={`/finance/petty-cash-ious/${iou.id}`} className="text-blue-700 hover:underline dark:text-blue-300">
+                      {iou.number}
+                    </Link>
+                    {iou.issueBillNumber ? (
+                      <div className="mt-0.5 text-[11px] text-zinc-500">Slip {iou.issueBillNumber}</div>
+                    ) : null}
+                  </td>
                   <td className="py-2 pr-3">
                     {iou.serviceJobId
                       ? jobs.find((job) => job.id === iou.serviceJobId)?.number ?? "Job removed"
                       : <span className="text-zinc-400">-</span>}
                   </td>
-                  <td className="py-2 pr-3 text-zinc-500">{iou.requestedByName}</td>
+                  <td className="py-2 pr-3 text-zinc-500">
+                    {iou.requestedByName}
+                    {iou.issuedToName ? (
+                      <div className="text-xs text-zinc-500">Collected by {iou.issuedToName}</div>
+                    ) : null}
+                  </td>
                   <td className="py-2 pr-3">{iou.amount.toFixed(2)}</td>
                   <td className="py-2 pr-3">
                     {iou.settledAmount == null ? (
@@ -150,8 +171,14 @@ export default async function PettyCashIousPage() {
                       status={iou.status}
                       funds={activeFunds}
                       amount={iou.amount}
-                      claimedAmount={iou.claimedAmount}
-                      claimCount={iou.claimCount}
+                      serviceJobId={iou.serviceJobId ?? null}
+                      serviceJobNumber={
+                        iou.serviceJobId
+                          ? jobs.find((job) => job.id === iou.serviceJobId)?.number ?? null
+                          : null
+                      }
+                      staff={staff}
+                      fundedCategories={fundedCategories}
                       permissions={currentPermissions.permissions}
                     />
                   </td>

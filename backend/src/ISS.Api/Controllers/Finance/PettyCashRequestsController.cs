@@ -164,7 +164,8 @@ public sealed class PettyCashRequestsController(
         [FromQuery] Guid? pettyCashFundId,
         CancellationToken cancellationToken = default)
     {
-        if (!await HasPermissionAsync(AppPermissions.PettyCashRequestView, cancellationToken))
+        if (!await HasPermissionAsync(AppPermissions.PettyCashRequestView, cancellationToken)
+            && !await HasPermissionAsync(AppPermissions.PettyCashIouRelease, cancellationToken))
         {
             return Forbid();
         }
@@ -187,19 +188,65 @@ public sealed class PettyCashRequestsController(
                 Funded = line.Fundings.Sum(f => f.Amount),
             }))
             .Where(x => x.Funded > 0m)
-            .Select(x => new FundedCategoryDto(
-                x.Line.Id,
-                x.Number,
-                x.PettyCashFundId,
-                x.Line.Category,
-                x.Line.ServiceJobId,
-                dbContext.ServiceJobs.Where(job => job.Id == x.Line.ServiceJobId).Select(job => job.Number).FirstOrDefault(),
-                x.Line.CustomCategoryName,
-                x.Line.Purpose,
-                x.Funded))
             .ToListAsync(cancellationToken);
 
-        return Ok(rows);
+        var lineIds = rows.Select(x => x.Line.Id).ToList();
+        var balanceByLineId = await dbContext.PettyCashFunds.AsNoTracking()
+            .SelectMany(fund => fund.Transactions)
+            .Where(transaction => transaction.PettyCashRequestLineId != null
+                                  && lineIds.Contains(transaction.PettyCashRequestLineId.Value))
+            .GroupBy(transaction => transaction.PettyCashRequestLineId!.Value)
+            .Select(group => new
+            {
+                LineId = group.Key,
+                Balance = group.Sum(transaction =>
+                    transaction.Direction == PettyCashTransactionDirection.In
+                        ? transaction.Amount
+                        : -transaction.Amount),
+            })
+            .ToDictionaryAsync(x => x.LineId, x => x.Balance, cancellationToken);
+
+        var returnReservations = await dbContext.PettyCashReturns.AsNoTracking()
+            .Where(x => x.Status == PettyCashReturnStatus.Submitted)
+            .SelectMany(x => x.Lines)
+            .Where(x => lineIds.Contains(x.PettyCashRequestLineId))
+            .GroupBy(x => x.PettyCashRequestLineId)
+            .Select(group => new { LineId = group.Key, Amount = group.Sum(x => x.Amount) })
+            .ToDictionaryAsync(x => x.LineId, x => x.Amount, cancellationToken);
+        var reallocationReservations = await dbContext.PettyCashReallocations.AsNoTracking()
+            .Where(x => x.Status == PettyCashReallocationStatus.Submitted
+                        && lineIds.Contains(x.SourcePettyCashRequestLineId))
+            .GroupBy(x => x.SourcePettyCashRequestLineId)
+            .Select(group => new { LineId = group.Key, Amount = group.Sum(x => x.Amount) })
+            .ToDictionaryAsync(x => x.LineId, x => x.Amount, cancellationToken);
+
+        var jobIds = rows
+            .Where(x => x.Line.ServiceJobId != null)
+            .Select(x => x.Line.ServiceJobId!.Value)
+            .Distinct()
+            .ToList();
+        var jobNumberById = await dbContext.ServiceJobs.AsNoTracking()
+            .Where(job => jobIds.Contains(job.Id))
+            .ToDictionaryAsync(job => job.Id, job => job.Number, cancellationToken);
+
+        var result = rows.Select(x => new FundedCategoryDto(
+            x.Line.Id,
+            x.Number,
+            x.PettyCashFundId,
+            x.Line.Category,
+            x.Line.ServiceJobId,
+            x.Line.ServiceJobId is { } jobId ? jobNumberById.GetValueOrDefault(jobId) : null,
+            x.Line.CustomCategoryName,
+            x.Line.Purpose,
+            x.Funded,
+            Math.Max(
+                0m,
+                balanceByLineId.GetValueOrDefault(x.Line.Id)
+                - returnReservations.GetValueOrDefault(x.Line.Id)
+                - reallocationReservations.GetValueOrDefault(x.Line.Id))))
+            .ToList();
+
+        return Ok(result);
     }
 
     public sealed record FundedCategoryDto(
@@ -211,7 +258,8 @@ public sealed class PettyCashRequestsController(
         string? ServiceJobNumber,
         string? CustomCategoryName,
         string Purpose,
-        decimal FundedAmount);
+        decimal FundedAmount,
+        decimal AvailableBalance);
 
     [HttpPost]
     public async Task<ActionResult<PettyCashRequestDto>> Create(
@@ -443,7 +491,7 @@ public sealed class PettyCashRequestsController(
         await NotifyRequesterAsync(
             id,
             "Petty cash request approved",
-            "approved by head office. Money is released per category from the request page.",
+            "Head office approved it. Money can now be released per category from the request page.",
             cancellationToken);
         return NoContent();
     }
@@ -504,8 +552,8 @@ public sealed class PettyCashRequestsController(
         var reference = string.IsNullOrWhiteSpace(request.PaymentReference) ? "" : $" ({request.PaymentReference.Trim()})";
         await NotifyRequesterAsync(
             id,
-            "Petty cash released",
-            $"head office released {request.Amount:0.00}{reference} into your fund.",
+            "Petty cash request released",
+            $"Head office released {request.Amount:0.00}{reference} into your petty cash fund.",
             cancellationToken);
 
         return NoContent();
@@ -541,8 +589,8 @@ public sealed class PettyCashRequestsController(
 
         notificationService.EnqueueInAppForUsers(
             recipients,
-            "Petty cash request waiting",
-            $"{request.Number} from {request.RequestedByName} is waiting for approval. "
+            "Petty cash request submitted for approval",
+            $"{request.Number} from {request.RequestedByName} was submitted for head office approval. "
             + $"{request.Total:0.00} across {request.LineCount} categor{(request.LineCount == 1 ? "y" : "ies")}.",
             $"/finance/petty-cash-requests/{request.Id}",
             ReferenceTypes.PettyCashRequest,

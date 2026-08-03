@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { apiPost } from "@/lib/api-client";
-import { Input, SecondaryButton, Select } from "@/components/ui";
+import { DecimalInput, SecondaryButton, Select } from "@/components/ui";
 
 type EstimateRef = {
   id: string;
@@ -87,7 +87,7 @@ export function ServiceExpenseClaimConvertEstimateForm({
         </div>
         <div>
           <label className="mb-1 block text-sm font-medium">Tax % for new estimate lines</label>
-          <Input value={taxPercent} onChange={(event) => setTaxPercent(event.target.value)} inputMode="decimal" disabled={disabled || busy} />
+          <DecimalInput value={taxPercent} onChange={(event) => setTaxPercent(event.target.value)} disabled={disabled || busy} />
         </div>
       </div>
       <div className="flex flex-wrap items-center gap-2">

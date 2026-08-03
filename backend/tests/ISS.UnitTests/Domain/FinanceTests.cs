@@ -45,4 +45,165 @@ public sealed class FinanceTests
         Assert.Equal("Grouped under cash", account.Description);
         Assert.NotNull(account.ParentAccountId);
     }
+
+    [Fact]
+    public void PettyCashIou_Release_Records_Collector_And_Requires_Signed_Slip()
+    {
+        var requesterId = Guid.NewGuid();
+        var collectorId = Guid.NewGuid();
+        var fundId = Guid.NewGuid();
+        var now = DateTimeOffset.UtcNow;
+        var iou = new PettyCashIou(
+            "IOU0001",
+            Guid.NewGuid(),
+            requesterId,
+            "Job supervisor",
+            500m,
+            "Parts for service job",
+            now,
+            now.AddDays(2));
+
+        iou.Submit(now);
+        iou.Approve(Guid.NewGuid(), now);
+
+        Assert.Throws<DomainValidationException>(() =>
+            iou.Release(fundId, now, null, "", collectorId, "Technician", Guid.NewGuid()));
+
+        iou.Release(fundId, now, null, "SLIP-100", collectorId, "Technician", Guid.NewGuid());
+
+        Assert.Equal(PettyCashIouStatus.Released, iou.Status);
+        Assert.Equal(requesterId, iou.RequestedByUserId);
+        Assert.Equal(collectorId, iou.IssuedToUserId);
+        Assert.Equal("Technician", iou.IssuedToName);
+        Assert.Equal("SLIP-100", iou.IssueBillNumber);
+    }
+
+    [Fact]
+    public void PettyCashReturn_Requires_Category_Lines_And_HeadOffice_Receipt_Evidence()
+    {
+        var now = DateTimeOffset.UtcNow;
+        var preparedBy = Guid.NewGuid();
+        var receivedBy = Guid.NewGuid();
+        var categoryLineId = Guid.NewGuid();
+        var pettyCashReturn = new PettyCashReturn(
+            "PCRTN0001",
+            Guid.NewGuid(),
+            preparedBy,
+            "Site accountant",
+            now,
+            "Month-end return");
+
+        Assert.Throws<DomainValidationException>(() => pettyCashReturn.Submit(now));
+
+        pettyCashReturn.AddLine(categoryLineId, 250m);
+        Assert.Throws<DomainValidationException>(() => pettyCashReturn.AddLine(categoryLineId, 1m));
+        pettyCashReturn.Submit(now);
+
+        Assert.Equal(PettyCashReturnStatus.Submitted, pettyCashReturn.Status);
+        Assert.Equal(250m, pettyCashReturn.TotalAmount);
+        Assert.Throws<DomainValidationException>(() => pettyCashReturn.ConfirmReceived(receivedBy, now, ""));
+
+        pettyCashReturn.ConfirmReceived(receivedBy, now, "DEP-100");
+
+        Assert.Equal(PettyCashReturnStatus.Received, pettyCashReturn.Status);
+        Assert.Equal("DEP-100", pettyCashReturn.ReceiptReference);
+        Assert.Equal(receivedBy, pettyCashReturn.ReceivedByUserId);
+    }
+
+    [Fact]
+    public void PettyCashFund_HeadOfficeReturn_Reduces_Fund_And_Original_Category()
+    {
+        var now = DateTimeOffset.UtcNow;
+        var fund = new PettyCashFund("SITE", "Site float", "LKR", "Accountant", null);
+        var requestId = Guid.NewGuid();
+        var categoryLineId = Guid.NewGuid();
+        fund.RecordRequestFunding(500m, now, requestId, categoryLineId, "TRF-1", null);
+
+        var transaction = fund.RecordHeadOfficeReturn(
+            125m,
+            now.AddDays(1),
+            Guid.NewGuid(),
+            categoryLineId,
+            "DEP-100",
+            null);
+
+        Assert.Equal(PettyCashTransactionType.HeadOfficeReturn, transaction.Type);
+        Assert.Equal(PettyCashTransactionDirection.Out, transaction.Direction);
+        Assert.Equal("PCRTN", transaction.ReferenceType);
+        Assert.Equal(375m, fund.Balance);
+        Assert.Equal(375m, fund.BalanceForRequestLine(categoryLineId));
+        Assert.Throws<DomainValidationException>(() =>
+            fund.RecordHeadOfficeReturn(376m, now, Guid.NewGuid(), categoryLineId, "DEP-101", null));
+    }
+
+    [Fact]
+    public void PettyCashReallocation_Requires_Different_Categories_And_Approval_Workflow()
+    {
+        var now = DateTimeOffset.UtcNow;
+        var sourceLineId = Guid.NewGuid();
+        var destinationLineId = Guid.NewGuid();
+        Assert.Throws<DomainValidationException>(() => new PettyCashReallocation(
+            "PCRAL0001",
+            Guid.NewGuid(),
+            sourceLineId,
+            sourceLineId,
+            200m,
+            "Unexpected expense",
+            Guid.NewGuid(),
+            "Site accountant",
+            now));
+
+        var reallocation = new PettyCashReallocation(
+            "PCRAL0001",
+            Guid.NewGuid(),
+            sourceLineId,
+            destinationLineId,
+            200m,
+            "Unexpected expense",
+            Guid.NewGuid(),
+            "Site accountant",
+            now);
+        reallocation.Submit(now.AddMinutes(1));
+        reallocation.Approve(Guid.NewGuid(), now.AddMinutes(2));
+
+        Assert.Equal(PettyCashReallocationStatus.Approved, reallocation.Status);
+        Assert.Equal(200m, reallocation.Amount);
+        Assert.NotNull(reallocation.ApprovedAt);
+    }
+
+    [Fact]
+    public void PettyCashFund_CategoryReallocation_Changes_SubAccounts_But_Not_Fund_Total()
+    {
+        var now = DateTimeOffset.UtcNow;
+        var fund = new PettyCashFund("SITE", "Site float", "LKR", "Accountant", null);
+        var requestId = Guid.NewGuid();
+        var categoryA = Guid.NewGuid();
+        var categoryB = Guid.NewGuid();
+        fund.RecordRequestFunding(20m, now, requestId, categoryA, "TRF-A", null);
+        fund.RecordRequestFunding(200m, now, requestId, categoryB, "TRF-B", null);
+
+        var transactions = fund.RecordCategoryReallocation(
+            200m,
+            now.AddMinutes(1),
+            Guid.NewGuid(),
+            categoryB,
+            categoryA,
+            "PCRAL0001",
+            "Move spare transport balance to the urgent category");
+
+        Assert.Equal(2, transactions.Count);
+        Assert.Equal(PettyCashTransactionType.CategoryTransferOut, transactions[0].Type);
+        Assert.Equal(PettyCashTransactionType.CategoryTransferIn, transactions[1].Type);
+        Assert.Equal(220m, fund.Balance);
+        Assert.Equal(220m, fund.BalanceForRequestLine(categoryA));
+        Assert.Equal(0m, fund.BalanceForRequestLine(categoryB));
+        Assert.Throws<DomainValidationException>(() => fund.RecordCategoryReallocation(
+            1m,
+            now.AddMinutes(2),
+            Guid.NewGuid(),
+            categoryB,
+            categoryA,
+            "PCRAL0002",
+            "No balance remains"));
+    }
 }

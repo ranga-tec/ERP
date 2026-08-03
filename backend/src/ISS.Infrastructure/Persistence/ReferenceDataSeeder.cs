@@ -37,6 +37,16 @@ public static class ReferenceDataSeeder
         new("ONLINE_GATEWAY", "Online Gateway", "Payment captured through an online payment gateway.")
     ];
 
+    private static readonly UnitOfMeasureSeed[] UnitOfMeasureSeeds =
+    [
+        new("UNIT", "Unit"),
+        new("PCS", "Pieces"),
+        new("EA", "Each"),
+        new("HRS", "Hours"),
+        new("KG", "Kilograms"),
+        new("L", "Litres")
+    ];
+
     private static readonly TaxCodeSeed[] TaxCodeSeeds =
     [
         new("VAT0", "Zero Rated", 0m, IsInclusive: false, TaxScope.Both, "Zero-rated tax."),
@@ -81,6 +91,8 @@ public static class ReferenceDataSeeder
         new("PAY", "Payment Receipt", "Finance", "/finance/payments/{id}"),
         new("PCF", "Petty Cash Fund", "Finance", "/finance/petty-cash/{id}"),
         new("IOU", "Petty Cash IOU", "Finance", "/finance/petty-cash-ious"),
+        new("PCRTN", "Petty Cash Return", "Finance", "/finance/petty-cash-returns/{id}"),
+        new("PCRAL", "Petty Cash Category Reallocation", "Finance", "/finance/petty-cash-reallocations/{id}"),
         new("CN", "Credit Note", "Finance", "/finance/credit-notes/{id}"),
         new("DBN", "Debit Note", "Finance", "/finance/debit-notes/{id}")
     ];
@@ -113,6 +125,7 @@ public static class ReferenceDataSeeder
         var currencyByCode = currencies.ToDictionary(x => x.Code, StringComparer.OrdinalIgnoreCase);
         hasChanges |= await SeedCurrencyRatesAsync(dbContext, currencyByCode, cancellationToken);
         hasChanges |= await SeedPaymentTypesAsync(dbContext, cancellationToken);
+        hasChanges |= await SeedUnitOfMeasuresAsync(dbContext, cancellationToken);
 
         var taxCodes = await dbContext.TaxCodes.ToListAsync(cancellationToken);
         hasChanges |= await SeedTaxCodesAsync(dbContext, taxCodes, cancellationToken);
@@ -316,6 +329,27 @@ public static class ReferenceDataSeeder
         return true;
     }
 
+    private static async Task<bool> SeedUnitOfMeasuresAsync(IssDbContext dbContext, CancellationToken cancellationToken)
+    {
+        var existingCodes = (await dbContext.UnitOfMeasures
+                .Select(x => x.Code)
+                .ToListAsync(cancellationToken))
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        var missingUnits = UnitOfMeasureSeeds
+            .Where(seed => !existingCodes.Contains(seed.Code))
+            .Select(seed => new UnitOfMeasure(seed.Code, seed.Name))
+            .ToList();
+
+        if (missingUnits.Count == 0)
+        {
+            return false;
+        }
+
+        await dbContext.UnitOfMeasures.AddRangeAsync(missingUnits, cancellationToken);
+        return true;
+    }
+
     private static async Task<bool> SeedTaxCodesAsync(
         IssDbContext dbContext,
         List<TaxCode> taxCodes,
@@ -414,6 +448,7 @@ public static class ReferenceDataSeeder
     private sealed record CurrencySeed(string Code, string Name, string Symbol, int MinorUnits, bool IsBase);
     private sealed record CurrencyRateSeed(string FromCode, string ToCode, decimal Rate, CurrencyRateType RateType, string Source);
     private sealed record PaymentTypeSeed(string Code, string Name, string Description);
+    private sealed record UnitOfMeasureSeed(string Code, string Name);
     private sealed record TaxCodeSeed(string Code, string Name, decimal RatePercent, bool IsInclusive, TaxScope Scope, string Description);
     private sealed record TaxConversionSeed(string SourceCode, string TargetCode, decimal Multiplier, string Notes);
     private sealed record ReferenceFormSeed(string Code, string Name, string Module, string RouteTemplate);

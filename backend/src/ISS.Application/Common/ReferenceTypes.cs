@@ -28,6 +28,8 @@ public static class ReferenceTypes
     public const string PettyCashFund = "PCF";
     public const string PettyCashIou = "IOU";
     public const string PettyCashRequest = "PCR";
+    public const string PettyCashReturn = "PCRTN";
+    public const string PettyCashReallocation = "PCRAL";
     public const string StockAdjustment = "ADJ";
     public const string StockTransfer = "TRF";
     public const string Payment = "PAY";

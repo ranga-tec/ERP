@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { apiPostNoContent } from "@/lib/api-client";
-import { Button, Input, Select } from "@/components/ui";
+import { Button, DecimalInput, Input, Select } from "@/components/ui";
 
 type ItemRef = { id: string; sku: string; name: string; defaultUnitCost: number; unitOfMeasure: string };
 type TaxRef = { id: string; code: string; name: string; ratePercent: number; isActive: boolean };
@@ -128,14 +128,13 @@ export function ServiceEstimateLineAddForm({
           <label className="mb-1 block text-sm font-medium">
             Qty / Hrs{selectedItem?.unitOfMeasure ? <span className="ml-1 text-xs font-normal text-zinc-500">({selectedItem.unitOfMeasure})</span> : null}
           </label>
-          <Input value={quantity} onChange={(e) => setQuantity(e.target.value)} inputMode="decimal" required />
+          <DecimalInput value={quantity} onChange={(e) => setQuantity(e.target.value)} required />
         </div>
         <div>
           <label className="mb-1 block text-sm font-medium">Unit Price</label>
-          <Input
+          <DecimalInput
             value={unitPrice}
             onChange={(e) => setUnitPrice(e.target.value)}
-            inputMode="decimal"
             placeholder={usesItem && selectedItem ? selectedItem.defaultUnitCost.toString() : "0"}
           />
         </div>
@@ -162,7 +161,7 @@ export function ServiceEstimateLineAddForm({
         </div>
         <div>
           <label className="mb-1 block text-sm font-medium">Tax %</label>
-          <Input value={taxPercent} onChange={(e) => setTaxPercent(e.target.value)} inputMode="decimal" />
+          <DecimalInput value={taxPercent} onChange={(e) => setTaxPercent(e.target.value)} />
         </div>
       </div>
 

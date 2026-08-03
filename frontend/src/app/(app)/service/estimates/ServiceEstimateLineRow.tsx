@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { Fragment, useEffect, useState, type ReactNode } from "react";
 import { apiDeleteNoContent, apiPutNoContent } from "@/lib/api-client";
-import { Button, Input, SecondaryButton, Textarea } from "@/components/ui";
+import { Button, DecimalInput, SecondaryButton, Textarea } from "@/components/ui";
 
 type ServiceEstimateLineDto = {
   id: string;
@@ -149,21 +149,21 @@ export function ServiceEstimateLineRow({
         <td className="py-2 pr-3">{itemLabel}</td>
         <td className="py-2 pr-3">
           {editing ? (
-            <Input value={quantity} onChange={(e) => setQuantity(e.target.value)} inputMode="decimal" className="min-w-20" />
+            <DecimalInput value={quantity} onChange={(e) => setQuantity(e.target.value)} className="min-w-20" />
           ) : (
             line.quantity
           )}
         </td>
         <td className="py-2 pr-3">
           {editing ? (
-            <Input value={unitPrice} onChange={(e) => setUnitPrice(e.target.value)} inputMode="decimal" className="min-w-24" />
+            <DecimalInput value={unitPrice} onChange={(e) => setUnitPrice(e.target.value)} className="min-w-24" />
           ) : (
             line.unitPrice.toFixed(2)
           )}
         </td>
         <td className="py-2 pr-3">
           {editing ? (
-            <Input value={taxPercent} onChange={(e) => setTaxPercent(e.target.value)} inputMode="decimal" className="min-w-20" />
+            <DecimalInput value={taxPercent} onChange={(e) => setTaxPercent(e.target.value)} className="min-w-20" />
           ) : (
             line.taxPercent.toFixed(2)
           )}

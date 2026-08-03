@@ -5,7 +5,7 @@ import { useState } from "react";
 import { apiDeleteNoContent, apiPutNoContent } from "@/lib/api-client";
 import { ItemInlineLink } from "@/components/InlineLink";
 import { ItemLookupField } from "@/components/ItemLookupField";
-import { Button, Input, SecondaryButton } from "@/components/ui";
+import { Button, DecimalInput, Input, SecondaryButton } from "@/components/ui";
 
 type ItemRef = { id: string; sku: string; name: string; unitOfMeasure: string };
 type ServiceExpenseClaimLineDto = {
@@ -134,14 +134,14 @@ export function ServiceExpenseClaimLineRow({
       </td>
       <td className="py-2 pr-3">
         {isEditing ? (
-          <Input value={quantity} onChange={(event) => setQuantity(event.target.value)} inputMode="decimal" className="min-w-20" />
+          <DecimalInput value={quantity} onChange={(event) => setQuantity(event.target.value)} className="min-w-20" />
         ) : (
           `${line.quantity} ${items.find((item) => item.id === (line.itemId ?? ""))?.unitOfMeasure ?? ""}`
         )}
       </td>
       <td className="py-2 pr-3">
         {isEditing ? (
-          <Input value={unitCost} onChange={(event) => setUnitCost(event.target.value)} inputMode="decimal" className="min-w-24" />
+          <DecimalInput value={unitCost} onChange={(event) => setUnitCost(event.target.value)} className="min-w-24" />
         ) : (
           line.unitCost.toFixed(2)
         )}

@@ -3,11 +3,21 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { apiPostNoContent } from "@/lib/api-client";
-import { ConfirmActionDialog } from "@/components/ConfirmActionDialog";
 import { Button, Input, SecondaryButton, Select, Textarea } from "@/components/ui";
 
 type FundRef = { id: string; code: string; name: string };
-type Pending = "release" | "settle" | "reject" | null;
+type StaffRef = { userId: string; name: string; email?: string | null };
+type FundedCategoryRef = {
+  id: string;
+  requestNumber: string;
+  pettyCashFundId: string;
+  category: number;
+  serviceJobId?: string | null;
+  serviceJobNumber?: string | null;
+  purpose: string;
+  availableBalance: number;
+};
+type Pending = "release" | "reject" | null;
 
 function money(value: number): string {
   return value.toFixed(2);
@@ -18,16 +28,20 @@ export function PettyCashIouActions({
   status,
   funds,
   amount,
-  claimedAmount = 0,
-  claimCount = 0,
+  serviceJobId,
+  serviceJobNumber,
+  staff,
+  fundedCategories,
   permissions,
 }: {
   id: string;
   status: number;
   funds: FundRef[];
   amount: number;
-  claimedAmount?: number;
-  claimCount?: number;
+  serviceJobId: string | null;
+  serviceJobNumber: string | null;
+  staff: StaffRef[];
+  fundedCategories: FundedCategoryRef[];
   permissions: string[];
 }) {
   const router = useRouter();
@@ -35,13 +49,10 @@ export function PettyCashIouActions({
   const canApprove = permissionSet.has("Finance.PettyCashIou.Approve");
   const canReject = permissionSet.has("Finance.PettyCashIou.Reject");
   const canRelease = permissionSet.has("Finance.PettyCashIou.Release");
-  const canSettle = permissionSet.has("Finance.PettyCashIou.Settle");
   const canApproveSettlement = status === 4 && permissionSet.has("Finance.PettyCashIou.Approve");
-  const [fundId, setFundId] = useState(funds[0]?.id ?? "");
+  const [requestLineId, setRequestLineId] = useState("");
+  const [issuedToUserId, setIssuedToUserId] = useState("");
   const [issueBillNumber, setIssueBillNumber] = useState("");
-  // Settling no longer takes an amount spent - what was spent is the advance less what came back.
-  // So this is the cash physically handed back, and it may be zero.
-  const [returnedNow, setReturnedNow] = useState("0");
   const [rejectReason, setRejectReason] = useState("");
   const [pending, setPending] = useState<Pending>(null);
   const [busy, setBusy] = useState<string | null>(null);
@@ -61,30 +72,19 @@ export function PettyCashIouActions({
     }
   }
 
-  async function settleWithReturn() {
-    setError(null);
-    setBusy("settle");
-    try {
-      if (returnValue > 0) {
-        await apiPostNoContent(`finance/petty-cash-ious/${id}/return-balance`, { amount: returnValue });
-      }
-      await apiPostNoContent(`finance/petty-cash-ious/${id}/settle`, {});
-      setPending(null);
-      router.refresh();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
-    } finally {
-      setBusy(null);
-    }
-  }
-
-  const returnValue = Number(returnedNow);
-  const returnInvalid = !Number.isFinite(returnValue) || returnValue < 0 || returnValue > amount;
-  const fundLabel = funds.find((fund) => fund.id === fundId);
-
-  // Whatever did not come back has to be covered by bills; the rest is cash nobody can account for.
-  // Surfaced, not blocked - finance decides.
-  const unaccounted = returnInvalid ? 0 : amount - returnValue - claimedAmount;
+  const availableCategories = fundedCategories.filter(
+    (line) =>
+      line.category === 1
+      && line.serviceJobId === serviceJobId
+      && funds.some((fund) => fund.id === line.pettyCashFundId),
+  );
+  const selectedCategory = availableCategories.find((line) => line.id === requestLineId);
+  const fundLabel = funds.find((fund) => fund.id === selectedCategory?.pettyCashFundId);
+  const releaseInvalid =
+    !selectedCategory
+    || selectedCategory.availableBalance < amount
+    || issuedToUserId.length === 0
+    || issueBillNumber.trim().length === 0;
 
   return (
     <div className="space-y-2">
@@ -105,34 +105,9 @@ export function PettyCashIouActions({
         ) : null}
 
         {status === 2 && canRelease ? (
-          <>
-            <div>
-              <label className="mb-1 block text-xs font-medium text-zinc-500">Petty cash fund</label>
-              <Select value={fundId} onChange={(event) => setFundId(event.target.value)} className="w-56">
-                <option value="" disabled>Select fund...</option>
-                {funds.map((fund) => (
-                  <option key={fund.id} value={fund.id}>{fund.code} - {fund.name}</option>
-                ))}
-              </Select>
-              {funds.length === 0 ? (
-                <div className="mt-1 text-xs text-amber-700 dark:text-amber-300">
-                  Create or activate a petty cash fund before releasing cash.
-                </div>
-              ) : null}
-            </div>
-            <div>
-              <label className="mb-1 block text-xs font-medium text-zinc-500">Signed bill no.</label>
-              <Input
-                className="w-32"
-                value={issueBillNumber}
-                onChange={(event) => setIssueBillNumber(event.target.value)}
-                placeholder="Optional"
-              />
-            </div>
-            <Button type="button" disabled={!fundId || busy !== null} onClick={() => setPending("release")}>
-              Release Cash
-            </Button>
-          </>
+          <Button type="button" disabled={busy !== null} onClick={() => setPending("release")}>
+            Release Cash
+          </Button>
         ) : null}
 
         {canApproveSettlement ? (
@@ -141,82 +116,93 @@ export function PettyCashIouActions({
           </Button>
         ) : null}
 
-        {status === 3 && canSettle ? (
-          <>
-            <div>
-              <label className="mb-1 block text-xs font-medium text-zinc-500">Cash returned</label>
-              <Input
-                className="w-32"
-                inputMode="decimal"
-                value={returnedNow}
-                onChange={(event) => setReturnedNow(event.target.value)}
-              />
-              <div className="mt-1 text-xs text-zinc-500">
-                {claimCount === 0
-                  ? "No expense vouchers linked to this advance."
-                  : `${money(claimedAmount)} on ${claimCount} voucher${claimCount === 1 ? "" : "s"}`}
-              </div>
-              {!returnInvalid && unaccounted > 0 ? (
-                <div className="mt-1 text-xs text-amber-700 dark:text-amber-400">
-                  {money(unaccounted)} has no voucher behind it and will not reach job cost.
-                </div>
-              ) : null}
-            </div>
-            <Button type="button" disabled={busy !== null || returnInvalid} onClick={() => setPending("settle")}>
-              Settle / Account
-            </Button>
-          </>
-        ) : null}
-
-        {((status === 1 && !canApprove && !canReject) || (status === 2 && !canRelease) || (status === 3 && !canSettle) || (status === 4 && !canApproveSettlement)) ? (
+        {((status === 1 && !canApprove && !canReject) || (status === 2 && !canRelease) || status === 3 || (status === 4 && !canApproveSettlement)) ? (
           <span className="text-xs text-zinc-500">View only</span>
         ) : null}
       </div>
 
       {error ? <div className="text-xs text-red-700 dark:text-red-300">{error}</div> : null}
 
-      <ConfirmActionDialog
-        open={pending === "release"}
-        title="Release petty cash"
-        confirmWord="RELEASE"
-        confirmLabel="Release Cash"
-        busy={busy === "release"}
-        onCancel={() => setPending(null)}
-        onConfirm={() => run("release", { pettyCashFundId: fundId, issueBillNumber: issueBillNumber.trim() || null })}
-        description={
-          <>
-            This pays out <span className="font-semibold">{money(amount)}</span> from{" "}
-            <span className="font-semibold">{fundLabel ? `${fundLabel.code} - ${fundLabel.name}` : "the selected fund"}</span> and
-            reduces that fund&apos;s balance. It is not reversible from here.
-          </>
-        }
-      />
+      {pending === "release" ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 p-4">
+          <div role="dialog" aria-modal="true" className="w-full max-w-lg rounded-lg border border-[var(--card-border)] bg-[var(--card-bg)] p-4 shadow-xl">
+            <div className="text-base font-semibold">Release petty cash advance</div>
+            <div className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
+              Record the physical handover for job <span className="font-semibold">{serviceJobNumber ?? "Unknown"}</span>.
+            </div>
 
-      <ConfirmActionDialog
-        open={pending === "settle"}
-        title="Settle petty cash IOU"
-        confirmWord="SETTLE"
-        confirmLabel="Settle / Account"
-        busy={busy === "settle"}
-        onCancel={() => setPending(null)}
-        onConfirm={() => void settleWithReturn()}
-        description={
-          <>
-            This accounts the advance of <span className="font-semibold">{money(amount)}</span> as spent at{" "}
-            <span className="font-semibold">{money(amount - returnValue)}</span>, returning{" "}
-            <span className="font-semibold">{money(returnValue)}</span> to the fund.
-            {unaccounted > 0 ? (
-              <span className="text-amber-700 dark:text-amber-300">
-                {" "}
-                Only {money(claimedAmount)} is documented on expense vouchers, so{" "}
-                <span className="font-semibold">{money(unaccounted)}</span> will be recorded as spent with no bill
-                behind it and will never reach this job&apos;s cost.
-              </span>
-            ) : null}{" "}
-            Settling closes the IOU.
-          </>
-        }
-      />
+            <div className="mt-4 space-y-3">
+              <div>
+                <label className="mb-1 block text-sm font-medium">Funded job category</label>
+                <Select value={requestLineId} onChange={(event) => setRequestLineId(event.target.value)} required>
+                  <option value="" disabled>Select the approved job funding...</option>
+                  {availableCategories.map((line) => {
+                    const enough = line.availableBalance >= amount;
+                    return (
+                      <option key={line.id} value={line.id} disabled={!enough}>
+                        {line.requestNumber} - {line.purpose} - {money(line.availableBalance)} available
+                        {enough ? "" : " (insufficient)"}
+                      </option>
+                    );
+                  })}
+                </Select>
+                {availableCategories.length === 0 ? (
+                  <p className="mt-1 text-xs text-amber-700 dark:text-amber-300">
+                    This job has no funded Job Wise category. Head office must fund one before cash can be released.
+                  </p>
+                ) : null}
+              </div>
+
+              <div>
+                <label className="mb-1 block text-sm font-medium">Collected by</label>
+                <Select value={issuedToUserId} onChange={(event) => setIssuedToUserId(event.target.value)} required>
+                  <option value="" disabled>Select staff member...</option>
+                  {staff.map((person) => (
+                    <option key={person.userId} value={person.userId}>
+                      {person.name}{person.email ? ` - ${person.email}` : ""}
+                    </option>
+                  ))}
+                </Select>
+              </div>
+
+              <div>
+                <label className="mb-1 block text-sm font-medium">IOU slip number</label>
+                <Input
+                  value={issueBillNumber}
+                  onChange={(event) => setIssueBillNumber(event.target.value)}
+                  placeholder="Number on the signed physical slip"
+                  required
+                />
+              </div>
+
+              <div className="rounded-md border border-[var(--card-border)] bg-[var(--surface-soft)] p-3 text-sm">
+                Release <span className="font-semibold">{money(amount)}</span> from{" "}
+                <span className="font-semibold">
+                  {fundLabel ? `${fundLabel.code} - ${fundLabel.name}` : "the selected funded category"}
+                </span>.
+              </div>
+            </div>
+
+            <div className="mt-4 flex flex-wrap justify-end gap-2">
+              <SecondaryButton type="button" disabled={busy === "release"} onClick={() => setPending(null)}>
+                Cancel
+              </SecondaryButton>
+              <Button
+                type="button"
+                disabled={busy === "release" || releaseInvalid}
+                onClick={() => void run("release", {
+                  pettyCashFundId: selectedCategory?.pettyCashFundId,
+                  issueBillNumber: issueBillNumber.trim(),
+                  issuedToUserId,
+                  pettyCashRequestLineId: selectedCategory?.id,
+                })}
+              >
+                {busy === "release" ? "Releasing..." : "Release Cash"}
+              </Button>
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       {pending === "reject" ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 p-4">

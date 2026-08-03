@@ -21,6 +21,8 @@ const quickLinks = [
   { href: "#handing-cash-out", label: "Handing cash out" },
   { href: "#bills-and-settlement", label: "Bills and settlement" },
   { href: "#other-payments", label: "Other payments" },
+  { href: "#category-reallocation", label: "Move category balance" },
+  { href: "#return-to-head-office", label: "Return to head office" },
   { href: "#refusals", label: "If it is refused" },
 ];
 
@@ -100,73 +102,40 @@ const scenarios: Scenario[] = [
     stop: <>Status reads <strong>Funded</strong> once every line is fully paid, or <strong>Partially Funded</strong> if some is still to come. The float has gone up and each category shows a balance in the <Field>In sub-account</Field> column.</>,
   },
   {
-    id: "handing-cash-out",
-    number: "4",
-    title: "Someone is at your desk asking for cash",
-    who: "Assistant accountant",
-    lede: "You write a slip from the printed book and record it. This is the everyday case.",
-    steps: [
-      <>Write the paper IOU slip as usual and get it signed.</>,
-      <>Go to <Nav>Finance › Petty Cash Advances (IOU)</Nav> and click <Btn>+ Record IOU Slip</Btn>.</>,
-      <>Type the number printed on the slip into <Field>I.O.U. No.</Field> — for example <strong>4001</strong>. That becomes the advance&apos;s number in the system; nothing else is generated.</>,
-      <>Pick the person under <Field>Issued to</Field>, then enter the amount and the reason.</>,
-      <>Click <Btn>Record IOU</Btn>.</>,
-    ],
-    stop: <>The advance appears as <strong>4001</strong>, status <strong>Cash Released</strong>, held by that person. The float has gone down. Nothing further until they come back to settle.</>,
-    warn: <><strong>If it says the slip has already been entered</strong>, that number is already in the system. Find it in the list. Do not invent a number to get past the message — the slip book is the source.</>,
-  },
-  {
     id: "written-iou",
-    number: "5",
-    title: "A technician asks for an advance in the system, before any cash moves",
+    number: "4",
+    title: "Request and release a job advance",
     who: "Technician, then assistant accountant",
-    lede: "The written route. Use it when the request comes ahead of time rather than at the counter.",
+    lede: "The job team requests the money; the accountant records the physical handover on that same request.",
     steps: [
       <><em>Technician:</em> <Nav>Finance › Petty Cash Advances (IOU)</Nav> → <Btn>+ New IOU</Btn>. Pick the job number, amount and purpose. It submits itself for approval.</>,
       <><em>Assistant accountant:</em> find the row in the list and click <Btn>Approve</Btn>.</>,
-      <>Click <Btn>Release Cash</Btn>. Choose the fund, and put the printed slip number in <Field>Signed bill no.</Field> as you hand the money over.</>,
-      <>Confirm by typing <Typed>RELEASE</Typed>.</>,
+      <>When the relevant employee comes to collect, click <Btn>Release Cash</Btn>.</>,
+      <>Choose the funded <Field>Job Wise category</Field> for that job and select the employee under <Field>Collected by</Field>.</>,
+      <>Write and sign the paper IOU slip, enter its number in <Field>IOU slip number</Field>, then click <Btn>Release Cash</Btn>.</>,
     ],
-    stop: <>Status reads <strong>Cash Released</strong>. This one keeps its system number (<strong>IOU000012</strong>) because it existed before the slip did, with the slip number recorded alongside. Which number a row shows tells you which route it came in by.</>,
+    stop: <>Status reads <strong>Cash Released</strong>. The system keeps the request number (<strong>IOU000012</strong>) and stores the physical slip number and collector alongside it. The category and fund balances both fall by the released amount.</>,
   },
   {
     id: "bills-and-settlement",
-    number: "6",
+    number: "5",
     title: "Someone comes back with bills and change",
     who: "Assistant accountant, then head office",
-    lede: "Two parts: get the bills in as vouchers, then record what was spent.",
+    lede: "Search the physical IOU number and complete the bills, returns, and settlement in one place.",
     steps: [
-      <>First raise the voucher for what they actually bought — scenario 7 — and link it to this advance. Do this <em>before</em> settling so the figures line up.</>,
       <>Go to <Nav>Finance › Petty Cash Advances (IOU)</Nav> and find the advance.</>,
-      <>Click into <Field>Amount spent</Field>. It is pre-filled with the total of the vouchers you linked; change it only if the cash says otherwise.</>,
-      <>If you type more than the vouchers cover, an amber warning shows how much will have no bill behind it. Read it, and fix the vouchers if you can.</>,
-      <>Click <Btn>Settle / Account</Btn> and confirm with <Typed>SETTLE</Typed>. The unspent balance returns to the float automatically.</>,
+      <>Search by the physical <Field>IOU number</Field>, such as <strong>4001</strong>, and open that row.</>,
+      <>On the detail page, add every bill amount and attach its image in <Field>Bill Copies, Comments &amp; Attachments</Field>. The system maintains the expense voucher behind the IOU.</>,
+      <>Record each returned-cash instalment in <Field>Cash returned</Field>. Keep using this same IOU page until everything is back.</>,
+      <>Click <Btn>Settle / Account</Btn> and confirm with <Typed>SETTLE</Typed>. The system calculates the spent amount from the advance less cash returned.</>,
       <><em>Head office:</em> check the figures and click <Btn>Approve Settlement</Btn>.</>,
     ],
-    stop: <>Status reads <strong>Settlement Approved</strong> and the advance is closed for good. The <Field>Unaccounted</Field> column should read <strong>reconciled</strong>.</>,
+    stop: <>Status reads <strong>Settlement Approved</strong> and the advance is closed for good. The hidden voucher is approved and the <Field>Unaccounted</Field> figure should read <strong>reconciled</strong>.</>,
     warn: <><strong>If Unaccounted shows an amber figure</strong>, that is cash declared as spent with no bill behind it. It has left the company and will never reach any job&apos;s cost. The system allows it deliberately — but it should be a decision, not an accident.</>,
   },
   {
-    id: "vouchers",
-    number: "7",
-    title: "Entering the bills someone brought back",
-    who: "Assistant accountant",
-    lede: "This is what turns cash handed out into a real cost against a job.",
-    steps: [
-      <>Go to <Nav>Service › Expense Vouchers</Nav> and click <Btn>+ New Voucher</Btn>.</>,
-      <>Pick the <Field>Job Order</Field>, or leave it on <Field>Not job related (overhead)</Field> for transport and general spend.</>,
-      <>Set <Field>Funding source</Field> to <Field>Petty Cash Fund</Field>.</>,
-      <>Under <Field>Funded by IOU advance</Field>, pick the advance the money came from. <strong>This is the step people skip</strong>, and skipping it is what leaves an advance looking unaccounted.</>,
-      <>Under <Field>Charge to funded category</Field>, pick the category head office funded, so the sub-account draws down.</>,
-      <>Click <Btn>Create Expense Voucher</Btn>, then <Btn>+ Add Line</Btn> for each bill — description, quantity, unit cost, and tick <Field>Billable to customer</Field> if the customer is being charged.</>,
-      <>Attach the bill images in the <Field>Voucher Comments &amp; Attachments</Field> panel at the bottom.</>,
-      <>Click <Btn>Submit Claim</Btn>, then <Btn>Approve</Btn> once finance has checked it.</>,
-    ],
-    stop: <>Once <strong>Approved</strong>, the voucher is in the job&apos;s cost. If this money came from an advance you already handed over, stop here — do <em>not</em> click Repay from Fund, or the cash leaves the box a second time.</>,
-  },
-  {
     id: "other-payments",
-    number: "8",
+    number: "6",
     title: "You pay a taxi or a courier straight from the box",
     who: "Assistant accountant",
     lede: "Nobody owes anything here, so this is not an advance. The bill is the whole record.",
@@ -181,7 +150,7 @@ const scenarios: Scenario[] = [
   },
   {
     id: "out-of-pocket",
-    number: "9",
+    number: "7",
     title: "Someone spent their own money and wants it back",
     who: "Anyone, then finance",
     steps: [
@@ -194,7 +163,7 @@ const scenarios: Scenario[] = [
   },
   {
     id: "top-up",
-    number: "10",
+    number: "8",
     title: "Topping the box up, outside any request",
     who: "Finance",
     steps: [
@@ -202,6 +171,38 @@ const scenarios: Scenario[] = [
       <>Use the top-up action for a straight replenishment, or the adjustment action to correct a counting error.</>,
     ],
     stop: <>The balance updates immediately. Money added this way carries <strong>no category</strong>, so it belongs to no sub-account — use a request when the money is for specific categories.</>,
+  },
+  {
+    id: "category-reallocation",
+    number: "9",
+    title: "The box has enough cash, but the correct category does not",
+    who: "Assistant accountant, then head office",
+    lede: "Do not borrow silently from another category. Request a documented reallocation before spending.",
+    steps: [
+      <>Go to <Nav>Finance › Reallocate Category Balance</Nav> and click <Btn>+ New Reallocation</Btn>.</>,
+      <>Choose the fund, the category with spare balance, and the category that needs it. Enter the amount and explain the business reason.</>,
+      <>Open the draft, attach any supporting evidence, then click <Btn>Submit to Head Office</Btn> and type <Typed>SUBMIT</Typed>.</>,
+      <><em>Head office:</em> check the purpose and any Job Wise impact, then click <Btn>Approve and Post</Btn> and type <Typed>APPROVE</Typed>, or reject it with a reason.</>,
+      <>After approval, release the IOU or settle the voucher against the destination category.</>,
+    ],
+    stop: <>The source has a transfer-out and the destination has an equal transfer-in. The fund total and physical cash do not change.</>,
+    warn: <><strong>Example:</strong> A has 20 and B has 200. Move 200 from B to A; after approval A has 220 and B has 0. Only then spend 220 from A.</>,
+  },
+  {
+    id: "return-to-head-office",
+    number: "10",
+    title: "Returning unused petty cash to head office",
+    who: "Assistant accountant, then head office",
+    lede: "Return the reconciled float by its original funding categories. This is separate from cash returned by an employee against an IOU.",
+    steps: [
+      <>Finish the bills, returned change, settlement, and head-office settlement approval for every IOU in the categories you want to close.</>,
+      <>Go to <Nav>Finance › Return Money to Head Office</Nav> and click <Btn>+ Prepare Return</Btn>.</>,
+      <>Pick the fund. Select each category being returned and enter the amount; the full available balance is filled when you select it. Add the cash-count or period notes.</>,
+      <>Open the prepared return, attach the reconciliation/cash-count evidence, then click <Btn>Submit to Head Office</Btn> and type <Typed>SUBMIT</Typed>.</>,
+      <><em>Head office:</em> count the cash against every category line. Enter the mandatory <Field>Receipt / deposit reference</Field> and click <Btn>Confirm Cash Received</Btn>, or reject it with the discrepancy reason.</>,
+    ],
+    stop: <>Status reads <strong>Received</strong>. Only now does the cash leave the site fund ledger, and every category falls by exactly the amount shown on its return line.</>,
+    warn: <><strong>A category with an open IOU cannot be submitted.</strong> Settle that IOU and obtain head-office approval first, so bills and change are fully accounted before unused float is returned.</>,
   },
 ];
 
@@ -214,6 +215,8 @@ const refusals: Refusal[] = [
   { message: "'…' was funded for a different job order", meaning: "A Job Wise category only accepts that job's spend.", fix: "Pick the category funded for this job." },
   { message: "Only petty cash vouchers can be charged to a funded category", meaning: "The voucher is Out of Pocket.", fix: "Leave the category empty — this is overspend, and that is correct." },
   { message: "Petty cash fund does not have enough balance", meaning: "The box is short.", fix: "Top it up, or get a request funded first." },
+  { message: "has only … available after pending returns and reallocations", meaning: "The category, rather than the physical box, lacks uncommitted authorization.", fix: "Reduce the amount, wait for the pending item, or submit a category reallocation for head-office approval." },
+  { message: "Settle and obtain head-office approval for the selected categories' open IOUs", meaning: "At least one selected category still has cash or bills being accounted through an IOU.", fix: "Complete that IOU's bills, cash return, settlement, and head-office approval, then submit the return again." },
 ];
 
 function ScenarioCard({ scenario }: { scenario: Scenario }) {
@@ -286,7 +289,7 @@ export default function PettyCashHelpPage() {
             deliberate: it means cash is about to move.
           </p>
         </div>
-        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-5">
+        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-6">
           {quickLinks.map((link) => (
             <a
               key={link.href}

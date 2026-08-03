@@ -1,10 +1,25 @@
 # Petty cash rework — handover
 
-Written for whoever picks this up next. The backend is finished and deployed; what remains is
-frontend. Everything below has been verified against the running system, not assumed.
+## Update — 2026-07-30
+
+The duplicate IOU creation routes described below have been consolidated locally. Job staff now
+create the request; after approval, finance releases from that same record and must select the
+matching funded Job Wise category, the employee collecting the cash, and the signed physical slip
+number. Requester and collector are stored separately by migration
+`20260730195255_AddPettyCashIouCollector`. The direct `Record IOU Slip` button is no longer shown.
+Non-job taxi, courier, workshop and similar payments remain overhead expense vouchers, not fake
+jobs. Grid settlement remains removed; bills, attachments, returns and settlement stay on the IOU
+detail page.
+
+The 2026-07-30 consolidation was deployed to Railway production on 2026-07-31 as deployment
+`0c1c3b8c-d6bb-48e7-ba2b-23695d75f04e`. Railway reported `SUCCESS`; startup logs confirm migration
+`20260730195255_AddPettyCashIouCollector` was applied and the application started.
+
+The remainder is the historical handover from the earlier rework.
 
 State at handover: local `HEAD` = `0ae0000`, which is also `origin/c-com-erp` and Railway
-deployment `3f13b8e2`. There is **uncommitted work in the tree** — see §3.
+deployment `3f13b8e2`. The frontend completion work described below is now implemented locally;
+the only remaining item is running the end-to-end verification against a live API (see §4.4).
 
 ---
 
@@ -118,6 +133,10 @@ against a running server** — that is step 4.4.
 
 ## 4. What remains
 
+Implementation status: 4.1 (detail-page link and IOU search), 4.2 (grid settlement removal),
+4.3 (mandatory staff/outsider holder selection), and 4.5 (the user-facing guides) are complete.
+The instructions below are retained as an audit trail; only 4.4 still needs execution.
+
 ### 4.1 Finish and verify the detail page
 
 Mostly written (§3). To finish:
@@ -208,6 +227,14 @@ Both currently describe the old two-screen settlement and will be wrong once 4.2
   service is **not** connected to the GitHub repo, so pushing does not deploy.
 
 ## 6. Deploying
+
+Latest production hotfix (2026-07-31): Railway deployment
+`a1bbc150-73d6-4631-82aa-1cfc21e5f622` completed with `SUCCESS`. It fixes the PostgreSQL/EF query
+translation failure during IOU release and applies the idempotent
+`20260731045642_RepairMissingAssistantSettingsTables` migration. The hotfix passed a clean backend
+build, all 51 unit tests, migration-script generation, and the post-deployment 5xx log check. A
+fresh authenticated IOU release and the complete accounting flow in section 4.4 remain to be
+executed manually; do not claim the full end-to-end test as complete yet.
 
 ```bash
 git worktree add --detach ../ISS-deploy-<sha> <sha>

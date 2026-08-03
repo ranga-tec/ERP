@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { apiPostNoContent } from "@/lib/api-client";
 import { ItemLookupField } from "@/components/ItemLookupField";
-import { Button, Input, Textarea } from "@/components/ui";
+import { Button, DecimalInput, Input, Textarea } from "@/components/ui";
 import { LineStockInsight } from "@/components/LineStockInsight";
 import { AvailableSerialPicker } from "@/components/AvailableSerialPicker";
 import { AvailableBatchPicker } from "@/components/AvailableBatchPicker";
@@ -104,7 +104,7 @@ export function MaterialRequisitionLineAddForm({
           <label className="mb-1 block text-sm font-medium">
             Qty{selectedItemUom ? <span className="ml-1 text-xs font-normal text-zinc-500">({selectedItemUom})</span> : null}
           </label>
-          <Input value={quantity} onChange={(e) => setQuantity(e.target.value)} inputMode="decimal" required />
+          <DecimalInput value={quantity} onChange={(e) => setQuantity(e.target.value)} required />
         </div>
         <div>
           <label className="mb-1 block text-sm font-medium">

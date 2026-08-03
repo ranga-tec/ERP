@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { apiPost } from "@/lib/api-client";
 import { ItemLookupField } from "@/components/ItemLookupField";
-import { Button, Input, Select } from "@/components/ui";
+import { Button, Input, IntegerInput, Select } from "@/components/ui";
 
 type ItemRef = { id: string; sku: string; name: string };
 type CustomerRef = { id: string; code: string; name: string };
@@ -198,7 +198,7 @@ export function EquipmentUnitCreateForm({
       <div className="grid gap-3 sm:grid-cols-3">
         <div>
           <label className="mb-1 block text-sm font-medium">Service interval days</label>
-          <Input min="1" type="number" value={serviceIntervalDays} onChange={(e) => setServiceIntervalDays(e.target.value)} />
+          <IntegerInput min="1" value={serviceIntervalDays} onChange={(e) => setServiceIntervalDays(e.target.value)} />
         </div>
         <div>
           <label className="mb-1 block text-sm font-medium">Next service date</label>

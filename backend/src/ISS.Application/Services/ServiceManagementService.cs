@@ -973,6 +973,37 @@ public sealed class ServiceManagementService(
                 .Include(x => x.Transactions)
                 .FirstOrDefaultAsync(x => x.Id == pettyCashFundId, cancellationToken)
                 ?? throw new NotFoundException("Petty cash fund not found.");
+
+            if (claim.PettyCashRequestLineId is { } requestLineId)
+            {
+                var lineFundId = await dbContext.PettyCashRequests.AsNoTracking()
+                    .Where(request => request.Lines.Any(line => line.Id == requestLineId))
+                    .Select(request => (Guid?)request.PettyCashFundId)
+                    .FirstOrDefaultAsync(cancellationToken)
+                    ?? throw new NotFoundException("Petty cash request line not found.");
+                if (lineFundId != pettyCashFundId)
+                {
+                    throw new DomainValidationException("The funded category belongs to a different petty cash fund.");
+                }
+
+                var reserved = await dbContext.PettyCashReturns.AsNoTracking()
+                    .Where(x => x.Status == PettyCashReturnStatus.Submitted)
+                    .SelectMany(x => x.Lines)
+                    .Where(x => x.PettyCashRequestLineId == requestLineId)
+                    .SumAsync(x => x.Amount, cancellationToken);
+                var reservedForReallocation = await dbContext.PettyCashReallocations.AsNoTracking()
+                    .Where(x => x.Status == PettyCashReallocationStatus.Submitted
+                                && x.SourcePettyCashRequestLineId == requestLineId)
+                    .SumAsync(x => x.Amount, cancellationToken);
+                var available = pettyCashFund.BalanceForRequestLine(requestLineId)
+                                - reserved
+                                - reservedForReallocation;
+                if (claim.Total > available)
+                {
+                    throw new DomainValidationException(
+                        $"The funded category has only {available:0.00} available after pending returns and reallocations.");
+                }
+            }
         }
 
         claim.Settle(clock.UtcNow, settlementPaymentTypeId, settlementPettyCashFundId, settlementReference);

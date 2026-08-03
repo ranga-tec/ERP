@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { apiDeleteNoContent, apiPostNoContent, apiPutNoContent } from "@/lib/api-client";
-import { Button, Input, SecondaryButton, Select, Textarea } from "@/components/ui";
+import { Button, DecimalInput, Input, SecondaryButton, Select, Textarea } from "@/components/ui";
 
 type WorkOrderTimeEntryDto = {
   id: string;
@@ -269,14 +269,14 @@ export function WorkOrderTimeEntryRow({
       </td>
       <td className="py-2 pr-3">
         {isEditing ? (
-          <Input value={hoursWorked} onChange={(event) => setHoursWorked(event.target.value)} inputMode="decimal" className="min-w-20" />
+          <DecimalInput value={hoursWorked} onChange={(event) => setHoursWorked(event.target.value)} className="min-w-20" />
         ) : (
           entry.hoursWorked
         )}
       </td>
       <td className="py-2 pr-3">
         {isEditing ? (
-          <Input value={costRate} onChange={(event) => setCostRate(event.target.value)} inputMode="decimal" className="min-w-24" />
+          <DecimalInput value={costRate} onChange={(event) => setCostRate(event.target.value)} className="min-w-24" />
         ) : (
           entry.costRate.toFixed(2)
         )}
@@ -295,24 +295,21 @@ export function WorkOrderTimeEntryRow({
               Billable
             </label>
             <div className="grid gap-2 sm:grid-cols-3">
-              <Input
+              <DecimalInput
                 value={billableHours}
                 onChange={(event) => setBillableHours(event.target.value)}
-                inputMode="decimal"
                 disabled={!billableToCustomer}
                 placeholder="Hours"
               />
-              <Input
+              <DecimalInput
                 value={billingRate}
                 onChange={(event) => setBillingRate(event.target.value)}
-                inputMode="decimal"
                 disabled={!billableToCustomer}
                 placeholder="Rate"
               />
-              <Input
+              <DecimalInput
                 value={taxPercent}
                 onChange={(event) => setTaxPercent(event.target.value)}
-                inputMode="decimal"
                 disabled={!billableToCustomer}
                 placeholder="Tax %"
               />

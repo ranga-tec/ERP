@@ -735,6 +735,13 @@ namespace ISS.Infrastructure.Persistence.Migrations
                         .HasMaxLength(64)
                         .HasColumnType("character varying(64)");
 
+                    b.Property<string>("IssuedToName")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<Guid?>("IssuedToUserId")
+                        .HasColumnType("uuid");
+
                     b.Property<DateTimeOffset?>("LastModifiedAt")
                         .HasColumnType("timestamp with time zone");
 
@@ -819,6 +826,11 @@ namespace ISS.Infrastructure.Persistence.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("IssueBillNumber")
+                        .IsUnique();
+
+                    b.HasIndex("IssuedToUserId");
+
                     b.HasIndex("Number")
                         .IsUnique();
 
@@ -833,6 +845,101 @@ namespace ISS.Infrastructure.Persistence.Migrations
                     b.HasIndex("ServiceJobId");
 
                     b.ToTable("PettyCashIous");
+                });
+
+            modelBuilder.Entity("ISS.Domain.Finance.PettyCashReallocation", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal>("Amount")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("numeric(18,4)");
+
+                    b.Property<DateTimeOffset?>("ApprovedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("ApprovedByUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset?>("CancelledAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("CreatedBy")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("DestinationPettyCashRequestLineId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset?>("LastModifiedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("LastModifiedBy")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Number")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<Guid>("PettyCashFundId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Reason")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
+
+                    b.Property<DateTimeOffset?>("RejectedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("RejectedByUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("RejectionReason")
+                        .HasMaxLength(512)
+                        .HasColumnType("character varying(512)");
+
+                    b.Property<DateTimeOffset>("RequestedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("RequestedByName")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<Guid>("RequestedByUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("SourcePettyCashRequestLineId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTimeOffset?>("SubmittedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("DestinationPettyCashRequestLineId");
+
+                    b.HasIndex("Number")
+                        .IsUnique();
+
+                    b.HasIndex("PettyCashFundId");
+
+                    b.HasIndex("RequestedByUserId");
+
+                    b.HasIndex("SourcePettyCashRequestLineId");
+
+                    b.HasIndex("Status");
+
+                    b.ToTable("PettyCashReallocations");
                 });
 
             modelBuilder.Entity("ISS.Domain.Finance.PettyCashRequest", b =>
@@ -984,6 +1091,116 @@ namespace ISS.Infrastructure.Persistence.Migrations
                     b.ToTable("PettyCashRequestLineFunding");
                 });
 
+            modelBuilder.Entity("ISS.Domain.Finance.PettyCashReturn", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset?>("CancelledAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("CreatedBy")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset?>("LastModifiedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("LastModifiedBy")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Notes")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
+
+                    b.Property<string>("Number")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<Guid>("PettyCashFundId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("PreparedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("PreparedByName")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<Guid>("PreparedByUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ReceiptReference")
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<DateTimeOffset?>("ReceivedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("ReceivedByUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset?>("RejectedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("RejectedByUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("RejectionReason")
+                        .HasMaxLength(512)
+                        .HasColumnType("character varying(512)");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTimeOffset?>("SubmittedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Number")
+                        .IsUnique();
+
+                    b.HasIndex("PettyCashFundId");
+
+                    b.HasIndex("PreparedByUserId");
+
+                    b.HasIndex("Status");
+
+                    b.ToTable("PettyCashReturns");
+                });
+
+            modelBuilder.Entity("ISS.Domain.Finance.PettyCashReturnLine", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal>("Amount")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("numeric(18,4)");
+
+                    b.Property<Guid>("PettyCashRequestLineId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("PettyCashReturnId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PettyCashRequestLineId");
+
+                    b.HasIndex("PettyCashReturnId", "PettyCashRequestLineId")
+                        .IsUnique();
+
+                    b.ToTable("PettyCashReturnLine");
+                });
+
             modelBuilder.Entity("ISS.Domain.Finance.PettyCashTransaction", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1031,6 +1248,10 @@ namespace ISS.Infrastructure.Persistence.Migrations
                     b.HasIndex("PettyCashFundId", "OccurredAt");
 
                     b.HasIndex("ReferenceType", "ReferenceId");
+
+                    b.HasIndex("ReferenceType", "ReferenceId", "PettyCashRequestLineId")
+                        .IsUnique()
+                        .HasFilter("\"ReferenceType\" IN ('PCRTN', 'PCRAL')");
 
                     b.ToTable("PettyCashTransaction");
                 });
@@ -5273,6 +5494,27 @@ namespace ISS.Infrastructure.Persistence.Migrations
                         .OnDelete(DeleteBehavior.SetNull);
                 });
 
+            modelBuilder.Entity("ISS.Domain.Finance.PettyCashReallocation", b =>
+                {
+                    b.HasOne("ISS.Domain.Finance.PettyCashRequestLine", null)
+                        .WithMany()
+                        .HasForeignKey("DestinationPettyCashRequestLineId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("ISS.Domain.Finance.PettyCashFund", null)
+                        .WithMany()
+                        .HasForeignKey("PettyCashFundId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("ISS.Domain.Finance.PettyCashRequestLine", null)
+                        .WithMany()
+                        .HasForeignKey("SourcePettyCashRequestLineId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("ISS.Domain.Finance.PettyCashRequest", b =>
                 {
                     b.HasOne("ISS.Domain.Finance.PettyCashFund", null)
@@ -5296,6 +5538,30 @@ namespace ISS.Infrastructure.Persistence.Migrations
                     b.HasOne("ISS.Domain.Finance.PettyCashRequestLine", null)
                         .WithMany("Fundings")
                         .HasForeignKey("PettyCashRequestLineId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("ISS.Domain.Finance.PettyCashReturn", b =>
+                {
+                    b.HasOne("ISS.Domain.Finance.PettyCashFund", null)
+                        .WithMany()
+                        .HasForeignKey("PettyCashFundId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("ISS.Domain.Finance.PettyCashReturnLine", b =>
+                {
+                    b.HasOne("ISS.Domain.Finance.PettyCashRequestLine", null)
+                        .WithMany()
+                        .HasForeignKey("PettyCashRequestLineId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("ISS.Domain.Finance.PettyCashReturn", null)
+                        .WithMany("Lines")
+                        .HasForeignKey("PettyCashReturnId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
                 });
@@ -6035,6 +6301,11 @@ namespace ISS.Infrastructure.Persistence.Migrations
             modelBuilder.Entity("ISS.Domain.Finance.PettyCashRequestLine", b =>
                 {
                     b.Navigation("Fundings");
+                });
+
+            modelBuilder.Entity("ISS.Domain.Finance.PettyCashReturn", b =>
+                {
+                    b.Navigation("Lines");
                 });
 
             modelBuilder.Entity("ISS.Domain.Inventory.StockAdjustment", b =>

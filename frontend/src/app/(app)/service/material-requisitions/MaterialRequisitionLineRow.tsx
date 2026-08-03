@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
 import { apiDeleteNoContent, apiPutNoContent } from "@/lib/api-client";
-import { Button, Input, SecondaryButton, Textarea } from "@/components/ui";
+import { Button, DecimalInput, Input, SecondaryButton, Textarea } from "@/components/ui";
 import { LineStockInsight } from "@/components/LineStockInsight";
 import { AvailableSerialPicker } from "@/components/AvailableSerialPicker";
 
@@ -138,7 +138,7 @@ export function MaterialRequisitionLineRow({
       <td className="py-2 pr-3">{itemLabel}</td>
       <td className="py-2 pr-3">
         {isEditing ? (
-          <Input value={quantity} onChange={(e) => setQuantity(e.target.value)} inputMode="decimal" className="min-w-20" />
+          <DecimalInput value={quantity} onChange={(e) => setQuantity(e.target.value)} className="min-w-20" />
         ) : (
           `${line.quantity} ${unitOfMeasure}`
         )}

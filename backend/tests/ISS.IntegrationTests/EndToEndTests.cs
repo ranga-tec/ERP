@@ -10,6 +10,7 @@ using ISS.Domain.Service;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text;
+using System.Text.Json;
 
 namespace ISS.IntegrationTests;
 
@@ -47,6 +48,7 @@ public sealed class EndToEndTests(IssApiFixture fixture) : IClassFixture<IssApiF
     private sealed record CurrencyDto(Guid Id, string Code, string Name, string Symbol, int MinorUnits, bool IsBase, bool IsActive);
     private sealed record CurrencyRateDto(Guid Id, Guid FromCurrencyId, string FromCurrencyCode, string FromCurrencyName, Guid ToCurrencyId, string ToCurrencyCode, string ToCurrencyName, decimal Rate, CurrencyRateType RateType, DateTimeOffset EffectiveFrom, string? Source, bool IsActive);
     private sealed record PaymentTypeDto(Guid Id, string Code, string Name, string? Description, bool IsActive);
+    private sealed record UnitOfMeasureDto(Guid Id, string Code, string Name, bool IsActive);
     private sealed record TaxCodeDto(Guid Id, string Code, string Name, decimal RatePercent, bool IsInclusive, TaxScope Scope, string? Description, bool IsActive);
     private sealed record TaxConversionDto(Guid Id, Guid SourceTaxCodeId, string SourceTaxCode, string SourceTaxName, Guid TargetTaxCodeId, string TargetTaxCode, string TargetTaxName, decimal Multiplier, string? Notes, bool IsActive);
     private sealed record ReferenceFormDto(Guid Id, string Code, string Name, string Module, string? RouteTemplate, bool IsActive);
@@ -131,6 +133,11 @@ public sealed class EndToEndTests(IssApiFixture fixture) : IClassFixture<IssApiF
         Assert.Contains(paymentTypes, paymentType => paymentType.Code == "CASH" && paymentType.IsActive);
         Assert.Contains(paymentTypes, paymentType => paymentType.Code == "MOBILE_PAYMENT" && paymentType.IsActive);
 
+        var units = await Get<List<UnitOfMeasureDto>>("/api/uoms");
+        Assert.Contains(units, unit => unit.Code == "UNIT" && unit.IsActive);
+        Assert.Contains(units, unit => unit.Code == "PCS" && unit.IsActive);
+        Assert.Contains(units, unit => unit.Code == "HRS" && unit.IsActive);
+
         var taxCodes = await Get<List<TaxCodeDto>>("/api/taxes");
         Assert.Contains(taxCodes, taxCode => taxCode.Code == "EXEMPT" && taxCode.IsActive);
         Assert.Contains(taxCodes, taxCode => taxCode.Code == "VAT15_INC" && taxCode.IsInclusive && taxCode.IsActive);
@@ -143,6 +150,8 @@ public sealed class EndToEndTests(IssApiFixture fixture) : IClassFixture<IssApiF
         var referenceForms = await Get<List<ReferenceFormDto>>("/api/reference-forms");
         Assert.Contains(referenceForms, form => form.Code == "PAY" && form.RouteTemplate == "/finance/payments/{id}" && form.IsActive);
         Assert.Contains(referenceForms, form => form.Code == "PCF" && form.RouteTemplate == "/finance/petty-cash/{id}" && form.IsActive);
+        Assert.Contains(referenceForms, form => form.Code == "PCRTN" && form.RouteTemplate == "/finance/petty-cash-returns/{id}" && form.IsActive);
+        Assert.Contains(referenceForms, form => form.Code == "PCRAL" && form.RouteTemplate == "/finance/petty-cash-reallocations/{id}" && form.IsActive);
         Assert.Contains(referenceForms, form => form.Code == "SC" && form.RouteTemplate == "/service/contracts/{id}" && form.IsActive);
         Assert.Contains(referenceForms, form => form.Code == "SEC" && form.RouteTemplate == "/service/expense-claims/{id}" && form.IsActive);
     }
@@ -156,6 +165,170 @@ public sealed class EndToEndTests(IssApiFixture fixture) : IClassFixture<IssApiF
         Assert.False(capabilities.SelfRegistrationEnabled);
         Assert.False(capabilities.RegistrationAllowed);
         Assert.False(capabilities.BootstrapRegistrationOnly);
+    }
+
+    [Fact]
+    public async Task Finance_PettyCashReturn_Reconciles_Categories_And_Posts_Only_On_HeadOffice_Receipt()
+    {
+        var fund = await Post<PettyCashFundApiDto>("/api/finance/petty-cash-funds", new
+        {
+            code = Code("PCRF"),
+            name = "Return flow fund",
+            currencyCode = "LKR",
+            custodianName = "Site accountant",
+            notes = (string?)null,
+            openingBalance = (decimal?)null,
+            openedAt = (DateTimeOffset?)null,
+            openingReferenceNumber = (string?)null,
+        });
+
+        var request = await Post<JsonElement>("/api/finance/petty-cash-requests", new
+        {
+            pettyCashFundId = fund.Id,
+            neededByAt = (DateTimeOffset?)null,
+            requestedByName = "Site accountant",
+            notes = "Return-flow test",
+        });
+        var requestId = request.GetProperty("id").GetGuid();
+        request = await Post<JsonElement>($"/api/finance/petty-cash-requests/{requestId}/lines", new
+        {
+            category = PettyCashRequestCategory.Transportation,
+            serviceJobId = (Guid?)null,
+            customCategoryName = (string?)null,
+            purpose = "Local transport",
+            requestedAmount = 500m,
+        });
+        var lineId = request.GetProperty("lines")[0].GetProperty("id").GetGuid();
+
+        await PostNoContent($"/api/finance/petty-cash-requests/{requestId}/submit", new { });
+        await PostNoContent($"/api/finance/petty-cash-requests/{requestId}/approve", new
+        {
+            lines = new[] { new { lineId, approvedAmount = 500m } },
+        });
+        await PostNoContent($"/api/finance/petty-cash-requests/{requestId}/lines/{lineId}/fund", new
+        {
+            amount = 500m,
+            paymentReference = "TRF-RETURN-1",
+        });
+
+        var pettyCashReturn = await Post<PettyCashReturnApiDto>("/api/finance/petty-cash-returns", new
+        {
+            pettyCashFundId = fund.Id,
+            notes = "Counted and reconciled",
+            lines = new[] { new { pettyCashRequestLineId = lineId, amount = 350m } },
+        });
+        Assert.Equal(PettyCashReturnStatus.Draft, pettyCashReturn.Status);
+
+        await PostNoContent($"/api/finance/petty-cash-returns/{pettyCashReturn.Id}/submit", new { });
+        var submitted = await Get<PettyCashReturnApiDto>($"/api/finance/petty-cash-returns/{pettyCashReturn.Id}");
+        Assert.Equal(PettyCashReturnStatus.Submitted, submitted.Status);
+        Assert.Equal(500m, (await Get<PettyCashFundApiDto>($"/api/finance/petty-cash-funds/{fund.Id}")).Balance);
+
+        await PostNoContent($"/api/finance/petty-cash-returns/{pettyCashReturn.Id}/receive", new
+        {
+            receiptReference = "DEP-RETURN-1",
+        });
+
+        var received = await Get<PettyCashReturnApiDto>($"/api/finance/petty-cash-returns/{pettyCashReturn.Id}");
+        var updatedFund = await Get<PettyCashFundApiDto>($"/api/finance/petty-cash-funds/{fund.Id}");
+        Assert.Equal(PettyCashReturnStatus.Received, received.Status);
+        Assert.Equal("DEP-RETURN-1", received.ReceiptReference);
+        Assert.Equal(150m, updatedFund.Balance);
+        Assert.Contains(updatedFund.Transactions, transaction =>
+            transaction.Type == PettyCashTransactionType.HeadOfficeReturn
+            && transaction.Amount == 350m
+            && transaction.ReferenceNumber == "DEP-RETURN-1");
+    }
+
+    [Fact]
+    public async Task Finance_PettyCashReallocation_Reserves_Source_And_Posts_Balanced_Category_Entries()
+    {
+        var fund = await Post<PettyCashFundApiDto>("/api/finance/petty-cash-funds", new
+        {
+            code = Code("PCAF"),
+            name = "Category transfer fund",
+            currencyCode = "LKR",
+            custodianName = "Site accountant",
+            notes = (string?)null,
+            openingBalance = (decimal?)null,
+            openedAt = (DateTimeOffset?)null,
+            openingReferenceNumber = (string?)null,
+        });
+        var request = await Post<JsonElement>("/api/finance/petty-cash-requests", new
+        {
+            pettyCashFundId = fund.Id,
+            neededByAt = (DateTimeOffset?)null,
+            requestedByName = "Site accountant",
+            notes = "Category-transfer test",
+        });
+        var requestId = request.GetProperty("id").GetGuid();
+        request = await Post<JsonElement>($"/api/finance/petty-cash-requests/{requestId}/lines", new
+        {
+            category = PettyCashRequestCategory.EmergencyOperation,
+            serviceJobId = (Guid?)null,
+            customCategoryName = (string?)null,
+            purpose = "Urgent repair",
+            requestedAmount = 20m,
+        });
+        request = await Post<JsonElement>($"/api/finance/petty-cash-requests/{requestId}/lines", new
+        {
+            category = PettyCashRequestCategory.Transportation,
+            serviceJobId = (Guid?)null,
+            customCategoryName = (string?)null,
+            purpose = "Transport",
+            requestedAmount = 200m,
+        });
+        var lines = request.GetProperty("lines").EnumerateArray().ToList();
+        var destinationLineId = lines.Single(x => x.GetProperty("purpose").GetString() == "Urgent repair").GetProperty("id").GetGuid();
+        var sourceLineId = lines.Single(x => x.GetProperty("purpose").GetString() == "Transport").GetProperty("id").GetGuid();
+
+        await PostNoContent($"/api/finance/petty-cash-requests/{requestId}/submit", new { });
+        await PostNoContent($"/api/finance/petty-cash-requests/{requestId}/approve", new
+        {
+            lines = new[]
+            {
+                new { lineId = destinationLineId, approvedAmount = 20m },
+                new { lineId = sourceLineId, approvedAmount = 200m },
+            },
+        });
+        await PostNoContent($"/api/finance/petty-cash-requests/{requestId}/lines/{destinationLineId}/fund", new { amount = 20m, paymentReference = "TRF-A" });
+        await PostNoContent($"/api/finance/petty-cash-requests/{requestId}/lines/{sourceLineId}/fund", new { amount = 200m, paymentReference = "TRF-B" });
+
+        var reallocation = await Post<PettyCashReallocationApiDto>("/api/finance/petty-cash-reallocations", new
+        {
+            pettyCashFundId = fund.Id,
+            sourcePettyCashRequestLineId = sourceLineId,
+            destinationPettyCashRequestLineId = destinationLineId,
+            amount = 200m,
+            reason = "Urgent repair is now expected to cost 220",
+        });
+        Assert.Equal(PettyCashReallocationStatus.Draft, reallocation.Status);
+
+        await PostNoContent($"/api/finance/petty-cash-reallocations/{reallocation.Id}/submit", new { });
+        var duplicateResponse = await _client.PostAsJsonAsync("/api/finance/petty-cash-reallocations", new
+        {
+            pettyCashFundId = fund.Id,
+            sourcePettyCashRequestLineId = sourceLineId,
+            destinationPettyCashRequestLineId = destinationLineId,
+            amount = 1m,
+            reason = "This must not consume the already reserved source balance",
+        });
+        Assert.Equal(System.Net.HttpStatusCode.BadRequest, duplicateResponse.StatusCode);
+
+        await PostNoContent($"/api/finance/petty-cash-reallocations/{reallocation.Id}/approve", new { });
+        var approved = await Get<PettyCashReallocationApiDto>($"/api/finance/petty-cash-reallocations/{reallocation.Id}");
+        var updatedFund = await Get<PettyCashFundApiDto>($"/api/finance/petty-cash-funds/{fund.Id}");
+
+        Assert.Equal(PettyCashReallocationStatus.Approved, approved.Status);
+        Assert.Equal(220m, updatedFund.Balance);
+        Assert.Equal(220m, approved.DestinationBalance);
+        Assert.Equal(0m, approved.SourceBalance);
+        Assert.Contains(updatedFund.Transactions, x => x.Type == PettyCashTransactionType.CategoryTransferOut
+                                                       && x.PettyCashRequestLineId == sourceLineId
+                                                       && x.Amount == 200m);
+        Assert.Contains(updatedFund.Transactions, x => x.Type == PettyCashTransactionType.CategoryTransferIn
+                                                       && x.PettyCashRequestLineId == destinationLineId
+                                                       && x.Amount == 200m);
     }
 
     [Fact]
@@ -2325,12 +2498,12 @@ public sealed class EndToEndTests(IssApiFixture fixture) : IClassFixture<IssApiF
             technicianName = "Tech Labor",
             workDate = new DateTimeOffset(2026, 3, 30, 9, 0, 0, TimeSpan.Zero),
             workDescription = "Leak test and recalibration",
-            hoursWorked = 2m,
-            costRate = 15m,
+            hoursWorked = 1.75m,
+            costRate = 12.40m,
             billableToCustomer = true,
-            billableHours = 2m,
-            billingRate = 30m,
-            taxPercent = 0m,
+            billableHours = 1.25m,
+            billingRate = 25.60m,
+            taxPercent = 18m,
             notes = "Initial repair"
         });
         var timeEntry = Assert.Single(workOrderAfterAdd.TimeEntries);
@@ -2338,9 +2511,9 @@ public sealed class EndToEndTests(IssApiFixture fixture) : IClassFixture<IssApiF
         await PostNoContent($"/api/service/work-orders/{workOrder.Id}/time-entries/{timeEntry.Id}/approve", new { });
 
         var costingBeforeInvoice = await Get<ServiceJobCostingDto>($"/api/service/jobs/{job.Id}/costing");
-        Assert.Equal(30m, costingBeforeInvoice.ApprovedLaborCost);
-        Assert.Equal(60m, costingBeforeInvoice.BillableLaborRevenue);
-        Assert.Equal(60m, costingBeforeInvoice.UninvoicedBillableLaborRevenue);
+        Assert.Equal(21.70m, costingBeforeInvoice.ApprovedLaborCost);
+        Assert.Equal(37.76m, costingBeforeInvoice.BillableLaborRevenue);
+        Assert.Equal(37.76m, costingBeforeInvoice.UninvoicedBillableLaborRevenue);
         Assert.Single(costingBeforeInvoice.LaborLines);
         Assert.Equal(WorkOrderTimeEntryStatus.Approved, costingBeforeInvoice.LaborLines[0].Status);
 
@@ -2384,8 +2557,12 @@ public sealed class EndToEndTests(IssApiFixture fixture) : IClassFixture<IssApiF
         var invoice = await Get<InvoiceDetailDto>($"/api/sales/invoices/{convert.SalesInvoiceId}");
         Assert.Equal(2, invoice.Lines.Count);
         Assert.Contains(invoice.Lines, line => line.ItemId == partItem.Id && line.LineTotal == 50m);
-        Assert.Contains(invoice.Lines, line => line.ItemId == laborItem.Id && line.Quantity == 2m && line.UnitPrice == 30m && line.LineTotal == 60m);
-        Assert.Equal(110m, invoice.Total);
+        Assert.Contains(invoice.Lines, line => line.ItemId == laborItem.Id
+                                               && line.Quantity == 1.25m
+                                               && line.UnitPrice == 25.60m
+                                               && line.TaxPercent == 18m
+                                               && line.LineTotal == 37.76m);
+        Assert.Equal(87.76m, invoice.Total);
 
         var workOrderAfterInvoice = await Get<WorkOrderDto>($"/api/service/work-orders/{workOrder.Id}");
         Assert.Single(workOrderAfterInvoice.TimeEntries);
@@ -2393,8 +2570,8 @@ public sealed class EndToEndTests(IssApiFixture fixture) : IClassFixture<IssApiF
         Assert.Equal(convert.SalesInvoiceId, workOrderAfterInvoice.TimeEntries[0].SalesInvoiceId);
 
         var costingAfterInvoice = await Get<ServiceJobCostingDto>($"/api/service/jobs/{job.Id}/costing");
-        Assert.Equal(30m, costingAfterInvoice.ApprovedLaborCost);
-        Assert.Equal(60m, costingAfterInvoice.BillableLaborRevenue);
+        Assert.Equal(21.70m, costingAfterInvoice.ApprovedLaborCost);
+        Assert.Equal(37.76m, costingAfterInvoice.BillableLaborRevenue);
         Assert.Equal(0m, costingAfterInvoice.UninvoicedBillableLaborRevenue);
         Assert.Single(costingAfterInvoice.LaborLines);
         Assert.Equal(WorkOrderTimeEntryStatus.Invoiced, costingAfterInvoice.LaborLines[0].Status);
@@ -3027,8 +3204,10 @@ public sealed class EndToEndTests(IssApiFixture fixture) : IClassFixture<IssApiF
     private sealed record InvoiceDetailDto(Guid Id, string Number, Guid CustomerId, DateTimeOffset InvoiceDate, DateTimeOffset? DueDate, SalesInvoiceStatus Status, decimal Subtotal, decimal TaxTotal, decimal Total, IReadOnlyList<InvoiceLineDetailDto> Lines);
     private sealed record ArDto(Guid Id, Guid CustomerId, string ReferenceType, Guid ReferenceId, decimal Amount, decimal Outstanding, DateTimeOffset PostedAt);
     private sealed record PaymentDto(Guid Id, string ReferenceNumber, PaymentDirection Direction, CounterpartyType CounterpartyType, Guid CounterpartyId, decimal Amount, DateTimeOffset PaidAt, string? Notes);
-    private sealed record PettyCashTransactionApiDto(Guid Id, DateTimeOffset OccurredAt, PettyCashTransactionType Type, PettyCashTransactionDirection Direction, decimal Amount, decimal SignedAmount, string? ReferenceType, Guid? ReferenceId, string? ReferenceNumber, string? Notes);
+    private sealed record PettyCashTransactionApiDto(Guid Id, DateTimeOffset OccurredAt, PettyCashTransactionType Type, PettyCashTransactionDirection Direction, decimal Amount, decimal SignedAmount, string? ReferenceType, Guid? ReferenceId, string? ReferenceNumber, string? Notes, Guid? PettyCashRequestLineId);
     private sealed record PettyCashFundApiDto(Guid Id, string Code, string Name, string CurrencyCode, string? CustodianName, string? Notes, bool IsActive, decimal Balance, IReadOnlyList<PettyCashTransactionApiDto> Transactions);
+    private sealed record PettyCashReallocationApiDto(Guid Id, string Number, PettyCashReallocationStatus Status, decimal Amount, decimal SourceBalance, decimal DestinationBalance);
+    private sealed record PettyCashReturnApiDto(Guid Id, string Number, PettyCashReturnStatus Status, decimal TotalAmount, string? ReceiptReference);
 
     private sealed record SalesQuoteDto(Guid Id, string Number, Guid CustomerId, DateTimeOffset QuoteDate, DateTimeOffset? ValidUntil, SalesQuoteStatus Status, decimal Total, IReadOnlyList<SalesQuoteLineDto> Lines);
     private sealed record SalesQuoteLineDto(Guid Id, Guid ItemId, decimal Quantity, decimal UnitPrice, decimal LineTotal);

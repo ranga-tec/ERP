@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { apiPost } from "@/lib/api-client";
-import { Button, Input, Select, Textarea } from "@/components/ui";
+import { Button, DecimalInput, Input, Select, Textarea } from "@/components/ui";
 
 type WorkOrderTimeEntryDto = { id: string };
 type TechnicianRef = {
@@ -169,7 +169,7 @@ export function WorkOrderTimeEntryAddForm({
         </div>
         <div>
           <label className="mb-1 block text-sm font-medium">Hours Worked</label>
-          <Input
+          <DecimalInput
             value={hoursWorked}
             onChange={(event) => {
               setHoursWorked(event.target.value);
@@ -177,13 +177,12 @@ export function WorkOrderTimeEntryAddForm({
                 setBillableHours(event.target.value);
               }
             }}
-            inputMode="decimal"
             disabled={disabled || busy}
           />
         </div>
         <div>
           <label className="mb-1 block text-sm font-medium">Cost Rate</label>
-          <Input value={costRate} onChange={(event) => setCostRate(event.target.value)} inputMode="decimal" disabled={disabled || busy} />
+          <DecimalInput value={costRate} onChange={(event) => setCostRate(event.target.value)} disabled={disabled || busy} />
         </div>
       </div>
 
@@ -210,13 +209,12 @@ export function WorkOrderTimeEntryAddForm({
         </label>
         <div>
           <label className="mb-1 block text-sm font-medium">Billable Hours</label>
-          <Input
+          <DecimalInput
             value={billableHours}
             onChange={(event) => {
               setBillableHoursEdited(true);
               setBillableHours(event.target.value);
             }}
-            inputMode="decimal"
             disabled={disabled || busy || !billableToCustomer}
           />
           {billableToCustomer && Number(billableHours) < Number(hoursWorked) ? (
@@ -235,19 +233,17 @@ export function WorkOrderTimeEntryAddForm({
         </div>
         <div>
           <label className="mb-1 block text-sm font-medium">Billing Rate</label>
-          <Input
+          <DecimalInput
             value={billingRate}
             onChange={(event) => setBillingRate(event.target.value)}
-            inputMode="decimal"
             disabled={disabled || busy || !billableToCustomer}
           />
         </div>
         <div>
           <label className="mb-1 block text-sm font-medium">Tax %</label>
-          <Input
+          <DecimalInput
             value={taxPercent}
             onChange={(event) => setTaxPercent(event.target.value)}
-            inputMode="decimal"
             disabled={disabled || busy || !billableToCustomer}
           />
         </div>

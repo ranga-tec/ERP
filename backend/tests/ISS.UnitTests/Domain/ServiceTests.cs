@@ -310,4 +310,106 @@ public sealed class ServiceTests
         Assert.Equal(invoiceLineId, entry.SalesInvoiceLineId);
         Assert.Throws<DomainValidationException>(() => entry.MarkInvoiced(Guid.NewGuid(), Guid.NewGuid(), DateTimeOffset.UtcNow));
     }
+
+    [Fact]
+    public void ServiceEstimate_Fractional_Quantities_Prices_And_Tax_Tally_Exactly()
+    {
+        var estimate = new ServiceEstimate(
+            "SE-DECIMAL",
+            Guid.NewGuid(),
+            DateTimeOffset.UtcNow,
+            validUntil: null,
+            terms: null);
+
+        var labor = estimate.AddLine(ServiceEstimateLineKind.Labor, null, "Precision labor", 1.25m, 80.40m, 18m);
+        var expense = estimate.AddLine(ServiceEstimateLineKind.Expense, null, "Consumables", 2.5m, 12.34m, 5m);
+
+        Assert.Equal(100.50m, labor.LineSubtotal);
+        Assert.Equal(18.09m, labor.LineTax);
+        Assert.Equal(118.59m, labor.LineTotal);
+        Assert.Equal(30.85m, expense.LineSubtotal);
+        Assert.Equal(1.5425m, expense.LineTax);
+        Assert.Equal(32.3925m, expense.LineTotal);
+        Assert.Equal(131.35m, estimate.Subtotal);
+        Assert.Equal(19.6325m, estimate.TaxTotal);
+        Assert.Equal(150.9825m, estimate.Total);
+    }
+
+    [Fact]
+    public void ServiceExpenseClaim_Fractional_Quantities_And_Unit_Costs_Tally_Exactly()
+    {
+        var claim = new ServiceExpenseClaim(
+            "SEC-DECIMAL",
+            Guid.NewGuid(),
+            claimedByUserId: null,
+            claimedByName: "Tech Decimal",
+            fundingSource: ServiceExpenseFundingSource.OutOfPocket,
+            expenseDate: DateTimeOffset.UtcNow,
+            merchantName: null,
+            receiptReference: null,
+            notes: null);
+
+        var first = claim.AddLine(null, "Fractional item", 2.75m, 12.40m, billableToCustomer: true);
+        var second = claim.AddLine(null, "Half unit", 0.5m, 3.30m, billableToCustomer: false);
+
+        Assert.Equal(34.10m, first.LineTotal);
+        Assert.Equal(1.65m, second.LineTotal);
+        Assert.Equal(35.75m, claim.Total);
+        Assert.Throws<DomainValidationException>(() => claim.AddLine(null, "Invalid", 0m, 1m, false));
+        Assert.Throws<DomainValidationException>(() => claim.AddLine(null, "Invalid", 1m, -0.01m, false));
+    }
+
+    [Fact]
+    public void WorkOrder_Fractional_Hours_Rates_And_Tax_Tally_Exactly()
+    {
+        var workOrder = new WorkOrder(Guid.NewGuid(), "Decimal labor", assignedToUserId: null);
+        var entry = workOrder.AddTimeEntry(
+            technicianUserId: null,
+            technicianName: "Tech Decimal",
+            workDate: DateTimeOffset.UtcNow,
+            workDescription: "Fractional labor",
+            hoursWorked: 1.75m,
+            costRate: 12.40m,
+            billableToCustomer: true,
+            billableHours: 1.25m,
+            billingRate: 25.60m,
+            taxPercent: 18m,
+            notes: null);
+
+        Assert.Equal(21.70m, entry.LaborCost);
+        Assert.Equal(32m, entry.BillableSubtotal);
+        Assert.Equal(5.76m, entry.BillableTax);
+        Assert.Equal(37.76m, entry.BillableTotal);
+        Assert.Throws<DomainValidationException>(() => entry.Update(
+            null, "Tech Decimal", entry.WorkDate, entry.WorkDescription,
+            1m, 1m, true, 1.01m, 1m, 0m, null));
+    }
+
+    [Fact]
+    public void Material_Fractional_Quantities_And_Cost_Impact_Tally_Exactly()
+    {
+        var jobId = Guid.NewGuid();
+        var requisition = new MaterialRequisition("MR-DECIMAL", jobId, Guid.NewGuid(), DateTimeOffset.UtcNow);
+        var line = requisition.AddLine(Guid.NewGuid(), 2.75m, batchNumber: null);
+        Assert.Equal(2.75m, line.Quantity);
+        Assert.Throws<DomainValidationException>(() => requisition.AddLine(Guid.NewGuid(), 0m, null));
+
+        var disposition = new ServiceJobMaterialDisposition(
+            jobId,
+            requisition.Id,
+            line.Id,
+            line.ItemId,
+            requisition.WarehouseId,
+            ServiceJobMaterialDispositionKind.Used,
+            quantity: 1.25m,
+            unitCost: 8.80m,
+            batchNumber: null,
+            condition: "Used",
+            reason: "Installed",
+            ServiceJobMaterialChargeTo.Customer,
+            supplierReturnId: null,
+            responsiblePerson: null);
+
+        Assert.Equal(11m, disposition.CostImpact);
+    }
 }

@@ -30,9 +30,10 @@ export function PettyCashIssueForm({
   const router = useRouter();
   const [slipNumber, setSlipNumber] = useState("");
   const [issuedToUserId, setIssuedToUserId] = useState("");
+  const [issuedToName, setIssuedToName] = useState("");
   const [amount, setAmount] = useState("");
   const [purpose, setPurpose] = useState("");
-  const [pettyCashFundId, setPettyCashFundId] = useState(funds[0]?.id ?? "");
+  const pettyCashFundId = funds[0]?.id ?? "";
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -46,12 +47,14 @@ export function PettyCashIssueForm({
         amount: Number(amount),
         purpose: purpose.trim(),
         pettyCashFundId,
-        issuedToUserId: issuedToUserId || null,
+        issuedToUserId: issuedToUserId === "other" ? null : issuedToUserId,
+        issuedToName: issuedToUserId === "other" ? issuedToName.trim() : null,
       });
       setSlipNumber("");
       setAmount("");
       setPurpose("");
       setIssuedToUserId("");
+      setIssuedToName("");
       router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
@@ -77,13 +80,23 @@ export function PettyCashIssueForm({
           </p>
         </div>
         <div>
-          <label className="mb-1 block text-sm font-medium">Issued to (optional)</label>
+          <label className="mb-1 block text-sm font-medium">Issued to</label>
           <Select value={issuedToUserId} onChange={(event) => setIssuedToUserId(event.target.value)}>
-            <option value="">Not a named person</option>
+            <option value="" disabled>Select staff member...</option>
             {staff.map((person) => (
               <option key={person.userId} value={person.userId}>{person.name}</option>
             ))}
+            <option value="other">Someone else (not staff)</option>
           </Select>
+          {issuedToUserId === "other" ? (
+            <Input
+              className="mt-2"
+              value={issuedToName}
+              onChange={(event) => setIssuedToName(event.target.value)}
+              placeholder="Name of outsider"
+              required
+            />
+          ) : null}
           <p className="mt-1 text-xs text-zinc-500">
             Whoever took the cash. The advance is theirs to settle.
           </p>
@@ -101,17 +114,6 @@ export function PettyCashIssueForm({
             required
           />
         </div>
-        {funds.length > 1 ? (
-          <div>
-            <label className="mb-1 block text-sm font-medium">From fund</label>
-            <Select value={pettyCashFundId} onChange={(event) => setPettyCashFundId(event.target.value)} required>
-              <option value="" disabled>Select...</option>
-              {funds.map((fund) => (
-                <option key={fund.id} value={fund.id}>{fund.code} - {fund.name}</option>
-              ))}
-            </Select>
-          </div>
-        ) : null}
       </div>
 
       <div>

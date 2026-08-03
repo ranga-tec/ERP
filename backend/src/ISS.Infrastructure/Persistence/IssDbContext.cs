@@ -91,6 +91,8 @@ public sealed class IssDbContext(
     public DbSet<PettyCashFund> PettyCashFunds => Set<PettyCashFund>();
     public DbSet<PettyCashIou> PettyCashIous => Set<PettyCashIou>();
     public DbSet<PettyCashRequest> PettyCashRequests => Set<PettyCashRequest>();
+    public DbSet<PettyCashReturn> PettyCashReturns => Set<PettyCashReturn>();
+    public DbSet<PettyCashReallocation> PettyCashReallocations => Set<PettyCashReallocation>();
     public DbSet<CreditNote> CreditNotes => Set<CreditNote>();
     public DbSet<DebitNote> DebitNotes => Set<DebitNote>();
     public DbSet<DocumentComment> DocumentComments => Set<DocumentComment>();
@@ -909,6 +911,9 @@ public sealed class IssDbContext(
             entity.HasIndex(x => new { x.PettyCashFundId, x.OccurredAt });
             entity.HasIndex(x => new { x.ReferenceType, x.ReferenceId });
             entity.HasIndex(x => x.PettyCashRequestLineId);
+            entity.HasIndex(x => new { x.ReferenceType, x.ReferenceId, x.PettyCashRequestLineId })
+                .IsUnique()
+                .HasFilter("\"ReferenceType\" IN ('PCRTN', 'PCRAL')");
             entity.Property(x => x.Amount).HasPrecision(18, 4);
             entity.Property(x => x.ReferenceType).HasMaxLength(64);
             entity.Property(x => x.ReferenceNumber).HasMaxLength(128);
@@ -948,15 +953,59 @@ public sealed class IssDbContext(
             entity.Property(x => x.Notes).HasMaxLength(512);
         });
 
+        builder.Entity<PettyCashReturn>(entity =>
+        {
+            entity.HasIndex(x => x.Number).IsUnique();
+            entity.HasIndex(x => x.PettyCashFundId);
+            entity.HasIndex(x => x.PreparedByUserId);
+            entity.HasIndex(x => x.Status);
+            entity.Property(x => x.Number).HasMaxLength(32);
+            entity.Property(x => x.PreparedByName).HasMaxLength(256);
+            entity.Property(x => x.Notes).HasMaxLength(1000);
+            entity.Property(x => x.ReceiptReference).HasMaxLength(128);
+            entity.Property(x => x.RejectionReason).HasMaxLength(512);
+            entity.HasOne<PettyCashFund>().WithMany().HasForeignKey(x => x.PettyCashFundId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasMany(x => x.Lines).WithOne().HasForeignKey(x => x.PettyCashReturnId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        builder.Entity<PettyCashReturnLine>(entity =>
+        {
+            entity.HasIndex(x => new { x.PettyCashReturnId, x.PettyCashRequestLineId }).IsUnique();
+            entity.HasIndex(x => x.PettyCashRequestLineId);
+            entity.Property(x => x.Amount).HasPrecision(18, 4);
+            entity.HasOne<PettyCashRequestLine>().WithMany().HasForeignKey(x => x.PettyCashRequestLineId).OnDelete(DeleteBehavior.Restrict);
+        });
+
+        builder.Entity<PettyCashReallocation>(entity =>
+        {
+            entity.HasIndex(x => x.Number).IsUnique();
+            entity.HasIndex(x => x.PettyCashFundId);
+            entity.HasIndex(x => x.SourcePettyCashRequestLineId);
+            entity.HasIndex(x => x.DestinationPettyCashRequestLineId);
+            entity.HasIndex(x => x.RequestedByUserId);
+            entity.HasIndex(x => x.Status);
+            entity.Property(x => x.Number).HasMaxLength(32);
+            entity.Property(x => x.Amount).HasPrecision(18, 4);
+            entity.Property(x => x.Reason).HasMaxLength(1000);
+            entity.Property(x => x.RequestedByName).HasMaxLength(256);
+            entity.Property(x => x.RejectionReason).HasMaxLength(512);
+            entity.HasOne<PettyCashFund>().WithMany().HasForeignKey(x => x.PettyCashFundId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne<PettyCashRequestLine>().WithMany().HasForeignKey(x => x.SourcePettyCashRequestLineId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne<PettyCashRequestLine>().WithMany().HasForeignKey(x => x.DestinationPettyCashRequestLineId).OnDelete(DeleteBehavior.Restrict);
+        });
+
         builder.Entity<PettyCashIou>(entity =>
         {
             entity.HasIndex(x => x.Number).IsUnique();
+            entity.HasIndex(x => x.IssueBillNumber).IsUnique();
             entity.HasIndex(x => x.ServiceJobId);
             entity.HasIndex(x => x.ServiceJobDailySheetId);
             entity.HasIndex(x => x.RequestedByUserId);
+            entity.HasIndex(x => x.IssuedToUserId);
             entity.HasIndex(x => x.PettyCashFundId);
             entity.Property(x => x.Number).HasMaxLength(32);
             entity.Property(x => x.RequestedByName).HasMaxLength(256);
+            entity.Property(x => x.IssuedToName).HasMaxLength(256);
             entity.Property(x => x.Amount).HasPrecision(18, 4);
             entity.Property(x => x.Purpose).HasMaxLength(1000);
             entity.Property(x => x.RejectionReason).HasMaxLength(512);

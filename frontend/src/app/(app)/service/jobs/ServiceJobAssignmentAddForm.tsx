@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { apiPost } from "@/lib/api-client";
-import { Button, Input, Select, Textarea } from "@/components/ui";
+import { Button, DecimalInput, Input, Select, Textarea } from "@/components/ui";
 
 type TechnicianRef = {
   id: string;
@@ -210,11 +210,11 @@ export function ServiceJobAssignmentAddForm({
         </div>
         <div>
           <label className="mb-1 block text-sm font-medium">Normal hours</label>
-          <Input value={normalHours} onChange={(event) => setNormalHours(event.target.value)} inputMode="decimal" disabled={disabled || busy} />
+          <DecimalInput value={normalHours} onChange={(event) => setNormalHours(event.target.value)} disabled={disabled || busy} />
         </div>
         <div>
           <label className="mb-1 block text-sm font-medium">Overtime hours</label>
-          <Input value={overtimeHours} onChange={(event) => setOvertimeHours(event.target.value)} inputMode="decimal" disabled={disabled || busy} />
+          <DecimalInput value={overtimeHours} onChange={(event) => setOvertimeHours(event.target.value)} disabled={disabled || busy} />
         </div>
       </div>
 

@@ -26,7 +26,7 @@ export function NotificationBell() {
     }
 
     void load();
-    const handle = window.setInterval(load, 60_000);
+    const handle = window.setInterval(load, 15_000);
     return () => {
       cancelled = true;
       window.clearInterval(handle);

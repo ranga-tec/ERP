@@ -10,7 +10,10 @@ public enum PettyCashTransactionType
     Adjustment = 4,
     IouRelease = 5,
     IouSettlement = 6,
-    RequestFunding = 7
+    RequestFunding = 7,
+    HeadOfficeReturn = 8,
+    CategoryTransferOut = 9,
+    CategoryTransferIn = 10
 }
 
 public enum PettyCashTransactionDirection
@@ -223,6 +226,96 @@ public sealed class PettyCashFund : AuditableEntity
             pettyCashRequestLineId);
     }
 
+    /// <summary>
+    /// Cash from one funded category that head office has physically received back. This is an
+    /// asset/custody movement, not an expense, and therefore reduces both the float and the same
+    /// category sub-account that the original request funding credited.
+    /// </summary>
+    public PettyCashTransaction RecordHeadOfficeReturn(
+        decimal amount,
+        DateTimeOffset occurredAt,
+        Guid pettyCashReturnId,
+        Guid pettyCashRequestLineId,
+        string receiptReference,
+        string? notes)
+    {
+        EnsureActive();
+        EnsureSufficientBalance(amount);
+
+        var categoryBalance = BalanceForRequestLine(pettyCashRequestLineId);
+        if (categoryBalance < amount)
+        {
+            throw new DomainValidationException(
+                $"The selected petty cash category has only {categoryBalance:0.00} available to return.");
+        }
+
+        return AddTransaction(
+            PettyCashTransactionType.HeadOfficeReturn,
+            PettyCashTransactionDirection.Out,
+            amount,
+            occurredAt,
+            referenceType: "PCRTN",
+            referenceId: pettyCashReturnId,
+            referenceNumber: receiptReference,
+            notes,
+            pettyCashRequestLineId);
+    }
+
+    /// <summary>
+    /// Reclassifies cash between two funded categories without changing the physical fund total.
+    /// The equal out/in entries deliberately share one reference so the transfer remains atomic and
+    /// auditable while each request-line sub-account keeps the correct balance.
+    /// </summary>
+    public IReadOnlyList<PettyCashTransaction> RecordCategoryReallocation(
+        decimal amount,
+        DateTimeOffset occurredAt,
+        Guid pettyCashReallocationId,
+        Guid sourcePettyCashRequestLineId,
+        Guid destinationPettyCashRequestLineId,
+        string referenceNumber,
+        string reason)
+    {
+        EnsureActive();
+        if (sourcePettyCashRequestLineId == destinationPettyCashRequestLineId)
+        {
+            throw new DomainValidationException("Source and destination categories must be different.");
+        }
+
+        var validatedAmount = Guard.Positive(amount, nameof(amount));
+        var transactionNote = string.IsNullOrWhiteSpace(reason)
+            ? null
+            : reason.Trim()[..Math.Min(reason.Trim().Length, 512)];
+        var sourceBalance = BalanceForRequestLine(sourcePettyCashRequestLineId);
+        if (sourceBalance < validatedAmount)
+        {
+            throw new DomainValidationException(
+                $"The source petty cash category has only {sourceBalance:0.00} available to reallocate.");
+        }
+
+        var transferOut = AddTransaction(
+            PettyCashTransactionType.CategoryTransferOut,
+            PettyCashTransactionDirection.Out,
+            validatedAmount,
+            occurredAt,
+            referenceType: "PCRAL",
+            referenceId: pettyCashReallocationId,
+            referenceNumber,
+            transactionNote,
+            sourcePettyCashRequestLineId);
+        var transferIn = AddTransaction(
+            PettyCashTransactionType.CategoryTransferIn,
+            PettyCashTransactionDirection.In,
+            validatedAmount,
+            occurredAt,
+            referenceType: "PCRAL",
+            referenceId: pettyCashReallocationId,
+            referenceNumber,
+            transactionNote,
+            destinationPettyCashRequestLineId);
+
+        return [transferOut, transferIn];
+    }
+
     private PettyCashTransaction AddTransaction(
         PettyCashTransactionType type,
         PettyCashTransactionDirection direction,
@@ -384,6 +477,12 @@ public sealed class PettyCashIou : AuditableEntity
     public Guid? ServiceJobDailySheetId { get; private set; }
     public Guid RequestedByUserId { get; private set; }
     public string RequestedByName { get; private set; } = null!;
+    /// <summary>
+    /// The employee who physically collected the cash. This is deliberately separate from the
+    /// requester: a supervisor may raise the job request and send another employee to collect it.
+    /// </summary>
+    public Guid? IssuedToUserId { get; private set; }
+    public string? IssuedToName { get; private set; }
     public decimal Amount { get; private set; }
     public string Purpose { get; private set; } = null!;
     public DateTimeOffset RequestedAt { get; private set; }
@@ -467,6 +566,8 @@ public sealed class PettyCashIou : AuditableEntity
             ReleasedAt = issuedAt,
             PettyCashRequestLineId = pettyCashRequestLineId,
             IssueBillNumber = issueBillNumber,
+            IssuedToUserId = requestedByUserId,
+            IssuedToName = requestedByName,
         };
 
         return iou;
@@ -515,7 +616,9 @@ public sealed class PettyCashIou : AuditableEntity
         Guid pettyCashFundId,
         DateTimeOffset releasedAt,
         string? releaseReference,
-        string? issueBillNumber = null,
+        string issueBillNumber,
+        Guid issuedToUserId,
+        string issuedToName,
         Guid? pettyCashRequestLineId = null)
     {
         if (Status != PettyCashIouStatus.Approved)
@@ -526,7 +629,11 @@ public sealed class PettyCashIou : AuditableEntity
         PettyCashFundId = pettyCashFundId;
         ReleasedAt = releasedAt;
         ReleaseReference = string.IsNullOrWhiteSpace(releaseReference) ? null : Guard.NotNullOrWhiteSpace(releaseReference, nameof(releaseReference), maxLength: 128);
-        IssueBillNumber = string.IsNullOrWhiteSpace(issueBillNumber) ? null : Guard.NotNullOrWhiteSpace(issueBillNumber, nameof(issueBillNumber), maxLength: 64);
+        IssueBillNumber = Guard.NotNullOrWhiteSpace(issueBillNumber, nameof(issueBillNumber), maxLength: 64);
+        IssuedToUserId = issuedToUserId == Guid.Empty
+            ? throw new DomainValidationException("The employee collecting the cash is required.")
+            : issuedToUserId;
+        IssuedToName = Guard.NotNullOrWhiteSpace(issuedToName, nameof(issuedToName), maxLength: 256);
         PettyCashRequestLineId = pettyCashRequestLineId;
         Status = PettyCashIouStatus.Released;
     }

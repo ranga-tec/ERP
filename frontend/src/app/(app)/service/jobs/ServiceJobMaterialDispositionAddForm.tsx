@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { apiPost } from "@/lib/api-client";
-import { Button, Input, Select, Textarea } from "@/components/ui";
+import { Button, DecimalInput, Input, Select, Textarea } from "@/components/ui";
 
 type MaterialLineRef = {
   materialRequisitionLineId: string;
@@ -130,7 +130,7 @@ export function ServiceJobMaterialDispositionAddForm({
           <label className="mb-1 block text-sm font-medium">
             Quantity{uniqueLines.find((line) => line.materialRequisitionLineId === lineId)?.unitOfMeasure ? <span className="ml-1 text-xs font-normal text-zinc-500">({uniqueLines.find((line) => line.materialRequisitionLineId === lineId)?.unitOfMeasure})</span> : null}
           </label>
-          <Input value={quantity} onChange={(event) => setQuantity(event.target.value)} inputMode="decimal" disabled={disabled || busy} />
+          <DecimalInput value={quantity} onChange={(event) => setQuantity(event.target.value)} disabled={disabled || busy} />
         </div>
         <div>
           <label className="mb-1 block text-sm font-medium">Charge to</label>

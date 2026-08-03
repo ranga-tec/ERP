@@ -18,6 +18,8 @@ public sealed class IssApiFactory(string connectionString) : WebApplicationFacto
             config.AddInMemoryCollection(new Dictionary<string, string?>
             {
                 ["ConnectionStrings:Default"] = connectionString,
+                // IssApiFixture creates and seeds the schema before WebApplicationFactory starts.
+                // Program may then seed roles without racing a fixture-side delete/recreate cycle.
                 ["Database:InitializationMode"] = "None",
                 ["Jwt:Issuer"] = "neuedge",
                 ["Jwt:Audience"] = "neuedge",

@@ -27,6 +27,7 @@ type PettyCashFundDto = {
     referenceId?: string | null;
     referenceNumber?: string | null;
     notes?: string | null;
+    pettyCashRequestLineId?: string | null;
   }[];
 };
 
@@ -40,6 +41,9 @@ const transactionTypeLabel: Record<number, string> = {
   5: "IOU Cash Release",
   6: "IOU Settlement Return",
   7: "Head Office Funding",
+  8: "Returned to Head Office",
+  9: "Category Transfer Out",
+  10: "Category Transfer In",
 };
 
 const directionLabel: Record<number, string> = {

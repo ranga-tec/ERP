@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { apiGet, apiPost } from "@/lib/api-client";
-import { Button, Input, SecondaryButton, Select } from "@/components/ui";
+import { Button, DecimalInput, Input, SecondaryButton, Select } from "@/components/ui";
 
 export type BillingItemRef = {
   id: string;
@@ -827,7 +827,7 @@ export function ServiceJobBillingBuilder({
                   <option value="percent">%</option>
                   <option value="amount">Amount</option>
                 </Select>
-                <Input value={discountValue} onChange={(e) => setDiscountValue(e.target.value)} inputMode="decimal" disabled={disabled || busy} />
+                <DecimalInput value={discountValue} onChange={(e) => setDiscountValue(e.target.value)} disabled={disabled || busy} />
               </div>
               <div className="mt-1 text-[11px] text-zinc-500">
                 Spread across the lines so tax stays right. Per-line discount is separate.
@@ -911,11 +911,10 @@ function NumCell({
   disabled?: boolean;
 }) {
   return (
-    <Input
+    <DecimalInput
       className="w-24"
       value={value}
       onChange={(e) => onChange(e.target.value)}
-      inputMode="decimal"
       disabled={disabled}
     />
   );

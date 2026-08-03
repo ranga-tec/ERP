@@ -15,6 +15,7 @@ type PettyCashIouDto = {
   serviceJobId?: string | null;
   serviceJobNumber?: string | null;
   requestedByName: string;
+  issuedToName?: string | null;
   amount: number;
   purpose: string;
   requestedAt: string;
@@ -106,7 +107,9 @@ export default async function PettyCashIouDetailPage({ params }: { params: Promi
         </div>
         <h1 className="mt-1 text-2xl font-semibold">I.O.U. {iou.number}</h1>
         <div className="mt-2 flex flex-wrap gap-3 text-sm text-zinc-600 dark:text-zinc-400">
-          <div>Held by: {iou.requestedByName}</div>
+          <div>Requested by: {iou.requestedByName}</div>
+          {iou.issuedToName ? <div>Collected by: {iou.issuedToName}</div> : null}
+          {iou.issueBillNumber ? <div>Signed slip: {iou.issueBillNumber}</div> : null}
           <div>Status: {statusLabel[iou.status] ?? iou.status}</div>
           <div>
             Job:{" "}

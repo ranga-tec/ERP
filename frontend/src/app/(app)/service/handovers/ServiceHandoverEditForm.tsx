@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { apiPut } from "@/lib/api-client";
-import { Button, Input, Textarea } from "@/components/ui";
+import { Button, Input, IntegerInput, Textarea } from "@/components/ui";
 
 type ServiceHandoverDto = {
   id: string;
@@ -69,10 +69,9 @@ export function ServiceHandoverEditForm({ handover }: { handover: ServiceHandove
       <div className="grid gap-3 sm:grid-cols-2">
         <div>
           <label className="mb-1 block text-sm font-medium">Post-service Warranty (months)</label>
-          <Input
+          <IntegerInput
             value={postServiceWarrantyMonths}
             onChange={(event) => setPostServiceWarrantyMonths(event.target.value)}
-            inputMode="numeric"
             placeholder="Optional"
           />
         </div>

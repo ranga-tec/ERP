@@ -59,6 +59,8 @@ public sealed class PettyCashIousController(
         Guid? ServiceJobDailySheetId,
         Guid RequestedByUserId,
         string RequestedByName,
+        Guid? IssuedToUserId,
+        string? IssuedToName,
         decimal Amount,
         string Purpose,
         DateTimeOffset RequestedAt,
@@ -96,7 +98,8 @@ public sealed class PettyCashIousController(
     public sealed record ReleasePettyCashIouRequest(
         Guid PettyCashFundId,
         string? ReleaseReference,
-        string? IssueBillNumber,
+        string IssueBillNumber,
+        Guid IssuedToUserId,
         Guid? PettyCashRequestLineId);
 
     public sealed record SettlePettyCashIouRequest(string? SettlementReference);
@@ -271,14 +274,31 @@ public sealed class PettyCashIousController(
             return Forbid();
         }
 
+        if (request.IssuedToUserId == Guid.Empty)
+        {
+            return BadRequest("Select the employee collecting the cash.");
+        }
+
+        var issuedToName = await userManager.Users.AsNoTracking()
+            .Where(x => x.Id == request.IssuedToUserId)
+            .Select(x => x.DisplayName != null && x.DisplayName != "" ? x.DisplayName : (x.Email ?? x.UserName))
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (string.IsNullOrWhiteSpace(issuedToName))
+        {
+            return BadRequest("The selected employee no longer exists.");
+        }
+
         await financeService.ReleasePettyCashIouAsync(
             id,
             request.PettyCashFundId,
             request.ReleaseReference,
             request.IssueBillNumber,
+            request.IssuedToUserId,
+            issuedToName,
             request.PettyCashRequestLineId,
             cancellationToken);
-        await NotifyRequesterAsync(id, "IOU cash released", "Cash has been released for your IOU request.", cancellationToken);
+        await NotifyIouReleasedAsync(id, cancellationToken);
         return NoContent();
     }
 
@@ -467,6 +487,42 @@ public sealed class PettyCashIousController(
         await dbContext.SaveChangesAsync(cancellationToken);
     }
 
+    private async Task NotifyIouReleasedAsync(Guid id, CancellationToken cancellationToken)
+    {
+        var iou = await dbContext.PettyCashIous.AsNoTracking()
+            .Where(x => x.Id == id)
+            .Select(x => new
+            {
+                x.Id,
+                x.Number,
+                x.RequestedByUserId,
+                x.IssuedToUserId,
+                x.IssuedToName,
+                x.Amount,
+            })
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (iou is null)
+        {
+            return;
+        }
+
+        var recipients = new[] { iou.RequestedByUserId, iou.IssuedToUserId ?? Guid.Empty }
+            .Where(userId => userId != Guid.Empty)
+            .Distinct()
+            .ToList();
+
+        notificationService.EnqueueInAppForUsers(
+            recipients,
+            "IOU cash released",
+            $"{iou.Number}: {iou.Amount:0.00} was released to {iou.IssuedToName ?? "the collector"}.",
+            $"/finance/petty-cash-ious/{iou.Id}",
+            ReferenceTypes.PettyCashIou,
+            iou.Id);
+
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
     /// <summary>
     /// Claimed is what the technician actually documented against this advance; settled is what they
     /// declared they spent. The gap between the two is cash that left the fund with nothing to show
@@ -531,6 +587,8 @@ public sealed class PettyCashIousController(
             iou.ServiceJobDailySheetId,
             iou.RequestedByUserId,
             iou.RequestedByName,
+            iou.IssuedToUserId,
+            iou.IssuedToName,
             iou.Amount,
             iou.Purpose,
             iou.RequestedAt,

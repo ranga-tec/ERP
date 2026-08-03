@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { apiPost } from "@/lib/api-client";
-import { Button, Input } from "@/components/ui";
+import { Button, DecimalInput, Input } from "@/components/ui";
 
 export function ServiceTechnicianCreateForm() {
   const router = useRouter();
@@ -56,11 +56,11 @@ export function ServiceTechnicianCreateForm() {
         </div>
         <div>
           <label className="mb-1 block text-sm font-medium">Default cost rate</label>
-          <Input value={defaultCostRate} onChange={(event) => setDefaultCostRate(event.target.value)} inputMode="decimal" />
+          <DecimalInput value={defaultCostRate} onChange={(event) => setDefaultCostRate(event.target.value)} />
         </div>
         <div>
           <label className="mb-1 block text-sm font-medium">Default billing rate</label>
-          <Input value={defaultBillingRate} onChange={(event) => setDefaultBillingRate(event.target.value)} inputMode="decimal" />
+          <DecimalInput value={defaultBillingRate} onChange={(event) => setDefaultBillingRate(event.target.value)} />
         </div>
       </div>
       <div className="grid gap-3 md:grid-cols-2">

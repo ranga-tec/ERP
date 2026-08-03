@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { apiPut } from "@/lib/api-client";
-import { Button, Input, Select } from "@/components/ui";
+import { Button, Input, IntegerInput, Select } from "@/components/ui";
 
 type EquipmentUnitDto = {
   id: string;
@@ -127,7 +127,7 @@ export function EquipmentUnitEditForm({
         </div>
         <div>
           <label className="mb-1 block text-sm font-medium">Service interval days</label>
-          <Input min="1" type="number" value={serviceIntervalDays} onChange={(event) => setServiceIntervalDays(event.target.value)} />
+          <IntegerInput min="1" value={serviceIntervalDays} onChange={(event) => setServiceIntervalDays(event.target.value)} />
         </div>
         <div>
           <label className="mb-1 block text-sm font-medium">Next service date</label>

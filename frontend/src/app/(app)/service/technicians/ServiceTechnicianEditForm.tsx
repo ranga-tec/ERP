@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { apiPut } from "@/lib/api-client";
-import { Button, Input } from "@/components/ui";
+import { Button, DecimalInput, Input } from "@/components/ui";
 
 type ServiceTechnicianDto = {
   id: string;
@@ -66,11 +66,11 @@ export function ServiceTechnicianEditForm({ technician }: { technician: ServiceT
       <div className="grid gap-3 sm:grid-cols-2">
         <div>
           <label className="mb-1 block text-sm font-medium">Cost rate</label>
-          <Input value={defaultCostRate} onChange={(event) => setDefaultCostRate(event.target.value)} inputMode="decimal" required />
+          <DecimalInput value={defaultCostRate} onChange={(event) => setDefaultCostRate(event.target.value)} required />
         </div>
         <div>
           <label className="mb-1 block text-sm font-medium">Billing rate</label>
-          <Input value={defaultBillingRate} onChange={(event) => setDefaultBillingRate(event.target.value)} inputMode="decimal" required />
+          <DecimalInput value={defaultBillingRate} onChange={(event) => setDefaultBillingRate(event.target.value)} required />
         </div>
       </div>
 

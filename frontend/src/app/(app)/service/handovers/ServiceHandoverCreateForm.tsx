@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { apiPost } from "@/lib/api-client";
-import { Button, Input, Select, Textarea } from "@/components/ui";
+import { Button, Input, IntegerInput, Select, Textarea } from "@/components/ui";
 
 type ServiceJobRef = { id: string; number: string; customerId: string; status: number };
 type CustomerRef = { id: string; code: string; name: string };
@@ -79,10 +79,9 @@ export function ServiceHandoverCreateForm({
         </div>
         <div>
           <label className="mb-1 block text-sm font-medium">Post-service Warranty (months)</label>
-          <Input
+          <IntegerInput
             value={postServiceWarrantyMonths}
             onChange={(e) => setPostServiceWarrantyMonths(e.target.value)}
-            inputMode="numeric"
             placeholder="Optional"
           />
         </div>

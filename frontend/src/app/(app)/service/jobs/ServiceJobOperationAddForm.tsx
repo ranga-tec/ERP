@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { apiPost } from "@/lib/api-client";
-import { Button, Input, Select, Textarea } from "@/components/ui";
+import { Button, DecimalInput, Input, IntegerInput, Select, Textarea } from "@/components/ui";
 
 type OperationDto = { id: string };
 type ItemOption = { id: string; sku: string; name: string };
@@ -73,7 +73,7 @@ export function ServiceJobOperationAddForm({
       <div className="grid gap-3 lg:grid-cols-4">
         <div>
           <label className="mb-1 block text-sm font-medium">Step No.</label>
-          <Input type="number" min="1" step="1" value={sequence} onChange={(event) => setSequence(event.target.value)} disabled={disabled || busy} />
+          <IntegerInput min="1" value={sequence} onChange={(event) => setSequence(event.target.value)} disabled={disabled || busy} />
         </div>
         <div className="lg:col-span-2">
           <label className="mb-1 block text-sm font-medium">Work step / subassembly</label>
@@ -98,11 +98,11 @@ export function ServiceJobOperationAddForm({
         </div>
         <div>
           <label className="mb-1 block text-sm font-medium">Planned qty</label>
-          <Input type="number" min="0" step="0.01" value={plannedQuantity} onChange={(event) => setPlannedQuantity(event.target.value)} disabled={disabled || busy} />
+          <DecimalInput min="0" value={plannedQuantity} onChange={(event) => setPlannedQuantity(event.target.value)} disabled={disabled || busy} />
         </div>
         <div>
           <label className="mb-1 block text-sm font-medium">Labor hours</label>
-          <Input type="number" min="0" step="0.25" value={estimatedLaborHours} onChange={(event) => setEstimatedLaborHours(event.target.value)} disabled={disabled || busy} />
+          <DecimalInput min="0" value={estimatedLaborHours} onChange={(event) => setEstimatedLaborHours(event.target.value)} disabled={disabled || busy} />
         </div>
       </div>
       <div className="grid gap-3 lg:grid-cols-2">

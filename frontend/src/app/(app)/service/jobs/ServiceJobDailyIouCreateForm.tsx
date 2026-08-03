@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { apiPost, apiPostNoContent } from "@/lib/api-client";
-import { Button, Input, Select, Textarea } from "@/components/ui";
+import { Button, DecimalInput, Input, Select, Textarea } from "@/components/ui";
 
 type DailySheetRef = { id: string; number: string; status: number };
 type PettyCashIouDto = { id: string; number: string; status: number };
@@ -69,7 +69,7 @@ export function ServiceJobDailyIouCreateForm({
         </div>
         <div>
           <label className="mb-1 block text-sm font-medium">Amount</label>
-          <Input value={amount} onChange={(event) => setAmount(event.target.value)} inputMode="decimal" disabled={disabled || busy} required />
+          <DecimalInput value={amount} onChange={(event) => setAmount(event.target.value)} disabled={disabled || busy} required />
         </div>
         <div>
           <label className="mb-1 block text-sm font-medium">Expected settlement</label>
