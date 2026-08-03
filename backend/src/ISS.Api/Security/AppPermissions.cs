@@ -6,6 +6,7 @@ public static class AppPermissions
 {
     public const string PettyCashIouView = "Finance.PettyCashIou.View";
     public const string PettyCashIouCreate = "Finance.PettyCashIou.Create";
+    public const string PettyCashIouEdit = "Finance.PettyCashIou.Edit";
     public const string PettyCashIouSubmit = "Finance.PettyCashIou.Submit";
     public const string PettyCashIouApprove = "Finance.PettyCashIou.Approve";
     public const string PettyCashIouReject = "Finance.PettyCashIou.Reject";
@@ -144,6 +145,7 @@ public static class AppPermissions
     [
         new(PettyCashIouView, "Finance / Petty Cash IOU", "View", "View IOUs", "Open and review petty-cash IOU requests."),
         new(PettyCashIouCreate, "Finance / Petty Cash IOU", "Create", "Create IOUs", "Create petty-cash IOU requests."),
+        new(PettyCashIouEdit, "Finance / Petty Cash IOU", "Edit", "Edit IOUs", "Change draft or submitted IOUs before approval."),
         new(PettyCashIouSubmit, "Finance / Petty Cash IOU", "Submit", "Submit IOUs", "Submit IOUs for approval."),
         new(PettyCashIouApprove, "Finance / Petty Cash IOU", "Approve", "Approve IOUs", "Approve submitted IOU requests."),
         new(PettyCashIouReject, "Finance / Petty Cash IOU", "Reject", "Reject IOUs", "Reject submitted IOU requests."),

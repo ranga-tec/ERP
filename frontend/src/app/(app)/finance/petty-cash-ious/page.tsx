@@ -171,12 +171,15 @@ export default async function PettyCashIousPage() {
                       status={iou.status}
                       funds={activeFunds}
                       amount={iou.amount}
+                      purpose={iou.purpose}
+                      expectedSettlementAt={iou.expectedSettlementAt ?? null}
                       serviceJobId={iou.serviceJobId ?? null}
                       serviceJobNumber={
                         iou.serviceJobId
                           ? jobs.find((job) => job.id === iou.serviceJobId)?.number ?? null
                           : null
                       }
+                      serviceJobs={jobs.filter((job) => job.status !== 3 && job.status !== 4)}
                       staff={staff}
                       fundedCategories={fundedCategories}
                       permissions={currentPermissions.permissions}

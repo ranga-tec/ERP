@@ -94,6 +94,12 @@ public sealed class PettyCashIousController(
         string? RequestedByName,
         Guid? ServiceJobDailySheetId);
 
+    public sealed record UpdatePettyCashIouRequest(
+        Guid ServiceJobId,
+        decimal Amount,
+        string Purpose,
+        DateTimeOffset? ExpectedSettlementAt);
+
     public sealed record RejectPettyCashIouRequest(string? Reason);
     public sealed record ReleasePettyCashIouRequest(
         Guid PettyCashFundId,
@@ -225,6 +231,28 @@ public sealed class PettyCashIousController(
             iou,
             totals.GetValueOrDefault(iou.Id, IouClaimTotals.Empty),
             iou.ServiceJobId is { } jobId ? jobNumbers.GetValueOrDefault(jobId) : null));
+    }
+
+    [HttpPut("{id:guid}")]
+    public async Task<ActionResult> Update(
+        Guid id,
+        UpdatePettyCashIouRequest request,
+        CancellationToken cancellationToken)
+    {
+        if (!await HasPermissionAsync(AppPermissions.PettyCashIouEdit, cancellationToken))
+        {
+            return Forbid();
+        }
+
+        await financeService.UpdatePettyCashIouBeforeApprovalAsync(
+            id,
+            request.ServiceJobId,
+            request.Amount,
+            request.Purpose,
+            request.ExpectedSettlementAt?.ToUniversalTime(),
+            cancellationToken);
+
+        return NoContent();
     }
 
     [HttpPost("{id:guid}/submit")]

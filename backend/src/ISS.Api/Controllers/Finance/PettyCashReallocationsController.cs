@@ -127,6 +127,24 @@ public sealed class PettyCashReallocationsController(
     {
         if (!await HasPermissionAsync(AppPermissions.PettyCashReallocationCreate, cancellationToken)) return Forbid();
 
+        return Ok(await LoadBalanceRowsAsync(pettyCashFundId, cancellationToken));
+    }
+
+    [HttpGet("category-balances")]
+    public async Task<ActionResult<IReadOnlyList<ReallocationCandidateDto>>> CategoryBalances(
+        [FromQuery] Guid? pettyCashFundId,
+        CancellationToken cancellationToken)
+    {
+        if (!await HasPermissionAsync(AppPermissions.PettyCashReallocationView, cancellationToken)) return Forbid();
+
+        return Ok(await LoadBalanceRowsAsync(pettyCashFundId, cancellationToken));
+    }
+
+    private async Task<IReadOnlyList<ReallocationCandidateDto>> LoadBalanceRowsAsync(
+        Guid? pettyCashFundId,
+        CancellationToken cancellationToken)
+    {
+
         var query = dbContext.PettyCashRequests.AsNoTracking()
             .Where(request => request.Status == PettyCashRequestStatus.PartiallyFunded
                               || request.Status == PettyCashRequestStatus.Funded);
@@ -184,7 +202,7 @@ public sealed class PettyCashReallocationsController(
             .Where(x => jobIds.Contains(x.Id))
             .ToDictionaryAsync(x => x.Id, x => x.Number, cancellationToken);
 
-        return Ok(rows.Select(x =>
+        return rows.Select(x =>
         {
             var balance = balances.GetValueOrDefault(x.Line.Id);
             var pendingReturn = returnReservations.GetValueOrDefault(x.Line.Id);
@@ -204,7 +222,12 @@ public sealed class PettyCashReallocationsController(
                 pendingReturn,
                 pendingReallocation,
                 Math.Max(0m, balance - pendingReturn - pendingReallocation));
-        }).ToList());
+        })
+        .OrderBy(x => x.PettyCashFundCode)
+        .ThenBy(x => x.Category)
+        .ThenBy(x => x.ServiceJobNumber)
+        .ThenBy(x => x.RequestNumber)
+        .ToList();
     }
 
     [HttpGet("{id:guid}")]

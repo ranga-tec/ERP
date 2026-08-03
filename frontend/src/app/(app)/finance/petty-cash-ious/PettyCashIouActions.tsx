@@ -3,10 +3,13 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { apiPostNoContent } from "@/lib/api-client";
+import { AppFormModal } from "@/components/AppFormModal";
 import { Button, Input, SecondaryButton, Select, Textarea } from "@/components/ui";
+import { PettyCashIouEditForm } from "./PettyCashIouEditForm";
 
 type FundRef = { id: string; code: string; name: string };
 type StaffRef = { userId: string; name: string; email?: string | null };
+type ServiceJobRef = { id: string; number: string };
 type FundedCategoryRef = {
   id: string;
   requestNumber: string;
@@ -28,8 +31,11 @@ export function PettyCashIouActions({
   status,
   funds,
   amount,
+  purpose,
+  expectedSettlementAt,
   serviceJobId,
   serviceJobNumber,
+  serviceJobs,
   staff,
   fundedCategories,
   permissions,
@@ -38,14 +44,18 @@ export function PettyCashIouActions({
   status: number;
   funds: FundRef[];
   amount: number;
+  purpose: string;
+  expectedSettlementAt: string | null;
   serviceJobId: string | null;
   serviceJobNumber: string | null;
+  serviceJobs: ServiceJobRef[];
   staff: StaffRef[];
   fundedCategories: FundedCategoryRef[];
   permissions: string[];
 }) {
   const router = useRouter();
   const permissionSet = new Set(permissions);
+  const canEdit = (status === 0 || status === 1) && permissionSet.has("Finance.PettyCashIou.Edit");
   const canApprove = permissionSet.has("Finance.PettyCashIou.Approve");
   const canReject = permissionSet.has("Finance.PettyCashIou.Reject");
   const canRelease = permissionSet.has("Finance.PettyCashIou.Release");
@@ -89,6 +99,23 @@ export function PettyCashIouActions({
   return (
     <div className="space-y-2">
       <div className="flex flex-wrap items-end gap-2">
+        {canEdit ? (
+          <AppFormModal
+            title="Edit Petty Cash Advance"
+            description="Change this IOU before it is approved."
+            buttonLabel="Edit"
+            variant="secondary"
+          >
+            {({ close }) => (
+              <PettyCashIouEditForm
+                iou={{ id, serviceJobId, amount, purpose, expectedSettlementAt }}
+                serviceJobs={serviceJobs}
+                onSaved={close}
+              />
+            )}
+          </AppFormModal>
+        ) : null}
+
         {status === 1 && (canApprove || canReject) ? (
           <>
             {canApprove ? (

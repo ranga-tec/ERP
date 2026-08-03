@@ -155,6 +155,52 @@ public sealed class FinanceService(
         return iou.Id;
     }
 
+    public async Task UpdatePettyCashIouBeforeApprovalAsync(
+        Guid iouId,
+        Guid serviceJobId,
+        decimal amount,
+        string purpose,
+        DateTimeOffset? expectedSettlementAt,
+        CancellationToken cancellationToken = default)
+    {
+        var iou = await dbContext.PettyCashIous
+            .FirstOrDefaultAsync(x => x.Id == iouId, cancellationToken)
+            ?? throw new NotFoundException("Petty cash IOU not found.");
+
+        var jobStatus = await dbContext.ServiceJobs.AsNoTracking()
+            .Where(x => x.Id == serviceJobId)
+            .Select(x => (ServiceJobStatus?)x.Status)
+            .FirstOrDefaultAsync(cancellationToken)
+            ?? throw new NotFoundException("Service job not found.");
+
+        if (jobStatus == ServiceJobStatus.Closed)
+        {
+            throw new DomainValidationException("Closed service jobs cannot be assigned to IOUs.");
+        }
+
+        if (iou.ServiceJobDailySheetId is { } dailySheetId)
+        {
+            var dailySheet = await dbContext.ServiceJobDailySheets.AsNoTracking()
+                .Where(x => x.Id == dailySheetId)
+                .Select(x => new { x.ServiceJobId, x.Status })
+                .FirstOrDefaultAsync(cancellationToken)
+                ?? throw new NotFoundException("Service job daily sheet not found.");
+
+            if (dailySheet.ServiceJobId != serviceJobId)
+            {
+                throw new DomainValidationException("The IOU's daily sheet does not belong to the selected service job.");
+            }
+
+            if (dailySheet.Status == ServiceJobDailySheetStatus.Approved)
+            {
+                throw new DomainValidationException("IOUs linked to approved daily sheets cannot be edited.");
+            }
+        }
+
+        iou.UpdateBeforeApproval(serviceJobId, amount, purpose, expectedSettlementAt);
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
     public async Task<Guid> CreatePettyCashRequestAsync(
         Guid pettyCashFundId,
         Guid requestedByUserId,

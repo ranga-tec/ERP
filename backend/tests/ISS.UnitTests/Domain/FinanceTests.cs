@@ -79,6 +79,37 @@ public sealed class FinanceTests
     }
 
     [Fact]
+    public void PettyCashIou_Can_Be_Edited_While_Submitted_But_Not_After_Approval()
+    {
+        var now = DateTimeOffset.UtcNow;
+        var originalJobId = Guid.NewGuid();
+        var updatedJobId = Guid.NewGuid();
+        var iou = new PettyCashIou(
+            "IOU0002",
+            originalJobId,
+            Guid.NewGuid(),
+            "Requester",
+            100m,
+            "Original purpose",
+            now,
+            now.AddDays(1));
+
+        iou.Submit(now);
+        iou.UpdateBeforeApproval(updatedJobId, 125.75m, "Updated purpose", now.AddDays(3));
+
+        Assert.Equal(PettyCashIouStatus.Submitted, iou.Status);
+        Assert.Equal(updatedJobId, iou.ServiceJobId);
+        Assert.Equal(125.75m, iou.Amount);
+        Assert.Equal("Updated purpose", iou.Purpose);
+        Assert.Equal(now.AddDays(3), iou.ExpectedSettlementAt);
+
+        iou.Approve(Guid.NewGuid(), now.AddMinutes(1));
+
+        Assert.Throws<DomainValidationException>(() =>
+            iou.UpdateBeforeApproval(originalJobId, 150m, "Too late", now.AddDays(4)));
+    }
+
+    [Fact]
     public void PettyCashReturn_Requires_Category_Lines_And_HeadOffice_Receipt_Evidence()
     {
         var now = DateTimeOffset.UtcNow;

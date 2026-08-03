@@ -584,6 +584,28 @@ public sealed class PettyCashIou : AuditableEntity
         SubmittedAt = submittedAt;
     }
 
+    public void UpdateBeforeApproval(
+        Guid serviceJobId,
+        decimal amount,
+        string purpose,
+        DateTimeOffset? expectedSettlementAt)
+    {
+        if (Status is not (PettyCashIouStatus.Draft or PettyCashIouStatus.Submitted))
+        {
+            throw new DomainValidationException("Only draft or submitted IOUs can be edited before approval.");
+        }
+
+        if (serviceJobId == Guid.Empty)
+        {
+            throw new DomainValidationException("Service job is required.");
+        }
+
+        ServiceJobId = serviceJobId;
+        Amount = Guard.Positive(amount, nameof(amount));
+        Purpose = Guard.NotNullOrWhiteSpace(purpose, nameof(purpose), maxLength: 1000);
+        ExpectedSettlementAt = expectedSettlementAt;
+    }
+
     public void Approve(Guid approvedByUserId, DateTimeOffset approvedAt)
     {
         if (Status != PettyCashIouStatus.Submitted)

@@ -3,6 +3,7 @@ import { backendFetchJson } from "@/lib/backend.server";
 import { AppFormModal } from "@/components/AppFormModal";
 import { Card, Table } from "@/components/ui";
 import { PettyCashReallocationCreateForm } from "./PettyCashReallocationCreateForm";
+import { PettyCashCategoryBalanceRegister } from "./PettyCashCategoryBalanceRegister";
 import {
   describeCategory,
   money,
@@ -31,11 +32,9 @@ function categoryName(category: CategoryReferenceDto) {
 export default async function PettyCashReallocationsPage() {
   const current = await backendFetchJson<CurrentUserPermissionsDto>("/me/permissions");
   const canCreate = current.permissions.includes("Finance.PettyCashReallocation.Create");
-  const [rows, candidates] = await Promise.all([
+  const [rows, balances] = await Promise.all([
     backendFetchJson<ReallocationSummaryDto[]>("/finance/petty-cash-reallocations"),
-    canCreate
-      ? backendFetchJson<ReallocationCandidateDto[]>("/finance/petty-cash-reallocations/candidates")
-      : Promise.resolve([]),
+    backendFetchJson<ReallocationCandidateDto[]>("/finance/petty-cash-reallocations/category-balances"),
   ]);
 
   return (
@@ -55,10 +54,12 @@ export default async function PettyCashReallocationsPage() {
             variant="primary"
             size="lg"
           >
-            <PettyCashReallocationCreateForm candidates={candidates} />
+            <PettyCashReallocationCreateForm candidates={balances} />
           </AppFormModal>
         ) : null}
       </div>
+
+      <PettyCashCategoryBalanceRegister rows={balances} />
 
       <Card>
         <div className="overflow-auto">

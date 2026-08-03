@@ -164,6 +164,7 @@ public sealed class AccessControlService(
         {
             yield return AppPermissions.PettyCashIouView;
             yield return AppPermissions.PettyCashIouCreate;
+            yield return AppPermissions.PettyCashIouEdit;
             yield return AppPermissions.PettyCashIouSubmit;
             yield return AppPermissions.PettyCashIouApprove;
             yield return AppPermissions.PettyCashIouReject;
@@ -320,6 +321,7 @@ public sealed class AccessControlService(
         {
             yield return AppPermissions.PettyCashIouView;
             yield return AppPermissions.PettyCashIouCreate;
+            yield return AppPermissions.PettyCashIouEdit;
             yield return AppPermissions.PettyCashIouSubmit;
             yield return AppPermissions.ServiceExpenseClaimView;
             yield return AppPermissions.ServiceExpenseClaimCreate;

@@ -294,6 +294,13 @@ public sealed class EndToEndTests(IssApiFixture fixture) : IClassFixture<IssApiF
         await PostNoContent($"/api/finance/petty-cash-requests/{requestId}/lines/{destinationLineId}/fund", new { amount = 20m, paymentReference = "TRF-A" });
         await PostNoContent($"/api/finance/petty-cash-requests/{requestId}/lines/{sourceLineId}/fund", new { amount = 200m, paymentReference = "TRF-B" });
 
+        var openingBalances = await Get<List<PettyCashCategoryBalanceApiDto>>("/api/finance/petty-cash-reallocations/category-balances");
+        var openingSource = openingBalances.Single(x => x.PettyCashRequestLineId == sourceLineId);
+        Assert.Equal(200m, openingSource.FundedAmount);
+        Assert.Equal(200m, openingSource.LedgerBalance);
+        Assert.Equal(0m, openingSource.PendingReallocationAmount);
+        Assert.Equal(200m, openingSource.AvailableBalance);
+
         var reallocation = await Post<PettyCashReallocationApiDto>("/api/finance/petty-cash-reallocations", new
         {
             pettyCashFundId = fund.Id,
@@ -305,6 +312,11 @@ public sealed class EndToEndTests(IssApiFixture fixture) : IClassFixture<IssApiF
         Assert.Equal(PettyCashReallocationStatus.Draft, reallocation.Status);
 
         await PostNoContent($"/api/finance/petty-cash-reallocations/{reallocation.Id}/submit", new { });
+        var reservedBalances = await Get<List<PettyCashCategoryBalanceApiDto>>("/api/finance/petty-cash-reallocations/category-balances");
+        var reservedSource = reservedBalances.Single(x => x.PettyCashRequestLineId == sourceLineId);
+        Assert.Equal(200m, reservedSource.LedgerBalance);
+        Assert.Equal(200m, reservedSource.PendingReallocationAmount);
+        Assert.Equal(0m, reservedSource.AvailableBalance);
         var duplicateResponse = await _client.PostAsJsonAsync("/api/finance/petty-cash-reallocations", new
         {
             pettyCashFundId = fund.Id,
@@ -323,12 +335,93 @@ public sealed class EndToEndTests(IssApiFixture fixture) : IClassFixture<IssApiF
         Assert.Equal(220m, updatedFund.Balance);
         Assert.Equal(220m, approved.DestinationBalance);
         Assert.Equal(0m, approved.SourceBalance);
+        var postedBalances = await Get<List<PettyCashCategoryBalanceApiDto>>("/api/finance/petty-cash-reallocations/category-balances");
+        var postedSource = postedBalances.Single(x => x.PettyCashRequestLineId == sourceLineId);
+        var postedDestination = postedBalances.Single(x => x.PettyCashRequestLineId == destinationLineId);
+        Assert.Equal(0m, postedSource.PendingReallocationAmount);
+        Assert.Equal(0m, postedSource.AvailableBalance);
+        Assert.Equal(220m, postedDestination.AvailableBalance);
         Assert.Contains(updatedFund.Transactions, x => x.Type == PettyCashTransactionType.CategoryTransferOut
                                                        && x.PettyCashRequestLineId == sourceLineId
                                                        && x.Amount == 200m);
         Assert.Contains(updatedFund.Transactions, x => x.Type == PettyCashTransactionType.CategoryTransferIn
                                                        && x.PettyCashRequestLineId == destinationLineId
                                                        && x.Amount == 200m);
+    }
+
+    [Fact]
+    public async Task Finance_PettyCashIou_Can_Edit_Submitted_Record_Before_Approval()
+    {
+        var customer = await Post<CustomerDto>("/api/customers", new
+        {
+            code = Code("IOUCUS"),
+            name = "IOU edit customer",
+            phone = (string?)null,
+            email = (string?)null,
+            address = (string?)null,
+        });
+        var equipment = await Post<ItemDto>("/api/items", new
+        {
+            sku = Code("IOUEQ"),
+            name = "IOU edit equipment",
+            type = ItemType.Equipment,
+            trackingType = TrackingType.Serial,
+            unitOfMeasure = "UNIT",
+            brandId = (Guid?)null,
+            barcode = (string?)null,
+            defaultUnitCost = 0m,
+        });
+        var unit = await Post<EquipmentUnitDto>("/api/service/equipment-units", new
+        {
+            itemId = equipment.Id,
+            serialNumber = $"IOU-{Guid.NewGuid():N}"[..20],
+            customerId = customer.Id,
+            purchasedAt = (DateTimeOffset?)null,
+            warrantyUntil = (DateTimeOffset?)null,
+        });
+        var job = await Post<ServiceJobDto>("/api/service/jobs", new
+        {
+            equipmentUnitId = unit.Id,
+            customerId = customer.Id,
+            problemDescription = "IOU edit workflow",
+        });
+
+        var iou = await Post<PettyCashIouApiDto>("/api/finance/petty-cash-ious", new
+        {
+            serviceJobId = job.Id,
+            amount = 100m,
+            purpose = "Original purpose",
+            expectedSettlementAt = (DateTimeOffset?)null,
+            requestedByName = "Integration requester",
+            serviceJobDailySheetId = (Guid?)null,
+        });
+        await PostNoContent($"/api/finance/petty-cash-ious/{iou.Id}/submit", new { });
+
+        var expectedSettlementAt = DateTimeOffset.UtcNow.AddDays(4);
+        await PutNoContent($"/api/finance/petty-cash-ious/{iou.Id}", new
+        {
+            serviceJobId = job.Id,
+            amount = 125.75m,
+            purpose = "Updated before approval",
+            expectedSettlementAt,
+        });
+
+        var updated = await Get<PettyCashIouApiDto>($"/api/finance/petty-cash-ious/{iou.Id}");
+        Assert.Equal(PettyCashIouStatus.Submitted, updated.Status);
+        Assert.Equal(125.75m, updated.Amount);
+        Assert.Equal("Updated before approval", updated.Purpose);
+        Assert.Equal(expectedSettlementAt.Date, updated.ExpectedSettlementAt?.Date);
+
+        await PostNoContent($"/api/finance/petty-cash-ious/{iou.Id}/approve", new { });
+        var editAfterApproval = await _client.PutAsJsonAsync($"/api/finance/petty-cash-ious/{iou.Id}", new
+        {
+            serviceJobId = job.Id,
+            amount = 150m,
+            purpose = "Must be refused",
+            expectedSettlementAt = (DateTimeOffset?)null,
+        });
+
+        Assert.Equal(System.Net.HttpStatusCode.BadRequest, editAfterApproval.StatusCode);
     }
 
     [Fact]
@@ -3207,7 +3300,9 @@ public sealed class EndToEndTests(IssApiFixture fixture) : IClassFixture<IssApiF
     private sealed record PettyCashTransactionApiDto(Guid Id, DateTimeOffset OccurredAt, PettyCashTransactionType Type, PettyCashTransactionDirection Direction, decimal Amount, decimal SignedAmount, string? ReferenceType, Guid? ReferenceId, string? ReferenceNumber, string? Notes, Guid? PettyCashRequestLineId);
     private sealed record PettyCashFundApiDto(Guid Id, string Code, string Name, string CurrencyCode, string? CustodianName, string? Notes, bool IsActive, decimal Balance, IReadOnlyList<PettyCashTransactionApiDto> Transactions);
     private sealed record PettyCashReallocationApiDto(Guid Id, string Number, PettyCashReallocationStatus Status, decimal Amount, decimal SourceBalance, decimal DestinationBalance);
+    private sealed record PettyCashCategoryBalanceApiDto(Guid PettyCashRequestLineId, decimal FundedAmount, decimal LedgerBalance, decimal PendingReturnAmount, decimal PendingReallocationAmount, decimal AvailableBalance);
     private sealed record PettyCashReturnApiDto(Guid Id, string Number, PettyCashReturnStatus Status, decimal TotalAmount, string? ReceiptReference);
+    private sealed record PettyCashIouApiDto(Guid Id, string Number, Guid? ServiceJobId, decimal Amount, string Purpose, DateTimeOffset? ExpectedSettlementAt, PettyCashIouStatus Status);
 
     private sealed record SalesQuoteDto(Guid Id, string Number, Guid CustomerId, DateTimeOffset QuoteDate, DateTimeOffset? ValidUntil, SalesQuoteStatus Status, decimal Total, IReadOnlyList<SalesQuoteLineDto> Lines);
     private sealed record SalesQuoteLineDto(Guid Id, Guid ItemId, decimal Quantity, decimal UnitPrice, decimal LineTotal);
