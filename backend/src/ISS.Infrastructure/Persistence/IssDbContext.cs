@@ -1001,10 +1001,14 @@ public sealed class IssDbContext(
             entity.HasIndex(x => x.ServiceJobId);
             entity.HasIndex(x => x.ServiceJobDailySheetId);
             entity.HasIndex(x => x.RequestedByUserId);
+            entity.HasIndex(x => x.ReviewerUserId);
+            entity.HasIndex(x => x.AssignedApproverUserId);
             entity.HasIndex(x => x.IssuedToUserId);
             entity.HasIndex(x => x.PettyCashFundId);
             entity.Property(x => x.Number).HasMaxLength(32);
             entity.Property(x => x.RequestedByName).HasMaxLength(256);
+            entity.Property(x => x.ReviewerName).HasMaxLength(256);
+            entity.Property(x => x.AssignedApproverName).HasMaxLength(256);
             entity.Property(x => x.IssuedToName).HasMaxLength(256);
             entity.Property(x => x.Amount).HasPrecision(18, 4);
             entity.Property(x => x.Purpose).HasMaxLength(1000);

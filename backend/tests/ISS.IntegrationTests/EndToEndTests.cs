@@ -352,6 +352,16 @@ public sealed class EndToEndTests(IssApiFixture fixture) : IClassFixture<IssApiF
     [Fact]
     public async Task Finance_PettyCashIou_Can_Edit_Submitted_Record_Before_Approval()
     {
+        var approverEmail = $"iou-approver-{Guid.NewGuid():N}@local.test";
+        const string approverPassword = "Passw0rd1!";
+        var assignedApprover = await Post<AdminUserApiDto>("/api/admin/users", new
+        {
+            companyId = (Guid?)null,
+            email = approverEmail,
+            password = approverPassword,
+            displayName = "IOU Operational Approver",
+            roles = new[] { "Finance" },
+        });
         var customer = await Post<CustomerDto>("/api/customers", new
         {
             code = Code("IOUCUS"),
@@ -411,6 +421,56 @@ public sealed class EndToEndTests(IssApiFixture fixture) : IClassFixture<IssApiF
         Assert.Equal(125.75m, updated.Amount);
         Assert.Equal("Updated before approval", updated.Purpose);
         Assert.Equal(expectedSettlementAt.Date, updated.ExpectedSettlementAt?.Date);
+
+        await PostNoContent($"/api/finance/petty-cash-ious/{iou.Id}/assign", new
+        {
+            assignedApproverUserId = assignedApprover.Id,
+        });
+        var assigned = await Get<PettyCashIouApiDto>($"/api/finance/petty-cash-ious/{iou.Id}");
+        Assert.Equal(PettyCashIouStatus.AwaitingAssignedApproval, assigned.Status);
+        Assert.Equal(assignedApprover.Id, assigned.AssignedApproverUserId);
+
+        var receiverEditAfterAssignment = await _client.PutAsJsonAsync($"/api/finance/petty-cash-ious/{iou.Id}", new
+        {
+            serviceJobId = job.Id,
+            amount = 125.50m,
+            purpose = "Receiver must not edit after assignment",
+            expectedSettlementAt,
+        });
+        Assert.Equal(System.Net.HttpStatusCode.BadRequest, receiverEditAfterAssignment.StatusCode);
+
+        var loginResponse = await _client.PostAsJsonAsync("/api/auth/login", new
+        {
+            email = approverEmail,
+            password = approverPassword,
+        });
+        loginResponse.EnsureSuccessStatusCode();
+        var approverToken = (await loginResponse.Content.ReadFromJsonAsync<AuthTokenApiDto>())!.Token;
+        try
+        {
+            _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", approverToken);
+            await PutNoContent($"/api/finance/petty-cash-ious/{iou.Id}", new
+            {
+                serviceJobId = job.Id,
+                amount = 130.25m,
+                purpose = "Adjusted by assigned approver",
+                expectedSettlementAt,
+            });
+            await PostNoContent($"/api/finance/petty-cash-ious/{iou.Id}/approve-assigned", new { });
+        }
+        finally
+        {
+            _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", fixture.AdminToken);
+        }
+
+        var returned = await Get<PettyCashIouApiDto>($"/api/finance/petty-cash-ious/{iou.Id}");
+        Assert.Equal(PettyCashIouStatus.ReturnedToReviewer, returned.Status);
+        Assert.Equal(130.25m, returned.Amount);
+        Assert.Equal("Adjusted by assigned approver", returned.Purpose);
+
+        await PostNoContent($"/api/finance/petty-cash-ious/{iou.Id}/submit-head-office", new { });
+        var headOfficePending = await Get<PettyCashIouApiDto>($"/api/finance/petty-cash-ious/{iou.Id}");
+        Assert.Equal(PettyCashIouStatus.AwaitingHeadOfficeApproval, headOfficePending.Status);
 
         await PostNoContent($"/api/finance/petty-cash-ious/{iou.Id}/approve", new { });
         var editAfterApproval = await _client.PutAsJsonAsync($"/api/finance/petty-cash-ious/{iou.Id}", new
@@ -3302,7 +3362,9 @@ public sealed class EndToEndTests(IssApiFixture fixture) : IClassFixture<IssApiF
     private sealed record PettyCashReallocationApiDto(Guid Id, string Number, PettyCashReallocationStatus Status, decimal Amount, decimal SourceBalance, decimal DestinationBalance);
     private sealed record PettyCashCategoryBalanceApiDto(Guid PettyCashRequestLineId, decimal FundedAmount, decimal LedgerBalance, decimal PendingReturnAmount, decimal PendingReallocationAmount, decimal AvailableBalance);
     private sealed record PettyCashReturnApiDto(Guid Id, string Number, PettyCashReturnStatus Status, decimal TotalAmount, string? ReceiptReference);
-    private sealed record PettyCashIouApiDto(Guid Id, string Number, Guid? ServiceJobId, decimal Amount, string Purpose, DateTimeOffset? ExpectedSettlementAt, PettyCashIouStatus Status);
+    private sealed record PettyCashIouApiDto(Guid Id, string Number, Guid? ServiceJobId, decimal Amount, string Purpose, DateTimeOffset? ExpectedSettlementAt, PettyCashIouStatus Status, Guid? ReviewerUserId = null, Guid? AssignedApproverUserId = null);
+    private sealed record AdminUserApiDto(Guid Id);
+    private sealed record AuthTokenApiDto(string Token);
 
     private sealed record SalesQuoteDto(Guid Id, string Number, Guid CustomerId, DateTimeOffset QuoteDate, DateTimeOffset? ValidUntil, SalesQuoteStatus Status, decimal Total, IReadOnlyList<SalesQuoteLineDto> Lines);
     private sealed record SalesQuoteLineDto(Guid Id, Guid ItemId, decimal Quantity, decimal UnitPrice, decimal LineTotal);

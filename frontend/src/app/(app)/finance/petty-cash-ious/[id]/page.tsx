@@ -3,6 +3,7 @@ import { backendFetchJson } from "@/lib/backend.server";
 import { DocumentCollaborationPanel } from "@/components/DocumentCollaborationPanel";
 import { TransactionLink } from "@/components/TransactionLink";
 import { Card, Table } from "@/components/ui";
+import { PettyCashIouActions } from "../PettyCashIouActions";
 import {
   PettyCashIouBillAddForm,
   PettyCashIouReturnForm,
@@ -19,7 +20,15 @@ type PettyCashIouDto = {
   amount: number;
   purpose: string;
   requestedAt: string;
+  expectedSettlementAt?: string | null;
   status: number;
+  reviewerName?: string | null;
+  assignedApproverName?: string | null;
+  assignedAt?: string | null;
+  assignedApprovedAt?: string | null;
+  headOfficeSubmittedAt?: string | null;
+  isReviewer: boolean;
+  isAssignedApprover: boolean;
   pettyCashFundId?: string | null;
   releasedAt?: string | null;
   settledAt?: string | null;
@@ -43,6 +52,19 @@ type BillDto = {
 };
 
 type CurrentPermissionsDto = { permissions: string[] };
+type ServiceJobDto = { id: string; number: string; status: number };
+type FundDto = { id: string; code: string; name: string; isActive: boolean };
+type StaffDto = { userId: string; name: string; email?: string | null };
+type FundedCategoryDto = {
+  id: string;
+  requestNumber: string;
+  pettyCashFundId: string;
+  category: number;
+  serviceJobId?: string | null;
+  serviceJobNumber?: string | null;
+  purpose: string;
+  availableBalance: number;
+};
 
 const statusLabel: Record<number, string> = {
   0: "Draft",
@@ -53,6 +75,9 @@ const statusLabel: Record<number, string> = {
   5: "Rejected",
   6: "Cancelled",
   7: "Settlement Approved",
+  8: "With Assigned Approver",
+  9: "Returned to Receiver",
+  10: "Awaiting Head Office",
 };
 
 const voucherStatusLabel: Record<number, string> = {
@@ -85,14 +110,23 @@ function Figure({ label, value, tone }: { label: string; value: string; tone?: "
 export default async function PettyCashIouDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
 
-  const [iou, bills, currentPermissions] = await Promise.all([
+  const [iou, bills, currentPermissions, jobs, funds] = await Promise.all([
     backendFetchJson<PettyCashIouDto>(`/finance/petty-cash-ious/${id}`),
     backendFetchJson<BillDto[]>(`/finance/petty-cash-ious/${id}/bills`),
     backendFetchJson<CurrentPermissionsDto>("/me/permissions"),
+    backendFetchJson<ServiceJobDto[]>("/service/jobs?take=500"),
+    backendFetchJson<FundDto[]>("/finance/petty-cash-funds"),
   ]);
 
   const permissions = new Set(currentPermissions.permissions);
   const canAccount = iou.isOpenForAccounting && permissions.has("Finance.PettyCashIou.Settle");
+  const canRelease = permissions.has("Finance.PettyCashIou.Release");
+  const canReview = permissions.has("Finance.PettyCashIou.Review");
+  const [staff, fundedCategories, approvers] = await Promise.all([
+    canRelease || canReview ? backendFetchJson<StaffDto[]>("/finance/petty-cash-ious/staff") : Promise.resolve([]),
+    canRelease ? backendFetchJson<FundedCategoryDto[]>("/finance/petty-cash-requests/funded-lines") : Promise.resolve([]),
+    canReview ? backendFetchJson<StaffDto[]>("/finance/petty-cash-ious/approvers") : Promise.resolve([]),
+  ]);
   const spent = iou.amount - iou.returnedAmount;
   const unaccounted = spent - iou.claimedAmount;
 
@@ -127,7 +161,39 @@ export default async function PettyCashIouDetailPage({ params }: { params: Promi
           ) : null}
         </div>
         <p className="mt-2 max-w-3xl text-sm text-zinc-500">{iou.purpose}</p>
+        <div className="mt-3">
+          <PettyCashIouActions
+            id={iou.id}
+            status={iou.status}
+            funds={funds.filter((fund) => fund.isActive)}
+            amount={iou.amount}
+            purpose={iou.purpose}
+            expectedSettlementAt={iou.expectedSettlementAt ?? null}
+            serviceJobId={iou.serviceJobId ?? null}
+            serviceJobNumber={iou.serviceJobNumber ?? null}
+            serviceJobs={jobs.filter((job) => job.status !== 3 && job.status !== 4)}
+            staff={staff}
+            approvers={approvers}
+            reviewerName={iou.reviewerName ?? null}
+            assignedApproverName={iou.assignedApproverName ?? null}
+            isReviewer={iou.isReviewer}
+            isAssignedApprover={iou.isAssignedApprover}
+            fundedCategories={fundedCategories}
+            permissions={currentPermissions.permissions}
+          />
+        </div>
       </div>
+
+      {(iou.reviewerName || iou.assignedApproverName) ? (
+        <Card>
+          <div className="text-sm font-semibold">Approval Route</div>
+          <div className="mt-2 grid gap-2 text-sm sm:grid-cols-3">
+            <div><span className="text-zinc-500">Receiver:</span> {iou.reviewerName ?? "-"}</div>
+            <div><span className="text-zinc-500">Assigned approver:</span> {iou.assignedApproverName ?? "-"}</div>
+            <div><span className="text-zinc-500">Head office:</span> {iou.headOfficeSubmittedAt ? "Submitted" : "Not submitted"}</div>
+          </div>
+        </Card>
+      ) : null}
 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <Figure label="Advanced" value={money(iou.amount)} />

@@ -20,7 +20,7 @@ type FundedCategoryRef = {
   purpose: string;
   availableBalance: number;
 };
-type Pending = "release" | "reject" | null;
+type Pending = "assign" | "release" | "reject" | null;
 
 function money(value: number): string {
   return value.toFixed(2);
@@ -37,6 +37,11 @@ export function PettyCashIouActions({
   serviceJobNumber,
   serviceJobs,
   staff,
+  approvers,
+  reviewerName,
+  assignedApproverName,
+  isReviewer,
+  isAssignedApprover,
   fundedCategories,
   permissions,
 }: {
@@ -50,17 +55,26 @@ export function PettyCashIouActions({
   serviceJobNumber: string | null;
   serviceJobs: ServiceJobRef[];
   staff: StaffRef[];
+  approvers: StaffRef[];
+  reviewerName: string | null;
+  assignedApproverName: string | null;
+  isReviewer: boolean;
+  isAssignedApprover: boolean;
   fundedCategories: FundedCategoryRef[];
   permissions: string[];
 }) {
   const router = useRouter();
   const permissionSet = new Set(permissions);
-  const canEdit = (status === 0 || status === 1) && permissionSet.has("Finance.PettyCashIou.Edit");
+  const canReview = permissionSet.has("Finance.PettyCashIou.Review");
+  const canAssignedApprove = permissionSet.has("Finance.PettyCashIou.AssignedApprove");
+  const canEdit = (status === 0 || status === 1 || (status === 8 && isAssignedApprover))
+    && permissionSet.has("Finance.PettyCashIou.Edit");
   const canApprove = permissionSet.has("Finance.PettyCashIou.Approve");
   const canReject = permissionSet.has("Finance.PettyCashIou.Reject");
   const canRelease = permissionSet.has("Finance.PettyCashIou.Release");
   const canApproveSettlement = status === 4 && permissionSet.has("Finance.PettyCashIou.Approve");
   const [requestLineId, setRequestLineId] = useState("");
+  const [assignedApproverUserId, setAssignedApproverUserId] = useState("");
   const [issuedToUserId, setIssuedToUserId] = useState("");
   const [issueBillNumber, setIssueBillNumber] = useState("");
   const [rejectReason, setRejectReason] = useState("");
@@ -116,19 +130,30 @@ export function PettyCashIouActions({
           </AppFormModal>
         ) : null}
 
-        {status === 1 && (canApprove || canReject) ? (
-          <>
-            {canApprove ? (
-              <Button type="button" disabled={busy !== null} onClick={() => run("approve")}>
-                {busy === "approve" ? "Approving..." : "Approve"}
-              </Button>
-            ) : null}
-            {canReject ? (
-              <SecondaryButton type="button" disabled={busy !== null} onClick={() => setPending("reject")}>
-                Reject
-              </SecondaryButton>
-            ) : null}
-          </>
+        {status === 1 && canReview ? (
+          <Button type="button" disabled={busy !== null} onClick={() => setPending("assign")}>Send for Approval</Button>
+        ) : null}
+
+        {status === 8 && isAssignedApprover && canAssignedApprove ? (
+          <Button type="button" disabled={busy !== null} onClick={() => void run("approve-assigned")}>
+            {busy === "approve-assigned" ? "Approving..." : "Approve & Return"}
+          </Button>
+        ) : null}
+
+        {status === 9 && isReviewer && canReview ? (
+          <Button type="button" disabled={busy !== null} onClick={() => void run("submit-head-office")}>
+            {busy === "submit-head-office" ? "Submitting..." : "Submit to Head Office"}
+          </Button>
+        ) : null}
+
+        {status === 10 && canApprove ? (
+          <Button type="button" disabled={busy !== null} onClick={() => void run("approve")}>
+            {busy === "approve" ? "Approving..." : "Head Office Approve"}
+          </Button>
+        ) : null}
+
+        {status === 10 && canReject ? (
+          <SecondaryButton type="button" disabled={busy !== null} onClick={() => setPending("reject")}>Reject</SecondaryButton>
         ) : null}
 
         {status === 2 && canRelease ? (
@@ -143,12 +168,50 @@ export function PettyCashIouActions({
           </Button>
         ) : null}
 
-        {((status === 1 && !canApprove && !canReject) || (status === 2 && !canRelease) || status === 3 || (status === 4 && !canApproveSettlement)) ? (
+        {((status === 1 && !canReview)
+          || (status === 8 && (!isAssignedApprover || !canAssignedApprove))
+          || (status === 9 && (!isReviewer || !canReview))
+          || (status === 10 && !canApprove && !canReject)
+          || (status === 2 && !canRelease)
+          || status === 3
+          || (status === 4 && !canApproveSettlement)) ? (
           <span className="text-xs text-zinc-500">View only</span>
         ) : null}
       </div>
 
+      {status === 8 && assignedApproverName ? <div className="text-xs text-zinc-500">Assigned to {assignedApproverName}</div> : null}
+      {status === 9 && reviewerName ? <div className="text-xs text-zinc-500">Returned to {reviewerName}</div> : null}
+
       {error ? <div className="text-xs text-red-700 dark:text-red-300">{error}</div> : null}
+
+      {pending === "assign" ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 p-4">
+          <div role="dialog" aria-modal="true" className="w-full max-w-md rounded-lg border border-[var(--card-border)] bg-[var(--card-bg)] p-4 shadow-xl">
+            <div className="text-base font-semibold">Send IOU for operational approval</div>
+            <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
+              The selected person can review and edit this request. After approval it returns to you for head-office submission.
+            </p>
+            <label className="mt-4 block text-sm font-medium">Assigned approver</label>
+            <Select className="mt-1" value={assignedApproverUserId} onChange={(event) => setAssignedApproverUserId(event.target.value)}>
+              <option value="" disabled>Select an authorized approver...</option>
+              {approvers.map((person) => (
+                <option key={person.userId} value={person.userId}>{person.name}{person.email ? ` - ${person.email}` : ""}</option>
+              ))}
+            </Select>
+            {approvers.length === 0 ? <p className="mt-2 text-xs text-amber-700 dark:text-amber-300">No other active user has assigned-IOU approval permission.</p> : null}
+            <div className="mt-4 flex justify-end gap-2">
+              <SecondaryButton type="button" disabled={busy === "assign"} onClick={() => setPending(null)}>Cancel</SecondaryButton>
+              <Button
+                type="button"
+                disabled={busy === "assign" || assignedApproverUserId.length === 0}
+                onClick={() => void run("assign", { assignedApproverUserId })}
+              >
+                {busy === "assign" ? "Sending..." : "Send for Approval"}
+              </Button>
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       {pending === "release" ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 p-4">

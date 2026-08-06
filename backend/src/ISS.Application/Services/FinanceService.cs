@@ -157,6 +157,7 @@ public sealed class FinanceService(
 
     public async Task UpdatePettyCashIouBeforeApprovalAsync(
         Guid iouId,
+        Guid editedByUserId,
         Guid serviceJobId,
         decimal amount,
         string purpose,
@@ -166,6 +167,12 @@ public sealed class FinanceService(
         var iou = await dbContext.PettyCashIous
             .FirstOrDefaultAsync(x => x.Id == iouId, cancellationToken)
             ?? throw new NotFoundException("Petty cash IOU not found.");
+
+        if (iou.Status == PettyCashIouStatus.AwaitingAssignedApproval
+            && iou.AssignedApproverUserId != editedByUserId)
+        {
+            throw new DomainValidationException("Only the assigned approver can edit this IOU at this stage.");
+        }
 
         var jobStatus = await dbContext.ServiceJobs.AsNoTracking()
             .Where(x => x.Id == serviceJobId)
@@ -767,6 +774,47 @@ public sealed class FinanceService(
         var iou = await dbContext.PettyCashIous.FirstOrDefaultAsync(x => x.Id == iouId, cancellationToken)
                   ?? throw new NotFoundException("Petty cash IOU not found.");
         iou.Submit(clock.UtcNow);
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task AssignPettyCashIouForApprovalAsync(
+        Guid iouId,
+        Guid reviewerUserId,
+        string reviewerName,
+        Guid assignedApproverUserId,
+        string assignedApproverName,
+        CancellationToken cancellationToken = default)
+    {
+        var iou = await dbContext.PettyCashIous.FirstOrDefaultAsync(x => x.Id == iouId, cancellationToken)
+                  ?? throw new NotFoundException("Petty cash IOU not found.");
+        iou.AssignForApproval(
+            reviewerUserId,
+            reviewerName,
+            assignedApproverUserId,
+            assignedApproverName,
+            clock.UtcNow);
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task ApproveAssignedPettyCashIouAsync(
+        Guid iouId,
+        Guid approvedByUserId,
+        CancellationToken cancellationToken = default)
+    {
+        var iou = await dbContext.PettyCashIous.FirstOrDefaultAsync(x => x.Id == iouId, cancellationToken)
+                  ?? throw new NotFoundException("Petty cash IOU not found.");
+        iou.ApproveAssigned(approvedByUserId, clock.UtcNow);
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task SubmitPettyCashIouToHeadOfficeAsync(
+        Guid iouId,
+        Guid reviewerUserId,
+        CancellationToken cancellationToken = default)
+    {
+        var iou = await dbContext.PettyCashIous.FirstOrDefaultAsync(x => x.Id == iouId, cancellationToken)
+                  ?? throw new NotFoundException("Petty cash IOU not found.");
+        iou.SubmitToHeadOffice(reviewerUserId, clock.UtcNow);
         await dbContext.SaveChangesAsync(cancellationToken);
     }
 

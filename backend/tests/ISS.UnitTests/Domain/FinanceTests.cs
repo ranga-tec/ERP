@@ -51,6 +51,8 @@ public sealed class FinanceTests
     {
         var requesterId = Guid.NewGuid();
         var collectorId = Guid.NewGuid();
+        var reviewerId = Guid.NewGuid();
+        var assignedApproverId = Guid.NewGuid();
         var fundId = Guid.NewGuid();
         var now = DateTimeOffset.UtcNow;
         var iou = new PettyCashIou(
@@ -64,6 +66,9 @@ public sealed class FinanceTests
             now.AddDays(2));
 
         iou.Submit(now);
+        iou.AssignForApproval(reviewerId, "Receiver", assignedApproverId, "Operational approver", now);
+        iou.ApproveAssigned(assignedApproverId, now);
+        iou.SubmitToHeadOffice(reviewerId, now);
         iou.Approve(Guid.NewGuid(), now);
 
         Assert.Throws<DomainValidationException>(() =>
@@ -84,10 +89,13 @@ public sealed class FinanceTests
         var now = DateTimeOffset.UtcNow;
         var originalJobId = Guid.NewGuid();
         var updatedJobId = Guid.NewGuid();
+        var requesterId = Guid.NewGuid();
+        var reviewerId = Guid.NewGuid();
+        var assignedApproverId = Guid.NewGuid();
         var iou = new PettyCashIou(
             "IOU0002",
             originalJobId,
-            Guid.NewGuid(),
+            requesterId,
             "Requester",
             100m,
             "Original purpose",
@@ -103,7 +111,17 @@ public sealed class FinanceTests
         Assert.Equal("Updated purpose", iou.Purpose);
         Assert.Equal(now.AddDays(3), iou.ExpectedSettlementAt);
 
-        iou.Approve(Guid.NewGuid(), now.AddMinutes(1));
+        iou.AssignForApproval(reviewerId, "Receiver", assignedApproverId, "Operational approver", now.AddMinutes(1));
+        Assert.Equal(PettyCashIouStatus.AwaitingAssignedApproval, iou.Status);
+        Assert.Throws<DomainValidationException>(() => iou.ApproveAssigned(Guid.NewGuid(), now.AddMinutes(2)));
+
+        iou.UpdateBeforeApproval(updatedJobId, 130m, "Approver-adjusted purpose", now.AddDays(4));
+        iou.ApproveAssigned(assignedApproverId, now.AddMinutes(2));
+        Assert.Equal(PettyCashIouStatus.ReturnedToReviewer, iou.Status);
+        Assert.Throws<DomainValidationException>(() => iou.SubmitToHeadOffice(Guid.NewGuid(), now.AddMinutes(3)));
+
+        iou.SubmitToHeadOffice(reviewerId, now.AddMinutes(3));
+        iou.Approve(Guid.NewGuid(), now.AddMinutes(4));
 
         Assert.Throws<DomainValidationException>(() =>
             iou.UpdateBeforeApproval(originalJobId, 150m, "Too late", now.AddDays(4)));

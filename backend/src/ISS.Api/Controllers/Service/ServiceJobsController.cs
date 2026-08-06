@@ -520,7 +520,12 @@ public sealed class ServiceJobsController(
             // Advances drawn against no job belong to no job's pending count.
             .Where(x => x.ServiceJobId != null
                         && activeJobIds.Contains(x.ServiceJobId.Value)
-                        && (x.Status == PettyCashIouStatus.Submitted || x.Status == PettyCashIouStatus.Approved || x.Status == PettyCashIouStatus.Released))
+                        && (x.Status == PettyCashIouStatus.Submitted
+                            || x.Status == PettyCashIouStatus.AwaitingAssignedApproval
+                            || x.Status == PettyCashIouStatus.ReturnedToReviewer
+                            || x.Status == PettyCashIouStatus.AwaitingHeadOfficeApproval
+                            || x.Status == PettyCashIouStatus.Approved
+                            || x.Status == PettyCashIouStatus.Released))
             .GroupBy(x => x.ServiceJobId!.Value)
             .Select(x => new { ServiceJobId = x.Key, Count = x.Count() })
             .ToDictionaryAsync(x => x.ServiceJobId, x => x.Count, cancellationToken);

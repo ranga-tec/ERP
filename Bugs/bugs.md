@@ -90,6 +90,40 @@ you can mark or remove fixed bugs here .
       charging a job-wise category from a voucher with no job, charging a category from an
       out-of-pocket voucher, and approving a settlement twice are all refused.
 
+[FIXED] 9. Duplicate IOU issue forms and incomplete job-advance handover (`image copy 29.png`,
+   `image copy 30.png`).
+   -> There is now one job-advance route. Job staff create and submit `+ New IOU`; finance approves
+      that request and records the physical handover on its `Release Cash` action. Release requires
+      all three controls requested by the client: the matching funded Job Wise category (which also
+      determines the fund), the company employee collecting the money, and the signed paper IOU
+      slip number. The system preserves requester and collector separately.
+   -> Server-side guards prevent bypassing the form: the category must belong to the selected fund
+      and IOU job, must be Job Wise, and must have enough sub-account balance for the advance.
+      Releasing debits both the total float and that category by the same amount.
+   -> The duplicate `Record IOU Slip` button was removed. Taxi, courier, workshop and other direct
+      overhead payments use an expense voucher with `Not job related (overhead)`, so fake annual
+      workshop jobs are no longer necessary and overhead cannot distort job profit/loss.
+   -> Grid settlement was removed. The IOU number opens its detail page, where users add bills,
+      attach copies, record partial cash returns, settle, and obtain head-office approval in one
+      place.
+   -> This matches common petty-cash control guidance: authorize before release, identify the
+      employee receiving an advance, retain a signed petty-cash voucher, collect receipts/change,
+      and reconcile the imprest fund.
+
+[FIXED] 10. Route a job IOU through a receiver, assigned approver and head office before cash release.
+   -> A submitted job advance now reaches a receiver, who selects a different authorized user and
+      sends it for operational approval. The assigned approver alone can edit it at that stage and
+      returns the approved record to the same receiver. The receiver then submits it to head office;
+      only after final head-office approval can Finance release cash against the funded Job Wise
+      category and signed physical slip.
+   -> The screen shows each stage and the named receiver/approver on both the IOU grid and detail
+      page. Separate Review, Assigned Approval and Head-office Approval permissions preserve the
+      hand-offs, and each hand-off sends an in-app notification. Existing direct-purpose petty-cash
+      requests remain a separate workflow.
+   -> Verified with a real multi-user PostgreSQL flow: requester submission, receiver assignment,
+      assigned-user edit and approval, return to receiver, head-office submission/final approval,
+      and rejection of editing after final approval.
+
 ## Open
 
 D:\VScode Projects\ISS\Bugs\image copy 26.png we implemented petty cache flow . in petty cache fund screen when request and recive money from head office check whay this 7 is typed .

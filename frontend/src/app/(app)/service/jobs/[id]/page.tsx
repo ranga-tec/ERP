@@ -393,6 +393,9 @@ const pettyCashIouStatusLabel: Record<number, string> = {
   5: "Rejected",
   6: "Cancelled",
   7: "Settlement Approved",
+  8: "With Assigned Approver",
+  9: "Returned to Receiver",
+  10: "Awaiting Head Office",
 };
 const fundingSourceLabel: Record<number, string> = {
   1: "Out of Pocket",

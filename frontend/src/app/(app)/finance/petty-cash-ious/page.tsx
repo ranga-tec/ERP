@@ -33,6 +33,10 @@ type PettyCashIouDto = {
   requestedAt: string;
   expectedSettlementAt?: string | null;
   status: number;
+  reviewerName?: string | null;
+  assignedApproverName?: string | null;
+  isReviewer: boolean;
+  isAssignedApprover: boolean;
   pettyCashFundId?: string | null;
   settledAmount?: number | null;
   claimedAmount: number;
@@ -51,6 +55,9 @@ const statusLabel: Record<number, string> = {
   5: "Rejected",
   6: "Cancelled",
   7: "Settlement Approved",
+  8: "With Assigned Approver",
+  9: "Returned to Receiver",
+  10: "Awaiting Head Office",
 };
 
 export default async function PettyCashIousPage() {
@@ -64,12 +71,18 @@ export default async function PettyCashIousPage() {
   const permissions = new Set(currentPermissions.permissions);
   const canCreate = permissions.has("Finance.PettyCashIou.Create");
   const canRelease = permissions.has("Finance.PettyCashIou.Release");
-  const [staff, fundedCategories] = canRelease
-    ? await Promise.all([
-        backendFetchJson<StaffDto[]>("/finance/petty-cash-ious/staff"),
-        backendFetchJson<FundedCategoryDto[]>("/finance/petty-cash-requests/funded-lines"),
-      ])
-    : [[], []] as [StaffDto[], FundedCategoryDto[]];
+  const canReview = permissions.has("Finance.PettyCashIou.Review");
+  const [staff, fundedCategories, approvers] = await Promise.all([
+    canRelease || canReview
+      ? backendFetchJson<StaffDto[]>("/finance/petty-cash-ious/staff")
+      : Promise.resolve([]),
+    canRelease
+      ? backendFetchJson<FundedCategoryDto[]>("/finance/petty-cash-requests/funded-lines")
+      : Promise.resolve([]),
+    canReview
+      ? backendFetchJson<StaffDto[]>("/finance/petty-cash-ious/approvers")
+      : Promise.resolve([]),
+  ]);
 
   return (
     <div className="space-y-6">
@@ -181,6 +194,11 @@ export default async function PettyCashIousPage() {
                       }
                       serviceJobs={jobs.filter((job) => job.status !== 3 && job.status !== 4)}
                       staff={staff}
+                      approvers={approvers}
+                      reviewerName={iou.reviewerName ?? null}
+                      assignedApproverName={iou.assignedApproverName ?? null}
+                      isReviewer={iou.isReviewer}
+                      isAssignedApprover={iou.isAssignedApprover}
                       fundedCategories={fundedCategories}
                       permissions={currentPermissions.permissions}
                     />

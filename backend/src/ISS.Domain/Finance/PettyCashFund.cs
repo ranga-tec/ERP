@@ -432,7 +432,16 @@ public enum PettyCashIouStatus
     /// custodian recorded at settlement. Settled means the custodian says it adds up; this means
     /// head office agrees, and is the point after which the IOU is closed for good.
     /// </summary>
-    SettlementApproved = 7
+    SettlementApproved = 7,
+
+    /// <summary>The receiver has assigned the request to a named operational approver.</summary>
+    AwaitingAssignedApproval = 8,
+
+    /// <summary>The assigned approver has checked/edited it and returned it to the receiver.</summary>
+    ReturnedToReviewer = 9,
+
+    /// <summary>The receiver has forwarded the reviewed request to head office.</summary>
+    AwaitingHeadOfficeApproval = 10
 }
 
 public sealed class PettyCashIou : AuditableEntity
@@ -491,6 +500,14 @@ public sealed class PettyCashIou : AuditableEntity
     public DateTimeOffset? SubmittedAt { get; private set; }
     public DateTimeOffset? ApprovedAt { get; private set; }
     public Guid? ApprovedByUserId { get; private set; }
+    public Guid? ReviewerUserId { get; private set; }
+    public string? ReviewerName { get; private set; }
+    public Guid? AssignedApproverUserId { get; private set; }
+    public string? AssignedApproverName { get; private set; }
+    public DateTimeOffset? AssignedAt { get; private set; }
+    public DateTimeOffset? AssignedApprovedAt { get; private set; }
+    public DateTimeOffset? HeadOfficeSubmittedAt { get; private set; }
+    public Guid? HeadOfficeSubmittedByUserId { get; private set; }
     public DateTimeOffset? RejectedAt { get; private set; }
     public string? RejectionReason { get; private set; }
     public Guid? PettyCashFundId { get; private set; }
@@ -590,9 +607,11 @@ public sealed class PettyCashIou : AuditableEntity
         string purpose,
         DateTimeOffset? expectedSettlementAt)
     {
-        if (Status is not (PettyCashIouStatus.Draft or PettyCashIouStatus.Submitted))
+        if (Status is not (PettyCashIouStatus.Draft
+            or PettyCashIouStatus.Submitted
+            or PettyCashIouStatus.AwaitingAssignedApproval))
         {
-            throw new DomainValidationException("Only draft or submitted IOUs can be edited before approval.");
+            throw new DomainValidationException("Only draft, submitted or assigned IOUs can be edited before head-office approval.");
         }
 
         if (serviceJobId == Guid.Empty)
@@ -606,11 +625,77 @@ public sealed class PettyCashIou : AuditableEntity
         ExpectedSettlementAt = expectedSettlementAt;
     }
 
-    public void Approve(Guid approvedByUserId, DateTimeOffset approvedAt)
+    public void AssignForApproval(
+        Guid reviewerUserId,
+        string reviewerName,
+        Guid assignedApproverUserId,
+        string assignedApproverName,
+        DateTimeOffset assignedAt)
     {
         if (Status != PettyCashIouStatus.Submitted)
         {
-            throw new DomainValidationException("Only submitted IOUs can be approved.");
+            throw new DomainValidationException("Only submitted IOUs can be assigned for operational approval.");
+        }
+
+        if (reviewerUserId == Guid.Empty || assignedApproverUserId == Guid.Empty)
+        {
+            throw new DomainValidationException("The receiver and assigned approver are required.");
+        }
+
+        if (assignedApproverUserId == reviewerUserId || assignedApproverUserId == RequestedByUserId)
+        {
+            throw new DomainValidationException("The assigned approver must be different from the requester and receiver.");
+        }
+
+        ReviewerUserId = reviewerUserId;
+        ReviewerName = Guard.NotNullOrWhiteSpace(reviewerName, nameof(reviewerName), maxLength: 256);
+        AssignedApproverUserId = assignedApproverUserId;
+        AssignedApproverName = Guard.NotNullOrWhiteSpace(assignedApproverName, nameof(assignedApproverName), maxLength: 256);
+        AssignedAt = assignedAt;
+        AssignedApprovedAt = null;
+        HeadOfficeSubmittedAt = null;
+        HeadOfficeSubmittedByUserId = null;
+        Status = PettyCashIouStatus.AwaitingAssignedApproval;
+    }
+
+    public void ApproveAssigned(Guid approvedByUserId, DateTimeOffset approvedAt)
+    {
+        if (Status != PettyCashIouStatus.AwaitingAssignedApproval)
+        {
+            throw new DomainValidationException("Only an IOU awaiting assigned approval can be approved at this stage.");
+        }
+
+        if (approvedByUserId != AssignedApproverUserId)
+        {
+            throw new DomainValidationException("Only the assigned approver can approve this IOU.");
+        }
+
+        AssignedApprovedAt = approvedAt;
+        Status = PettyCashIouStatus.ReturnedToReviewer;
+    }
+
+    public void SubmitToHeadOffice(Guid reviewerUserId, DateTimeOffset submittedAt)
+    {
+        if (Status != PettyCashIouStatus.ReturnedToReviewer)
+        {
+            throw new DomainValidationException("Only an IOU returned by its assigned approver can be submitted to head office.");
+        }
+
+        if (reviewerUserId != ReviewerUserId)
+        {
+            throw new DomainValidationException("Only the receiver who assigned this IOU can submit it to head office.");
+        }
+
+        HeadOfficeSubmittedByUserId = reviewerUserId;
+        HeadOfficeSubmittedAt = submittedAt;
+        Status = PettyCashIouStatus.AwaitingHeadOfficeApproval;
+    }
+
+    public void Approve(Guid approvedByUserId, DateTimeOffset approvedAt)
+    {
+        if (Status != PettyCashIouStatus.AwaitingHeadOfficeApproval)
+        {
+            throw new DomainValidationException("Only IOUs submitted to head office can receive final approval.");
         }
 
         Status = PettyCashIouStatus.Approved;
@@ -622,9 +707,11 @@ public sealed class PettyCashIou : AuditableEntity
 
     public void Reject(DateTimeOffset rejectedAt, string? rejectionReason)
     {
-        if (Status != PettyCashIouStatus.Submitted)
+        if (Status is not (PettyCashIouStatus.Submitted
+            or PettyCashIouStatus.AwaitingAssignedApproval
+            or PettyCashIouStatus.AwaitingHeadOfficeApproval))
         {
-            throw new DomainValidationException("Only submitted IOUs can be rejected.");
+            throw new DomainValidationException("Only IOUs in an approval stage can be rejected.");
         }
 
         Status = PettyCashIouStatus.Rejected;

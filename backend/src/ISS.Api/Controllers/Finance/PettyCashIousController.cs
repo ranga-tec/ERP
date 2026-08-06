@@ -51,6 +51,27 @@ public sealed class PettyCashIousController(
         return Ok(users);
     }
 
+    [HttpGet("approvers")]
+    public async Task<ActionResult<IReadOnlyList<PettyCashStaffDto>>> Approvers(CancellationToken cancellationToken)
+    {
+        if (!await HasPermissionAsync(AppPermissions.PettyCashIouReview, cancellationToken)) return Forbid();
+
+        var userIds = await accessControl.GetActiveUserIdsWithAnyPermissionAsync(
+            [AppPermissions.PettyCashIouAssignedApprove],
+            excludeUserId: currentUser.UserId,
+            cancellationToken);
+        var users = await userManager.Users.AsNoTracking()
+            .Where(x => userIds.Contains(x.Id))
+            .OrderBy(x => x.DisplayName ?? x.Email)
+            .Select(x => new PettyCashStaffDto(
+                x.Id,
+                x.DisplayName != null && x.DisplayName != "" ? x.DisplayName : (x.Email ?? x.UserName)!,
+                x.Email))
+            .ToListAsync(cancellationToken);
+
+        return Ok(users);
+    }
+
     public sealed record PettyCashIouDto(
         Guid Id,
         string Number,
@@ -69,6 +90,15 @@ public sealed class PettyCashIousController(
         DateTimeOffset? SubmittedAt,
         DateTimeOffset? ApprovedAt,
         Guid? ApprovedByUserId,
+        Guid? ReviewerUserId,
+        string? ReviewerName,
+        Guid? AssignedApproverUserId,
+        string? AssignedApproverName,
+        DateTimeOffset? AssignedAt,
+        DateTimeOffset? AssignedApprovedAt,
+        DateTimeOffset? HeadOfficeSubmittedAt,
+        bool IsReviewer,
+        bool IsAssignedApprover,
         Guid? PettyCashFundId,
         DateTimeOffset? ReleasedAt,
         string? ReleaseReference,
@@ -99,6 +129,8 @@ public sealed class PettyCashIousController(
         decimal Amount,
         string Purpose,
         DateTimeOffset? ExpectedSettlementAt);
+
+    public sealed record AssignPettyCashIouRequest(Guid AssignedApproverUserId);
 
     public sealed record RejectPettyCashIouRequest(string? Reason);
     public sealed record ReleasePettyCashIouRequest(
@@ -173,11 +205,13 @@ public sealed class PettyCashIousController(
         var totals = await LoadClaimTotalsAsync(ious.Select(x => x.Id).ToList(), cancellationToken);
         var jobNumbers = await LoadJobNumbersAsync(ious, cancellationToken);
 
+        var userId = currentUser.UserId;
         return Ok(ious
             .Select(x => ToDto(
                 x,
                 totals.GetValueOrDefault(x.Id, IouClaimTotals.Empty),
-                x.ServiceJobId is { } jobId ? jobNumbers.GetValueOrDefault(jobId) : null))
+                x.ServiceJobId is { } jobId ? jobNumbers.GetValueOrDefault(jobId) : null,
+                userId))
             .ToList());
     }
 
@@ -230,7 +264,8 @@ public sealed class PettyCashIousController(
         return Ok(ToDto(
             iou,
             totals.GetValueOrDefault(iou.Id, IouClaimTotals.Empty),
-            iou.ServiceJobId is { } jobId ? jobNumbers.GetValueOrDefault(jobId) : null));
+            iou.ServiceJobId is { } jobId ? jobNumbers.GetValueOrDefault(jobId) : null,
+            currentUser.UserId));
     }
 
     [HttpPut("{id:guid}")]
@@ -246,12 +281,62 @@ public sealed class PettyCashIousController(
 
         await financeService.UpdatePettyCashIouBeforeApprovalAsync(
             id,
+            currentUser.UserId ?? Guid.Empty,
             request.ServiceJobId,
             request.Amount,
             request.Purpose,
             request.ExpectedSettlementAt?.ToUniversalTime(),
             cancellationToken);
 
+        return NoContent();
+    }
+
+    [HttpPost("{id:guid}/assign")]
+    public async Task<ActionResult> Assign(
+        Guid id,
+        AssignPettyCashIouRequest request,
+        CancellationToken cancellationToken)
+    {
+        if (!await HasPermissionAsync(AppPermissions.PettyCashIouReview, cancellationToken)) return Forbid();
+        if (request.AssignedApproverUserId == Guid.Empty) return BadRequest("Select an approver.");
+        if (!await accessControl.HasPermissionAsync(
+                request.AssignedApproverUserId,
+                AppPermissions.PettyCashIouAssignedApprove,
+                cancellationToken))
+        {
+            return BadRequest("The selected user is not authorized to approve assigned IOUs.");
+        }
+
+        var approverName = await ResolveUserNameAsync(request.AssignedApproverUserId, cancellationToken);
+        if (approverName == "Unknown user") return BadRequest("The selected approver no longer exists.");
+        var reviewerUserId = currentUser.UserId ?? Guid.Empty;
+        var reviewerName = await ResolveUserNameAsync(reviewerUserId, cancellationToken);
+        await financeService.AssignPettyCashIouForApprovalAsync(
+            id,
+            reviewerUserId,
+            reviewerName,
+            request.AssignedApproverUserId,
+            approverName,
+            cancellationToken);
+        await NotifyAssignedApproverAsync(id, cancellationToken);
+        return NoContent();
+    }
+
+    [HttpPost("{id:guid}/approve-assigned")]
+    public async Task<ActionResult> ApproveAssigned(Guid id, CancellationToken cancellationToken)
+    {
+        if (!await HasPermissionAsync(AppPermissions.PettyCashIouAssignedApprove, cancellationToken)) return Forbid();
+        await financeService.ApproveAssignedPettyCashIouAsync(id, currentUser.UserId ?? Guid.Empty, cancellationToken);
+        await NotifyReviewerAsync(id, "IOU returned by approver", "The assigned approver completed their review. Submit it to head office when ready.", cancellationToken);
+        return NoContent();
+    }
+
+    [HttpPost("{id:guid}/submit-head-office")]
+    public async Task<ActionResult> SubmitHeadOffice(Guid id, CancellationToken cancellationToken)
+    {
+        if (!await HasPermissionAsync(AppPermissions.PettyCashIouReview, cancellationToken)) return Forbid();
+        await financeService.SubmitPettyCashIouToHeadOfficeAsync(id, currentUser.UserId ?? Guid.Empty, cancellationToken);
+        await NotifyHeadOfficeAsync(id, cancellationToken);
         return NoContent();
     }
 
@@ -277,7 +362,8 @@ public sealed class PettyCashIousController(
         }
 
         await financeService.ApprovePettyCashIouAsync(id, currentUser.UserId ?? Guid.Empty, cancellationToken);
-        await NotifyRequesterAsync(id, "IOU approved", "Your IOU request has been approved.", cancellationToken);
+        await NotifyRequesterAsync(id, "IOU approved", "Head office approved your IOU request for cash release.", cancellationToken);
+        await NotifyReviewerAsync(id, "IOU approved by head office", "Head office approved the request; finance can now release the cash.", cancellationToken);
         return NoContent();
     }
 
@@ -477,14 +563,14 @@ public sealed class PettyCashIousController(
         }
 
         var recipients = await accessControl.GetActiveUserIdsWithAnyPermissionAsync(
-            [AppPermissions.PettyCashIouApprove, AppPermissions.PettyCashIouRelease],
+            [AppPermissions.PettyCashIouReview],
             excludeUserId: null,
             cancellationToken);
 
         notificationService.EnqueueInAppForUsers(
             recipients,
-            "IOU request waiting",
-            $"{iou.Number} from {iou.RequestedByName} is waiting for approval/release. Amount: {iou.Amount:0.00}.",
+            "IOU request received",
+            $"{iou.Number} from {iou.RequestedByName} is waiting for receiver review and assignment. Amount: {iou.Amount:0.00}.",
             "/finance/petty-cash-ious",
             ReferenceTypes.PettyCashIou,
             iou.Id);
@@ -512,6 +598,68 @@ public sealed class PettyCashIousController(
             ReferenceTypes.PettyCashIou,
             iou.Id);
 
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    private async Task NotifyAssignedApproverAsync(Guid id, CancellationToken cancellationToken)
+    {
+        var iou = await dbContext.PettyCashIous.AsNoTracking()
+            .Where(x => x.Id == id)
+            .Select(x => new { x.Id, x.Number, x.AssignedApproverUserId, x.Amount, x.ReviewerName })
+            .FirstOrDefaultAsync(cancellationToken);
+        if (iou?.AssignedApproverUserId is not { } approverUserId) return;
+
+        notificationService.EnqueueInApp(
+            approverUserId,
+            "IOU assigned for approval",
+            $"{iou.Number}: {iou.ReviewerName ?? "The receiver"} assigned an IOU for {iou.Amount:0.00} to you. Review, edit if needed, and approve it.",
+            "/finance/petty-cash-ious",
+            ReferenceTypes.PettyCashIou,
+            iou.Id);
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    private async Task NotifyReviewerAsync(
+        Guid id,
+        string title,
+        string message,
+        CancellationToken cancellationToken)
+    {
+        var iou = await dbContext.PettyCashIous.AsNoTracking()
+            .Where(x => x.Id == id)
+            .Select(x => new { x.Id, x.Number, x.ReviewerUserId })
+            .FirstOrDefaultAsync(cancellationToken);
+        if (iou?.ReviewerUserId is not { } reviewerUserId) return;
+
+        notificationService.EnqueueInApp(
+            reviewerUserId,
+            title,
+            $"{iou.Number}: {message}",
+            "/finance/petty-cash-ious",
+            ReferenceTypes.PettyCashIou,
+            iou.Id);
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    private async Task NotifyHeadOfficeAsync(Guid id, CancellationToken cancellationToken)
+    {
+        var iou = await dbContext.PettyCashIous.AsNoTracking()
+            .Where(x => x.Id == id)
+            .Select(x => new { x.Id, x.Number, x.Amount, x.RequestedByName, x.ReviewerUserId })
+            .FirstOrDefaultAsync(cancellationToken);
+        if (iou is null) return;
+
+        var recipients = await accessControl.GetActiveUserIdsWithAnyPermissionAsync(
+            [AppPermissions.PettyCashIouApprove, AppPermissions.PettyCashIouReject],
+            excludeUserId: iou.ReviewerUserId,
+            cancellationToken);
+        notificationService.EnqueueInAppForUsers(
+            recipients,
+            "IOU awaiting head-office approval",
+            $"{iou.Number} from {iou.RequestedByName} has completed operational review. Amount: {iou.Amount:0.00}.",
+            "/finance/petty-cash-ious",
+            ReferenceTypes.PettyCashIou,
+            iou.Id);
         await dbContext.SaveChangesAsync(cancellationToken);
     }
 
@@ -606,7 +754,11 @@ public sealed class PettyCashIousController(
         return rows.ToDictionary(x => x.PettyCashIouId, x => new IouClaimTotals(x.ClaimedAmount, x.ClaimCount));
     }
 
-    private static PettyCashIouDto ToDto(PettyCashIou iou, IouClaimTotals totals, string? serviceJobNumber)
+    private static PettyCashIouDto ToDto(
+        PettyCashIou iou,
+        IouClaimTotals totals,
+        string? serviceJobNumber,
+        Guid? currentUserId)
         => new(
             iou.Id,
             iou.Number,
@@ -625,6 +777,15 @@ public sealed class PettyCashIousController(
             iou.SubmittedAt,
             iou.ApprovedAt,
             iou.ApprovedByUserId,
+            iou.ReviewerUserId,
+            iou.ReviewerName,
+            iou.AssignedApproverUserId,
+            iou.AssignedApproverName,
+            iou.AssignedAt,
+            iou.AssignedApprovedAt,
+            iou.HeadOfficeSubmittedAt,
+            currentUserId != null && iou.ReviewerUserId == currentUserId,
+            currentUserId != null && iou.AssignedApproverUserId == currentUserId,
             iou.PettyCashFundId,
             iou.ReleasedAt,
             iou.ReleaseReference,
@@ -636,7 +797,7 @@ public sealed class PettyCashIousController(
             totals.ClaimCount,
             // What is still outstanding after cash came back, less what the bills document. This is
             // live from the moment cash is released, not only once someone settles.
-            iou.Status is PettyCashIouStatus.Draft or PettyCashIouStatus.Submitted or PettyCashIouStatus.Approved
+            iou.ReleasedAt is null
                 ? null
                 : iou.OutstandingAmount - totals.ClaimedAmount,
             iou.IssueBillNumber,
