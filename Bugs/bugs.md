@@ -158,10 +158,7 @@ D:\VScode Projects\ISS\Bugs\image copy 26.png we implemented petty cache flow . 
    standard they have to fix it first place" implies the second, which is much the larger job -
    the hard-delete change alone touches 19 controllers and their screens.
 
-not Urgernt: D:\VScode Projects\ISS\Bugs\image copy 22.png all the audit data of records in all forms should display like in this customer 
+not Urgernt: D:\VScode Projects\ISS\Bugs\image copy 22.png all the audit data of records in all forms should display like in this customer still fixing petty cache
 
 
 not urgent audit logs shows ID when click full audit details from customer form grid autid D:\VScode Projects\ISS\Bugs\image copy 23.png
-
-Item master form grid need fixing . see jumbled items D:\VScode Projects\ISS\Bugs\image copy 24.png
-
