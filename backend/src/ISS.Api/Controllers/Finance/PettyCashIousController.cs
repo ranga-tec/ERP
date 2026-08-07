@@ -56,12 +56,14 @@ public sealed class PettyCashIousController(
     {
         if (!await HasPermissionAsync(AppPermissions.PettyCashIouReview, cancellationToken)) return Forbid();
 
-        var userIds = await accessControl.GetActiveUserIdsWithAnyPermissionAsync(
-            [AppPermissions.PettyCashIouAssignedApprove],
-            excludeUserId: currentUser.UserId,
-            cancellationToken);
+        // Assignment is the authorization for this specific IOU. Do not require a broad global
+        // approval permission here: that made tenants with custom permission sets see an empty
+        // picker even though they had active staff available for operational review.
+        var now = DateTimeOffset.UtcNow;
+        var reviewerUserId = currentUser.UserId;
         var users = await userManager.Users.AsNoTracking()
-            .Where(x => userIds.Contains(x.Id))
+            .Where(x => (x.LockoutEnd == null || x.LockoutEnd <= now)
+                        && (!reviewerUserId.HasValue || x.Id != reviewerUserId.Value))
             .OrderBy(x => x.DisplayName ?? x.Email)
             .Select(x => new PettyCashStaffDto(
                 x.Id,
@@ -274,14 +276,21 @@ public sealed class PettyCashIousController(
         UpdatePettyCashIouRequest request,
         CancellationToken cancellationToken)
     {
-        if (!await HasPermissionAsync(AppPermissions.PettyCashIouEdit, cancellationToken))
+        var userId = currentUser.UserId ?? Guid.Empty;
+        var canEdit = await HasPermissionAsync(AppPermissions.PettyCashIouEdit, cancellationToken)
+                      || await dbContext.PettyCashIous.AsNoTracking().AnyAsync(
+                          x => x.Id == id
+                               && x.Status == PettyCashIouStatus.AwaitingAssignedApproval
+                               && x.AssignedApproverUserId == userId,
+                          cancellationToken);
+        if (!canEdit)
         {
             return Forbid();
         }
 
         await financeService.UpdatePettyCashIouBeforeApprovalAsync(
             id,
-            currentUser.UserId ?? Guid.Empty,
+            userId,
             request.ServiceJobId,
             request.Amount,
             request.Purpose,
@@ -299,16 +308,13 @@ public sealed class PettyCashIousController(
     {
         if (!await HasPermissionAsync(AppPermissions.PettyCashIouReview, cancellationToken)) return Forbid();
         if (request.AssignedApproverUserId == Guid.Empty) return BadRequest("Select an approver.");
-        if (!await accessControl.HasPermissionAsync(
-                request.AssignedApproverUserId,
-                AppPermissions.PettyCashIouAssignedApprove,
-                cancellationToken))
-        {
-            return BadRequest("The selected user is not authorized to approve assigned IOUs.");
-        }
-
-        var approverName = await ResolveUserNameAsync(request.AssignedApproverUserId, cancellationToken);
-        if (approverName == "Unknown user") return BadRequest("The selected approver no longer exists.");
+        var now = DateTimeOffset.UtcNow;
+        var approverName = await userManager.Users.AsNoTracking()
+            .Where(x => x.Id == request.AssignedApproverUserId
+                        && (x.LockoutEnd == null || x.LockoutEnd <= now))
+            .Select(x => x.DisplayName != null && x.DisplayName != "" ? x.DisplayName : (x.Email ?? x.UserName))
+            .FirstOrDefaultAsync(cancellationToken);
+        if (string.IsNullOrWhiteSpace(approverName)) return BadRequest("The selected approver does not exist or is locked.");
         var reviewerUserId = currentUser.UserId ?? Guid.Empty;
         var reviewerName = await ResolveUserNameAsync(reviewerUserId, cancellationToken);
         await financeService.AssignPettyCashIouForApprovalAsync(
@@ -325,7 +331,8 @@ public sealed class PettyCashIousController(
     [HttpPost("{id:guid}/approve-assigned")]
     public async Task<ActionResult> ApproveAssigned(Guid id, CancellationToken cancellationToken)
     {
-        if (!await HasPermissionAsync(AppPermissions.PettyCashIouAssignedApprove, cancellationToken)) return Forbid();
+        // The domain verifies that the caller is the user named on this IOU. This is deliberately
+        // record-scoped rather than a global finance approval grant.
         await financeService.ApproveAssignedPettyCashIouAsync(id, currentUser.UserId ?? Guid.Empty, cancellationToken);
         await NotifyReviewerAsync(id, "IOU returned by approver", "The assigned approver completed their review. Submit it to head office when ready.", cancellationToken);
         return NoContent();

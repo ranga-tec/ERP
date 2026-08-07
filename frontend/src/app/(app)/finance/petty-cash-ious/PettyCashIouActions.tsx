@@ -66,9 +66,8 @@ export function PettyCashIouActions({
   const router = useRouter();
   const permissionSet = new Set(permissions);
   const canReview = permissionSet.has("Finance.PettyCashIou.Review");
-  const canAssignedApprove = permissionSet.has("Finance.PettyCashIou.AssignedApprove");
-  const canEdit = (status === 0 || status === 1 || (status === 8 && isAssignedApprover))
-    && permissionSet.has("Finance.PettyCashIou.Edit");
+  const canEdit = ((status === 0 || status === 1) && permissionSet.has("Finance.PettyCashIou.Edit"))
+    || (status === 8 && isAssignedApprover);
   const canApprove = permissionSet.has("Finance.PettyCashIou.Approve");
   const canReject = permissionSet.has("Finance.PettyCashIou.Reject");
   const canRelease = permissionSet.has("Finance.PettyCashIou.Release");
@@ -134,7 +133,7 @@ export function PettyCashIouActions({
           <Button type="button" disabled={busy !== null} onClick={() => setPending("assign")}>Send for Approval</Button>
         ) : null}
 
-        {status === 8 && isAssignedApprover && canAssignedApprove ? (
+        {status === 8 && isAssignedApprover ? (
           <Button type="button" disabled={busy !== null} onClick={() => void run("approve-assigned")}>
             {busy === "approve-assigned" ? "Approving..." : "Approve & Return"}
           </Button>
@@ -169,7 +168,7 @@ export function PettyCashIouActions({
         ) : null}
 
         {((status === 1 && !canReview)
-          || (status === 8 && (!isAssignedApprover || !canAssignedApprove))
+          || (status === 8 && !isAssignedApprover)
           || (status === 9 && (!isReviewer || !canReview))
           || (status === 10 && !canApprove && !canReject)
           || (status === 2 && !canRelease)
@@ -193,12 +192,12 @@ export function PettyCashIouActions({
             </p>
             <label className="mt-4 block text-sm font-medium">Assigned approver</label>
             <Select className="mt-1" value={assignedApproverUserId} onChange={(event) => setAssignedApproverUserId(event.target.value)}>
-              <option value="" disabled>Select an authorized approver...</option>
+              <option value="" disabled>Search users by name or email...</option>
               {approvers.map((person) => (
                 <option key={person.userId} value={person.userId}>{person.name}{person.email ? ` - ${person.email}` : ""}</option>
               ))}
             </Select>
-            {approvers.length === 0 ? <p className="mt-2 text-xs text-amber-700 dark:text-amber-300">No other active user has assigned-IOU approval permission.</p> : null}
+            {approvers.length === 0 ? <p className="mt-2 text-xs text-amber-700 dark:text-amber-300">No other active user is available.</p> : null}
             <div className="mt-4 flex justify-end gap-2">
               <SecondaryButton type="button" disabled={busy === "assign"} onClick={() => setPending(null)}>Cancel</SecondaryButton>
               <Button

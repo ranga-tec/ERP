@@ -362,6 +362,10 @@ public sealed class EndToEndTests(IssApiFixture fixture) : IClassFixture<IssApiF
             displayName = "IOU Operational Approver",
             roles = new[] { "Finance" },
         });
+        await PutNoContent($"/api/admin/users/{assignedApprover.Id}/permissions", new
+        {
+            permissions = new[] { "Finance.PettyCashIou.View" },
+        });
         var customer = await Post<CustomerDto>("/api/customers", new
         {
             code = Code("IOUCUS"),
@@ -421,6 +425,9 @@ public sealed class EndToEndTests(IssApiFixture fixture) : IClassFixture<IssApiF
         Assert.Equal(125.75m, updated.Amount);
         Assert.Equal("Updated before approval", updated.Purpose);
         Assert.Equal(expectedSettlementAt.Date, updated.ExpectedSettlementAt?.Date);
+
+        var approvers = await Get<List<PettyCashStaffApiDto>>("/api/finance/petty-cash-ious/approvers");
+        Assert.Contains(approvers, x => x.UserId == assignedApprover.Id);
 
         await PostNoContent($"/api/finance/petty-cash-ious/{iou.Id}/assign", new
         {
@@ -3363,6 +3370,7 @@ public sealed class EndToEndTests(IssApiFixture fixture) : IClassFixture<IssApiF
     private sealed record PettyCashCategoryBalanceApiDto(Guid PettyCashRequestLineId, decimal FundedAmount, decimal LedgerBalance, decimal PendingReturnAmount, decimal PendingReallocationAmount, decimal AvailableBalance);
     private sealed record PettyCashReturnApiDto(Guid Id, string Number, PettyCashReturnStatus Status, decimal TotalAmount, string? ReceiptReference);
     private sealed record PettyCashIouApiDto(Guid Id, string Number, Guid? ServiceJobId, decimal Amount, string Purpose, DateTimeOffset? ExpectedSettlementAt, PettyCashIouStatus Status, Guid? ReviewerUserId = null, Guid? AssignedApproverUserId = null);
+    private sealed record PettyCashStaffApiDto(Guid UserId, string Name, string? Email);
     private sealed record AdminUserApiDto(Guid Id);
     private sealed record AuthTokenApiDto(string Token);
 
