@@ -6,7 +6,7 @@ services:
     region: singapore
     dockerfilePath: ./Dockerfile
     dockerContext: .
-    healthCheckPath: /api/backend/health
+    healthCheckPath: /health
     autoDeploy: false
     envVars:
       - key: DATABASE_URL
@@ -15,6 +15,10 @@ services:
           property: connectionString
       - key: Database__InitializationMode
         value: Migrate
+      - key: DOTNET_USE_POLLING_FILE_WATCHER
+        value: "1"
+      - key: DOTNET_HOSTBUILDER__RELOADCONFIGONCHANGE
+        value: "false"
       - key: Jwt__Issuer
         value: neuedge
       - key: Jwt__Audience
