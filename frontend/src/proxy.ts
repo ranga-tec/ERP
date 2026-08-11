@@ -14,6 +14,7 @@ export function proxy(req: NextRequest) {
     pathname.startsWith("/api/auth") ||
     pathname.startsWith("/api/") ||
     pathname.startsWith("/_next") ||
+    pathname === "/health" ||
     pathname === "/favicon.ico" ||
     PUBLIC_FILE.test(pathname)
   ) {
