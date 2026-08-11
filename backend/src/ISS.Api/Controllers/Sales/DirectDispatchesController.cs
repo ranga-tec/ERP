@@ -339,7 +339,13 @@ public sealed class DirectDispatchesController(
         // what other dispatches have already taken against each requested line
         var otherLines = await dbContext.DirectDispatches.AsNoTracking()
             .Where(x => x.MaterialRequisitionId == requisitionId && x.Id != dispatch.Id && x.Status != DirectDispatchStatus.Voided)
-            .SelectMany(x => x.Lines.Select(l => new { x.Status, l.MaterialRequisitionLineId, l.Quantity }))
+            .SelectMany(x => x.Lines.Select(l => new
+            {
+                x.Status,
+                l.MaterialRequisitionLineId,
+                l.Quantity,
+                Serials = l.Serials.Select(serial => serial.SerialNumber).ToList()
+            }))
             .Where(x => x.MaterialRequisitionLineId != null)
             .ToListAsync(cancellationToken);
 
@@ -388,8 +394,22 @@ public sealed class DirectDispatchesController(
             var previously = posted.GetValueOrDefault(requested.Id);
             var reservedQty = reserved.GetValueOrDefault(requested.Id);
             var outstanding = Math.Max(0m, requested.Quantity - previously - reservedQty);
-            var onHand = onHandByItem.GetValueOrDefault(requested.ItemId);
-            var availableSerials = availableSerialsByItem.GetValueOrDefault(requested.ItemId) ?? [];
+            var physicalOnHand = onHandByItem.GetValueOrDefault(requested.ItemId);
+            // A posted MRN has already consumed/allocated its stock. AOD is the dispatch paperwork
+            // for that allocation, so put the still-outstanding allocation back into the plan's
+            // usable figure without creating another inventory movement later.
+            var onHand = physicalOnHand + (requisition.Status == MaterialRequisitionStatus.Posted ? outstanding : 0m);
+            var physicalSerials = availableSerialsByItem.GetValueOrDefault(requested.ItemId) ?? [];
+            var serialsUsedByOtherAods = otherLines
+                .Where(line => line.MaterialRequisitionLineId == requested.Id)
+                .SelectMany(line => line.Serials)
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+            var availableSerials = requisition.Status == MaterialRequisitionStatus.Posted
+                ? (IReadOnlyList<string>)requested.Serials
+                    .Select(serial => serial.SerialNumber)
+                    .Where(serial => !serialsUsedByOtherAods.Contains(serial))
+                    .ToList()
+                : physicalSerials;
             var serials = current is not null
                 ? current.Serials.Select(s => s.SerialNumber).ToList()
                 : requested.Serials

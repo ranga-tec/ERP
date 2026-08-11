@@ -1802,6 +1802,83 @@ public sealed class EndToEndTests(IssApiFixture fixture) : IClassFixture<IssApiF
         Assert.Contains("MRN-KEEP", line.AvailableSerials);
         Assert.Contains("WAREHOUSE-OTHER", line.AvailableSerials);
         Assert.DoesNotContain("MRN-SOLD", line.AvailableSerials);
+
+        var postedRequisition = await Post<MaterialRequisitionDto>("/api/service/material-requisitions", new
+        {
+            serviceJobId = job.Id,
+            warehouseId = warehouse.Id
+        });
+        await PostNoContent($"/api/service/material-requisitions/{postedRequisition.Id}/lines", new
+        {
+            itemId = serialItem.Id,
+            quantity = 2m,
+            batchNumber = (string?)null,
+            serials = new[] { "MRN-KEEP", "WAREHOUSE-OTHER" }
+        });
+        await PostNoContent($"/api/service/material-requisitions/{postedRequisition.Id}/post", new { });
+
+        var allocatedDispatch = await Post<DirectDispatchApiDto>("/api/sales/direct-dispatches", new
+        {
+            warehouseId = warehouse.Id,
+            customerId = customer.Id,
+            serviceJobId = job.Id,
+            materialRequisitionId = postedRequisition.Id,
+            reason = "Dispatch an MRN allocation"
+        });
+        var allocatedPlan = await Get<MrnPlanApiDto>($"/api/sales/direct-dispatches/{allocatedDispatch.Id}/mrn-plan");
+        var allocatedLine = Assert.Single(allocatedPlan.Lines);
+        Assert.Equal(new[] { "MRN-KEEP", "WAREHOUSE-OTHER" }, allocatedLine.Serials);
+        Assert.Equal(2m, allocatedLine.OnHandQuantity);
+        Assert.Equal(2m, allocatedLine.DispatchableQuantity);
+
+        await PutNoContent($"/api/sales/direct-dispatches/{allocatedDispatch.Id}/mrn-plan", new
+        {
+            materialRequisitionId = postedRequisition.Id,
+            lines = new[]
+            {
+                new
+                {
+                    materialRequisitionLineId = allocatedLine.MaterialRequisitionLineId,
+                    quantity = 1m,
+                    batchNumber = (string?)null,
+                    serials = new[] { "MRN-KEEP" }
+                }
+            }
+        });
+        var onHandBeforeAodPost = await GetOnHandQuantityAsync(warehouse.Id, serialItem.Id);
+        await PostNoContent($"/api/sales/direct-dispatches/{allocatedDispatch.Id}/post", new { });
+        var onHandAfterAodPost = await GetOnHandQuantityAsync(warehouse.Id, serialItem.Id);
+        Assert.Equal(onHandBeforeAodPost, onHandAfterAodPost);
+
+        var remainingDispatch = await Post<DirectDispatchApiDto>("/api/sales/direct-dispatches", new
+        {
+            warehouseId = warehouse.Id,
+            customerId = customer.Id,
+            serviceJobId = job.Id,
+            materialRequisitionId = postedRequisition.Id,
+            reason = "Dispatch the remaining MRN allocation"
+        });
+        var remainingPlan = await Get<MrnPlanApiDto>($"/api/sales/direct-dispatches/{remainingDispatch.Id}/mrn-plan");
+        var remainingLine = Assert.Single(remainingPlan.Lines);
+        Assert.Equal(new[] { "WAREHOUSE-OTHER" }, remainingLine.Serials);
+        Assert.DoesNotContain("MRN-KEEP", remainingLine.AvailableSerials);
+
+        await PutNoContent($"/api/sales/direct-dispatches/{remainingDispatch.Id}/mrn-plan", new
+        {
+            materialRequisitionId = postedRequisition.Id,
+            lines = new[]
+            {
+                new
+                {
+                    materialRequisitionLineId = remainingLine.MaterialRequisitionLineId,
+                    quantity = 1m,
+                    batchNumber = (string?)null,
+                    serials = new[] { "MRN-KEEP" }
+                }
+            }
+        });
+        var duplicateSerialResponse = await _client.PostAsJsonAsync($"/api/sales/direct-dispatches/{remainingDispatch.Id}/post", new { });
+        Assert.Equal(System.Net.HttpStatusCode.BadRequest, duplicateSerialResponse.StatusCode);
     }
 
     [Fact]
@@ -3485,7 +3562,7 @@ public sealed class EndToEndTests(IssApiFixture fixture) : IClassFixture<IssApiF
     private sealed record DispatchDto(Guid Id, string Number, Guid SalesOrderId, Guid WarehouseId, DateTimeOffset DispatchedAt, DispatchStatus Status);
     private sealed record DirectDispatchLineApiDto(Guid Id, Guid ItemId, decimal Quantity, string? BatchNumber, IReadOnlyList<string> Serials);
     private sealed record DirectDispatchApiDto(Guid Id, string Number, Guid WarehouseId, Guid? CustomerId, Guid? ServiceJobId, DateTimeOffset DispatchedAt, DirectDispatchStatus Status, string? Reason, IReadOnlyList<DirectDispatchLineApiDto> Lines);
-    private sealed record MrnPlanLineApiDto(Guid MaterialRequisitionLineId, Guid ItemId, IReadOnlyList<string> Serials, IReadOnlyList<string> AvailableSerials);
+    private sealed record MrnPlanLineApiDto(Guid MaterialRequisitionLineId, Guid ItemId, decimal OnHandQuantity, decimal DispatchableQuantity, IReadOnlyList<string> Serials, IReadOnlyList<string> AvailableSerials);
     private sealed record MrnPlanApiDto(Guid MaterialRequisitionId, string RequisitionNumber, IReadOnlyList<MrnPlanLineApiDto> Lines);
     private sealed record CustomerReturnLineApiDto(Guid Id, Guid ItemId, decimal Quantity, decimal UnitPrice, string? BatchNumber, IReadOnlyList<string> Serials);
     private sealed record CustomerReturnApiDto(Guid Id, string Number, Guid CustomerId, Guid WarehouseId, DateTimeOffset ReturnDate, CustomerReturnStatus Status, Guid? SalesInvoiceId, Guid? DispatchNoteId, string? Reason, IReadOnlyList<CustomerReturnLineApiDto> Lines);

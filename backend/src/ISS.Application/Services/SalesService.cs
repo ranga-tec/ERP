@@ -432,6 +432,43 @@ public sealed class SalesService(
         var items = await dbContext.Items.Where(i => itemIds.Contains(i.Id)).ToListAsync(cancellationToken);
         var itemById = items.ToDictionary(i => i.Id, i => i);
 
+        MaterialRequisition? postedRequisition = null;
+        Dictionary<Guid, decimal> previouslyDispatchedByRequisitionLine = [];
+        Dictionary<Guid, HashSet<string>> previouslyDispatchedSerialsByRequisitionLine = [];
+        if (dispatch.MaterialRequisitionId is { } requisitionId)
+        {
+            postedRequisition = await dbContext.MaterialRequisitions.AsNoTracking()
+                .Include(requisition => requisition.Lines)
+                .ThenInclude(line => line.Serials)
+                .FirstOrDefaultAsync(requisition => requisition.Id == requisitionId, cancellationToken);
+
+            if (postedRequisition?.Status == MaterialRequisitionStatus.Posted)
+            {
+                var previouslyDispatchedLines = await dbContext.DirectDispatches.AsNoTracking()
+                    .Where(other => other.MaterialRequisitionId == requisitionId
+                                    && other.Id != dispatch.Id
+                                    && other.Status == DirectDispatchStatus.Posted)
+                    .SelectMany(other => other.Lines)
+                    .Where(line => line.MaterialRequisitionLineId != null)
+                    .Select(line => new
+                    {
+                        LineId = line.MaterialRequisitionLineId!.Value,
+                        line.Quantity,
+                        Serials = line.Serials.Select(serial => serial.SerialNumber).ToList()
+                    })
+                    .ToListAsync(cancellationToken);
+
+                previouslyDispatchedByRequisitionLine = previouslyDispatchedLines
+                    .GroupBy(line => line.LineId)
+                    .ToDictionary(group => group.Key, group => group.Sum(line => line.Quantity));
+                previouslyDispatchedSerialsByRequisitionLine = previouslyDispatchedLines
+                    .GroupBy(line => line.LineId)
+                    .ToDictionary(
+                        group => group.Key,
+                        group => group.SelectMany(line => line.Serials).ToHashSet(StringComparer.OrdinalIgnoreCase));
+            }
+        }
+
         var customerId = dispatch.CustomerId;
         if (customerId is null && dispatch.ServiceJobId is { } jobId)
         {
@@ -448,6 +485,51 @@ public sealed class SalesService(
             if (!itemById.TryGetValue(line.ItemId, out var item))
             {
                 throw new DomainValidationException("Invalid item on direct dispatch.");
+            }
+
+            if (postedRequisition?.Status == MaterialRequisitionStatus.Posted
+                && line.MaterialRequisitionLineId is { } requisitionLineId)
+            {
+                var requestedLine = postedRequisition.Lines.FirstOrDefault(requested => requested.Id == requisitionLineId)
+                    ?? throw new DomainValidationException("AOD line does not belong to the linked material requisition.");
+                var previouslyDispatched = previouslyDispatchedByRequisitionLine.GetValueOrDefault(requisitionLineId);
+                if (previouslyDispatched + line.Quantity > requestedLine.Quantity)
+                {
+                    throw new DomainValidationException("AOD quantity exceeds the amount allocated by the material requisition.");
+                }
+
+                if (!string.Equals(line.BatchNumber?.Trim(), requestedLine.BatchNumber?.Trim(), StringComparison.OrdinalIgnoreCase))
+                {
+                    throw new DomainValidationException("AOD batch must match the batch allocated by the posted material requisition.");
+                }
+
+                if (item.TrackingType == TrackingType.Serial)
+                {
+                    var allocatedSerials = requestedLine.Serials
+                        .Select(serial => serial.SerialNumber)
+                        .ToHashSet(StringComparer.OrdinalIgnoreCase);
+                    var unallocatedSerial = line.Serials
+                        .Select(serial => serial.SerialNumber)
+                        .FirstOrDefault(serial => !allocatedSerials.Contains(serial));
+                    if (unallocatedSerial is not null)
+                    {
+                        throw new DomainValidationException($"Serial '{unallocatedSerial}' was not allocated by the posted material requisition.");
+                    }
+
+                    var previouslyDispatchedSerials = previouslyDispatchedSerialsByRequisitionLine
+                        .GetValueOrDefault(requisitionLineId) ?? [];
+                    var reusedSerial = line.Serials
+                        .Select(serial => serial.SerialNumber)
+                        .FirstOrDefault(previouslyDispatchedSerials.Contains);
+                    if (reusedSerial is not null)
+                    {
+                        throw new DomainValidationException($"Serial '{reusedSerial}' has already been dispatched for this material requisition.");
+                    }
+                }
+
+                // The posted MRN already recorded the consumption. AOD confirms the physical
+                // dispatch and must not issue the same stock for a second time.
+                continue;
             }
 
             await inventoryService.RecordIssueAsync(
