@@ -1808,15 +1808,15 @@ public sealed class EndToEndTests(IssApiFixture fixture) : IClassFixture<IssApiF
             unitOfMeasure = "PCS",
             brandId = (Guid?)null,
             barcode = (string?)null,
-            defaultUnitCost = 1m
+            defaultUnitCost = 0m
         });
 
         // Seed stock for spare part via GRN
         var po = await Post<PurchaseOrderDto>("/api/procurement/purchase-orders", new { supplierId = supplier.Id });
-        await PostNoContent($"/api/procurement/purchase-orders/{po.Id}/lines", new { itemId = sparePart.Id, quantity = 5m, unitPrice = 1m });
+        await PostNoContent($"/api/procurement/purchase-orders/{po.Id}/lines", new { itemId = sparePart.Id, quantity = 5m, unitPrice = 8m });
         await PostNoContent($"/api/procurement/purchase-orders/{po.Id}/approve", new { });
         var grn = await Post<GoodsReceiptDto>("/api/procurement/goods-receipts", new { purchaseOrderId = po.Id, warehouseId = warehouse.Id });
-        await PostNoContent($"/api/procurement/goods-receipts/{grn.Id}/lines", new { itemId = sparePart.Id, quantity = 5m, unitCost = 1m, batchNumber = (string?)null, serials = (string[]?)null });
+        await PostNoContent($"/api/procurement/goods-receipts/{grn.Id}/lines", new { itemId = sparePart.Id, quantity = 5m, unitCost = 8m, batchNumber = (string?)null, serials = (string[]?)null });
         await PostNoContent($"/api/procurement/goods-receipts/{grn.Id}/post", new { });
 
         var unit = await Post<EquipmentUnitDto>("/api/service/equipment-units", new
@@ -1836,6 +1836,12 @@ public sealed class EndToEndTests(IssApiFixture fixture) : IClassFixture<IssApiF
 
         var onHand = await GetOnHandQuantityAsync(warehouse.Id, sparePart.Id);
         Assert.Equal(3m, onHand);
+
+        var costing = await Get<ServiceJobCostingDto>($"/api/service/jobs/{job.Id}/costing");
+        var materialLine = Assert.Single(costing.MaterialLines);
+        Assert.Equal(8m, materialLine.UnitCost);
+        Assert.Equal(16m, materialLine.LineTotal);
+        Assert.Equal(16m, costing.MaterialConsumedCost);
     }
 
     [Fact]

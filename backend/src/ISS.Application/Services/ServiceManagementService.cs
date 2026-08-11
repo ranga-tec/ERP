@@ -2419,12 +2419,19 @@ public sealed class ServiceManagementService(
                 throw new DomainValidationException("Invalid item on material requisition.");
             }
 
+            var issueUnitCost = await inventoryService.GetIssueUnitCostAsync(
+                mr.WarehouseId,
+                item,
+                line.BatchNumber,
+                line.Serials.Select(s => s.SerialNumber).ToList(),
+                cancellationToken);
+
             await inventoryService.RecordConsumptionAsync(
                 mr.RequestedAt,
                 mr.WarehouseId,
                 item,
                 line.Quantity,
-                unitCost: item.DefaultUnitCost,
+                unitCost: issueUnitCost,
                 ReferenceTypes.MaterialRequisition,
                 mr.Id,
                 line.Id,

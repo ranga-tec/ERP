@@ -182,6 +182,48 @@ public sealed class InventoryService(IIssDbContext dbContext)
         }).ToList();
     }
 
+    public async Task<decimal> GetIssueUnitCostAsync(
+        Guid warehouseId,
+        Item item,
+        string? batchNumber = null,
+        IReadOnlyCollection<string>? serialNumbers = null,
+        CancellationToken cancellationToken = default)
+    {
+        var query = dbContext.InventoryMovements.AsNoTracking()
+            .Where(m => m.WarehouseId == warehouseId && m.ItemId == item.Id);
+
+        if (item.TrackingType == TrackingType.Batch && !string.IsNullOrWhiteSpace(batchNumber))
+        {
+            var trimmedBatch = batchNumber.Trim();
+            query = query.Where(m => m.BatchNumber == trimmedBatch);
+        }
+        else if (item.TrackingType == TrackingType.Serial && serialNumbers is { Count: > 0 })
+        {
+            var selectedSerials = serialNumbers
+                .Select(serial => serial.Trim())
+                .Where(serial => serial.Length > 0)
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+            query = query.Where(m => m.SerialNumber != null && selectedSerials.Contains(m.SerialNumber));
+        }
+
+        var valuation = await query
+            .GroupBy(_ => 1)
+            .Select(group => new
+            {
+                OnHand = group.Sum(m => m.Quantity),
+                Value = group.Sum(m => m.Quantity * m.UnitCost),
+            })
+            .SingleOrDefaultAsync(cancellationToken);
+
+        if (valuation is null || valuation.OnHand <= 0m)
+        {
+            return item.DefaultUnitCost;
+        }
+
+        return decimal.Round(valuation.Value / valuation.OnHand, 4, MidpointRounding.AwayFromZero);
+    }
+
     public async Task<bool> IsSerialInStockAsync(Guid warehouseId, Guid itemId, string serialNumber, CancellationToken cancellationToken = default)
     {
         serialNumber = serialNumber.Trim();
