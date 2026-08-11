@@ -337,31 +337,48 @@ public sealed class WorkOrdersController(
             .Select(x => new { x.Id, x.TechnicianUserId, x.TechnicianName })
             .FirstOrDefaultAsync(cancellationToken);
 
-        var recipientUserId = entry?.TechnicianUserId;
-        if (entry is null || recipientUserId is null || recipientUserId == Guid.Empty)
+        if (entry is null)
         {
             return;
         }
 
-        // TechnicianUserId holds a ServiceTechnician id - the add-entry endpoint validates it as
-        // one. Technicians are staff, so resolve through to the linked login and notify that.
-        // Falls back to treating the id as a user for entries tagged with a user directly, and
-        // gives up rather than violating the UserNotifications foreign key.
-        var linkedUserId = await dbContext.ServiceTechnicians.AsNoTracking()
-            .Where(x => x.Id == recipientUserId.Value && x.UserId != null)
-            .Select(x => x.UserId)
+        var candidateUserIds = new HashSet<Guid>();
+        var workOrderOwner = await dbContext.WorkOrders.AsNoTracking()
+            .Where(x => x.Id == workOrderId)
+            .Select(x => new { x.CreatedBy, x.AssignedToUserId })
             .FirstOrDefaultAsync(cancellationToken);
 
-        var notifyUserId = linkedUserId ?? recipientUserId.Value;
-        var recipientIsUser = await userManager.Users.AsNoTracking()
-            .AnyAsync(x => x.Id == notifyUserId, cancellationToken);
-        if (!recipientIsUser)
+        if (workOrderOwner?.CreatedBy is { } createdBy && createdBy != Guid.Empty)
         {
-            return;
+            // The job-sheet owner must receive the outcome even when the technician is a
+            // subcontractor or has no login linked to the technician master.
+            candidateUserIds.Add(createdBy);
         }
 
-        notificationService.EnqueueInApp(
-            notifyUserId,
+        if (workOrderOwner?.AssignedToUserId is { } assignedTo && assignedTo != Guid.Empty)
+        {
+            candidateUserIds.Add(assignedTo);
+        }
+
+        if (entry.TechnicianUserId is { } technicianId && technicianId != Guid.Empty)
+        {
+            // TechnicianUserId stores a ServiceTechnician id. Notify its linked login when one
+            // exists, while retaining compatibility with older entries that stored a user id.
+            var linkedUserId = await dbContext.ServiceTechnicians.AsNoTracking()
+                .Where(x => x.Id == technicianId && x.UserId != null)
+                .Select(x => x.UserId)
+                .FirstOrDefaultAsync(cancellationToken);
+
+            candidateUserIds.Add(linkedUserId ?? technicianId);
+        }
+
+        var recipientUserIds = await userManager.Users.AsNoTracking()
+            .Where(x => candidateUserIds.Contains(x.Id))
+            .Select(x => x.Id)
+            .ToListAsync(cancellationToken);
+
+        notificationService.EnqueueInAppForUsers(
+            recipientUserIds,
             title,
             $"{entry.TechnicianName}: {message}",
             $"/service/work-orders/{workOrderId}",

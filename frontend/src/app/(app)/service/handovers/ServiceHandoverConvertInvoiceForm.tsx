@@ -61,6 +61,10 @@ export function ServiceHandoverConvertInvoiceForm({
     () => items.slice().sort((a, b) => a.sku.localeCompare(b.sku)),
     [items],
   );
+  const serviceItemOptions = useMemo(
+    () => itemOptions.filter((item) => item.type === 3 && item.isActive !== false),
+    [itemOptions],
+  );
 
   async function convertFromEstimate() {
     setError(null);
@@ -143,10 +147,10 @@ export function ServiceHandoverConvertInvoiceForm({
             </div>
 
             <div>
-              <label className="mb-1 block text-sm font-medium">Labor Item (if labor lines exist)</label>
+              <label className="mb-1 block text-sm font-medium">Labor Item Override (optional)</label>
               <Select value={laborItemId} onChange={(e) => setLaborItemId(e.target.value)} disabled={disabled || busy}>
-                <option value="">Select labor/service item (optional)</option>
-                {itemOptions.map((i) => (
+                <option value="">Automatic service item</option>
+                {serviceItemOptions.map((i) => (
                   <option key={i.id} value={i.id}>
                     {i.sku} - {i.name}
                   </option>

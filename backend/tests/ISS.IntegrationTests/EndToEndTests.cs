@@ -1,4 +1,5 @@
 using ClosedXML.Excel;
+using ISS.Application.Services;
 using ISS.IntegrationTests.Fixtures;
 using ISS.Domain.Finance;
 using ISS.Domain.Inventory;
@@ -2670,6 +2671,12 @@ public sealed class EndToEndTests(IssApiFixture fixture) : IClassFixture<IssApiF
         await PostNoContent($"/api/service/work-orders/{workOrder.Id}/time-entries/{timeEntry.Id}/submit", new { });
         await PostNoContent($"/api/service/work-orders/{workOrder.Id}/time-entries/{timeEntry.Id}/approve", new { });
 
+        var userNotifications = await Get<List<UserNotificationDto>>("/api/notifications?take=200");
+        Assert.Contains(userNotifications, notification =>
+            notification.Title == "Time entry approved"
+            && notification.ReferenceType == "WOTE"
+            && notification.ReferenceId == timeEntry.Id);
+
         var costingBeforeInvoice = await Get<ServiceJobCostingDto>($"/api/service/jobs/{job.Id}/costing");
         Assert.Equal(21.70m, costingBeforeInvoice.ApprovedLaborCost);
         Assert.Equal(37.76m, costingBeforeInvoice.BillableLaborRevenue);
@@ -2705,19 +2712,47 @@ public sealed class EndToEndTests(IssApiFixture fixture) : IClassFixture<IssApiF
         });
         await PostNoContent($"/api/service/handovers/{handover.Id}/complete", new { });
 
-        var convert = await Post<ConvertToSalesInvoiceResponseDto>($"/api/service/handovers/{handover.Id}/convert-to-sales-invoice", new
+        var convert = await Post<ConvertToSalesInvoiceResponseDto>($"/api/service/handovers/{handover.Id}/build-invoice", new
         {
-            serviceEstimateId = estimate.Id,
-            laborItemId = laborItem.Id,
+            dueDate = (DateTimeOffset?)null,
+            headerDiscountPercent = 0m,
+            headerDiscountAmount = 0m,
+            materialLines = Array.Empty<object>(),
+            labourMode = ServiceManagementService.ServiceChargeBillingMode.RolledUp,
+            labourItemId = (Guid?)null,
+            labourCharges = new[]
+            {
+                new
+                {
+                    timeEntryId = timeEntry.Id,
+                    quantity = 1.25m,
+                    unitPrice = 25.60m,
+                    discountPercent = 0m,
+                    taxPercent = 18m
+                }
+            },
+            expenseMode = ServiceManagementService.ServiceChargeBillingMode.Skip,
             expenseItemId = (Guid?)null,
-            laborBillingSource = ServiceLaborBillingSource.ApprovedTimeEntries,
-            dueDate = (DateTimeOffset?)null
+            expenseCharges = Array.Empty<object>(),
+            otherLines = new[]
+            {
+                new
+                {
+                    itemId = partItem.Id,
+                    quantity = 1m,
+                    unitPrice = 50m,
+                    discountPercent = 0m,
+                    taxPercent = 0m,
+                    materialRequisitionLineId = (Guid?)null,
+                    description = "Seal replacement"
+                }
+            }
         });
 
         var invoice = await Get<InvoiceDetailDto>($"/api/sales/invoices/{convert.SalesInvoiceId}");
         Assert.Equal(2, invoice.Lines.Count);
         Assert.Contains(invoice.Lines, line => line.ItemId == partItem.Id && line.LineTotal == 50m);
-        Assert.Contains(invoice.Lines, line => line.ItemId == laborItem.Id
+        Assert.Contains(invoice.Lines, line => line.ItemId != partItem.Id
                                                && line.Quantity == 1.25m
                                                && line.UnitPrice == 25.60m
                                                && line.TaxPercent == 18m
@@ -3468,6 +3503,7 @@ public sealed class EndToEndTests(IssApiFixture fixture) : IClassFixture<IssApiF
     private sealed record AuditLogDto(Guid Id, DateTimeOffset OccurredAt, Guid? UserId, string TableName, int Action, string Key, string ChangesJson);
     private sealed record ImportResultDto(int BrandsCreated, int BrandsUpdated, int WarehousesCreated, int WarehousesUpdated, int SuppliersCreated, int SuppliersUpdated, int CustomersCreated, int CustomersUpdated, int ItemsCreated, int ItemsUpdated, int ReorderSettingsCreated, int ReorderSettingsUpdated, int EquipmentUnitsCreated, int EquipmentUnitsUpdated);
     private sealed record NotificationOutboxDto(Guid Id, NotificationChannel Channel, string Recipient, string? Subject, string Body, NotificationStatus Status, int Attempts, DateTimeOffset NextAttemptAt, DateTimeOffset? LastAttemptAt, DateTimeOffset? SentAt, string? LastError, string? ReferenceType, Guid? ReferenceId, DateTimeOffset CreatedAt);
+    private sealed record UserNotificationDto(Guid Id, string Title, string Message, string? Href, DateTimeOffset CreatedAt, DateTimeOffset? ReadAt, string? ReferenceType, Guid? ReferenceId);
     private sealed record AdminUserDto(Guid Id, string Email, string? DisplayName, bool IsLocked, DateTimeOffset? LockoutEnd, IReadOnlyList<string> Roles);
     private sealed record AuthDto(string Token, Guid UserId, string Email, IReadOnlyList<string> Roles);
     private sealed record AssistantMessageDto(string Role, string Content, DateTimeOffset OccurredAt);

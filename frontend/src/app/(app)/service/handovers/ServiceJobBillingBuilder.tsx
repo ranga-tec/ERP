@@ -9,6 +9,8 @@ export type BillingItemRef = {
   id: string;
   sku: string;
   name: string;
+  type?: number;
+  isActive?: boolean;
   defaultUnitCost?: number;
   defaultUnitPrice?: number;
   unitOfMeasure: string;
@@ -160,6 +162,10 @@ export function ServiceJobBillingBuilder({
   const itemOptions = useMemo(
     () => items.slice().sort((a, b) => a.sku.localeCompare(b.sku)),
     [items],
+  );
+  const serviceItemOptions = useMemo(
+    () => itemOptions.filter((item) => item.type === 3 && item.isActive !== false),
+    [itemOptions],
   );
   const taxOptions = useMemo(
     () => taxes.filter((t) => t.isActive).slice().sort((a, b) => a.code.localeCompare(b.code)),
@@ -357,9 +363,6 @@ export function ServiceJobBillingBuilder({
       }
       if (expenseCharges.some((c) => c.quantity <= 0)) {
         throw new Error("Expense quantities must be greater than zero. Untick a line instead of setting it to zero.");
-      }
-      if (labourCharges.length > 0 && !labourItemId) {
-        throw new Error("Choose the service item that labour is billed against.");
       }
       if (expenseCharges.length > 0 && !expenseItemId) {
         throw new Error("Choose the item that recharged expenses are billed against.");
@@ -567,8 +570,9 @@ export function ServiceJobBillingBuilder({
             onMode={setLabourMode}
             itemId={labourItemId}
             onItemId={setLabourItemId}
-            itemOptions={itemOptions}
-            itemLabel="Bill labour against"
+            itemOptions={serviceItemOptions}
+            itemLabel="Labour item override (optional)"
+            emptyItemLabel="Automatic service item"
             disabled={disabled || busy}
           />
         }
@@ -927,6 +931,7 @@ function ModeControls({
   onItemId,
   itemOptions,
   itemLabel,
+  emptyItemLabel = "Select item...",
   disabled,
 }: {
   mode: BillingMode;
@@ -935,6 +940,7 @@ function ModeControls({
   onItemId: (id: string) => void;
   itemOptions: BillingItemRef[];
   itemLabel: string;
+  emptyItemLabel?: string;
   disabled: boolean;
 }) {
   return (
@@ -951,7 +957,7 @@ function ModeControls({
         <div className="min-w-[240px]">
           <label className="mb-1 block text-[11px] font-medium uppercase tracking-wide text-zinc-500">{itemLabel}</label>
           <Select value={itemId} onChange={(e) => onItemId(e.target.value)} disabled={disabled}>
-            <option value="">Select item...</option>
+            <option value="">{emptyItemLabel}</option>
             {itemOptions.map((item) => (
               <option key={item.id} value={item.id}>
                 {item.sku} - {item.name}

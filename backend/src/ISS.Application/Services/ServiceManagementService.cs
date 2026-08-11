@@ -15,6 +15,7 @@ public sealed class ServiceManagementService(
     IIssDbContext dbContext,
     IDocumentNumberService documentNumberService,
     IClock clock,
+    ICurrentUser currentUser,
     InventoryService inventoryService,
     NotificationService notificationService,
     DocumentAccountMappingService documentAccountMappingService)
@@ -1288,13 +1289,10 @@ public sealed class ServiceManagementService(
         }
 
         var hasEstimateLabor = estimate?.Lines.Any(x => x.Kind == ServiceEstimateLineKind.Labor) == true;
-        if ((hasEstimateLabor || useApprovedTimeEntriesForLabor) && laborItemId is null)
-        {
-            throw new DomainValidationException(
-                useApprovedTimeEntriesForLabor
-                    ? "Labor item is required to convert approved labor timesheets into sales invoice lines."
-                    : "Labor item is required to convert labor estimate lines into sales invoice lines.");
-        }
+        laborItemId = await ResolveLabourInvoiceItemIdAsync(
+            laborItemId,
+            hasEstimateLabor || useApprovedTimeEntriesForLabor,
+            cancellationToken);
 
         var hasExpenseWithoutItem = estimate?.Lines.Any(x => x.Kind == ServiceEstimateLineKind.Expense && x.ItemId is null) == true;
         if (hasExpenseWithoutItem && expenseItemId is null)
@@ -1433,10 +1431,11 @@ public sealed class ServiceManagementService(
         var timeEntries = await LoadBillableTimeEntriesAsync(job.Id, labourCharges, cancellationToken);
         var expenseClaimLines = await LoadBillableExpenseLinesAsync(job.Id, expenseCharges, cancellationToken);
 
-        if (labourCharges.Count > 0 && input.LabourItemId is null)
-        {
-            throw new DomainValidationException("Choose the service item that labour is billed against.");
-        }
+        var labourItemId = await ResolveLabourInvoiceItemIdAsync(
+            input.LabourItemId,
+            labourCharges.Count > 0,
+            cancellationToken);
+        input = input with { LabourItemId = labourItemId };
 
         if (expenseCharges.Count > 0 && input.ExpenseItemId is null)
         {
@@ -1788,6 +1787,50 @@ public sealed class ServiceManagementService(
         {
             throw new NotFoundException(message);
         }
+    }
+
+    private async Task<Guid?> ResolveLabourInvoiceItemIdAsync(
+        Guid? requestedItemId,
+        bool required,
+        CancellationToken cancellationToken)
+    {
+        if (requestedItemId is not null || !required)
+        {
+            return requestedItemId;
+        }
+
+        var companyId = currentUser.CompanyId ?? CompanyDefaults.DefaultCompanyId;
+        var candidates = await dbContext.Items.AsNoTracking()
+            .Where(x => x.CompanyId == companyId && x.IsActive && x.Type == ItemType.Service)
+            .Select(x => new { x.Id, x.Sku, x.Name })
+            .ToListAsync(cancellationToken);
+
+        var selected = candidates
+            .OrderBy(x => LabourItemPreference(x.Sku, x.Name))
+            .ThenBy(x => x.Sku, StringComparer.OrdinalIgnoreCase)
+            .FirstOrDefault();
+
+        return selected?.Id
+            ?? throw new DomainValidationException(
+                "Create at least one active Service item before invoicing labour. The system will select it automatically.");
+    }
+
+    private static int LabourItemPreference(string sku, string name)
+    {
+        var normalizedSku = sku.Trim().Replace("-", "", StringComparison.Ordinal).Replace("_", "", StringComparison.Ordinal);
+        if (normalizedSku.Equals("LABOUR", StringComparison.OrdinalIgnoreCase)
+            || normalizedSku.Equals("LABOR", StringComparison.OrdinalIgnoreCase))
+        {
+            return 0;
+        }
+
+        if (name.Contains("labour", StringComparison.OrdinalIgnoreCase)
+            || name.Contains("labor", StringComparison.OrdinalIgnoreCase))
+        {
+            return 1;
+        }
+
+        return 2;
     }
 
     public async Task MarkServiceJobFinalInvoiceNotRequiredAsync(Guid serviceJobId, string reason, CancellationToken cancellationToken = default)

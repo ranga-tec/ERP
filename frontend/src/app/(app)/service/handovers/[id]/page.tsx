@@ -40,7 +40,7 @@ type ServiceEstimateSummaryDto = {
   total: number;
   lineCount: number;
 };
-type ItemDto = { id: string; sku: string; name: string; defaultUnitCost: number; defaultUnitPrice?: number; unitOfMeasure: string };
+type ItemDto = { id: string; sku: string; name: string; type: number; isActive: boolean; defaultUnitCost: number; defaultUnitPrice?: number; unitOfMeasure: string };
 type TaxDto = { id: string; code: string; name: string; ratePercent: number; isActive: boolean };
 
 const statusLabel: Record<number, string> = {
