@@ -14,15 +14,24 @@ export function DirectDispatchCreateForm({
   customers,
   serviceJobs,
   warehouses,
+  initialServiceJobId = "",
+  initialWarehouseId = "",
+  initialMaterialRequisitionId = "",
+  initialMaterialRequisitionNumber,
 }: {
   customers: CustomerRef[];
   serviceJobs: ServiceJobRef[];
   warehouses: WarehouseRef[];
+  initialServiceJobId?: string;
+  initialWarehouseId?: string;
+  initialMaterialRequisitionId?: string;
+  initialMaterialRequisitionNumber?: string;
 }) {
   const router = useRouter();
-  const [customerId, setCustomerId] = useState("");
-  const [serviceJobId, setServiceJobId] = useState("");
-  const [warehouseId, setWarehouseId] = useState("");
+  const initialJob = serviceJobs.find((job) => job.id === initialServiceJobId);
+  const [customerId, setCustomerId] = useState(initialJob?.customerId ?? "");
+  const [serviceJobId, setServiceJobId] = useState(initialServiceJobId);
+  const [warehouseId, setWarehouseId] = useState(initialWarehouseId);
   const [reason, setReason] = useState("");
   const [warrantyUntil, setWarrantyUntil] = useState("");
   const [warrantyCoverage, setWarrantyCoverage] = useState("4");
@@ -48,6 +57,7 @@ export function DirectDispatchCreateForm({
         warehouseId,
         customerId: customerId || null,
         serviceJobId: serviceJobId || null,
+        materialRequisitionId: initialMaterialRequisitionId || null,
         reason: reason.trim() || null,
         warrantyUntil: warrantyUntil ? new Date(warrantyUntil).toISOString() : null,
         warrantyCoverage: warrantyUntil ? Number(warrantyCoverage) : 0,
@@ -65,11 +75,17 @@ export function DirectDispatchCreateForm({
 
   return (
     <form onSubmit={onSubmit} className="space-y-3">
+      {initialMaterialRequisitionId ? (
+        <div className="rounded-md border border-blue-200 bg-blue-50 p-3 text-sm text-blue-900 dark:border-blue-900/40 dark:bg-blue-950/40 dark:text-blue-100">
+          Material requisition <span className="font-mono font-semibold">{initialMaterialRequisitionNumber || initialMaterialRequisitionId}</span> is selected. Its requested items will open automatically after this AOD is created.
+        </div>
+      ) : null}
       <div className="grid gap-3 sm:grid-cols-3">
         <div>
           <label className="mb-1 block text-sm font-medium">Customer (optional)</label>
           <Select
             value={customerId}
+            disabled={Boolean(initialMaterialRequisitionId)}
             onChange={(e) => {
               setCustomerId(e.target.value);
             }}
@@ -86,6 +102,7 @@ export function DirectDispatchCreateForm({
           <label className="mb-1 block text-sm font-medium">Job Order (optional)</label>
           <Select
             value={serviceJobId}
+            disabled={Boolean(initialMaterialRequisitionId)}
             onChange={(e) => {
               const id = e.target.value;
               setServiceJobId(id);
@@ -105,7 +122,7 @@ export function DirectDispatchCreateForm({
         </div>
         <div>
           <label className="mb-1 block text-sm font-medium">Warehouse</label>
-          <Select value={warehouseId} onChange={(e) => setWarehouseId(e.target.value)} required>
+          <Select value={warehouseId} onChange={(e) => setWarehouseId(e.target.value)} required disabled={Boolean(initialMaterialRequisitionId)}>
             <option value="" disabled>
               Select...
             </option>

@@ -26,7 +26,22 @@ type WarehouseDto = { id: string; code: string; name: string };
 
 const statusLabel: Record<number, string> = { 0: "Draft", 1: "Posted", 2: "Voided" };
 
-export default async function DirectDispatchesPage() {
+export default async function DirectDispatchesPage({
+  searchParams,
+}: {
+  searchParams?: Promise<{
+    create?: string;
+    serviceJobId?: string;
+    warehouseId?: string;
+    materialRequisitionId?: string;
+    mrn?: string;
+  }>;
+}) {
+  const params = (await searchParams) ?? {};
+  const notificationCreate = params.create === "1"
+    && Boolean(params.serviceJobId)
+    && Boolean(params.warehouseId)
+    && Boolean(params.materialRequisitionId);
   const [rows, customers, jobs, warehouses] = await Promise.all([
     backendFetchJson<DirectDispatchSummaryDto[]>("/sales/direct-dispatches?take=100"),
     backendFetchJson<CustomerDto[]>("/customers"),
@@ -48,6 +63,22 @@ export default async function DirectDispatchesPage() {
           <DirectDispatchCreateForm customers={customers} serviceJobs={jobs} warehouses={warehouses} />
         </AppFormModal>
       </div>
+
+      {notificationCreate ? (
+        <Card>
+          <div className="mb-1 text-base font-semibold">Prepare AOD from material requisition</div>
+          <div className="mb-4 text-sm text-zinc-500">The job, warehouse, and MRN from the notification are already selected.</div>
+          <DirectDispatchCreateForm
+            customers={customers}
+            serviceJobs={jobs}
+            warehouses={warehouses}
+            initialServiceJobId={params.serviceJobId}
+            initialWarehouseId={params.warehouseId}
+            initialMaterialRequisitionId={params.materialRequisitionId}
+            initialMaterialRequisitionNumber={params.mrn}
+          />
+        </Card>
+      ) : null}
 
       <Card>
         <div className="mb-3 text-sm font-semibold">List</div>

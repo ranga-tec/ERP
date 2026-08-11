@@ -171,8 +171,29 @@ public sealed class SalesService(
         ServiceCoverageScope warrantyCoverage = ServiceCoverageScope.None,
         int? serviceIntervalDays = null,
         DateTimeOffset? nextServiceDueAt = null,
+        Guid? materialRequisitionId = null,
         CancellationToken cancellationToken = default)
     {
+        MaterialRequisition? materialRequisition = null;
+        if (materialRequisitionId is not null)
+        {
+            materialRequisition = await dbContext.MaterialRequisitions.AsNoTracking()
+                .FirstOrDefaultAsync(x => x.Id == materialRequisitionId.Value, cancellationToken)
+                ?? throw new NotFoundException("Material requisition not found.");
+
+            if (serviceJobId is not null && serviceJobId != materialRequisition.ServiceJobId)
+            {
+                throw new DomainValidationException("Material requisition belongs to a different service job.");
+            }
+
+            if (warehouseId != materialRequisition.WarehouseId)
+            {
+                throw new DomainValidationException("AOD warehouse must match the material requisition warehouse.");
+            }
+
+            serviceJobId = materialRequisition.ServiceJobId;
+        }
+
         if (customerId is null && serviceJobId is null)
         {
             throw new DomainValidationException("Direct dispatch requires a customer or service job.");
@@ -215,6 +236,10 @@ public sealed class SalesService(
             warrantyCoverage,
             serviceIntervalDays,
             nextServiceDueAt);
+        if (materialRequisition is not null)
+        {
+            dispatch.LinkMaterialRequisition(materialRequisition.Id);
+        }
         await dbContext.DirectDispatches.AddAsync(dispatch, cancellationToken);
         await dbContext.SaveChangesAsync(cancellationToken);
         return dispatch.Id;

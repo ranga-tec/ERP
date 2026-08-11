@@ -56,7 +56,7 @@ public sealed class DirectDispatchesController(
         Guid? MaterialRequisitionId,
         IReadOnlyList<DirectDispatchLineDto> Lines);
 
-    public sealed record CreateDirectDispatchRequest(Guid WarehouseId, Guid? CustomerId, Guid? ServiceJobId, string? Reason, DateTimeOffset? WarrantyUntil, ServiceCoverageScope? WarrantyCoverage, int? ServiceIntervalDays, DateTimeOffset? NextServiceDueAt);
+    public sealed record CreateDirectDispatchRequest(Guid WarehouseId, Guid? CustomerId, Guid? ServiceJobId, Guid? MaterialRequisitionId, string? Reason, DateTimeOffset? WarrantyUntil, ServiceCoverageScope? WarrantyCoverage, int? ServiceIntervalDays, DateTimeOffset? NextServiceDueAt);
     public sealed record AddDirectDispatchLineRequest(Guid ItemId, decimal Quantity, string? BatchNumber, IReadOnlyList<string>? Serials);
     public sealed record UpdateDirectDispatchLineRequest(decimal Quantity, string? BatchNumber, IReadOnlyList<string>? Serials);
     public sealed record MrnPlanDto(
@@ -79,7 +79,8 @@ public sealed class DirectDispatchesController(
         Guid? DirectDispatchLineId,
         decimal CurrentQuantity,
         string? BatchNumber,
-        IReadOnlyList<string> Serials);
+        IReadOnlyList<string> Serials,
+        IReadOnlyList<string> AvailableSerials);
 
     public sealed record UpdateMrnPlanRequest(Guid MaterialRequisitionId, IReadOnlyList<UpdateMrnPlanLineRequest> Lines);
     public sealed record UpdateMrnPlanLineRequest(Guid MaterialRequisitionLineId, decimal Quantity, string? BatchNumber, IReadOnlyList<string>? Serials);
@@ -141,6 +142,7 @@ public sealed class DirectDispatchesController(
             request.WarrantyUntil is null ? ServiceCoverageScope.None : request.WarrantyCoverage ?? ServiceCoverageScope.LaborAndParts,
             request.ServiceIntervalDays,
             request.NextServiceDueAt,
+            request.MaterialRequisitionId,
             cancellationToken);
         return await Get(id, cancellationToken);
     }
@@ -327,6 +329,7 @@ public sealed class DirectDispatchesController(
     {
         var requisition = await dbContext.MaterialRequisitions.AsNoTracking()
             .Include(x => x.Lines)
+            .ThenInclude(x => x.Serials)
             .FirstOrDefaultAsync(x => x.Id == requisitionId, cancellationToken);
         if (requisition is null)
         {
@@ -360,6 +363,25 @@ public sealed class DirectDispatchesController(
             .Select(g => new { ItemId = g.Key, Quantity = g.Sum(m => m.Quantity) })
             .ToDictionaryAsync(x => x.ItemId, x => x.Quantity, cancellationToken);
 
+        var serialBalances = await dbContext.InventoryMovements.AsNoTracking()
+            .Where(m => m.WarehouseId == dispatch.WarehouseId
+                        && itemIds.Contains(m.ItemId)
+                        && m.SerialNumber != null
+                        && m.SerialNumber != "")
+            .Select(m => new { m.ItemId, SerialNumber = m.SerialNumber!, m.Quantity })
+            .ToListAsync(cancellationToken);
+
+        var availableSerialsByItem = serialBalances
+            .GroupBy(x => x.ItemId)
+            .ToDictionary(
+                group => group.Key,
+                group => (IReadOnlyList<string>)group
+                    .GroupBy(x => x.SerialNumber, StringComparer.OrdinalIgnoreCase)
+                    .Where(serial => serial.Sum(x => x.Quantity) > 0m)
+                    .Select(serial => serial.Key)
+                    .OrderBy(serial => serial, StringComparer.OrdinalIgnoreCase)
+                    .ToList());
+
         var lines = requisition.Lines.Select(requested =>
         {
             currentByRequisitionLine.TryGetValue(requested.Id, out var current);
@@ -367,6 +389,13 @@ public sealed class DirectDispatchesController(
             var reservedQty = reserved.GetValueOrDefault(requested.Id);
             var outstanding = Math.Max(0m, requested.Quantity - previously - reservedQty);
             var onHand = onHandByItem.GetValueOrDefault(requested.ItemId);
+            var availableSerials = availableSerialsByItem.GetValueOrDefault(requested.ItemId) ?? [];
+            var serials = current is not null
+                ? current.Serials.Select(s => s.SerialNumber).ToList()
+                : requested.Serials
+                    .Select(s => s.SerialNumber)
+                    .Where(serial => availableSerials.Contains(serial, StringComparer.OrdinalIgnoreCase))
+                    .ToList();
 
             return new MrnPlanLineDto(
                 requested.Id,
@@ -380,8 +409,8 @@ public sealed class DirectDispatchesController(
                 current?.Id,
                 current?.Quantity ?? 0m,
                 current?.BatchNumber ?? requested.BatchNumber,
-                current?.Serials.Select(s => s.SerialNumber).ToList()
-                    ?? requested.Serials.Select(s => s.SerialNumber).ToList());
+                serials,
+                availableSerials);
         }).ToList();
 
         return new MrnPlanDto(requisition.Id, requisition.Number, lines);

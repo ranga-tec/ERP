@@ -28,6 +28,7 @@ type PlanLine = {
   currentQuantity: number;
   batchNumber?: string | null;
   serials: string[];
+  availableSerials: string[];
 };
 
 type Plan = { materialRequisitionId: string; requisitionNumber: string; lines: PlanLine[] };
@@ -43,6 +44,7 @@ type EditableLine = {
   quantity: string;
   batchNumber: string;
   serials: string;
+  availableSerials: string[];
 };
 
 const TRACKING_SERIAL = 1;
@@ -70,6 +72,7 @@ function toEditable(line: PlanLine): EditableLine {
     quantity: line.currentQuantity > 0 ? String(line.currentQuantity) : "",
     batchNumber: line.batchNumber ?? "",
     serials: line.serials.join("\n"),
+    availableSerials: line.availableSerials ?? [],
   };
 }
 
@@ -250,6 +253,10 @@ export function DirectDispatchMrnPlanForm({
               {lines.map((line) => {
                 const item = itemById.get(line.itemId);
                 const qty = num(line.quantity);
+                const selectedSerials = parseList(line.serials);
+                const unusedAvailableSerials = line.availableSerials.filter(
+                  (serial) => !selectedSerials.some((selected) => selected.toLowerCase() === serial.toLowerCase()),
+                );
                 const overOutstanding = qty > line.outstandingQuantity;
                 const overStock = qty > line.onHandQuantity;
                 const over = overOutstanding || overStock;
@@ -299,12 +306,34 @@ export function DirectDispatchMrnPlanForm({
                     </td>
                     <td className="py-2 pr-3">
                       {item?.trackingType === TRACKING_SERIAL ? (
-                        <Textarea
-                          value={line.serials}
-                          rows={2}
-                          placeholder="One per line"
-                          onChange={(e) => patch(line.materialRequisitionLineId, { serials: e.target.value })}
-                        />
+                        <div className="space-y-2">
+                          <Textarea
+                            value={line.serials}
+                            rows={2}
+                            placeholder="One per line"
+                            onChange={(e) => patch(line.materialRequisitionLineId, { serials: e.target.value })}
+                          />
+                          {unusedAvailableSerials.length > 0 ? (
+                            <Select
+                              value=""
+                              aria-label={`Add an available serial for ${item?.sku ?? "item"}`}
+                              onChange={(e) => {
+                                if (!e.target.value) return;
+                                patch(line.materialRequisitionLineId, {
+                                  serials: [...selectedSerials, e.target.value].join("\n"),
+                                });
+                              }}
+                            >
+                              <option value="">Add existing serial...</option>
+                              {unusedAvailableSerials.map((serial) => (
+                                <option key={serial} value={serial}>{serial}</option>
+                              ))}
+                            </Select>
+                          ) : (
+                            <div className="text-[11px] text-zinc-500">No other serials are currently available.</div>
+                          )}
+                          <div className="text-[11px] text-zinc-500">Available MRN serials are filled automatically.</div>
+                        </div>
                       ) : (
                         <span className="text-xs text-zinc-400">-</span>
                       )}

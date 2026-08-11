@@ -1717,6 +1717,94 @@ public sealed class EndToEndTests(IssApiFixture fixture) : IClassFixture<IssApiF
     }
 
     [Fact]
+    public async Task Sales_DirectDispatch_MrnPlan_Prefills_Only_Available_Serials()
+    {
+        var warehouse = await Post<WarehouseDto>("/api/warehouses", new { code = Code("WH"), name = "Serial Warehouse", address = (string?)null });
+        var customer = await Post<CustomerDto>("/api/customers", new { code = Code("CUS"), name = "Serial Customer", phone = "555", email = (string?)null, address = (string?)null });
+        var equipment = await Post<ItemDto>("/api/items", new
+        {
+            sku = Code("EQ"), name = "Test Equipment", type = ItemType.Equipment, trackingType = TrackingType.Serial,
+            unitOfMeasure = "UNIT", brandId = (Guid?)null, barcode = (string?)null, defaultUnitCost = 0m
+        });
+        var serialItem = await Post<ItemDto>("/api/items", new
+        {
+            sku = Code("SER"), name = "Serialized Part", type = ItemType.SparePart, trackingType = TrackingType.Serial,
+            unitOfMeasure = "PCS", brandId = (Guid?)null, barcode = (string?)null, defaultUnitCost = 25m
+        });
+
+        var adjustment = await Post<StockAdjustmentDto>("/api/inventory/stock-adjustments", new { warehouseId = warehouse.Id, reason = "Seed serial stock" });
+        await PostNoContent($"/api/inventory/stock-adjustments/{adjustment.Id}/lines", new
+        {
+            itemId = serialItem.Id,
+            countedQuantity = 3m,
+            unitCost = 25m,
+            batchNumber = (string?)null,
+            serials = new[] { "MRN-KEEP", "MRN-SOLD", "WAREHOUSE-OTHER" }
+        });
+        await PostNoContent($"/api/inventory/stock-adjustments/{adjustment.Id}/post", new { });
+
+        var unit = await Post<EquipmentUnitDto>("/api/service/equipment-units", new
+        {
+            itemId = equipment.Id,
+            serialNumber = $"EQ-{Guid.NewGuid():N}"[..20],
+            customerId = customer.Id,
+            purchasedAt = (DateTimeOffset?)null,
+            warrantyUntil = (DateTimeOffset?)null
+        });
+        var job = await Post<ServiceJobDto>("/api/service/jobs", new
+        {
+            equipmentUnitId = unit.Id,
+            customerId = customer.Id,
+            problemDescription = "Serial MRN test"
+        });
+        var requisition = await Post<MaterialRequisitionDto>("/api/service/material-requisitions", new
+        {
+            serviceJobId = job.Id,
+            warehouseId = warehouse.Id
+        });
+        await PostNoContent($"/api/service/material-requisitions/{requisition.Id}/lines", new
+        {
+            itemId = serialItem.Id,
+            quantity = 2m,
+            batchNumber = (string?)null,
+            serials = new[] { "MRN-KEEP", "MRN-SOLD" }
+        });
+
+        var soldDispatch = await Post<DirectDispatchApiDto>("/api/sales/direct-dispatches", new
+        {
+            warehouseId = warehouse.Id,
+            customerId = customer.Id,
+            serviceJobId = job.Id,
+            reason = "Sell one requested serial first"
+        });
+        await PostNoContent($"/api/sales/direct-dispatches/{soldDispatch.Id}/lines", new
+        {
+            itemId = serialItem.Id,
+            quantity = 1m,
+            batchNumber = (string?)null,
+            serials = new[] { "MRN-SOLD" }
+        });
+        await PostNoContent($"/api/sales/direct-dispatches/{soldDispatch.Id}/post", new { });
+
+        var targetDispatch = await Post<DirectDispatchApiDto>("/api/sales/direct-dispatches", new
+        {
+            warehouseId = warehouse.Id,
+            customerId = customer.Id,
+            serviceJobId = job.Id,
+            materialRequisitionId = requisition.Id,
+            reason = "Fulfil MRN"
+        });
+        var plan = await Get<MrnPlanApiDto>($"/api/sales/direct-dispatches/{targetDispatch.Id}/mrn-plan");
+        var line = Assert.Single(plan.Lines);
+
+        Assert.Equal(requisition.Id, plan.MaterialRequisitionId);
+        Assert.Equal(new[] { "MRN-KEEP" }, line.Serials);
+        Assert.Contains("MRN-KEEP", line.AvailableSerials);
+        Assert.Contains("WAREHOUSE-OTHER", line.AvailableSerials);
+        Assert.DoesNotContain("MRN-SOLD", line.AvailableSerials);
+    }
+
+    [Fact]
     public async Task Sales_CustomerReturn_Post_Twice_Returns_BadRequest()
     {
         var warehouse = await Post<WarehouseDto>("/api/warehouses", new { code = Code("WH"), name = "Main", address = (string?)null });
@@ -3397,6 +3485,8 @@ public sealed class EndToEndTests(IssApiFixture fixture) : IClassFixture<IssApiF
     private sealed record DispatchDto(Guid Id, string Number, Guid SalesOrderId, Guid WarehouseId, DateTimeOffset DispatchedAt, DispatchStatus Status);
     private sealed record DirectDispatchLineApiDto(Guid Id, Guid ItemId, decimal Quantity, string? BatchNumber, IReadOnlyList<string> Serials);
     private sealed record DirectDispatchApiDto(Guid Id, string Number, Guid WarehouseId, Guid? CustomerId, Guid? ServiceJobId, DateTimeOffset DispatchedAt, DirectDispatchStatus Status, string? Reason, IReadOnlyList<DirectDispatchLineApiDto> Lines);
+    private sealed record MrnPlanLineApiDto(Guid MaterialRequisitionLineId, Guid ItemId, IReadOnlyList<string> Serials, IReadOnlyList<string> AvailableSerials);
+    private sealed record MrnPlanApiDto(Guid MaterialRequisitionId, string RequisitionNumber, IReadOnlyList<MrnPlanLineApiDto> Lines);
     private sealed record CustomerReturnLineApiDto(Guid Id, Guid ItemId, decimal Quantity, decimal UnitPrice, string? BatchNumber, IReadOnlyList<string> Serials);
     private sealed record CustomerReturnApiDto(Guid Id, string Number, Guid CustomerId, Guid WarehouseId, DateTimeOffset ReturnDate, CustomerReturnStatus Status, Guid? SalesInvoiceId, Guid? DispatchNoteId, string? Reason, IReadOnlyList<CustomerReturnLineApiDto> Lines);
     private sealed record InvoiceSummaryDto(Guid Id, string Number, Guid CustomerId, DateTimeOffset InvoiceDate, DateTimeOffset? DueDate, SalesInvoiceStatus Status, decimal Total);

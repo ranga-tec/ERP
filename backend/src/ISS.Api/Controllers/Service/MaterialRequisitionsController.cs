@@ -266,7 +266,19 @@ public sealed class MaterialRequisitionsController(
     {
         var mr = await dbContext.MaterialRequisitions.AsNoTracking()
             .Where(x => x.Id == id)
-            .Select(x => new { x.Id, x.Number, x.CreatedBy, x.Purpose })
+            .Select(x => new
+            {
+                x.Id,
+                x.Number,
+                x.CreatedBy,
+                x.Purpose,
+                x.ServiceJobId,
+                x.WarehouseId,
+                ServiceJobNumber = dbContext.ServiceJobs
+                    .Where(job => job.Id == x.ServiceJobId)
+                    .Select(job => job.Number)
+                    .FirstOrDefault()
+            })
             .FirstOrDefaultAsync(cancellationToken);
 
         if (mr is null)
@@ -275,15 +287,18 @@ public sealed class MaterialRequisitionsController(
         }
 
         var recipients = await accessControl.GetActiveUserIdsWithAnyPermissionAsync(
-            [AppPermissions.ServiceMaterialRequisitionPost],
-            excludeUserId: mr.CreatedBy,
+            [AppPermissions.SalesDirectDispatchCreate],
+            excludeUserId: null,
             cancellationToken);
+
+        var href = $"/sales/direct-dispatches?create=1&serviceJobId={mr.ServiceJobId}&warehouseId={mr.WarehouseId}&materialRequisitionId={mr.Id}&mrn={Uri.EscapeDataString(mr.Number)}";
+        var jobDescription = string.IsNullOrWhiteSpace(mr.ServiceJobNumber) ? "the selected job" : mr.ServiceJobNumber;
 
         notificationService.EnqueueInAppForUsers(
             recipients,
             "Material requisition waiting",
-            $"{mr.Number} is waiting for stock issue/posting.",
-            $"/service/material-requisitions/{mr.Id}",
+            $"{mr.Number} for {jobDescription} is ready for AOD preparation.",
+            href,
             ReferenceTypes.MaterialRequisition,
             mr.Id);
 
