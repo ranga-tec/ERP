@@ -34,7 +34,7 @@ services:
       - key: NEXT_PUBLIC_NEUEDGE_ALLOW_SELF_REGISTRATION
         value: "false"
       - key: SEED_SERVICE_DEMO_DATA
-        value: "true"
+        value: "false"
       - key: Auth__BootstrapAdminEmail
         sync: false
       - key: Auth__BootstrapAdminPassword
