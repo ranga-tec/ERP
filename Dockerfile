@@ -35,6 +35,7 @@ COPY --from=frontend-build /src/frontend/package.json ./frontend/package.json
 COPY --from=frontend-build /src/frontend/package-lock.json ./frontend/package-lock.json
 COPY --from=frontend-build /src/frontend/node_modules ./frontend/node_modules
 COPY deploy/railway/start.sh /app/start.sh
+COPY scripts/seed-service-test-data.py /app/scripts/seed-service-test-data.py
 
 RUN sed -i 's/\r$//' /app/start.sh \
     && chmod +x /app/start.sh \
