@@ -1539,6 +1539,32 @@ public sealed class EndToEndTests(IssApiFixture fixture) : IClassFixture<IssApiF
     }
 
     [Fact]
+    public async Task Sales_Invoice_List_Total_Matches_Header_Discount_And_Mixed_Tax_Detail()
+    {
+        var customer = await Post<CustomerDto>("/api/customers", new { code = Code("CUS"), name = "Discount Customer", phone = "555", email = (string?)null, address = (string?)null });
+        var item = await Post<ItemDto>("/api/items", new
+        {
+            sku = Code("ITM"),
+            name = "Discounted Service",
+            type = ItemType.Service,
+            trackingType = TrackingType.None,
+            unitOfMeasure = "UNIT",
+            brandId = (Guid?)null,
+            barcode = (string?)null,
+            defaultUnitCost = 0m
+        });
+        var invoice = await Post<InvoiceDto>("/api/sales/invoices", new { customerId = customer.Id, dueDate = (DateTimeOffset?)null });
+        await PostNoContent($"/api/sales/invoices/{invoice.Id}/lines", new { itemId = item.Id, quantity = 1m, unitPrice = 100m, discountPercent = 0m, taxPercent = 18m });
+        await PostNoContent($"/api/sales/invoices/{invoice.Id}/lines", new { itemId = item.Id, quantity = 1m, unitPrice = 50m, discountPercent = 0m, taxPercent = 0m });
+        await PutNoContent($"/api/sales/invoices/{invoice.Id}/discount", new { discountPercent = 10m, discountAmount = 0m });
+
+        var detail = await Get<InvoiceDetailDto>($"/api/sales/invoices/{invoice.Id}");
+        var listed = Assert.Single(await Get<List<InvoiceSummaryDto>>("/api/sales/invoices?take=100"), x => x.Id == invoice.Id);
+        Assert.Equal(151.20m, detail.Total);
+        Assert.Equal(detail.Total, listed.Total);
+    }
+
+    [Fact]
     public async Task Sales_Quote_Can_Be_Created_Lined_And_Sent()
     {
         var customer = await Post<CustomerDto>("/api/customers", new { code = Code("CUS"), name = "Customer A", phone = "555", email = (string?)null, address = (string?)null });
@@ -2902,6 +2928,17 @@ public sealed class EndToEndTests(IssApiFixture fixture) : IClassFixture<IssApiF
                     taxPercent = 18m
                 }
             },
+            additionalLabourLines = new[]
+            {
+                new
+                {
+                    description = "Invoice-only call-out labour",
+                    quantity = 0.75m,
+                    unitPrice = 40m,
+                    discountPercent = 0m,
+                    taxPercent = 0m
+                }
+            },
             expenseMode = ServiceManagementService.ServiceChargeBillingMode.Skip,
             expenseItemId = (Guid?)null,
             expenseCharges = Array.Empty<object>(),
@@ -2921,17 +2958,29 @@ public sealed class EndToEndTests(IssApiFixture fixture) : IClassFixture<IssApiF
         });
 
         var invoice = await Get<InvoiceDetailDto>($"/api/sales/invoices/{convert.SalesInvoiceId}");
-        Assert.Equal(2, invoice.Lines.Count);
-        Assert.Contains(invoice.Lines, line => line.ItemId == partItem.Id && line.LineTotal == 50m);
+        Assert.Equal(3, invoice.Lines.Count);
+        Assert.Contains(invoice.Lines, line => line.ItemId == partItem.Id
+                                               && line.Category == SalesInvoiceLineCategory.Other
+                                               && line.LineTotal == 50m);
         Assert.Contains(invoice.Lines, line => line.ItemId != partItem.Id
+                                               && line.Category == SalesInvoiceLineCategory.Labour
                                                && line.Quantity == 1.25m
                                                && line.UnitPrice == 25.60m
                                                && line.TaxPercent == 18m
                                                && line.LineTotal == 37.76m);
-        Assert.Equal(87.76m, invoice.Total);
+        Assert.Contains(invoice.Lines, line => line.Category == SalesInvoiceLineCategory.Labour
+                                               && line.Quantity == 0.75m
+                                               && line.UnitPrice == 40m
+                                               && line.LineTotal == 30m);
+        Assert.Equal(117.76m, invoice.Total);
+        var listedInvoice = Assert.Single(
+            await Get<List<InvoiceSummaryDto>>("/api/sales/invoices?take=100"),
+            candidate => candidate.Id == convert.SalesInvoiceId);
+        Assert.Equal(invoice.Total, listedInvoice.Total);
 
         var workOrderAfterInvoice = await Get<WorkOrderDto>($"/api/service/work-orders/{workOrder.Id}");
         Assert.Single(workOrderAfterInvoice.TimeEntries);
+        Assert.DoesNotContain(workOrderAfterInvoice.TimeEntries, entry => entry.WorkDescription == "Invoice-only call-out labour");
         Assert.Equal(WorkOrderTimeEntryStatus.Invoiced, workOrderAfterInvoice.TimeEntries[0].Status);
         Assert.Equal(convert.SalesInvoiceId, workOrderAfterInvoice.TimeEntries[0].SalesInvoiceId);
 
@@ -2942,6 +2991,52 @@ public sealed class EndToEndTests(IssApiFixture fixture) : IClassFixture<IssApiF
         Assert.Single(costingAfterInvoice.LaborLines);
         Assert.Equal(WorkOrderTimeEntryStatus.Invoiced, costingAfterInvoice.LaborLines[0].Status);
         Assert.Equal(convert.SalesInvoiceId, costingAfterInvoice.LaborLines[0].SalesInvoiceId);
+    }
+
+    [Fact]
+    public async Task Service_Billing_Rejects_Material_Quantity_Above_Net_Issued_Balance()
+    {
+        var warehouse = await Post<WarehouseDto>("/api/warehouses", new { code = Code("WH"), name = "Billing Store", address = (string?)null });
+        var supplier = await Post<SupplierDto>("/api/suppliers", new { code = Code("SUP"), name = "Billing Supplier", phone = "123", email = (string?)null, address = (string?)null });
+        var customer = await Post<CustomerDto>("/api/customers", new { code = Code("CUS"), name = "Billing Customer", phone = "555", email = (string?)null, address = (string?)null });
+        var equipment = await Post<ItemDto>("/api/items", new { sku = Code("EQ"), name = "Billing Equipment", type = ItemType.Equipment, trackingType = TrackingType.Serial, unitOfMeasure = "UNIT", brandId = (Guid?)null, barcode = (string?)null, defaultUnitCost = 0m });
+        var part = await Post<ItemDto>("/api/items", new { sku = Code("SP"), name = "Billing Part", type = ItemType.SparePart, trackingType = TrackingType.None, unitOfMeasure = "PCS", brandId = (Guid?)null, barcode = (string?)null, defaultUnitCost = 5m });
+        var po = await Post<PurchaseOrderDto>("/api/procurement/purchase-orders", new { supplierId = supplier.Id });
+        await PostNoContent($"/api/procurement/purchase-orders/{po.Id}/lines", new { itemId = part.Id, quantity = 3m, unitPrice = 5m });
+        await PostNoContent($"/api/procurement/purchase-orders/{po.Id}/approve", new { });
+        var grn = await Post<GoodsReceiptDto>("/api/procurement/goods-receipts", new { purchaseOrderId = po.Id, warehouseId = warehouse.Id });
+        await PostNoContent($"/api/procurement/goods-receipts/{grn.Id}/lines", new { itemId = part.Id, quantity = 3m, unitCost = 5m, batchNumber = (string?)null, serials = (string[]?)null });
+        await PostNoContent($"/api/procurement/goods-receipts/{grn.Id}/post", new { });
+        var unit = await Post<EquipmentUnitDto>("/api/service/equipment-units", new { itemId = equipment.Id, serialNumber = $"SN-{Guid.NewGuid():N}"[..20], customerId = customer.Id, purchasedAt = (DateTimeOffset?)null, warrantyUntil = (DateTimeOffset?)null });
+        var job = await Post<ServiceJobDto>("/api/service/jobs", new { equipmentUnitId = unit.Id, customerId = customer.Id, kind = ServiceJobKind.Repair, problemDescription = "Billing quantity check" });
+        var mr = await Post<MaterialRequisitionDto>("/api/service/material-requisitions", new { serviceJobId = job.Id, warehouseId = warehouse.Id });
+        await PostNoContent($"/api/service/material-requisitions/{mr.Id}/lines", new { itemId = part.Id, quantity = 2m, batchNumber = (string?)null, serials = (string[]?)null });
+        await PostNoContent($"/api/service/material-requisitions/{mr.Id}/post", new { });
+        var mrDetail = await Get<MaterialRequisitionDetailDto>($"/api/service/material-requisitions/{mr.Id}");
+        var mrLine = Assert.Single(mrDetail.Lines);
+        await PostNoContent($"/api/service/jobs/{job.Id}/complete", new { });
+        var handover = await Post<ServiceHandoverApiDto>("/api/service/handovers", new { serviceJobId = job.Id, itemsReturned = "Equipment", postServiceWarrantyMonths = (int?)null, customerAcknowledgement = "Accepted", notes = (string?)null });
+        await PostNoContent($"/api/service/handovers/{handover.Id}/complete", new { });
+
+        var response = await _client.PostAsJsonAsync($"/api/service/handovers/{handover.Id}/build-invoice", new
+        {
+            dueDate = (DateTimeOffset?)null,
+            headerDiscountPercent = 0m,
+            headerDiscountAmount = 0m,
+            materialLines = new[] { new { itemId = part.Id, quantity = 2.01m, unitPrice = 10m, discountPercent = 0m, taxPercent = 0m, materialRequisitionLineId = (Guid?)mrLine.Id, description = (string?)null } },
+            labourMode = ServiceManagementService.ServiceChargeBillingMode.Skip,
+            labourItemId = (Guid?)null,
+            labourCharges = Array.Empty<object>(),
+            additionalLabourLines = Array.Empty<object>(),
+            expenseMode = ServiceManagementService.ServiceChargeBillingMode.Skip,
+            expenseItemId = (Guid?)null,
+            expenseCharges = Array.Empty<object>(),
+            otherLines = Array.Empty<object>()
+        });
+        var body = await response.Content.ReadAsStringAsync();
+        Assert.Equal(System.Net.HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Contains("remaining issued quantity", body, StringComparison.OrdinalIgnoreCase);
+        Assert.Equal(1m, await GetOnHandQuantityAsync(warehouse.Id, part.Id));
     }
 
     [Fact]
@@ -3568,7 +3663,7 @@ public sealed class EndToEndTests(IssApiFixture fixture) : IClassFixture<IssApiF
     private sealed record CustomerReturnApiDto(Guid Id, string Number, Guid CustomerId, Guid WarehouseId, DateTimeOffset ReturnDate, CustomerReturnStatus Status, Guid? SalesInvoiceId, Guid? DispatchNoteId, string? Reason, IReadOnlyList<CustomerReturnLineApiDto> Lines);
     private sealed record InvoiceSummaryDto(Guid Id, string Number, Guid CustomerId, DateTimeOffset InvoiceDate, DateTimeOffset? DueDate, SalesInvoiceStatus Status, decimal Total);
     private sealed record InvoiceDto(Guid Id, string Number, Guid CustomerId, DateTimeOffset InvoiceDate, DateTimeOffset? DueDate, SalesInvoiceStatus Status, decimal Subtotal, decimal TaxTotal, decimal Total);
-    private sealed record InvoiceLineDetailDto(Guid Id, Guid ItemId, decimal Quantity, decimal UnitPrice, decimal DiscountPercent, decimal TaxPercent, decimal LineTotal);
+    private sealed record InvoiceLineDetailDto(Guid Id, Guid ItemId, decimal Quantity, decimal UnitPrice, decimal DiscountPercent, decimal TaxPercent, decimal LineTotal, SalesInvoiceLineCategory Category = SalesInvoiceLineCategory.Item);
     private sealed record InvoiceDetailDto(Guid Id, string Number, Guid CustomerId, DateTimeOffset InvoiceDate, DateTimeOffset? DueDate, SalesInvoiceStatus Status, decimal Subtotal, decimal TaxTotal, decimal Total, IReadOnlyList<InvoiceLineDetailDto> Lines);
     private sealed record ArDto(Guid Id, Guid CustomerId, string ReferenceType, Guid ReferenceId, decimal Amount, decimal Outstanding, DateTimeOffset PostedAt);
     private sealed record PaymentDto(Guid Id, string ReferenceNumber, PaymentDirection Direction, CounterpartyType CounterpartyType, Guid CounterpartyId, decimal Amount, DateTimeOffset PaidAt, string? Notes);
@@ -3598,6 +3693,8 @@ public sealed class EndToEndTests(IssApiFixture fixture) : IClassFixture<IssApiF
     private sealed record DocumentCommentApiDto(Guid Id, string ReferenceType, Guid ReferenceId, string Text, DateTimeOffset CreatedAt, Guid? CreatedBy, DateTimeOffset? LastModifiedAt, Guid? LastModifiedBy);
     private sealed record DocumentAttachmentApiDto(Guid Id, string ReferenceType, Guid ReferenceId, string FileName, string Url, bool IsImage, string? ContentType, long? SizeBytes, string? Notes, DateTimeOffset CreatedAt, Guid? CreatedBy);
     private sealed record MaterialRequisitionDto(Guid Id, string Number, Guid ServiceJobId, Guid WarehouseId, DateTimeOffset RequestedAt, MaterialRequisitionStatus Status);
+    private sealed record MaterialRequisitionLineDetailDto(Guid Id, Guid ItemId, decimal Quantity, string? BatchNumber, IReadOnlyList<string> Serials);
+    private sealed record MaterialRequisitionDetailDto(Guid Id, string Number, Guid ServiceJobId, Guid? ServiceJobDailySheetId, Guid WarehouseId, DateTimeOffset RequestedAt, string? Purpose, MaterialRequisitionStatus Status, IReadOnlyList<MaterialRequisitionLineDetailDto> Lines);
 
     private sealed record WorkOrderTimeEntryDto(Guid Id, string TechnicianName, DateTimeOffset WorkDate, string WorkDescription, decimal HoursWorked, decimal CostRate, decimal LaborCost, bool BillableToCustomer, decimal BillableHours, decimal BillingRate, decimal TaxPercent, decimal BillableTotal, string? Notes, WorkOrderTimeEntryStatus Status, string? RejectionReason, Guid? SalesInvoiceId);
     private sealed record WorkOrderDto(Guid Id, Guid ServiceJobId, string Description, Guid? AssignedToUserId, WorkOrderStatus Status, decimal ApprovedHours, decimal ApprovedLaborCost, decimal PendingLaborCost, decimal BillableApprovedAmount, IReadOnlyList<WorkOrderTimeEntryDto> TimeEntries);

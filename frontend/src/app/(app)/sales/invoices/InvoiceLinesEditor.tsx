@@ -24,6 +24,7 @@ type InvoiceLineDto = {
   taxPercent: number;
   lineTotal: number;
   description?: string | null;
+  category: number;
 };
 
 type EditableInvoiceLine = {
@@ -37,6 +38,7 @@ type EditableInvoiceLine = {
   unitPrice: string;
   discountPercent: string;
   taxPercent: string;
+  category: number;
 };
 
 type InvoiceLinesEditorProps = {
@@ -65,6 +67,7 @@ function toEditableLines(lines: InvoiceLineDto[]): EditableInvoiceLine[] {
     unitPrice: line.unitPrice.toString(),
     discountPercent: line.discountPercent.toString(),
     taxPercent: line.taxPercent.toString(),
+    category: line.category,
   }));
 }
 
@@ -194,6 +197,13 @@ export function InvoiceLinesEditor({
 
     return draftLines.filter((line) => (itemSearchLabelById.get(line.itemId) ?? line.itemId).includes(query));
   }, [deferredSearch, draftLines, itemSearchLabelById]);
+
+  const groupedLines = useMemo(() => {
+    const labels = ["Items", "Labour", "Expenses", "Other charges"];
+    return labels
+      .map((label, category) => ({ label, category, lines: filteredLines.filter((line) => line.category === category) }))
+      .filter((group) => group.lines.length > 0);
+  }, [filteredLines]);
 
   const baseColumns = useMemo<EditableDataTableColumn<EditableInvoiceLine>[]>(() => [
     {
@@ -377,17 +387,24 @@ export function InvoiceLinesEditor({
         </div>
       </div>
 
-      <EditableDataTable
-        caption="Invoice lines"
-        columns={columns}
-        rows={filteredLines}
-        rowKey={(line) => line.id}
-        isRowEditing={(line) => canEdit && (allRowsEditing || editingLineId === line.id)}
-        onRowChange={(lineId, updater) => updateRow(lineId, updater)}
-        onSubmitRow={(lineId) => void saveLine(lineId)}
-        emptyColSpan={columns.length}
-        emptyState="No lines yet."
-      />
+      {groupedLines.length > 0 ? groupedLines.map((group) => (
+        <div key={group.category} className="space-y-2">
+          <div className="text-sm font-semibold">{group.label}</div>
+          <EditableDataTable
+            caption={`${group.label} invoice lines`}
+            columns={columns}
+            rows={group.lines}
+            rowKey={(line) => line.id}
+            isRowEditing={(line) => canEdit && (allRowsEditing || editingLineId === line.id)}
+            onRowChange={(lineId, updater) => updateRow(lineId, updater)}
+            onSubmitRow={(lineId) => void saveLine(lineId)}
+            emptyColSpan={columns.length}
+            emptyState={`No ${group.label.toLowerCase()} lines.`}
+          />
+        </div>
+      )) : (
+        <div className="rounded-md border border-[var(--card-border)] p-4 text-sm text-zinc-500">No lines yet.</div>
+      )}
     </div>
   );
 }

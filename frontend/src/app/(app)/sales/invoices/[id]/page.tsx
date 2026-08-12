@@ -40,6 +40,7 @@ type InvoiceDto = {
     taxPercent: number;
     lineTotal: number;
     description?: string | null;
+    category: number;
   }[];
 };
 
@@ -127,9 +128,8 @@ export default async function InvoiceDetailPage({
           <div>Status: {statusLabel[invoice.status] ?? invoice.status}</div>
           <div>Date: {new Date(invoice.invoiceDate).toLocaleString()}</div>
           <div>Due: {invoice.dueDate ? new Date(invoice.dueDate).toLocaleDateString() : "—"}</div>
-          <div>Total: {invoice.total}</div>
         </div>
-        <div className="mt-2 text-sm text-zinc-500">
+        {/* Totals intentionally render below the grouped invoice lines. */}<div className="hidden" aria-hidden="true">
           Subtotal: {invoice.linesSubtotal.toFixed(2)}
           {invoice.discountTotal > 0 ? (
             <> · Invoice discount: -{invoice.discountTotal.toFixed(2)} · Net: {invoice.subtotal.toFixed(2)}</>
@@ -183,7 +183,7 @@ export default async function InvoiceDetailPage({
       ) : null}
 
       <Card>
-        <div className="mb-3 text-sm font-semibold">Lines</div>
+        <div className="mb-3 text-sm font-semibold">Invoice details</div>
         <InvoiceLinesEditor
           invoiceId={invoice.id}
           lines={invoice.lines}
@@ -295,4 +295,3 @@ export default async function InvoiceDetailPage({
     </div>
   );
 }
-

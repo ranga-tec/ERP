@@ -3,6 +3,7 @@ using ISS.Application.Common;
 using ISS.Application.Persistence;
 using ISS.Domain.Common;
 using ISS.Domain.Finance;
+using ISS.Domain.Inventory;
 using ISS.Domain.MasterData;
 using ISS.Domain.Procurement;
 using ISS.Domain.Sales;
@@ -57,6 +58,14 @@ public sealed class ServiceManagementService(
         decimal DiscountPercent,
         decimal TaxPercent);
 
+    /// <summary>Labour added only while billing. It is not a work-order time entry or job-sheet row.</summary>
+    public sealed record ServiceInvoiceAdditionalLabourInput(
+        string Description,
+        decimal Quantity,
+        decimal UnitPrice,
+        decimal DiscountPercent,
+        decimal TaxPercent);
+
     /// <summary>
     /// Everything the billing screen decided: which charges to bill, at what price, itemised or
     /// rolled into one line, plus the whole-invoice discount.
@@ -69,6 +78,7 @@ public sealed class ServiceManagementService(
         ServiceChargeBillingMode LabourMode,
         Guid? LabourItemId,
         IReadOnlyCollection<ServiceInvoiceLabourChargeInput> LabourCharges,
+        IReadOnlyCollection<ServiceInvoiceAdditionalLabourInput> AdditionalLabourLines,
         ServiceChargeBillingMode ExpenseMode,
         Guid? ExpenseItemId,
         IReadOnlyCollection<ServiceInvoiceExpenseChargeInput> ExpenseCharges,
@@ -1332,7 +1342,9 @@ public sealed class ServiceManagementService(
                 line.DiscountPercent,
                 line.TaxPercent,
                 revenueAccountId,
-                line.MaterialRequisitionLineId);
+                line.MaterialRequisitionLineId,
+                line.Description,
+                SalesInvoiceLineCategory.Item);
             dbContext.DbContext.Add(invoiceLine);
         }
 
@@ -1358,7 +1370,14 @@ public sealed class ServiceManagementService(
                 ServiceEntitlementRules.ApplyEstimateUnitPrice(job.EntitlementCoverage, line.Kind, line.UnitPrice),
                 discountPercent: 0m,
                 taxPercent: line.TaxPercent,
-                revenueAccountId: revenueAccountId);
+                revenueAccountId: revenueAccountId,
+                category: line.Kind switch
+                {
+                    ServiceEstimateLineKind.Part => SalesInvoiceLineCategory.Item,
+                    ServiceEstimateLineKind.Labor => SalesInvoiceLineCategory.Labour,
+                    ServiceEstimateLineKind.Expense => SalesInvoiceLineCategory.Expense,
+                    _ => SalesInvoiceLineCategory.Other
+                });
             dbContext.DbContext.Add(invoiceLine);
         }
 
@@ -1373,7 +1392,9 @@ public sealed class ServiceManagementService(
                     ServiceEntitlementRules.ApplyEstimateUnitPrice(job.EntitlementCoverage, ServiceEstimateLineKind.Labor, timeEntry.BillingRate),
                     discountPercent: 0m,
                     taxPercent: timeEntry.TaxPercent,
-                    revenueAccountId: revenueAccountId);
+                    revenueAccountId: revenueAccountId,
+                    description: $"{timeEntry.WorkDescription} - {timeEntry.TechnicianName}",
+                    category: SalesInvoiceLineCategory.Labour);
                 dbContext.DbContext.Add(invoiceLine);
                 timeEntry.MarkInvoiced(invoice.Id, invoiceLine.Id, clock.UtcNow);
             }
@@ -1419,11 +1440,17 @@ public sealed class ServiceManagementService(
         var labourCharges = input.LabourMode == ServiceChargeBillingMode.Skip
             ? new List<ServiceInvoiceLabourChargeInput>()
             : input.LabourCharges.ToList();
+        var additionalLabourLines = input.AdditionalLabourLines
+            .Where(x => !string.IsNullOrWhiteSpace(x.Description))
+            .ToList();
         var expenseCharges = input.ExpenseMode == ServiceChargeBillingMode.Skip
             ? new List<ServiceInvoiceExpenseChargeInput>()
             : input.ExpenseCharges.ToList();
 
-        if (materialLines.Count == 0 && otherLines.Count == 0 && labourCharges.Count == 0 && expenseCharges.Count == 0)
+        await ValidateMaterialInvoiceLinesAsync(job.Id, materialLines, cancellationToken);
+
+        if (materialLines.Count == 0 && otherLines.Count == 0 && labourCharges.Count == 0
+            && additionalLabourLines.Count == 0 && expenseCharges.Count == 0)
         {
             throw new DomainValidationException("Select at least one charge to bill.");
         }
@@ -1433,7 +1460,7 @@ public sealed class ServiceManagementService(
 
         var labourItemId = await ResolveLabourInvoiceItemIdAsync(
             input.LabourItemId,
-            labourCharges.Count > 0,
+            labourCharges.Count > 0 || additionalLabourLines.Count > 0,
             cancellationToken);
         input = input with { LabourItemId = labourItemId };
 
@@ -1460,10 +1487,12 @@ public sealed class ServiceManagementService(
                 line.TaxPercent,
                 line.MaterialRequisitionLineId,
                 line.Description,
+                SalesInvoiceLineCategory.Item,
                 cancellationToken);
         }
 
         await BillLabourAsync(invoice, job, input, labourCharges, timeEntries, cancellationToken);
+        await BillAdditionalLabourAsync(invoice, job, input, additionalLabourLines, cancellationToken);
         await BillExpensesAsync(invoice, input, expenseCharges, expenseClaimLines, cancellationToken);
 
         foreach (var line in otherLines)
@@ -1477,6 +1506,7 @@ public sealed class ServiceManagementService(
                 line.TaxPercent,
                 materialRequisitionLineId: null,
                 line.Description,
+                SalesInvoiceLineCategory.Other,
                 cancellationToken);
         }
 
@@ -1491,6 +1521,75 @@ public sealed class ServiceManagementService(
         job.MarkInvoiced();
         await dbContext.SaveChangesAsync(cancellationToken);
         return invoice.Id;
+    }
+
+    private async Task ValidateMaterialInvoiceLinesAsync(
+        Guid serviceJobId,
+        IReadOnlyCollection<ServiceInvoiceManualLineInput> lines,
+        CancellationToken cancellationToken)
+    {
+        if (lines.Count == 0)
+        {
+            return;
+        }
+
+        if (lines.Any(x => x.MaterialRequisitionLineId is null))
+        {
+            throw new DomainValidationException("Every material invoice line must remain linked to its material requisition line.");
+        }
+
+        var duplicate = lines
+            .GroupBy(x => x.MaterialRequisitionLineId!.Value)
+            .FirstOrDefault(group => group.Count() > 1);
+        if (duplicate is not null)
+        {
+            throw new DomainValidationException("A material requisition line can appear only once on an invoice.");
+        }
+
+        foreach (var line in lines)
+        {
+            var lineId = line.MaterialRequisitionLineId!.Value;
+            var issued = await (
+                from movement in dbContext.InventoryMovements.AsNoTracking()
+                join requisition in dbContext.MaterialRequisitions.AsNoTracking() on movement.ReferenceId equals requisition.Id
+                where movement.ReferenceType == ReferenceTypes.MaterialRequisition
+                      && movement.Type == InventoryMovementType.Consumption
+                      && movement.ReferenceLineId == lineId
+                      && requisition.ServiceJobId == serviceJobId
+                      && requisition.Status == MaterialRequisitionStatus.Posted
+                select new { movement.ItemId, Quantity = -movement.Quantity })
+                .ToListAsync(cancellationToken);
+
+            if (issued.Count == 0)
+            {
+                throw new DomainValidationException("A selected material line was not issued to this service job.");
+            }
+
+            if (issued.Any(x => x.ItemId != line.ItemId))
+            {
+                throw new DomainValidationException("Invoice item does not match the issued material requisition line.");
+            }
+
+            var returned = await dbContext.ServiceJobMaterialDispositions.AsNoTracking()
+                .Where(x => x.MaterialRequisitionLineId == lineId
+                            && x.PostedAt != null && !x.IsVoided
+                            && (x.Kind == ServiceJobMaterialDispositionKind.UnusedReturned
+                                || x.Kind == ServiceJobMaterialDispositionKind.IncorrectReturned
+                                || x.Kind == ServiceJobMaterialDispositionKind.RejectedSupplierReturn))
+                .SumAsync(x => (decimal?)x.Quantity, cancellationToken) ?? 0m;
+            var alreadyInvoiced = await dbContext.SalesInvoices.AsNoTracking()
+                .Where(x => x.Status != SalesInvoiceStatus.Voided)
+                .SelectMany(x => x.Lines)
+                .Where(x => x.MaterialRequisitionLineId == lineId)
+                .SumAsync(x => (decimal?)x.Quantity, cancellationToken) ?? 0m;
+            var remaining = issued.Sum(x => x.Quantity) - returned - alreadyInvoiced;
+
+            if (line.Quantity > remaining)
+            {
+                throw new DomainValidationException(
+                    $"Material invoice quantity {line.Quantity:0.####} exceeds the remaining issued quantity {Math.Max(0m, remaining):0.####}.");
+            }
+        }
     }
 
     private async Task<Dictionary<Guid, WorkOrderTimeEntry>> LoadBillableTimeEntriesAsync(
@@ -1623,6 +1722,7 @@ public sealed class ServiceManagementService(
                     charge.TaxPercent,
                     materialRequisitionLineId: null,
                     $"{entry.WorkDescription} - {entry.TechnicianName}",
+                    SalesInvoiceLineCategory.Labour,
                     cancellationToken);
                 entry.MarkInvoiced(invoice.Id, line.Id, clock.UtcNow);
             }
@@ -1643,12 +1743,42 @@ public sealed class ServiceManagementService(
                 group.TaxPercent,
                 materialRequisitionLineId: null,
                 $"Labour - {hours:0.##} hrs over {group.Charges.Count} {suffix}",
+                SalesInvoiceLineCategory.Labour,
                 cancellationToken);
 
             foreach (var charge in group.Charges)
             {
                 entries[charge.SourceId].MarkInvoiced(invoice.Id, line.Id, clock.UtcNow);
             }
+        }
+    }
+
+    private async Task BillAdditionalLabourAsync(
+        SalesInvoice invoice,
+        ServiceJob job,
+        ServiceInvoiceBuildInput input,
+        IReadOnlyCollection<ServiceInvoiceAdditionalLabourInput> lines,
+        CancellationToken cancellationToken)
+    {
+        if (lines.Count == 0)
+        {
+            return;
+        }
+
+        var itemId = input.LabourItemId!.Value;
+        foreach (var line in lines)
+        {
+            await AddChargeLineAsync(
+                invoice,
+                itemId,
+                line.Quantity,
+                ServiceEntitlementRules.ApplyEstimateUnitPrice(job.EntitlementCoverage, ServiceEstimateLineKind.Labor, line.UnitPrice),
+                line.DiscountPercent,
+                line.TaxPercent,
+                materialRequisitionLineId: null,
+                line.Description,
+                SalesInvoiceLineCategory.Labour,
+                cancellationToken);
         }
     }
 
@@ -1680,6 +1810,7 @@ public sealed class ServiceManagementService(
                     charge.TaxPercent,
                     materialRequisitionLineId: null,
                     claimLine.Description,
+                    SalesInvoiceLineCategory.Expense,
                     cancellationToken);
                 claimLine.MarkInvoiced(invoice.Id, line.Id, clock.UtcNow);
             }
@@ -1703,6 +1834,7 @@ public sealed class ServiceManagementService(
                 group.TaxPercent,
                 materialRequisitionLineId: null,
                 $"Site expenses - {group.Charges.Count} {suffix}",
+                SalesInvoiceLineCategory.Expense,
                 cancellationToken);
 
             foreach (var charge in group.Charges)
@@ -1759,6 +1891,7 @@ public sealed class ServiceManagementService(
         decimal taxPercent,
         Guid? materialRequisitionLineId,
         string? description,
+        SalesInvoiceLineCategory category,
         CancellationToken cancellationToken)
     {
         var revenueAccountId = await documentAccountMappingService.ResolveRevenueAccountIdAsync(itemId, cancellationToken);
@@ -1770,7 +1903,8 @@ public sealed class ServiceManagementService(
             taxPercent,
             revenueAccountId,
             materialRequisitionLineId,
-            description);
+            description,
+            category);
         dbContext.DbContext.Add(line);
         return line;
     }

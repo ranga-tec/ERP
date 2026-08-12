@@ -122,6 +122,7 @@ public sealed class ServiceHandoversController(
         ServiceManagementService.ServiceChargeBillingMode LabourMode,
         Guid? LabourItemId,
         IReadOnlyList<BuildServiceInvoiceLabourRequest>? LabourCharges,
+        IReadOnlyList<BuildServiceInvoiceAdditionalLabourRequest>? AdditionalLabourLines,
         ServiceManagementService.ServiceChargeBillingMode ExpenseMode,
         Guid? ExpenseItemId,
         IReadOnlyList<BuildServiceInvoiceExpenseRequest>? ExpenseCharges,
@@ -129,6 +130,13 @@ public sealed class ServiceHandoversController(
 
     public sealed record BuildServiceInvoiceLabourRequest(
         Guid TimeEntryId,
+        decimal Quantity,
+        decimal UnitPrice,
+        decimal DiscountPercent,
+        decimal TaxPercent);
+
+    public sealed record BuildServiceInvoiceAdditionalLabourRequest(
+        string Description,
         decimal Quantity,
         decimal UnitPrice,
         decimal DiscountPercent,
@@ -453,6 +461,14 @@ public sealed class ServiceHandoversController(
                     charge.UnitPrice,
                     charge.DiscountPercent,
                     charge.TaxPercent))
+                .ToList(),
+            (request.AdditionalLabourLines ?? [])
+                .Select(line => new ServiceManagementService.ServiceInvoiceAdditionalLabourInput(
+                    line.Description,
+                    line.Quantity,
+                    line.UnitPrice,
+                    line.DiscountPercent,
+                    line.TaxPercent))
                 .ToList(),
             request.ExpenseMode,
             request.ExpenseItemId,

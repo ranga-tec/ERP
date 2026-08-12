@@ -205,22 +205,8 @@ public sealed partial class DocumentPdfService
             ("Customer", CustomerLabel(customer, invoice.CustomerId)),
             ("Invoice date", invoice.InvoiceDate.ToString("u")),
             ("Due date", invoice.DueDate?.ToString("u") ?? ""),
-            ("Status", invoice.Status.ToString()),
-            ("Subtotal", FormatMoney(invoice.LinesSubtotal))
+            ("Status", invoice.Status.ToString())
         };
-
-        // the discount rows only appear when there is one, so a plain invoice reads as before
-        if (invoice.DiscountTotal > 0m)
-        {
-            var discountLabel = invoice.DiscountPercent > 0m
-                ? $"Invoice discount ({FormatPercent(invoice.DiscountPercent)}%)"
-                : "Invoice discount";
-            meta.Add((discountLabel, $"-{FormatMoney(invoice.DiscountTotal)}"));
-            meta.Add(("Net subtotal", FormatMoney(invoice.Subtotal)));
-        }
-
-        meta.Add(("Tax total", FormatMoney(invoice.TaxTotal)));
-        meta.Add(("Total", FormatMoney(invoice.Total)));
 
         return BuildPdf(
             title: "Sales Invoice",
@@ -228,50 +214,81 @@ public sealed partial class DocumentPdfService
             meta: meta,
             content: column =>
             {
-                column.Item().Text("Lines").SemiBold();
-                column.Item().Table(table =>
+                var sections = new[]
                 {
-                    table.ColumnsDefinition(cols =>
-                    {
-                        cols.RelativeColumn(4);
-                        cols.RelativeColumn(1);
-                        cols.RelativeColumn(2);
-                        cols.RelativeColumn(2);
-                        cols.RelativeColumn(2);
-                        cols.RelativeColumn(2);
-                    });
+                    (Category: SalesInvoiceLineCategory.Item, Label: "Items"),
+                    (Category: SalesInvoiceLineCategory.Labour, Label: "Labour"),
+                    (Category: SalesInvoiceLineCategory.Expense, Label: "Expenses"),
+                    (Category: SalesInvoiceLineCategory.Other, Label: "Other charges")
+                };
 
-                    table.Header(h =>
+                foreach (var section in sections)
+                {
+                    var lines = invoice.Lines.Where(x => x.Category == section.Category).ToList();
+                    if (lines.Count == 0)
                     {
-                        h.Cell().Element(CellHeader).Text("Item");
-                        h.Cell().Element(CellHeader).AlignRight().Text("Qty");
-                        h.Cell().Element(CellHeader).AlignRight().Text("Unit Price");
-                        h.Cell().Element(CellHeader).AlignRight().Text("Discount %");
-                        h.Cell().Element(CellHeader).AlignRight().Text("Tax %");
-                        h.Cell().Element(CellHeader).AlignRight().Text("Amount");
-                    });
-
-                    // amounts are shown before tax so the lines add up to the subtotal, and the
-                    // discount and tax rows below carry the invoice from that figure to the total
-                    foreach (var line in invoice.Lines)
-                    {
-                        var item = itemById.GetValueOrDefault(line.ItemId);
-                        // labour and rolled-up charges all bill against one item, so the
-                        // description is what tells the customer which line is which
-                        table.Cell().Element(CellBody).Column(cell =>
-                        {
-                            cell.Item().Text(ItemLabel(item, line.ItemId));
-                            if (!string.IsNullOrWhiteSpace(line.Description))
-                            {
-                                cell.Item().Text(line.Description!).FontSize(8).FontColor(Colors.Grey.Darken1);
-                            }
-                        });
-                        table.Cell().Element(CellBody).AlignRight().Text(FormatQty(line.Quantity, item));
-                        table.Cell().Element(CellBody).AlignRight().Text(FormatMoney(line.UnitPrice));
-                        table.Cell().Element(CellBody).AlignRight().Text(FormatPercent(line.DiscountPercent));
-                        table.Cell().Element(CellBody).AlignRight().Text(FormatPercent(line.TaxPercent));
-                        table.Cell().Element(CellBody).AlignRight().Text(FormatMoney(line.LineSubtotal));
+                        continue;
                     }
+
+                    column.Item().PaddingTop(8).Text(section.Label).SemiBold();
+                    column.Item().Table(table =>
+                    {
+                        table.ColumnsDefinition(cols =>
+                        {
+                            cols.RelativeColumn(4);
+                            cols.RelativeColumn(1);
+                            cols.RelativeColumn(2);
+                            cols.RelativeColumn(2);
+                            cols.RelativeColumn(2);
+                            cols.RelativeColumn(2);
+                        });
+
+                        table.Header(h =>
+                        {
+                            h.Cell().Element(CellHeader).Text("Item");
+                            h.Cell().Element(CellHeader).AlignRight().Text("Qty");
+                            h.Cell().Element(CellHeader).AlignRight().Text("Unit Price");
+                            h.Cell().Element(CellHeader).AlignRight().Text("Discount %");
+                            h.Cell().Element(CellHeader).AlignRight().Text("Tax %");
+                            h.Cell().Element(CellHeader).AlignRight().Text("Amount");
+                        });
+
+                        foreach (var line in lines)
+                        {
+                            var item = itemById.GetValueOrDefault(line.ItemId);
+                            table.Cell().Element(CellBody).Column(cell =>
+                            {
+                                cell.Item().Text(ItemLabel(item, line.ItemId));
+                                if (!string.IsNullOrWhiteSpace(line.Description))
+                                {
+                                    cell.Item().Text(line.Description!).FontSize(8).FontColor(Colors.Grey.Darken1);
+                                }
+                            });
+                            table.Cell().Element(CellBody).AlignRight().Text(FormatQty(line.Quantity, item));
+                            table.Cell().Element(CellBody).AlignRight().Text(FormatMoney(line.UnitPrice));
+                            table.Cell().Element(CellBody).AlignRight().Text(FormatPercent(line.DiscountPercent));
+                            table.Cell().Element(CellBody).AlignRight().Text(FormatPercent(line.TaxPercent));
+                            table.Cell().Element(CellBody).AlignRight().Text(FormatMoney(line.LineSubtotal));
+                        }
+
+                        table.Cell().ColumnSpan(5).Element(CellHeader).AlignRight().Text($"{section.Label} subtotal");
+                        table.Cell().Element(CellHeader).AlignRight().Text(FormatMoney(lines.Sum(x => x.LineSubtotal)));
+                    });
+                }
+
+                column.Item().PaddingTop(12).AlignRight().Width(240).Column(totals =>
+                {
+                    totals.Item().Row(row => { row.RelativeItem().Text("Lines subtotal"); row.ConstantItem(90).AlignRight().Text(FormatMoney(invoice.LinesSubtotal)); });
+                    if (invoice.DiscountTotal > 0m)
+                    {
+                        var label = invoice.DiscountPercent > 0m
+                            ? $"Invoice discount ({FormatPercent(invoice.DiscountPercent)}%)"
+                            : "Invoice discount";
+                        totals.Item().Row(row => { row.RelativeItem().Text(label); row.ConstantItem(90).AlignRight().Text($"-{FormatMoney(invoice.DiscountTotal)}"); });
+                        totals.Item().Row(row => { row.RelativeItem().Text("Net subtotal"); row.ConstantItem(90).AlignRight().Text(FormatMoney(invoice.Subtotal)); });
+                    }
+                    totals.Item().Row(row => { row.RelativeItem().Text("Tax total"); row.ConstantItem(90).AlignRight().Text(FormatMoney(invoice.TaxTotal)); });
+                    totals.Item().PaddingTop(4).BorderTop(1).Row(row => { row.RelativeItem().Text("Total").SemiBold(); row.ConstantItem(90).AlignRight().Text(FormatMoney(invoice.Total)).SemiBold(); });
                 });
             },
             fileName: $"INV-{invoice.Number}.pdf",

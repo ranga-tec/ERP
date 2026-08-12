@@ -89,6 +89,8 @@ type OtherLine = {
   taxPercent: string;
 };
 
+type AdditionalLabourLine = Omit<OtherLine, "itemId">;
+
 type BuildResponse = { salesInvoiceId: string };
 
 function money(value: number): string {
@@ -112,6 +114,17 @@ function newOtherLine(): OtherLine {
   return {
     key: crypto.randomUUID(),
     itemId: "",
+    description: "",
+    quantity: "1",
+    unitPrice: "0",
+    discountPercent: "0",
+    taxPercent: "0",
+  };
+}
+
+function newAdditionalLabourLine(): AdditionalLabourLine {
+  return {
+    key: crypto.randomUUID(),
     description: "",
     quantity: "1",
     unitPrice: "0",
@@ -152,6 +165,7 @@ export function ServiceJobBillingBuilder({
   const [expenseItemId, setExpenseItemId] = useState("");
 
   const [otherLines, setOtherLines] = useState<OtherLine[]>([]);
+  const [additionalLabourLines, setAdditionalLabourLines] = useState<AdditionalLabourLine[]>([]);
   const [discountKind, setDiscountKind] = useState<"percent" | "amount">("percent");
   const [discountValue, setDiscountValue] = useState("0");
   const [dueDate, setDueDate] = useState("");
@@ -246,28 +260,36 @@ export function ServiceJobBillingBuilder({
   );
 
   const totals = useMemo(() => {
-    let gross = 0;
+    let parts = 0;
+    let labour = 0;
+    let expenses = 0;
+    let other = 0;
     let tax = 0;
     let cost = 0;
 
     for (const m of selectedMaterials) {
       const row = materialRows[m.materialRequisitionLineId];
-      gross += rowTotal(row);
+      parts += rowTotal(row);
       tax += rowTax(row);
       cost += num(row.quantity) * m.unitCost;
     }
     if (labourMode !== 0) {
       for (const l of selectedLabour) {
         const row = labourRows[l.timeEntryId];
-        gross += rowTotal(row);
+        labour += rowTotal(row);
         tax += rowTax(row);
         cost += l.labourCost;
       }
     }
+    for (const line of additionalLabourLines) {
+      const row: ChargeRow = { selected: true, ...line };
+      labour += rowTotal(row);
+      tax += rowTax(row);
+    }
     if (expenseMode !== 0) {
       for (const e of selectedExpenses) {
         const row = expenseRows[e.expenseClaimLineId];
-        gross += rowTotal(row);
+        expenses += rowTotal(row);
         tax += rowTax(row);
         cost += e.lineTotal;
       }
@@ -275,9 +297,11 @@ export function ServiceJobBillingBuilder({
     for (const line of otherLines) {
       if (!line.itemId) continue;
       const row: ChargeRow = { selected: true, ...line };
-      gross += rowTotal(row);
+      other += rowTotal(row);
       tax += rowTax(row);
     }
+
+    const gross = parts + labour + expenses + other;
 
     const discount =
       discountKind === "percent"
@@ -288,6 +312,10 @@ export function ServiceJobBillingBuilder({
 
     return {
       gross,
+      parts,
+      labour,
+      expenses,
+      other,
       discount,
       net: gross - discount,
       tax: taxAfterDiscount,
@@ -301,6 +329,7 @@ export function ServiceJobBillingBuilder({
     selectedLabour,
     labourRows,
     labourMode,
+    additionalLabourLines,
     selectedExpenses,
     expenseRows,
     expenseMode,
@@ -358,6 +387,22 @@ export function ServiceJobBillingBuilder({
               };
             });
 
+      const invoiceOnlyLabour = additionalLabourLines.map((line) => {
+        if (!line.description.trim()) {
+          throw new Error("Describe each invoice-only labour line.");
+        }
+        if (num(line.quantity) <= 0) {
+          throw new Error("Invoice-only labour quantities must be greater than zero.");
+        }
+        return {
+          description: line.description.trim(),
+          quantity: num(line.quantity),
+          unitPrice: num(line.unitPrice),
+          discountPercent: num(line.discountPercent),
+          taxPercent: num(line.taxPercent),
+        };
+      });
+
       if (labourCharges.some((c) => c.quantity <= 0)) {
         throw new Error("Labour quantities must be greater than zero. Untick a line instead of setting it to zero.");
       }
@@ -401,7 +446,7 @@ export function ServiceJobBillingBuilder({
           };
         });
 
-      if (materialLines.length === 0 && labourCharges.length === 0 && expenseCharges.length === 0 && extras.length === 0) {
+      if (materialLines.length === 0 && labourCharges.length === 0 && invoiceOnlyLabour.length === 0 && expenseCharges.length === 0 && extras.length === 0) {
         throw new Error("Select at least one charge to bill.");
       }
 
@@ -413,6 +458,7 @@ export function ServiceJobBillingBuilder({
         labourMode: labourCharges.length === 0 ? 0 : labourMode,
         labourItemId: labourItemId || null,
         labourCharges,
+        additionalLabourLines: invoiceOnlyLabour,
         expenseMode: expenseCharges.length === 0 ? 0 : expenseMode,
         expenseItemId: expenseItemId || null,
         expenseCharges,
@@ -556,6 +602,12 @@ export function ServiceJobBillingBuilder({
               <tr><td className="px-2 py-4 text-sm text-zinc-500" colSpan={10}>No materials were issued to this job.</td></tr>
             ) : null}
           </tbody>
+          <tfoot>
+            <tr className="bg-[var(--surface-soft)] font-semibold">
+              <td className="px-2 py-2 text-right" colSpan={9}>Items subtotal</td>
+              <td className="px-2 py-2 text-right tabular-nums">{money(totals.parts)}</td>
+            </tr>
+          </tfoot>
         </table>
       </ChargeSection>
 
@@ -638,7 +690,47 @@ export function ServiceJobBillingBuilder({
               <tr><td className="px-2 py-4 text-sm text-zinc-500" colSpan={9}>No approved billable labour is waiting to be invoiced.</td></tr>
             ) : null}
           </tbody>
+          <tfoot>
+            <tr className="bg-[var(--surface-soft)] font-semibold">
+              <td className="px-2 py-2 text-right" colSpan={8}>Recorded labour subtotal</td>
+              <td className="px-2 py-2 text-right tabular-nums">{money(selectedLabour.reduce((sum, line) => sum + rowTotal(labourRows[line.timeEntryId]), 0))}</td>
+            </tr>
+          </tfoot>
         </table>
+        <div className="border-t border-[var(--card-border)] p-3">
+          <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <div className="text-sm font-semibold">Invoice-only labour</div>
+              <div className="text-xs text-zinc-500">Add labour for billing without adding it to the work order or actual job sheet.</div>
+            </div>
+            <SecondaryButton type="button" className="px-3 py-1.5 text-xs" onClick={() => setAdditionalLabourLines((current) => [...current, newAdditionalLabourLine()])} disabled={disabled || busy}>
+              + Add labour
+            </SecondaryButton>
+          </div>
+          {additionalLabourLines.length > 0 ? (
+            <div className="overflow-auto rounded-md border border-zinc-200 dark:border-zinc-800">
+              <table className="w-full min-w-[760px] text-sm">
+                <thead><tr className="border-b border-zinc-200 text-left text-xs uppercase tracking-wide text-zinc-500 dark:border-zinc-800">
+                  <th className="px-2 py-2">Description</th><th className="px-2 py-2">Hours / Qty</th><th className="px-2 py-2">Rate</th><th className="px-2 py-2">Disc %</th><th className="px-2 py-2">Tax</th><th className="px-2 py-2 text-right">Total</th><th className="px-2 py-2"></th>
+                </tr></thead>
+                <tbody>
+                  {additionalLabourLines.map((line) => (
+                    <tr key={line.key} className="border-b border-zinc-100 align-top dark:border-zinc-900">
+                      <td className="px-2 py-2"><Input value={line.description} placeholder="Labour shown on invoice" onChange={(e) => setAdditionalLabourLines((current) => current.map((row) => row.key === line.key ? { ...row, description: e.target.value } : row))} disabled={disabled || busy} /></td>
+                      <td className="px-2 py-2"><NumCell value={line.quantity} onChange={(value) => setAdditionalLabourLines((current) => current.map((row) => row.key === line.key ? { ...row, quantity: value } : row))} disabled={disabled || busy} /></td>
+                      <td className="px-2 py-2"><NumCell value={line.unitPrice} onChange={(value) => setAdditionalLabourLines((current) => current.map((row) => row.key === line.key ? { ...row, unitPrice: value } : row))} disabled={disabled || busy} /></td>
+                      <td className="px-2 py-2"><NumCell value={line.discountPercent} onChange={(value) => setAdditionalLabourLines((current) => current.map((row) => row.key === line.key ? { ...row, discountPercent: value } : row))} disabled={disabled || busy} /></td>
+                      <td className="px-2 py-2"><Select value={line.taxPercent} onChange={(e) => setAdditionalLabourLines((current) => current.map((row) => row.key === line.key ? { ...row, taxPercent: e.target.value } : row))} disabled={disabled || busy}><option value="0">No tax</option>{taxOptions.map((tax) => <option key={tax.id} value={String(tax.ratePercent)}>{tax.code} ({tax.ratePercent}%)</option>)}</Select></td>
+                      <td className="px-2 py-2 text-right font-medium">{money(rowTotal({ selected: true, ...line }))}</td>
+                      <td className="px-2 py-2"><SecondaryButton type="button" className="px-2 py-1 text-xs" onClick={() => setAdditionalLabourLines((current) => current.filter((row) => row.key !== line.key))} disabled={disabled || busy}>Remove</SecondaryButton></td>
+                    </tr>
+                  ))}
+                </tbody>
+                <tfoot><tr className="bg-[var(--surface-soft)] font-semibold"><td className="px-2 py-2 text-right" colSpan={5}>All labour subtotal</td><td className="px-2 py-2 text-right tabular-nums">{money(totals.labour)}</td><td /></tr></tfoot>
+              </table>
+            </div>
+          ) : null}
+        </div>
       </ChargeSection>
 
       <ChargeSection
@@ -704,6 +796,12 @@ export function ServiceJobBillingBuilder({
               <tr><td className="px-2 py-4 text-sm text-zinc-500" colSpan={8}>No approved billable expenses are waiting to be recharged.</td></tr>
             ) : null}
           </tbody>
+          <tfoot>
+            <tr className="bg-[var(--surface-soft)] font-semibold">
+              <td className="px-2 py-2 text-right" colSpan={7}>Expenses subtotal</td>
+              <td className="px-2 py-2 text-right tabular-nums">{money(totals.expenses)}</td>
+            </tr>
+          </tfoot>
         </table>
       </ChargeSection>
 
@@ -798,6 +896,7 @@ export function ServiceJobBillingBuilder({
                   </tr>
                 ))}
               </tbody>
+              <tfoot><tr className="bg-[var(--surface-soft)] font-semibold"><td className="px-2 py-2 text-right" colSpan={6}>Additional charges subtotal</td><td className="px-2 py-2 text-right tabular-nums">{money(totals.other)}</td></tr></tfoot>
             </table>
           </div>
         ) : null}

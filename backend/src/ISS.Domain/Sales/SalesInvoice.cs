@@ -11,6 +11,14 @@ public enum SalesInvoiceStatus
     Voided = 3
 }
 
+public enum SalesInvoiceLineCategory
+{
+    Item = 0,
+    Labour = 1,
+    Expense = 2,
+    Other = 3
+}
+
 public sealed class SalesInvoice : AuditableEntity
 {
     private SalesInvoice() { }
@@ -42,7 +50,8 @@ public sealed class SalesInvoice : AuditableEntity
         decimal taxPercent,
         Guid? revenueAccountId = null,
         Guid? materialRequisitionLineId = null,
-        string? description = null)
+        string? description = null,
+        SalesInvoiceLineCategory category = SalesInvoiceLineCategory.Item)
     {
         EnsureDraftEditable();
 
@@ -55,7 +64,8 @@ public sealed class SalesInvoice : AuditableEntity
             Guard.NotNegative(taxPercent, nameof(taxPercent)),
             revenueAccountId,
             materialRequisitionLineId,
-            description);
+            description,
+            category);
 
         Lines.Add(line);
         return line;
@@ -242,7 +252,8 @@ public sealed class SalesInvoiceLine : Entity
         decimal taxPercent,
         Guid? revenueAccountId = null,
         Guid? materialRequisitionLineId = null,
-        string? description = null)
+        string? description = null,
+        SalesInvoiceLineCategory category = SalesInvoiceLineCategory.Item)
     {
         SalesInvoiceId = salesInvoiceId;
         ItemId = itemId;
@@ -252,6 +263,7 @@ public sealed class SalesInvoiceLine : Entity
         TaxPercent = taxPercent;
         RevenueAccountId = revenueAccountId;
         MaterialRequisitionLineId = materialRequisitionLineId;
+        Category = category;
         Description = string.IsNullOrWhiteSpace(description)
             ? null
             : Guard.NotNullOrWhiteSpace(description, nameof(description), maxLength: 512);
@@ -279,6 +291,7 @@ public sealed class SalesInvoiceLine : Entity
     /// needs to say what it rolls up. Null falls back to the item name on the document.
     /// </summary>
     public string? Description { get; private set; }
+    public SalesInvoiceLineCategory Category { get; private set; }
 
     public void SetDescription(string? description)
         => Description = string.IsNullOrWhiteSpace(description)

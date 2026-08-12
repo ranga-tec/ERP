@@ -589,6 +589,7 @@ public sealed class IssDbContext(
         });
         builder.Entity<SalesInvoiceLine>(entity =>
         {
+            entity.Property(x => x.Category).HasDefaultValue(SalesInvoiceLineCategory.Item);
             entity.HasIndex(x => x.RevenueAccountId);
             entity.HasIndex(x => x.MaterialRequisitionLineId);
             entity.Property(x => x.Description).HasMaxLength(512);

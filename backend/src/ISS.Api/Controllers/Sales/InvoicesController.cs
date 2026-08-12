@@ -50,7 +50,8 @@ public sealed class InvoicesController(
         decimal DiscountPercent,
         decimal TaxPercent,
         decimal LineTotal,
-        string? Description);
+        string? Description,
+        SalesInvoiceLineCategory Category);
 
     public sealed record CreateInvoiceRequest(Guid CustomerId, DateTimeOffset? DueDate);
     public sealed record CreateInvoiceFromDispatchRequest(Guid DispatchId, DateTimeOffset? DueDate);
@@ -58,6 +59,7 @@ public sealed class InvoicesController(
     public sealed record AddInvoiceLineRequest(Guid ItemId, decimal Quantity, decimal UnitPrice, decimal DiscountPercent, decimal TaxPercent);
     public sealed record UpdateInvoiceLineRequest(decimal Quantity, decimal UnitPrice, decimal DiscountPercent, decimal TaxPercent);
     public sealed record SetInvoiceDiscountRequest(decimal DiscountPercent, decimal DiscountAmount);
+    private sealed record InvoiceListLine(decimal Quantity, decimal UnitPrice, decimal DiscountPercent, decimal TaxPercent);
 
     [HttpGet]
     public async Task<ActionResult<IReadOnlyList<InvoiceSummaryDto>>> List([FromQuery] int skip = 0, [FromQuery] int take = 100, CancellationToken cancellationToken = default)
@@ -74,14 +76,17 @@ public sealed class InvoicesController(
             .OrderByDescending(x => x.InvoiceDate)
             .Skip(skip)
             .Take(take)
-            .Select(x => new InvoiceSummaryDto(
+            .Select(x => new
+            {
                 x.Id,
                 x.Number,
                 x.CustomerId,
                 x.InvoiceDate,
                 x.DueDate,
                 x.Status,
-                0m))
+                x.DiscountPercent,
+                x.DiscountAmount
+            })
             .ToListAsync(cancellationToken);
 
         if (invoiceHeaders.Count == 0)
@@ -91,29 +96,17 @@ public sealed class InvoicesController(
 
         var invoiceIds = invoiceHeaders.Select(x => x.Id).ToList();
 
-        var totalsByInvoiceId = (await dbContext.Set<SalesInvoiceLine>()
+        var linesByInvoiceId = (await dbContext.Set<SalesInvoiceLine>()
                 .AsNoTracking()
                 .Where(x => invoiceIds.Contains(x.SalesInvoiceId))
                 .Select(x => new
                 {
                     x.SalesInvoiceId,
-                    x.Quantity,
-                    x.UnitPrice,
-                    x.DiscountPercent,
-                    x.TaxPercent
+                    Line = new InvoiceListLine(x.Quantity, x.UnitPrice, x.DiscountPercent, x.TaxPercent)
                 })
                 .ToListAsync(cancellationToken))
             .GroupBy(x => x.SalesInvoiceId)
-            .ToDictionary(
-                group => group.Key,
-                group => group.Sum(line =>
-                {
-                    var gross = line.Quantity * line.UnitPrice;
-                    var discount = gross * (line.DiscountPercent / 100m);
-                    var subtotal = gross - discount;
-                    var tax = subtotal * (line.TaxPercent / 100m);
-                    return subtotal + tax;
-                }));
+            .ToDictionary(group => group.Key, group => group.Select(x => x.Line).ToList());
 
         var invoices = invoiceHeaders
             .Select(invoice => new InvoiceSummaryDto(
@@ -123,10 +116,48 @@ public sealed class InvoicesController(
                 invoice.InvoiceDate,
                 invoice.DueDate,
                 invoice.Status,
-                totalsByInvoiceId.TryGetValue(invoice.Id, out var total) ? total : 0m))
+                CalculateInvoiceListTotal(
+                    linesByInvoiceId.GetValueOrDefault(invoice.Id) ?? [],
+                    invoice.DiscountPercent,
+                    invoice.DiscountAmount)))
             .ToList();
 
         return Ok(invoices);
+    }
+
+    private static decimal CalculateInvoiceListTotal(
+        IReadOnlyCollection<InvoiceListLine> lines,
+        decimal discountPercent,
+        decimal discountAmount)
+    {
+        // Kept strongly aligned with SalesInvoice: line discount first, then one header discount
+        // prorated over each line before its own tax rate is applied.
+        var values = lines
+            .Select(line => (
+                Subtotal: line.Quantity * line.UnitPrice * (1m - (line.DiscountPercent / 100m)),
+                line.TaxPercent))
+            .ToList();
+        var linesSubtotal = values.Sum(x => x.Subtotal);
+        var discount = discountPercent > 0m
+            ? decimal.Round(linesSubtotal * discountPercent / 100m, 2, MidpointRounding.AwayFromZero)
+            : Math.Min(discountAmount, linesSubtotal);
+        var net = linesSubtotal - discount;
+        var allocations = values.Select(x => decimal.Round(
+            linesSubtotal == 0m ? 0m : discount * x.Subtotal / linesSubtotal,
+            2,
+            MidpointRounding.AwayFromZero)).ToList();
+        if (values.Count > 0)
+        {
+            var remainder = discount - allocations.Sum();
+            var largestIndex = values
+                .Select((value, index) => new { value.Subtotal, Index = index })
+                .OrderByDescending(x => x.Subtotal)
+                .First().Index;
+            allocations[largestIndex] += remainder;
+        }
+        var tax = values.Select((line, index) =>
+            (line.Subtotal - allocations[index]) * line.TaxPercent / 100m).Sum();
+        return net + tax;
     }
 
     [HttpPost]
@@ -222,7 +253,8 @@ public sealed class InvoicesController(
                 l.DiscountPercent,
                 l.TaxPercent,
                 l.LineTotal,
-                l.Description)).ToList()));
+                l.Description,
+                l.Category)).ToList()));
     }
 
     [HttpGet("{id:guid}/pdf")]
