@@ -64,6 +64,7 @@ export function WorkOrderTimeEntryRow({
   const [costRate, setCostRate] = useState(entry.costRate.toString());
   const [billableToCustomer, setBillableToCustomer] = useState(entry.billableToCustomer);
   const [billableHours, setBillableHours] = useState(entry.billableHours.toString());
+  const [billableHoursEdited, setBillableHoursEdited] = useState(false);
   const [billingRate, setBillingRate] = useState(entry.billingRate.toString());
   const [taxPercent, setTaxPercent] = useState(entry.taxPercent.toString());
   const [notes, setNotes] = useState(entry.notes ?? "");
@@ -78,6 +79,7 @@ export function WorkOrderTimeEntryRow({
     setCostRate(entry.costRate.toString());
     setBillableToCustomer(entry.billableToCustomer);
     setBillableHours(entry.billableHours.toString());
+    setBillableHoursEdited(false);
     setBillingRate(entry.billingRate.toString());
     setTaxPercent(entry.taxPercent.toString());
     setNotes(entry.notes ?? "");
@@ -269,7 +271,16 @@ export function WorkOrderTimeEntryRow({
       </td>
       <td className="py-2 pr-3">
         {isEditing ? (
-          <DecimalInput value={hoursWorked} onChange={(event) => setHoursWorked(event.target.value)} className="min-w-20" />
+          <DecimalInput
+            value={hoursWorked}
+            onChange={(event) => {
+              setHoursWorked(event.target.value);
+              if (billableToCustomer && !billableHoursEdited) {
+                setBillableHours(event.target.value);
+              }
+            }}
+            className="min-w-20"
+          />
         ) : (
           entry.hoursWorked
         )}
@@ -284,36 +295,76 @@ export function WorkOrderTimeEntryRow({
       <td className="py-2 pr-3">{isEditing && Number.isFinite(previewLaborCost) ? previewLaborCost.toFixed(2) : entry.laborCost.toFixed(2)}</td>
       <td className="py-2 pr-3">
         {isEditing ? (
-          <div className="space-y-2">
+          <div className="min-w-[360px] space-y-2">
             <label className="flex items-center gap-2 text-sm">
               <input
                 type="checkbox"
                 checked={billableToCustomer}
-                onChange={(event) => setBillableToCustomer(event.target.checked)}
+                onChange={(event) => {
+                  const checked = event.target.checked;
+                  setBillableToCustomer(checked);
+                  if (checked) {
+                    if (!billableHoursEdited || Number(billableHours) <= 0) {
+                      setBillableHours(hoursWorked);
+                      setBillableHoursEdited(false);
+                    }
+                    if (Number(billingRate) <= 0) {
+                      const technician = technicians.find((candidate) => candidate.id === technicianId);
+                      setBillingRate(String(technician?.defaultBillingRate ?? 0));
+                    }
+                  }
+                }}
                 className="h-4 w-4 rounded border-zinc-300"
               />
               Billable
             </label>
-            <div className="grid gap-2 sm:grid-cols-3">
-              <DecimalInput
-                value={billableHours}
-                onChange={(event) => setBillableHours(event.target.value)}
-                disabled={!billableToCustomer}
-                placeholder="Hours"
-              />
-              <DecimalInput
-                value={billingRate}
-                onChange={(event) => setBillingRate(event.target.value)}
-                disabled={!billableToCustomer}
-                placeholder="Rate"
-              />
-              <DecimalInput
-                value={taxPercent}
-                onChange={(event) => setTaxPercent(event.target.value)}
-                disabled={!billableToCustomer}
-                placeholder="Tax %"
-              />
+            <div className="grid grid-cols-3 gap-2">
+              <label className="block min-w-28 text-[11px] font-medium text-zinc-500">
+                Billable hours
+                <DecimalInput
+                  value={billableHours}
+                  onChange={(event) => {
+                    setBillableHoursEdited(true);
+                    setBillableHours(event.target.value);
+                  }}
+                  disabled={!billableToCustomer}
+                  className="mt-1 min-w-28 text-zinc-900 dark:text-zinc-100"
+                  aria-label="Billable hours"
+                />
+              </label>
+              <label className="block min-w-28 text-[11px] font-medium text-zinc-500">
+                Billing rate
+                <DecimalInput
+                  value={billingRate}
+                  onChange={(event) => setBillingRate(event.target.value)}
+                  disabled={!billableToCustomer}
+                  className="mt-1 min-w-28 text-zinc-900 dark:text-zinc-100"
+                  aria-label="Billing rate"
+                />
+              </label>
+              <label className="block min-w-24 text-[11px] font-medium text-zinc-500">
+                Tax %
+                <DecimalInput
+                  value={taxPercent}
+                  onChange={(event) => setTaxPercent(event.target.value)}
+                  disabled={!billableToCustomer}
+                  className="mt-1 min-w-24 text-zinc-900 dark:text-zinc-100"
+                  aria-label="Tax percent"
+                />
+              </label>
             </div>
+            {billableToCustomer && Number(billableHours) !== Number(hoursWorked) ? (
+              <button
+                type="button"
+                className="text-[11px] text-amber-700 underline dark:text-amber-300"
+                onClick={() => {
+                  setBillableHoursEdited(false);
+                  setBillableHours(hoursWorked);
+                }}
+              >
+                Bill all {hoursWorked || "0"} worked hours
+              </button>
+            ) : null}
           </div>
         ) : entry.billableToCustomer ? (
           <div className="text-sm">

@@ -158,7 +158,7 @@ export default async function WorkOrderDetailPage({ params }: { params: Promise<
       <Card>
         <div className="mb-3 text-sm font-semibold">Labor Entries</div>
         <div className="overflow-auto">
-          <Table>
+          <Table className="min-w-[1500px]">
             <thead>
               <tr className="border-b border-zinc-200 text-left text-xs uppercase tracking-wide text-zinc-500 dark:border-zinc-800">
                 <th className="py-2 pr-3">Date</th>
@@ -167,7 +167,7 @@ export default async function WorkOrderDetailPage({ params }: { params: Promise<
                 <th className="py-2 pr-3">Hours</th>
                 <th className="py-2 pr-3">Cost Rate</th>
                 <th className="py-2 pr-3">Labor Cost</th>
-                <th className="py-2 pr-3">Billable</th>
+                <th className="min-w-[380px] py-2 pr-3">Billable hours / rate / tax</th>
                 <th className="py-2 pr-3">Billable Total</th>
                 <th className="py-2 pr-3">Status</th>
                 <th className="py-2 pr-3">Invoice</th>
