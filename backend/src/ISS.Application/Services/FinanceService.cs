@@ -1042,14 +1042,23 @@ public sealed class FinanceService(
         var line = claim.AddLine(null, description, 1m, amount, billableToCustomer);
         dbContext.DbContext.Add(line);
 
+        // Settlement is the point at which the custodian confirms the spend against the job.
+        // Bills added during the short period before head-office sign-off must therefore enter
+        // job costing immediately as well, instead of remaining hidden in a draft voucher.
+        if (iou.Status == PettyCashIouStatus.Settled)
+        {
+            claim.Submit(clock.UtcNow);
+            claim.Approve(clock.UtcNow);
+        }
+
         await dbContext.SaveChangesAsync(cancellationToken);
     }
 
     /// <summary>
-    /// Head office signing off the settlement. This is also what approves the bills gathered against
-    /// the advance, so the draft voucher is submitted and approved here and becomes job cost. It is
-    /// deliberately never settled: the cash left the box when the advance was released, and settling
-    /// it would pay the same money out twice.
+    /// Head office signs off and closes the settlement. Bills normally entered job cost when the
+    /// custodian settled the advance; the draft sweep also repairs older or concurrently-created
+    /// linked vouchers. They are deliberately never marked paid here: cash left the box when the
+    /// advance was released, and settling the voucher would pay the same money out twice.
     /// </summary>
     public async Task ApprovePettyCashIouSettlementAsync(
         Guid iouId,
@@ -1061,15 +1070,7 @@ public sealed class FinanceService(
 
         iou.ApproveSettlement(approvedByUserId, clock.UtcNow);
 
-        var claim = await dbContext.ServiceExpenseClaims
-            .Include(x => x.Lines)
-            .FirstOrDefaultAsync(x => x.PettyCashIouId == iouId && x.Status == ServiceExpenseClaimStatus.Draft, cancellationToken);
-
-        if (claim is { Lines.Count: > 0 })
-        {
-            claim.Submit(clock.UtcNow);
-            claim.Approve(clock.UtcNow);
-        }
+        await ApproveDraftPettyCashIouClaimsAsync(iouId, cancellationToken);
 
         await dbContext.SaveChangesAsync(cancellationToken);
     }
@@ -1199,7 +1200,22 @@ public sealed class FinanceService(
                   ?? throw new NotFoundException("Petty cash IOU not found.");
 
         iou.Settle(clock.UtcNow, settlementReference);
+        await ApproveDraftPettyCashIouClaimsAsync(iouId, cancellationToken);
         await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    private async Task ApproveDraftPettyCashIouClaimsAsync(Guid iouId, CancellationToken cancellationToken)
+    {
+        var claims = await dbContext.ServiceExpenseClaims
+            .Include(x => x.Lines)
+            .Where(x => x.PettyCashIouId == iouId && x.Status == ServiceExpenseClaimStatus.Draft)
+            .ToListAsync(cancellationToken);
+
+        foreach (var claim in claims.Where(x => x.Lines.Count > 0))
+        {
+            claim.Submit(clock.UtcNow);
+            claim.Approve(clock.UtcNow);
+        }
     }
 
     public async Task<Guid> CreatePaymentAsync(

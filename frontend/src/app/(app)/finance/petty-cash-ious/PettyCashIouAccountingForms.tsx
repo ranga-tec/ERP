@@ -227,7 +227,7 @@ export function PettyCashIouSettleActions({
         ) : null}
         {canApprove ? (
           <span className="text-xs text-zinc-500">
-            Approving closes the advance and puts its bills into job cost. Nothing more can be added after.
+            The bills are already in job cost. Approval confirms and closes the advance; nothing more can be added after.
           </span>
         ) : null}
       </div>
@@ -260,7 +260,8 @@ export function PettyCashIouSettleActions({
                 <span className="font-semibold">{money(unaccounted)}</span> stays unaccounted for.
               </span>
             ) : null}{" "}
-            Bills can still be added until head office approves.
+            Entered bills move into job cost now. More bills can still be added until head office approves, and those bills
+            will also enter job cost immediately.
           </>
         }
       />
