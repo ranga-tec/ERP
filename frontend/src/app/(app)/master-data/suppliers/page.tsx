@@ -1,8 +1,7 @@
 import { backendFetchJson } from "@/lib/backend.server";
-import { AppFormModal } from "@/components/AppFormModal";
 import { TableSearchInput } from "@/components/TableSearchInput";
 import { Card, Table } from "@/components/ui";
-import { SupplierCreateForm } from "./SupplierCreateForm";
+import { SupplierCreateModal } from "./SupplierCreateModal";
 import { SupplierRow } from "./SupplierRow";
 
 type SupplierDto = {
@@ -26,9 +25,7 @@ export default async function SuppliersPage() {
           <h1 className="text-2xl font-semibold">Suppliers</h1>
           <p className="mt-1 text-sm text-zinc-500">Supplier master data.</p>
         </div>
-        <AppFormModal title="Create Supplier" description="Add a supplier master record." buttonLabel="+ New Supplier">
-          {({ close }) => <SupplierCreateForm close={close} />}
-        </AppFormModal>
+        <SupplierCreateModal />
       </div>
 
       <Card>

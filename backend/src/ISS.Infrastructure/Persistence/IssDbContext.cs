@@ -910,6 +910,10 @@ public sealed class IssDbContext(
         });
         builder.Entity<PettyCashTransaction>(entity =>
         {
+            // The original petty-cash migration created this table with the singular name.
+            // Pin the runtime mapping so EF does not infer PettyCashTransactions from the
+            // DbSet property and query a table that does not exist in deployed databases.
+            entity.ToTable("PettyCashTransaction");
             entity.HasIndex(x => new { x.PettyCashFundId, x.OccurredAt });
             entity.HasIndex(x => new { x.ReferenceType, x.ReferenceId });
             entity.HasIndex(x => x.PettyCashRequestLineId);
