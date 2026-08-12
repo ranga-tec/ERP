@@ -837,6 +837,7 @@ public sealed class FinanceService(
     public async Task ReleasePettyCashIouAsync(
         Guid iouId,
         Guid pettyCashFundId,
+        decimal amount,
         string? releaseReference,
         string issueBillNumber,
         Guid issuedToUserId,
@@ -861,39 +862,41 @@ public sealed class FinanceService(
             throw new DomainValidationException($"IOU slip {trimmedIssueBillNumber} has already been used.");
         }
 
+        if (await dbContext.PettyCashTransactions.AsNoTracking().AnyAsync(
+                x => x.Type == PettyCashTransactionType.IouRelease
+                     && x.ReferenceNumber == trimmedIssueBillNumber,
+                cancellationToken))
+        {
+            throw new DomainValidationException($"IOU slip {trimmedIssueBillNumber} has already been used.");
+        }
+
         var fund = await dbContext.PettyCashFunds
             .Include(x => x.Transactions)
             .FirstOrDefaultAsync(x => x.Id == pettyCashFundId, cancellationToken)
             ?? throw new NotFoundException("Petty cash fund not found.");
 
-        if (pettyCashRequestLineId is null)
-        {
-            throw new DomainValidationException("Select the funded job category this advance is being released from.");
-        }
-
-        await EnsureRequestLineIsSpendableAsync(
-            pettyCashRequestLineId,
-            iou.ServiceJobId,
-            fund,
-            iou.Amount,
-            requireJobWise: true,
-            cancellationToken);
-
         iou.Release(
             pettyCashFundId,
+            amount,
             clock.UtcNow,
             releaseReference,
             trimmedIssueBillNumber,
             issuedToUserId,
             issuedToName,
-            pettyCashRequestLineId);
-        var transaction = fund.RecordIouRelease(
-            iou.Amount,
+            pettyCashRequestLineId: null);
+        var fundingTransaction = fund.RecordHeadOfficeIouFunding(
+            amount,
             clock.UtcNow,
             iou.Id,
-            iou.Number,
-            notes: $"Cash issued to {issuedToName} on IOU slip {trimmedIssueBillNumber}.",
-            pettyCashRequestLineId);
+            releaseReference ?? trimmedIssueBillNumber,
+            notes: $"Head-office funding received for {iou.Number}.");
+        dbContext.DbContext.Add(fundingTransaction);
+        var transaction = fund.RecordIouRelease(
+            amount,
+            clock.UtcNow,
+            iou.Id,
+            trimmedIssueBillNumber,
+            notes: $"Cash issued to {issuedToName} on IOU slip {trimmedIssueBillNumber}.");
         dbContext.DbContext.Add(transaction);
         await dbContext.SaveChangesAsync(cancellationToken);
     }
@@ -1001,6 +1004,15 @@ public sealed class FinanceService(
         {
             throw new DomainValidationException(
                 "Bills can only be added to a released advance, and only until head office approves the settlement.");
+        }
+
+        var existingClaimedAmount = await dbContext.ServiceExpenseClaims.AsNoTracking()
+            .Where(x => x.PettyCashIouId == iouId && x.Status != ServiceExpenseClaimStatus.Rejected)
+            .SumAsync(x => x.Lines.Sum(line => line.Quantity * line.UnitCost), cancellationToken);
+        if (existingClaimedAmount + amount > iou.OutstandingAmount)
+        {
+            throw new DomainValidationException(
+                $"Bills would exceed the {iou.OutstandingAmount:0.00} cash still outstanding on this advance.");
         }
 
         var claim = await dbContext.ServiceExpenseClaims

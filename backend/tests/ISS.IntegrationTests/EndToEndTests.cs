@@ -2112,6 +2112,30 @@ public sealed class EndToEndTests(IssApiFixture fixture) : IClassFixture<IssApiF
         Assert.Equal(CustomerBillingTreatment.CoveredNoCharge, job.CustomerBillingTreatment);
         Assert.Null(job.ServiceContractId);
         Assert.Contains("Manufacturer warranty", job.EntitlementSummary ?? string.Empty, StringComparison.OrdinalIgnoreCase);
+
+        var workOrder = await Post<WorkOrderDto>("/api/service/work-orders", new
+        {
+            serviceJobId = job.Id,
+            description = "Covered job with customer-approved billable labor",
+            assignedToUserId = (Guid?)null
+        });
+        var workOrderAfterLabor = await Post<WorkOrderDto>($"/api/service/work-orders/{workOrder.Id}/time-entries", new
+        {
+            technicianUserId = (Guid?)null,
+            technicianName = "Warranty Technician",
+            workDate = DateTimeOffset.UtcNow,
+            workDescription = "Customer-approved additional work",
+            hoursWorked = 1m,
+            costRate = 12m,
+            billableToCustomer = true,
+            billableHours = 1m,
+            billingRate = 30m,
+            taxPercent = 0m,
+            notes = (string?)null
+        });
+        var billableLabor = Assert.Single(workOrderAfterLabor.TimeEntries);
+        Assert.Equal(30m, billableLabor.BillableTotal);
+        Assert.Equal(30m, billableLabor.EffectiveBillableTotal);
     }
 
     [Fact]
@@ -3696,7 +3720,7 @@ public sealed class EndToEndTests(IssApiFixture fixture) : IClassFixture<IssApiF
     private sealed record MaterialRequisitionLineDetailDto(Guid Id, Guid ItemId, decimal Quantity, string? BatchNumber, IReadOnlyList<string> Serials);
     private sealed record MaterialRequisitionDetailDto(Guid Id, string Number, Guid ServiceJobId, Guid? ServiceJobDailySheetId, Guid WarehouseId, DateTimeOffset RequestedAt, string? Purpose, MaterialRequisitionStatus Status, IReadOnlyList<MaterialRequisitionLineDetailDto> Lines);
 
-    private sealed record WorkOrderTimeEntryDto(Guid Id, string TechnicianName, DateTimeOffset WorkDate, string WorkDescription, decimal HoursWorked, decimal CostRate, decimal LaborCost, bool BillableToCustomer, decimal BillableHours, decimal BillingRate, decimal TaxPercent, decimal BillableTotal, string? Notes, WorkOrderTimeEntryStatus Status, string? RejectionReason, Guid? SalesInvoiceId);
+    private sealed record WorkOrderTimeEntryDto(Guid Id, string TechnicianName, DateTimeOffset WorkDate, string WorkDescription, decimal HoursWorked, decimal CostRate, decimal LaborCost, bool BillableToCustomer, decimal BillableHours, decimal BillingRate, decimal TaxPercent, decimal BillableTotal, decimal EffectiveBillableTotal, string? Notes, WorkOrderTimeEntryStatus Status, string? RejectionReason, Guid? SalesInvoiceId);
     private sealed record WorkOrderDto(Guid Id, Guid ServiceJobId, string Description, Guid? AssignedToUserId, WorkOrderStatus Status, decimal ApprovedHours, decimal ApprovedLaborCost, decimal PendingLaborCost, decimal BillableApprovedAmount, IReadOnlyList<WorkOrderTimeEntryDto> TimeEntries);
     private sealed record QualityCheckDto(Guid Id, Guid ServiceJobId, DateTimeOffset CheckedAt, bool Passed, string? Notes);
 

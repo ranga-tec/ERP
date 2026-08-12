@@ -10,16 +10,6 @@ import { PettyCashIouEditForm } from "./PettyCashIouEditForm";
 type FundRef = { id: string; code: string; name: string };
 type StaffRef = { userId: string; name: string; email?: string | null };
 type ServiceJobRef = { id: string; number: string };
-type FundedCategoryRef = {
-  id: string;
-  requestNumber: string;
-  pettyCashFundId: string;
-  category: number;
-  serviceJobId?: string | null;
-  serviceJobNumber?: string | null;
-  purpose: string;
-  availableBalance: number;
-};
 type Pending = "assign" | "release" | "reject" | null;
 
 function money(value: number): string {
@@ -31,6 +21,8 @@ export function PettyCashIouActions({
   status,
   funds,
   amount,
+  releasedAmount,
+  pettyCashFundId,
   purpose,
   expectedSettlementAt,
   serviceJobId,
@@ -42,13 +34,14 @@ export function PettyCashIouActions({
   assignedApproverName,
   isReviewer,
   isAssignedApprover,
-  fundedCategories,
   permissions,
 }: {
   id: string;
   status: number;
   funds: FundRef[];
   amount: number;
+  releasedAmount: number;
+  pettyCashFundId?: string | null;
   purpose: string;
   expectedSettlementAt: string | null;
   serviceJobId: string | null;
@@ -60,7 +53,6 @@ export function PettyCashIouActions({
   assignedApproverName: string | null;
   isReviewer: boolean;
   isAssignedApprover: boolean;
-  fundedCategories: FundedCategoryRef[];
   permissions: string[];
 }) {
   const router = useRouter();
@@ -72,7 +64,9 @@ export function PettyCashIouActions({
   const canReject = permissionSet.has("Finance.PettyCashIou.Reject");
   const canRelease = permissionSet.has("Finance.PettyCashIou.Release");
   const canApproveSettlement = status === 4 && permissionSet.has("Finance.PettyCashIou.Approve");
-  const [requestLineId, setRequestLineId] = useState("");
+  const remainingReleaseAmount = Math.max(0, amount - releasedAmount);
+  const [releaseAmount, setReleaseAmount] = useState(String(remainingReleaseAmount));
+  const [fundId, setFundId] = useState(pettyCashFundId ?? "");
   const [assignedApproverUserId, setAssignedApproverUserId] = useState("");
   const [issuedToUserId, setIssuedToUserId] = useState("");
   const [issueBillNumber, setIssueBillNumber] = useState("");
@@ -95,17 +89,13 @@ export function PettyCashIouActions({
     }
   }
 
-  const availableCategories = fundedCategories.filter(
-    (line) =>
-      line.category === 1
-      && line.serviceJobId === serviceJobId
-      && funds.some((fund) => fund.id === line.pettyCashFundId),
-  );
-  const selectedCategory = availableCategories.find((line) => line.id === requestLineId);
-  const fundLabel = funds.find((fund) => fund.id === selectedCategory?.pettyCashFundId);
+  const parsedReleaseAmount = Number(releaseAmount);
+  const fundLabel = funds.find((fund) => fund.id === fundId);
   const releaseInvalid =
-    !selectedCategory
-    || selectedCategory.availableBalance < amount
+    !fundLabel
+    || !Number.isFinite(parsedReleaseAmount)
+    || parsedReleaseAmount <= 0
+    || parsedReleaseAmount > remainingReleaseAmount
     || issuedToUserId.length === 0
     || issueBillNumber.trim().length === 0;
 
@@ -155,7 +145,7 @@ export function PettyCashIouActions({
           <SecondaryButton type="button" disabled={busy !== null} onClick={() => setPending("reject")}>Reject</SecondaryButton>
         ) : null}
 
-        {status === 2 && canRelease ? (
+        {(status === 2 || (status === 3 && remainingReleaseAmount > 0)) && canRelease ? (
           <Button type="button" disabled={busy !== null} onClick={() => setPending("release")}>
             Release Cash
           </Button>
@@ -172,7 +162,7 @@ export function PettyCashIouActions({
           || (status === 9 && (!isReviewer || !canReview))
           || (status === 10 && !canApprove && !canReject)
           || (status === 2 && !canRelease)
-          || status === 3
+          || (status === 3 && remainingReleaseAmount <= 0)
           || (status === 4 && !canApproveSettlement)) ? (
           <span className="text-xs text-zinc-500">View only</span>
         ) : null}
@@ -222,24 +212,34 @@ export function PettyCashIouActions({
 
             <div className="mt-4 space-y-3">
               <div>
-                <label className="mb-1 block text-sm font-medium">Funded job category</label>
-                <Select value={requestLineId} onChange={(event) => setRequestLineId(event.target.value)} required>
-                  <option value="" disabled>Select the approved job funding...</option>
-                  {availableCategories.map((line) => {
-                    const enough = line.availableBalance >= amount;
-                    return (
-                      <option key={line.id} value={line.id} disabled={!enough}>
-                        {line.requestNumber} - {line.purpose} - {money(line.availableBalance)} available
-                        {enough ? "" : " (insufficient)"}
-                      </option>
-                    );
-                  })}
+                <label className="mb-1 block text-sm font-medium">Petty cash fund</label>
+                <Select value={fundId} onChange={(event) => setFundId(event.target.value)} disabled={releasedAmount > 0} required>
+                  <option value="" disabled>Select the receiving petty cash fund...</option>
+                  {funds.map((fund) => (
+                    <option key={fund.id} value={fund.id}>{fund.code} - {fund.name}</option>
+                  ))}
                 </Select>
-                {availableCategories.length === 0 ? (
-                  <p className="mt-1 text-xs text-amber-700 dark:text-amber-300">
-                    This job has no funded Job Wise category. Head office must fund one before cash can be released.
-                  </p>
-                ) : null}
+                <p className="mt-1 text-xs text-zinc-500">
+                  {releasedAmount > 0
+                    ? "Further instalments use the same fund as the first release."
+                    : "Head-office cash is credited to this fund before the advance is handed over. Existing category-funded requests are unchanged."}
+                </p>
+              </div>
+
+              <div>
+                <label className="mb-1 block text-sm font-medium">Amount to release</label>
+                <Input
+                  type="number"
+                  min="0.01"
+                  max={remainingReleaseAmount}
+                  step="0.01"
+                  value={releaseAmount}
+                  onChange={(event) => setReleaseAmount(event.target.value)}
+                  required
+                />
+                <p className="mt-1 text-xs text-zinc-500">
+                  {money(releasedAmount)} already released; {money(remainingReleaseAmount)} remaining.
+                </p>
               </div>
 
               <div>
@@ -265,7 +265,7 @@ export function PettyCashIouActions({
               </div>
 
               <div className="rounded-md border border-[var(--card-border)] bg-[var(--surface-soft)] p-3 text-sm">
-                Release <span className="font-semibold">{money(amount)}</span> from{" "}
+                Release <span className="font-semibold">{Number.isFinite(parsedReleaseAmount) ? money(parsedReleaseAmount) : "-"}</span> through{" "}
                 <span className="font-semibold">
                   {fundLabel ? `${fundLabel.code} - ${fundLabel.name}` : "the selected funded category"}
                 </span>.
@@ -280,10 +280,11 @@ export function PettyCashIouActions({
                 type="button"
                 disabled={busy === "release" || releaseInvalid}
                 onClick={() => void run("release", {
-                  pettyCashFundId: selectedCategory?.pettyCashFundId,
+                  pettyCashFundId: fundId,
+                  amount: parsedReleaseAmount,
                   issueBillNumber: issueBillNumber.trim(),
                   issuedToUserId,
-                  pettyCashRequestLineId: selectedCategory?.id,
+                  pettyCashRequestLineId: null,
                 })}
               >
                 {busy === "release" ? "Releasing..." : "Release Cash"}

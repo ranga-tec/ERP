@@ -72,15 +72,20 @@ public sealed class FinanceTests
         iou.Approve(Guid.NewGuid(), now);
 
         Assert.Throws<DomainValidationException>(() =>
-            iou.Release(fundId, now, null, "", collectorId, "Technician", Guid.NewGuid()));
+            iou.Release(fundId, 500m, now, null, "", collectorId, "Technician", Guid.NewGuid()));
 
-        iou.Release(fundId, now, null, "SLIP-100", collectorId, "Technician", Guid.NewGuid());
+        iou.Release(fundId, 200m, now, null, "SLIP-100", collectorId, "Technician", null);
 
         Assert.Equal(PettyCashIouStatus.Released, iou.Status);
+        Assert.Equal(200m, iou.ReleasedAmount);
+        Assert.Equal(300m, iou.RemainingReleaseAmount);
+        iou.Release(fundId, 300m, now, null, "SLIP-101", collectorId, "Technician", null);
+        Assert.Equal(500m, iou.ReleasedAmount);
+        Assert.Equal(0m, iou.RemainingReleaseAmount);
         Assert.Equal(requesterId, iou.RequestedByUserId);
         Assert.Equal(collectorId, iou.IssuedToUserId);
         Assert.Equal("Technician", iou.IssuedToName);
-        Assert.Equal("SLIP-100", iou.IssueBillNumber);
+        Assert.Equal("SLIP-101", iou.IssueBillNumber);
     }
 
     [Fact]
@@ -125,6 +130,24 @@ public sealed class FinanceTests
 
         Assert.Throws<DomainValidationException>(() =>
             iou.UpdateBeforeApproval(originalJobId, 150m, "Too late", now.AddDays(4)));
+    }
+
+    [Fact]
+    public void PettyCashFund_HeadOfficeIouFunding_Allows_Release_From_Zero_Balance()
+    {
+        var fund = new PettyCashFund("PC-HO", "Head office IOU fund", "LKR", null, null);
+        var iouId = Guid.NewGuid();
+        var now = DateTimeOffset.UtcNow;
+
+        var funding = fund.RecordHeadOfficeIouFunding(400m, now, iouId, "SLIP-200", "First instalment");
+        var release = fund.RecordIouRelease(400m, now, iouId, "SLIP-200", "Released to employee");
+
+        Assert.Equal(PettyCashTransactionType.HeadOfficeIouFunding, funding.Type);
+        Assert.Equal(PettyCashTransactionDirection.In, funding.Direction);
+        Assert.Equal(PettyCashTransactionType.IouRelease, release.Type);
+        Assert.Equal(PettyCashTransactionDirection.Out, release.Direction);
+        Assert.Equal(0m, fund.Balance);
+        Assert.Equal(2, fund.Transactions.Count);
     }
 
     [Fact]

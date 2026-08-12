@@ -77,6 +77,7 @@ public interface IIssDbContext
     DbSet<LedgerAccount> LedgerAccounts { get; }
     DbSet<Payment> Payments { get; }
     DbSet<PettyCashFund> PettyCashFunds { get; }
+    DbSet<PettyCashTransaction> PettyCashTransactions { get; }
     DbSet<PettyCashIou> PettyCashIous { get; }
     DbSet<PettyCashRequest> PettyCashRequests { get; }
     DbSet<PettyCashReturn> PettyCashReturns { get; }

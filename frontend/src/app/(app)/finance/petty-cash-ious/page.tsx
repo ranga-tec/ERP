@@ -10,18 +10,6 @@ type ServiceJobDto = { id: string; number: string; status: number };
 type FundDto = { id: string; code: string; name: string; isActive: boolean };
 type CurrentPermissionsDto = { permissions: string[] };
 type StaffDto = { userId: string; name: string; email?: string | null };
-type FundedCategoryDto = {
-  id: string;
-  requestNumber: string;
-  pettyCashFundId: string;
-  category: number;
-  serviceJobId?: string | null;
-  serviceJobNumber?: string | null;
-  customCategoryName?: string | null;
-  purpose: string;
-  fundedAmount: number;
-  availableBalance: number;
-};
 type PettyCashIouDto = {
   id: string;
   number: string;
@@ -29,6 +17,7 @@ type PettyCashIouDto = {
   requestedByName: string;
   issuedToName?: string | null;
   amount: number;
+  releasedAmount: number;
   purpose: string;
   requestedAt: string;
   expectedSettlementAt?: string | null;
@@ -72,12 +61,9 @@ export default async function PettyCashIousPage() {
   const canCreate = permissions.has("Finance.PettyCashIou.Create");
   const canRelease = permissions.has("Finance.PettyCashIou.Release");
   const canReview = permissions.has("Finance.PettyCashIou.Review");
-  const [staff, fundedCategories, approvers] = await Promise.all([
+  const [staff, approvers] = await Promise.all([
     canRelease || canReview
       ? backendFetchJson<StaffDto[]>("/finance/petty-cash-ious/staff")
-      : Promise.resolve([]),
-    canRelease
-      ? backendFetchJson<FundedCategoryDto[]>("/finance/petty-cash-requests/funded-lines")
       : Promise.resolve([]),
     canReview
       ? backendFetchJson<StaffDto[]>("/finance/petty-cash-ious/approvers")
@@ -184,6 +170,8 @@ export default async function PettyCashIousPage() {
                       status={iou.status}
                       funds={activeFunds}
                       amount={iou.amount}
+                      releasedAmount={iou.releasedAmount}
+                      pettyCashFundId={iou.pettyCashFundId ?? null}
                       purpose={iou.purpose}
                       expectedSettlementAt={iou.expectedSettlementAt ?? null}
                       serviceJobId={iou.serviceJobId ?? null}
@@ -199,7 +187,6 @@ export default async function PettyCashIousPage() {
                       assignedApproverName={iou.assignedApproverName ?? null}
                       isReviewer={iou.isReviewer}
                       isAssignedApprover={iou.isAssignedApprover}
-                      fundedCategories={fundedCategories}
                       permissions={currentPermissions.permissions}
                     />
                   </td>

@@ -115,6 +115,8 @@ public sealed class PettyCashIousController(
         Guid? PettyCashRequestLineId,
         DateTimeOffset? SettlementApprovedAt,
         decimal ReturnedAmount,
+        decimal ReleasedAmount,
+        decimal RemainingReleaseAmount,
         decimal OutstandingAmount,
         bool IsOpenForAccounting);
 
@@ -137,6 +139,7 @@ public sealed class PettyCashIousController(
     public sealed record RejectPettyCashIouRequest(string? Reason);
     public sealed record ReleasePettyCashIouRequest(
         Guid PettyCashFundId,
+        decimal Amount,
         string? ReleaseReference,
         string IssueBillNumber,
         Guid IssuedToUserId,
@@ -413,6 +416,7 @@ public sealed class PettyCashIousController(
         await financeService.ReleasePettyCashIouAsync(
             id,
             request.PettyCashFundId,
+            request.Amount,
             request.ReleaseReference,
             request.IssueBillNumber,
             request.IssuedToUserId,
@@ -811,6 +815,8 @@ public sealed class PettyCashIousController(
             iou.PettyCashRequestLineId,
             iou.SettlementApprovedAt,
             iou.ReturnedAmount,
+            iou.ReleasedAmount,
+            iou.RemainingReleaseAmount,
             iou.OutstandingAmount,
             iou.IsOpenForAccounting);
 }

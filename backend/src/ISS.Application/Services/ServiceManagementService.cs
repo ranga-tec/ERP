@@ -1389,7 +1389,7 @@ public sealed class ServiceManagementService(
                 var invoiceLine = invoice.AddLine(
                     laborItemId!.Value,
                     timeEntry.BillableHours,
-                    ServiceEntitlementRules.ApplyEstimateUnitPrice(job.EntitlementCoverage, ServiceEstimateLineKind.Labor, timeEntry.BillingRate),
+                    timeEntry.BillingRate,
                     discountPercent: 0m,
                     taxPercent: timeEntry.TaxPercent,
                     revenueAccountId: revenueAccountId,
@@ -1703,7 +1703,7 @@ public sealed class ServiceManagementService(
             .Select(x => new RollupCharge(
                 x.TimeEntryId,
                 x.Quantity,
-                ServiceEntitlementRules.ApplyEstimateUnitPrice(job.EntitlementCoverage, ServiceEstimateLineKind.Labor, x.UnitPrice),
+                x.UnitPrice,
                 x.DiscountPercent,
                 x.TaxPercent))
             .ToList();
@@ -1772,7 +1772,7 @@ public sealed class ServiceManagementService(
                 invoice,
                 itemId,
                 line.Quantity,
-                ServiceEntitlementRules.ApplyEstimateUnitPrice(job.EntitlementCoverage, ServiceEstimateLineKind.Labor, line.UnitPrice),
+                line.UnitPrice,
                 line.DiscountPercent,
                 line.TaxPercent,
                 materialRequisitionLineId: null,

@@ -18,6 +18,8 @@ type PettyCashIouDto = {
   requestedByName: string;
   issuedToName?: string | null;
   amount: number;
+  releasedAmount: number;
+  remainingReleaseAmount: number;
   purpose: string;
   requestedAt: string;
   expectedSettlementAt?: string | null;
@@ -55,16 +57,6 @@ type CurrentPermissionsDto = { permissions: string[] };
 type ServiceJobDto = { id: string; number: string; status: number };
 type FundDto = { id: string; code: string; name: string; isActive: boolean };
 type StaffDto = { userId: string; name: string; email?: string | null };
-type FundedCategoryDto = {
-  id: string;
-  requestNumber: string;
-  pettyCashFundId: string;
-  category: number;
-  serviceJobId?: string | null;
-  serviceJobNumber?: string | null;
-  purpose: string;
-  availableBalance: number;
-};
 
 const statusLabel: Record<number, string> = {
   0: "Draft",
@@ -122,12 +114,11 @@ export default async function PettyCashIouDetailPage({ params }: { params: Promi
   const canAccount = iou.isOpenForAccounting && permissions.has("Finance.PettyCashIou.Settle");
   const canRelease = permissions.has("Finance.PettyCashIou.Release");
   const canReview = permissions.has("Finance.PettyCashIou.Review");
-  const [staff, fundedCategories, approvers] = await Promise.all([
+  const [staff, approvers] = await Promise.all([
     canRelease || canReview ? backendFetchJson<StaffDto[]>("/finance/petty-cash-ious/staff") : Promise.resolve([]),
-    canRelease ? backendFetchJson<FundedCategoryDto[]>("/finance/petty-cash-requests/funded-lines") : Promise.resolve([]),
     canReview ? backendFetchJson<StaffDto[]>("/finance/petty-cash-ious/approvers") : Promise.resolve([]),
   ]);
-  const spent = iou.amount - iou.returnedAmount;
+  const spent = iou.releasedAmount - iou.returnedAmount;
   const unaccounted = spent - iou.claimedAmount;
 
   return (
@@ -167,6 +158,8 @@ export default async function PettyCashIouDetailPage({ params }: { params: Promi
             status={iou.status}
             funds={funds.filter((fund) => fund.isActive)}
             amount={iou.amount}
+            releasedAmount={iou.releasedAmount}
+            pettyCashFundId={iou.pettyCashFundId ?? null}
             purpose={iou.purpose}
             expectedSettlementAt={iou.expectedSettlementAt ?? null}
             serviceJobId={iou.serviceJobId ?? null}
@@ -178,7 +171,6 @@ export default async function PettyCashIouDetailPage({ params }: { params: Promi
             assignedApproverName={iou.assignedApproverName ?? null}
             isReviewer={iou.isReviewer}
             isAssignedApprover={iou.isAssignedApprover}
-            fundedCategories={fundedCategories}
             permissions={currentPermissions.permissions}
           />
         </div>
@@ -196,7 +188,9 @@ export default async function PettyCashIouDetailPage({ params }: { params: Promi
       ) : null}
 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <Figure label="Advanced" value={money(iou.amount)} />
+        <Figure label="Approved" value={money(iou.amount)} />
+        <Figure label="Released" value={money(iou.releasedAmount)} />
+        <Figure label="Still to release" value={money(iou.remainingReleaseAmount)} tone={iou.remainingReleaseAmount > 0 ? "warn" : "ok"} />
         <Figure label="Cash returned" value={money(iou.returnedAmount)} />
         <Figure label="Bills against it" value={money(iou.claimedAmount)} />
         <Figure
@@ -277,9 +271,10 @@ export default async function PettyCashIouDetailPage({ params }: { params: Promi
         <PettyCashIouSettleActions
           iouId={iou.id}
           status={iou.status}
-          amount={iou.amount}
+          amount={iou.releasedAmount}
           returnedAmount={iou.returnedAmount}
           claimedAmount={iou.claimedAmount}
+          remainingReleaseAmount={iou.remainingReleaseAmount}
           permissions={currentPermissions.permissions}
         />
       </Card>

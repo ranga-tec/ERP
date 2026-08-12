@@ -89,6 +89,7 @@ public sealed class IssDbContext(
     public DbSet<LedgerAccount> LedgerAccounts => Set<LedgerAccount>();
     public DbSet<Payment> Payments => Set<Payment>();
     public DbSet<PettyCashFund> PettyCashFunds => Set<PettyCashFund>();
+    public DbSet<PettyCashTransaction> PettyCashTransactions => Set<PettyCashTransaction>();
     public DbSet<PettyCashIou> PettyCashIous => Set<PettyCashIou>();
     public DbSet<PettyCashRequest> PettyCashRequests => Set<PettyCashRequest>();
     public DbSet<PettyCashReturn> PettyCashReturns => Set<PettyCashReturn>();
@@ -1012,6 +1013,7 @@ public sealed class IssDbContext(
             entity.Property(x => x.AssignedApproverName).HasMaxLength(256);
             entity.Property(x => x.IssuedToName).HasMaxLength(256);
             entity.Property(x => x.Amount).HasPrecision(18, 4);
+            entity.Property(x => x.ReleasedAmount).HasPrecision(18, 4);
             entity.Property(x => x.Purpose).HasMaxLength(1000);
             entity.Property(x => x.RejectionReason).HasMaxLength(512);
             entity.Property(x => x.ReleaseReference).HasMaxLength(128);

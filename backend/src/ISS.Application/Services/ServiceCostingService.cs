@@ -286,7 +286,9 @@ public sealed class ServiceCostingService(IIssDbContext dbContext)
                 line.BillingRate,
                 line.TaxPercent,
                 line.BillableHours * line.BillingRate * (1 + (line.TaxPercent / 100m)),
-                CalculateEffectiveLaborBillableTotal(job.EntitlementCoverage, line.BillableHours, line.BillingRate, line.TaxPercent),
+                line.BillableToCustomer
+                    ? line.BillableHours * line.BillingRate * (1 + (line.TaxPercent / 100m))
+                    : 0m,
                 line.SalesInvoiceId,
                 line.SalesInvoiceLineId))
             .ToList();
@@ -433,16 +435,4 @@ public sealed class ServiceCostingService(IIssDbContext dbContext)
             expenseClaimLines);
     }
 
-    private static decimal CalculateEffectiveLaborBillableTotal(
-        ServiceCoverageScope entitlementCoverage,
-        decimal billableHours,
-        decimal billingRate,
-        decimal taxPercent)
-    {
-        var effectiveRate = ServiceEntitlementRules.ApplyEstimateUnitPrice(
-            entitlementCoverage,
-            ServiceEstimateLineKind.Labor,
-            billingRate);
-        return billableHours * effectiveRate * (1 + (taxPercent / 100m));
-    }
 }

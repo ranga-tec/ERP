@@ -508,10 +508,12 @@ export function ServiceJobBillingBuilder({
           <div className="font-semibold">Under warranty or contract cover</div>
           <div className="mt-1">
             {charges.entitlementSummary ?? "This job is covered."}{" "}
-            {charges.partsCoveredByEntitlement ? "Parts" : ""}
-            {charges.partsCoveredByEntitlement && charges.labourCoveredByEntitlement ? " and " : ""}
-            {charges.labourCoveredByEntitlement ? "Labour" : ""} will be forced to 0.00 on the
-            invoice regardless of the prices set here.
+            {charges.partsCoveredByEntitlement
+              ? "Covered parts will be forced to 0.00 on the invoice. "
+              : ""}
+            {charges.labourCoveredByEntitlement
+              ? "Labour explicitly marked billable keeps the billing rate entered here."
+              : ""}
           </div>
         </div>
       ) : null}

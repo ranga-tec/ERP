@@ -409,7 +409,7 @@ public sealed class WorkOrdersController(
                 entry.BillingRate,
                 entry.TaxPercent,
                 entry.BillableTotal,
-                CalculateEffectiveLaborBillableTotal(entitlementCoverage, entry.BillableHours, entry.BillingRate, entry.TaxPercent),
+                entry.BillableToCustomer ? entry.BillableTotal : 0m,
                 entry.Notes,
                 entry.Status,
                 entry.SubmittedAt,
@@ -440,19 +440,6 @@ public sealed class WorkOrdersController(
                 .Where(entry => entry.BillableToCustomer && (entry.Status is WorkOrderTimeEntryStatus.Approved or WorkOrderTimeEntryStatus.Invoiced))
                 .Sum(entry => entry.EffectiveBillableTotal),
             orderedEntries);
-    }
-
-    private static decimal CalculateEffectiveLaborBillableTotal(
-        ServiceCoverageScope entitlementCoverage,
-        decimal billableHours,
-        decimal billingRate,
-        decimal taxPercent)
-    {
-        var effectiveRate = ServiceEntitlementRules.ApplyEstimateUnitPrice(
-            entitlementCoverage,
-            ServiceEstimateLineKind.Labor,
-            billingRate);
-        return billableHours * effectiveRate * (1 + (taxPercent / 100m));
     }
 
     private async Task<(Guid? TechnicianId, string TechnicianName)> ResolveTechnicianAsync(Guid? technicianId, string? requestedName, CancellationToken cancellationToken)

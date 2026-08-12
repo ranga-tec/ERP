@@ -379,9 +379,6 @@ export function WorkOrderTimeEntryRow({
       </td>
       <td className="py-2 pr-3">
         {isEditing && Number.isFinite(previewBillableTotal) ? previewBillableTotal.toFixed(2) : entry.effectiveBillableTotal.toFixed(2)}
-        {!isEditing && entry.billableToCustomer && entry.effectiveBillableTotal !== entry.billableTotal ? (
-          <div className="mt-1 text-xs text-zinc-500">Covered from {entry.billableTotal.toFixed(2)}</div>
-        ) : null}
       </td>
       <td className="py-2 pr-3">{statusLabel[entry.status] ?? entry.status}</td>
       <td className="py-2 pr-3 font-mono text-xs text-zinc-500">

@@ -44,6 +44,7 @@ const transactionTypeLabel: Record<number, string> = {
   8: "Returned to Head Office",
   9: "Category Transfer Out",
   10: "Category Transfer In",
+  11: "Head Office IOU Funding",
 };
 
 const directionLabel: Record<number, string> = {
@@ -70,7 +71,7 @@ export default async function PettyCashFundDetailPage({ params }: { params: Prom
       .filter((transaction) => predicate(transaction.type, transaction.direction))
       .reduce((sum, transaction) => sum + transaction.amount, 0);
 
-  const classifiedTypes = [1, 2, 3, 4, 5, 6, 7];
+  const classifiedTypes = [1, 2, 3, 4, 5, 6, 7, 11];
 
   const movementRows = [
     {
@@ -80,7 +81,7 @@ export default async function PettyCashFundDetailPage({ params }: { params: Prom
     },
     {
       label: "Received from head office",
-      in: sumOf((type) => type === 7),
+      in: sumOf((type) => type === 7 || type === 11),
       out: 0,
     },
     {

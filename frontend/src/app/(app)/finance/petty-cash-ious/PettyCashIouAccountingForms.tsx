@@ -164,6 +164,7 @@ export function PettyCashIouSettleActions({
   amount,
   returnedAmount,
   claimedAmount,
+  remainingReleaseAmount = 0,
   permissions,
 }: {
   iouId: string;
@@ -171,11 +172,12 @@ export function PettyCashIouSettleActions({
   amount: number;
   returnedAmount: number;
   claimedAmount: number;
+  remainingReleaseAmount?: number;
   permissions: string[];
 }) {
   const router = useRouter();
   const permissionSet = new Set(permissions);
-  const canSettle = status === 3 && permissionSet.has("Finance.PettyCashIou.Settle");
+  const canSettle = status === 3 && remainingReleaseAmount <= 0 && permissionSet.has("Finance.PettyCashIou.Settle");
   const canApprove = status === 4 && permissionSet.has("Finance.PettyCashIou.Approve");
   const [pending, setPending] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
@@ -199,6 +201,10 @@ export function PettyCashIouSettleActions({
   }
 
   if (!canSettle && !canApprove) {
+    if (status === 3 && remainingReleaseAmount > 0) {
+      return <p className="text-sm text-zinc-500">Release the remaining {money(remainingReleaseAmount)} before settling this advance.</p>;
+    }
+
     return status === 7 ? (
       <p className="text-sm text-zinc-500">Settlement approved. This advance is closed.</p>
     ) : (

@@ -2676,9 +2676,6 @@ export default async function ServiceJobDetailPage({
                     <td className="py-2 pr-3">{money(line.laborCost)}</td>
                     <td className="py-2 pr-3">
                       {line.billableToCustomer ? `${line.billableHours.toFixed(2)} hrs / ${money(line.effectiveBillableTotal)}` : "No"}
-                      {line.billableToCustomer && line.effectiveBillableTotal !== line.billableTotal ? (
-                        <div className="text-xs text-zinc-500">Covered from {money(line.billableTotal)}</div>
-                      ) : null}
                     </td>
                     <td className="py-2 pr-3">
                       {line.salesInvoiceId ? (

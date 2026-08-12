@@ -13,7 +13,8 @@ public enum PettyCashTransactionType
     RequestFunding = 7,
     HeadOfficeReturn = 8,
     CategoryTransferOut = 9,
-    CategoryTransferIn = 10
+    CategoryTransferIn = 10,
+    HeadOfficeIouFunding = 11
 }
 
 public enum PettyCashTransactionDirection
@@ -202,6 +203,26 @@ public sealed class PettyCashFund : AuditableEntity
             referenceNumber,
             notes,
             pettyCashRequestLineId);
+    }
+
+    public PettyCashTransaction RecordHeadOfficeIouFunding(
+        decimal amount,
+        DateTimeOffset occurredAt,
+        Guid iouId,
+        string? referenceNumber,
+        string? notes)
+    {
+        EnsureActive();
+
+        return AddTransaction(
+            PettyCashTransactionType.HeadOfficeIouFunding,
+            PettyCashTransactionDirection.In,
+            amount,
+            occurredAt,
+            referenceType: "IOU",
+            referenceId: iouId,
+            referenceNumber,
+            notes);
     }
 
     public PettyCashTransaction RecordIouSettlement(
@@ -493,6 +514,7 @@ public sealed class PettyCashIou : AuditableEntity
     public Guid? IssuedToUserId { get; private set; }
     public string? IssuedToName { get; private set; }
     public decimal Amount { get; private set; }
+    public decimal ReleasedAmount { get; private set; }
     public string Purpose { get; private set; } = null!;
     public DateTimeOffset RequestedAt { get; private set; }
     public DateTimeOffset? ExpectedSettlementAt { get; private set; }
@@ -539,7 +561,9 @@ public sealed class PettyCashIou : AuditableEntity
     /// The advance, less what has come back. What is left has to be covered by bills; anything not
     /// covered is cash the holder cannot account for.
     /// </summary>
-    public decimal OutstandingAmount => Amount - ReturnedAmount;
+    public decimal OutstandingAmount => ReleasedAmount - ReturnedAmount;
+
+    public decimal RemainingReleaseAmount => Math.Max(0m, Amount - ReleasedAmount);
 
     /// <summary>Additions are allowed until head office signs the settlement off.</summary>
     public bool IsOpenForAccounting => Status is PettyCashIouStatus.Released or PettyCashIouStatus.Settled;
@@ -576,6 +600,7 @@ public sealed class PettyCashIou : AuditableEntity
             serviceJobDailySheetId)
         {
             Status = PettyCashIouStatus.Released,
+            ReleasedAmount = amount,
             SubmittedAt = issuedAt,
             ApprovedAt = issuedAt,
             ApprovedByUserId = requestedByUserId,
@@ -723,6 +748,7 @@ public sealed class PettyCashIou : AuditableEntity
 
     public void Release(
         Guid pettyCashFundId,
+        decimal amount,
         DateTimeOffset releasedAt,
         string? releaseReference,
         string issueBillNumber,
@@ -730,9 +756,21 @@ public sealed class PettyCashIou : AuditableEntity
         string issuedToName,
         Guid? pettyCashRequestLineId = null)
     {
-        if (Status != PettyCashIouStatus.Approved)
+        if (Status is not (PettyCashIouStatus.Approved or PettyCashIouStatus.Released))
         {
-            throw new DomainValidationException("Only approved IOUs can be released.");
+            throw new DomainValidationException("Only approved or partially released IOUs can be released.");
+        }
+
+        var validatedAmount = Guard.Positive(amount, nameof(amount));
+        if (validatedAmount > RemainingReleaseAmount)
+        {
+            throw new DomainValidationException(
+                $"Release amount {validatedAmount:0.00} exceeds the {RemainingReleaseAmount:0.00} remaining on this IOU.");
+        }
+
+        if (ReleasedAmount > 0m && PettyCashFundId != pettyCashFundId)
+        {
+            throw new DomainValidationException("Further releases for this IOU must use the same petty cash fund.");
         }
 
         PettyCashFundId = pettyCashFundId;
@@ -744,6 +782,7 @@ public sealed class PettyCashIou : AuditableEntity
             : issuedToUserId;
         IssuedToName = Guard.NotNullOrWhiteSpace(issuedToName, nameof(issuedToName), maxLength: 256);
         PettyCashRequestLineId = pettyCashRequestLineId;
+        ReleasedAmount += validatedAmount;
         Status = PettyCashIouStatus.Released;
     }
 
@@ -767,7 +806,13 @@ public sealed class PettyCashIou : AuditableEntity
     {
         EnsureOpenForAccounting();
 
-        SettledAmount = Amount - ReturnedAmount;
+        if (RemainingReleaseAmount > 0m)
+        {
+            throw new DomainValidationException(
+                $"The IOU still has {RemainingReleaseAmount:0.00} approved but unreleased. Release it before settlement.");
+        }
+
+        SettledAmount = ReleasedAmount - ReturnedAmount;
         SettledAt = settledAt;
         SettlementReference = string.IsNullOrWhiteSpace(settlementReference) ? null : Guard.NotNullOrWhiteSpace(settlementReference, nameof(settlementReference), maxLength: 128);
         Status = PettyCashIouStatus.Settled;
