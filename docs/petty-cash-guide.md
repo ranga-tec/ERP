@@ -129,7 +129,33 @@ There are **two** ways, and choosing the right one is the whole of the disciplin
 
 ### 2a. Advance against a written request — `Finance → Petty Cash Advances (IOU) → + New IOU`
 
-The classic flow. Someone asks, it is approved, cash is released, they settle later.
+The classic flow. Someone asks, the accountant groups received requests into one approval batch,
+cash is received into the chosen fund and released, and each holder settles their own IOU later.
+
+#### Accountant approval batch (`PCAB`)
+
+The accountant opens **Petty Cash Advances (IOU)**, selects one active fund, an assigned approver,
+and one or more IOUs in `Submitted` status. The batch shows one total and a line-by-line breakdown of
+job number, system IOU number, requester, description, requested amount and approved amount.
+
+The assigned approver may reduce each line (including zero for one line) and approves the whole
+batch once. The accountant is notified, submits the same batch to head office, and head office
+approves or rejects it as one document. Approval alone does not change the fund balance.
+
+When the approved remittance physically arrives, the accountant records its bank/remittance
+reference on the batch. This posts `HeadOfficeIouFunding` **In** for every approved line and raises
+the selected fund by the approved batch total. Only then can a batched IOU be released. Release
+records the collecting employee, the IOU's job number, and the signed slip number from the IOU book;
+it posts `IouRelease` **Out**.
+
+```
+funding received from head office (+ approved batch total)
+  → signed IOU cash release (- released amount)
+  → unused cash returned at settlement (+ returned amount)
+```
+
+Receiving and releasing are separate real-world events and are never netted in one action. Older
+unbatched approved IOUs remain releasable for continuity; new multi-request work should use a batch.
 
 ```
 Draft ─submit─► Submitted ─approve─► Approved ─release─► Released
@@ -218,8 +244,9 @@ open that advance, and do everything from its detail page:
    IOU number.
 3. Click **Settle / Account** once the holder has finished. The system calculates spent as
    `advance − total returned`; there is no amount-spent field to enter.
-4. Head office reviews the figures and clicks **Approve Settlement**. This submits and approves the
-   hidden voucher, sends its job-linked lines to job cost, and closes the IOU.
+4. Clicking **Settle / Account** submits and approves the hidden voucher immediately, so its
+   job-linked lines enter actual job cost and become available as billable charges. Head-office
+   **Approve Settlement** confirms and closes the IOU; it does not post a second expense or payment.
 
 Each return posts `IouSettlement` **In** and credits the category from which that advance was released.
 The IOU remains open for adding bills and returns until head office approves the settlement.
@@ -265,6 +292,11 @@ TotalActualCost = netMaterialCost + directPurchaseCost + approvedLaborCost + app
 Settled vouchers stay in cost. Settlement is a cash event, not a cost reversal — otherwise a job's
 cost would fall as you reimburse people.
 
+Billable voucher lines appear in the service handover's **Bill what the job actually used** builder.
+If a handover already created a draft sales invoice before a late IOU was settled, the builder stays
+available and adds only newly selected, not-yet-invoiced charges to that draft. Posted invoices stay
+immutable.
+
 ---
 
 ## Part 6 — Permissions
@@ -275,7 +307,9 @@ cost would fall as you reimburse people.
 | `Finance.PettyCashRequest.View/Create/Edit/Submit` | the site accountant's side |
 | `Finance.PettyCashRequest.Approve/Reject/Fund` | head office's side |
 | `Finance.PettyCashIou.Create/Submit` | asking for an advance |
-| `Finance.PettyCashIou.Approve/Reject/Release/Settle` | granting, handing over, accounting |
+| `Finance.PettyCashIou.Review` | accountant batch preparation and head-office submission |
+| `Finance.PettyCashIou.AssignedApprove` | broad assigned-approval grant; named batch assignment is also checked per record |
+| `Finance.PettyCashIou.Approve/Reject/Release/Settle` | head-office decision, funding receipt/cash handover, accounting |
 | `Finance.PettyCashReturn.View/Create/Submit/Cancel` | prepare and submit reconciled unused float |
 | `Finance.PettyCashReturn.Receive/Reject` | head office's cash-count and receipt decision |
 | `Service.ExpenseClaim.*` | vouchers, including `Settle` which is what direct payment is gated on |

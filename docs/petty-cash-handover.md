@@ -1,5 +1,37 @@
 # Petty cash rework — handover
 
+## Update — 2026-08-13
+
+The current workflow now has an accountant approval cover sheet (`PCAB`) for submitted IOUs. An
+accountant selects one active petty-cash fund, one assigned approver, and one or more submitted IOU
+requests. The approver sees the combined total plus job number, IOU number, requester, description,
+requested amount and editable approved amount for every line. The accountant is notified when it is
+returned, submits the same batch to head office, and records the remittance reference when the cash
+is physically received.
+
+Fund accounting is event-based: batch funding receipt is `HeadOfficeIouFunding` **In**, signed-slip
+cash release is `IouRelease` **Out**, and unused cash returned by a holder is `IouSettlement` **In**.
+The old behavior that credited and debited the fund inside one release request was removed because
+it hid both the received balance and subsequent reduction.
+
+IOU settlement promotes its hidden bill voucher to Approved immediately. Billable lines therefore
+enter job cost and the service handover billing selector at settlement. The handover billing builder
+can now reopen an already-linked **Draft** invoice and add only new, uninvoiced charges; posted
+invoices remain immutable. This is deliberately scoped to the invoice/expense handoff and does not
+change material, labour, MRN/AOD, estimate, or job-status rules.
+
+Migration: `20260812173542_AddPettyCashIouApprovalBatches`.
+
+Validation added:
+
+- domain test for editable batch approval and one remittance receipt;
+- integration scenario covering two IOUs, reduced approval, fund receipt, release, bill, cash
+  return, settlement, fund balance and job-cost visibility;
+- migration script generation and backend/frontend production builds.
+
+The integration scenario requires Docker/PostgreSQL Testcontainers locally. If Docker is not
+running, execute the same scenario against the deployed authenticated API after rollout.
+
 ## Update — 2026-07-30
 
 The duplicate IOU creation routes described below have been consolidated locally. Job staff now

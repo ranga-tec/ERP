@@ -118,7 +118,8 @@ public sealed class PettyCashIousController(
         decimal ReleasedAmount,
         decimal RemainingReleaseAmount,
         decimal OutstandingAmount,
-        bool IsOpenForAccounting);
+        bool IsOpenForAccounting,
+        Guid? ApprovalBatchId);
 
     public sealed record CreatePettyCashIouRequest(
         Guid ServiceJobId,
@@ -209,6 +210,7 @@ public sealed class PettyCashIousController(
 
         var totals = await LoadClaimTotalsAsync(ious.Select(x => x.Id).ToList(), cancellationToken);
         var jobNumbers = await LoadJobNumbersAsync(ious, cancellationToken);
+        var approvalBatchIds = await LoadApprovalBatchIdsAsync(ious.Select(x => x.Id).ToList(), cancellationToken);
 
         var userId = currentUser.UserId;
         return Ok(ious
@@ -216,7 +218,8 @@ public sealed class PettyCashIousController(
                 x,
                 totals.GetValueOrDefault(x.Id, IouClaimTotals.Empty),
                 x.ServiceJobId is { } jobId ? jobNumbers.GetValueOrDefault(jobId) : null,
-                userId))
+                userId,
+                approvalBatchIds.GetValueOrDefault(x.Id)))
             .ToList());
     }
 
@@ -265,12 +268,14 @@ public sealed class PettyCashIousController(
 
         var totals = await LoadClaimTotalsAsync(new[] { iou.Id }, cancellationToken);
         var jobNumbers = await LoadJobNumbersAsync(new[] { iou }, cancellationToken);
+        var approvalBatchIds = await LoadApprovalBatchIdsAsync([iou.Id], cancellationToken);
 
         return Ok(ToDto(
             iou,
             totals.GetValueOrDefault(iou.Id, IouClaimTotals.Empty),
             iou.ServiceJobId is { } jobId ? jobNumbers.GetValueOrDefault(jobId) : null,
-            currentUser.UserId));
+            currentUser.UserId,
+            approvalBatchIds.GetValueOrDefault(iou.Id)));
     }
 
     [HttpPut("{id:guid}")]
@@ -769,7 +774,8 @@ public sealed class PettyCashIousController(
         PettyCashIou iou,
         IouClaimTotals totals,
         string? serviceJobNumber,
-        Guid? currentUserId)
+        Guid? currentUserId,
+        Guid? approvalBatchId)
         => new(
             iou.Id,
             iou.Number,
@@ -818,5 +824,13 @@ public sealed class PettyCashIousController(
             iou.ReleasedAmount,
             iou.RemainingReleaseAmount,
             iou.OutstandingAmount,
-            iou.IsOpenForAccounting);
+            iou.IsOpenForAccounting,
+            approvalBatchId);
+
+    private async Task<Dictionary<Guid, Guid?>> LoadApprovalBatchIdsAsync(
+        IReadOnlyCollection<Guid> iouIds,
+        CancellationToken cancellationToken)
+        => await dbContext.PettyCashIouApprovalBatchLines.AsNoTracking()
+            .Where(x => iouIds.Contains(x.PettyCashIouId))
+            .ToDictionaryAsync(x => x.PettyCashIouId, x => (Guid?)x.PettyCashIouApprovalBatchId, cancellationToken);
 }

@@ -785,6 +785,7 @@ public sealed class FinanceService(
         string assignedApproverName,
         CancellationToken cancellationToken = default)
     {
+        await EnsureIouIsNotInApprovalBatchAsync(iouId, cancellationToken);
         var iou = await dbContext.PettyCashIous.FirstOrDefaultAsync(x => x.Id == iouId, cancellationToken)
                   ?? throw new NotFoundException("Petty cash IOU not found.");
         iou.AssignForApproval(
@@ -796,11 +797,211 @@ public sealed class FinanceService(
         await dbContext.SaveChangesAsync(cancellationToken);
     }
 
+    public async Task<Guid> CreatePettyCashIouApprovalBatchAsync(
+        Guid pettyCashFundId,
+        Guid reviewerUserId,
+        string reviewerName,
+        Guid assignedApproverUserId,
+        string assignedApproverName,
+        IReadOnlyCollection<Guid> pettyCashIouIds,
+        CancellationToken cancellationToken = default)
+    {
+        var ids = pettyCashIouIds.Where(x => x != Guid.Empty).Distinct().ToList();
+        if (ids.Count == 0)
+        {
+            throw new DomainValidationException("Select at least one received petty cash advance request.");
+        }
+
+        var fundExists = await dbContext.PettyCashFunds.AsNoTracking()
+            .AnyAsync(x => x.Id == pettyCashFundId && x.IsActive, cancellationToken);
+        if (!fundExists)
+        {
+            throw new DomainValidationException("Select an active petty cash fund.");
+        }
+
+        var alreadyBatched = await dbContext.PettyCashIouApprovalBatchLines.AsNoTracking()
+            .AnyAsync(x => ids.Contains(x.PettyCashIouId), cancellationToken);
+        if (alreadyBatched)
+        {
+            throw new DomainValidationException("One or more selected IOUs already belong to an approval batch.");
+        }
+
+        var ious = await dbContext.PettyCashIous
+            .Where(x => ids.Contains(x.Id))
+            .ToListAsync(cancellationToken);
+        if (ious.Count != ids.Count)
+        {
+            throw new NotFoundException("One or more selected petty cash IOUs were not found.");
+        }
+
+        if (ious.Any(x => x.Status != PettyCashIouStatus.Submitted))
+        {
+            throw new DomainValidationException("Only submitted IOUs can be added to a new approval batch.");
+        }
+
+        if (ious.Any(x => x.RequestedByUserId == assignedApproverUserId))
+        {
+            throw new DomainValidationException("The assigned approver cannot approve their own IOU.");
+        }
+
+        var number = await documentNumberService.NextAsync("PCAB", "PCAB", cancellationToken);
+        var batch = new PettyCashIouApprovalBatch(
+            number,
+            pettyCashFundId,
+            reviewerUserId,
+            reviewerName,
+            assignedApproverUserId,
+            assignedApproverName,
+            clock.UtcNow);
+
+        foreach (var iou in ious)
+        {
+            iou.SelectFundForApprovalBatch(pettyCashFundId);
+            iou.AssignForApproval(
+                reviewerUserId,
+                reviewerName,
+                assignedApproverUserId,
+                assignedApproverName,
+                clock.UtcNow);
+            batch.AddLine(iou.Id, iou.Amount);
+        }
+
+        await dbContext.PettyCashIouApprovalBatches.AddAsync(batch, cancellationToken);
+        await dbContext.SaveChangesAsync(cancellationToken);
+        return batch.Id;
+    }
+
+    public async Task ApproveAssignedPettyCashIouBatchAsync(
+        Guid batchId,
+        Guid approvedByUserId,
+        IReadOnlyDictionary<Guid, decimal> approvedAmountsByLineId,
+        CancellationToken cancellationToken = default)
+    {
+        var batch = await dbContext.PettyCashIouApprovalBatches
+            .Include(x => x.Lines)
+            .FirstOrDefaultAsync(x => x.Id == batchId, cancellationToken)
+            ?? throw new NotFoundException("Petty cash approval batch not found.");
+        var iouIds = batch.Lines.Select(x => x.PettyCashIouId).ToList();
+        var ious = await dbContext.PettyCashIous.Where(x => iouIds.Contains(x.Id)).ToListAsync(cancellationToken);
+
+        batch.ApproveAssigned(approvedByUserId, clock.UtcNow, approvedAmountsByLineId);
+        foreach (var line in batch.Lines)
+        {
+            var iou = ious.First(x => x.Id == line.PettyCashIouId);
+            if (line.ApprovedAmount == 0m)
+            {
+                iou.Reject(clock.UtcNow, $"Not approved in batch {batch.Number}.");
+                continue;
+            }
+
+            iou.SetAssignedApprovedAmount(line.ApprovedAmount);
+            iou.ApproveAssigned(approvedByUserId, clock.UtcNow);
+        }
+
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task SubmitPettyCashIouBatchToHeadOfficeAsync(
+        Guid batchId,
+        Guid reviewerUserId,
+        CancellationToken cancellationToken = default)
+    {
+        var batch = await dbContext.PettyCashIouApprovalBatches
+            .Include(x => x.Lines)
+            .FirstOrDefaultAsync(x => x.Id == batchId, cancellationToken)
+            ?? throw new NotFoundException("Petty cash approval batch not found.");
+        var iouIds = batch.Lines.Select(x => x.PettyCashIouId).ToList();
+        var ious = await dbContext.PettyCashIous.Where(x => iouIds.Contains(x.Id)).ToListAsync(cancellationToken);
+
+        batch.SubmitToHeadOffice(reviewerUserId, clock.UtcNow);
+        foreach (var iou in ious.Where(x => x.Status == PettyCashIouStatus.ReturnedToReviewer))
+        {
+            iou.SubmitToHeadOffice(reviewerUserId, clock.UtcNow);
+        }
+
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task ApprovePettyCashIouBatchAtHeadOfficeAsync(
+        Guid batchId,
+        Guid approvedByUserId,
+        CancellationToken cancellationToken = default)
+    {
+        var batch = await dbContext.PettyCashIouApprovalBatches
+            .Include(x => x.Lines)
+            .FirstOrDefaultAsync(x => x.Id == batchId, cancellationToken)
+            ?? throw new NotFoundException("Petty cash approval batch not found.");
+        var iouIds = batch.Lines.Select(x => x.PettyCashIouId).ToList();
+        var ious = await dbContext.PettyCashIous.Where(x => iouIds.Contains(x.Id)).ToListAsync(cancellationToken);
+
+        batch.ApproveHeadOffice(approvedByUserId, clock.UtcNow);
+        foreach (var iou in ious.Where(x => x.Status == PettyCashIouStatus.AwaitingHeadOfficeApproval))
+        {
+            iou.Approve(approvedByUserId, clock.UtcNow);
+        }
+
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task ReceivePettyCashIouBatchFundingAsync(
+        Guid batchId,
+        Guid receivedByUserId,
+        string fundingReference,
+        CancellationToken cancellationToken = default)
+    {
+        var batch = await dbContext.PettyCashIouApprovalBatches
+            .Include(x => x.Lines)
+            .FirstOrDefaultAsync(x => x.Id == batchId, cancellationToken)
+            ?? throw new NotFoundException("Petty cash approval batch not found.");
+        var fund = await dbContext.PettyCashFunds
+            .Include(x => x.Transactions)
+            .FirstOrDefaultAsync(x => x.Id == batch.PettyCashFundId, cancellationToken)
+            ?? throw new NotFoundException("Petty cash fund not found.");
+
+        batch.ReceiveFunding(receivedByUserId, clock.UtcNow, fundingReference);
+        foreach (var line in batch.Lines.Where(x => x.ApprovedAmount > 0m))
+        {
+            var transaction = fund.RecordHeadOfficeIouFunding(
+                line.ApprovedAmount,
+                clock.UtcNow,
+                line.PettyCashIouId,
+                fundingReference,
+                $"Head-office funding received through {batch.Number}.");
+            dbContext.DbContext.Add(transaction);
+        }
+
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task RejectPettyCashIouBatchAsync(
+        Guid batchId,
+        Guid rejectedByUserId,
+        string? reason,
+        CancellationToken cancellationToken = default)
+    {
+        var batch = await dbContext.PettyCashIouApprovalBatches
+            .Include(x => x.Lines)
+            .FirstOrDefaultAsync(x => x.Id == batchId, cancellationToken)
+            ?? throw new NotFoundException("Petty cash approval batch not found.");
+        var iouIds = batch.Lines.Select(x => x.PettyCashIouId).ToList();
+        var ious = await dbContext.PettyCashIous.Where(x => iouIds.Contains(x.Id)).ToListAsync(cancellationToken);
+
+        batch.Reject(rejectedByUserId, clock.UtcNow, reason);
+        foreach (var iou in ious.Where(x => x.Status is PettyCashIouStatus.AwaitingAssignedApproval
+                     or PettyCashIouStatus.AwaitingHeadOfficeApproval))
+        {
+            iou.Reject(clock.UtcNow, reason);
+        }
+
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
     public async Task ApproveAssignedPettyCashIouAsync(
         Guid iouId,
         Guid approvedByUserId,
         CancellationToken cancellationToken = default)
     {
+        await EnsureIouIsNotInApprovalBatchAsync(iouId, cancellationToken);
         var iou = await dbContext.PettyCashIous.FirstOrDefaultAsync(x => x.Id == iouId, cancellationToken)
                   ?? throw new NotFoundException("Petty cash IOU not found.");
         iou.ApproveAssigned(approvedByUserId, clock.UtcNow);
@@ -812,6 +1013,7 @@ public sealed class FinanceService(
         Guid reviewerUserId,
         CancellationToken cancellationToken = default)
     {
+        await EnsureIouIsNotInApprovalBatchAsync(iouId, cancellationToken);
         var iou = await dbContext.PettyCashIous.FirstOrDefaultAsync(x => x.Id == iouId, cancellationToken)
                   ?? throw new NotFoundException("Petty cash IOU not found.");
         iou.SubmitToHeadOffice(reviewerUserId, clock.UtcNow);
@@ -820,6 +1022,7 @@ public sealed class FinanceService(
 
     public async Task ApprovePettyCashIouAsync(Guid iouId, Guid approvedByUserId, CancellationToken cancellationToken = default)
     {
+        await EnsureIouIsNotInApprovalBatchAsync(iouId, cancellationToken);
         var iou = await dbContext.PettyCashIous.FirstOrDefaultAsync(x => x.Id == iouId, cancellationToken)
                   ?? throw new NotFoundException("Petty cash IOU not found.");
         iou.Approve(approvedByUserId, clock.UtcNow);
@@ -828,6 +1031,7 @@ public sealed class FinanceService(
 
     public async Task RejectPettyCashIouAsync(Guid iouId, string? reason, CancellationToken cancellationToken = default)
     {
+        await EnsureIouIsNotInApprovalBatchAsync(iouId, cancellationToken);
         var iou = await dbContext.PettyCashIous.FirstOrDefaultAsync(x => x.Id == iouId, cancellationToken)
                   ?? throw new NotFoundException("Petty cash IOU not found.");
         iou.Reject(clock.UtcNow, reason);
@@ -875,6 +1079,21 @@ public sealed class FinanceService(
             .FirstOrDefaultAsync(x => x.Id == pettyCashFundId, cancellationToken)
             ?? throw new NotFoundException("Petty cash fund not found.");
 
+        var approvalBatch = await (
+                from line in dbContext.PettyCashIouApprovalBatchLines.AsNoTracking()
+                join batch in dbContext.PettyCashIouApprovalBatches.AsNoTracking()
+                    on line.PettyCashIouApprovalBatchId equals batch.Id
+                where line.PettyCashIouId == iouId
+                select new { batch.PettyCashFundId, batch.Status })
+            .FirstOrDefaultAsync(cancellationToken);
+        if (approvalBatch is not null
+            && (approvalBatch.Status != PettyCashIouApprovalBatchStatus.FundingReceived
+                || approvalBatch.PettyCashFundId != pettyCashFundId))
+        {
+            throw new DomainValidationException(
+                "Head-office funding for this IOU batch must be received into its selected fund before cash is released.");
+        }
+
         iou.Release(
             pettyCashFundId,
             amount,
@@ -883,20 +1102,14 @@ public sealed class FinanceService(
             trimmedIssueBillNumber,
             issuedToUserId,
             issuedToName,
-            pettyCashRequestLineId: null);
-        var fundingTransaction = fund.RecordHeadOfficeIouFunding(
-            amount,
-            clock.UtcNow,
-            iou.Id,
-            releaseReference ?? trimmedIssueBillNumber,
-            notes: $"Head-office funding received for {iou.Number}.");
-        dbContext.DbContext.Add(fundingTransaction);
+            pettyCashRequestLineId);
         var transaction = fund.RecordIouRelease(
             amount,
             clock.UtcNow,
             iou.Id,
             trimmedIssueBillNumber,
-            notes: $"Cash issued to {issuedToName} on IOU slip {trimmedIssueBillNumber}.");
+            notes: $"Cash issued to {issuedToName} on IOU slip {trimmedIssueBillNumber}.",
+            pettyCashRequestLineId);
         dbContext.DbContext.Add(transaction);
         await dbContext.SaveChangesAsync(cancellationToken);
     }
@@ -1052,6 +1265,16 @@ public sealed class FinanceService(
         }
 
         await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    private async Task EnsureIouIsNotInApprovalBatchAsync(Guid iouId, CancellationToken cancellationToken)
+    {
+        if (await dbContext.PettyCashIouApprovalBatchLines.AsNoTracking()
+                .AnyAsync(x => x.PettyCashIouId == iouId, cancellationToken))
+        {
+            throw new DomainValidationException(
+                "This IOU belongs to an approval batch. Complete the approval from the batch cover sheet.");
+        }
     }
 
     /// <summary>

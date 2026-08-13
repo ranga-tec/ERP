@@ -90,16 +90,13 @@ export function ServiceHandoverConvertInvoiceForm({
     }
   }
 
-  if (existingSalesInvoiceId) {
-    return (
-      <div className="text-sm text-zinc-500">
-        Service invoice already created. Open it from the linked invoice section.
-      </div>
-    );
-  }
-
   return (
     <div className="space-y-3 rounded-lg border border-zinc-200 p-3 dark:border-zinc-800">
+      {existingSalesInvoiceId ? (
+        <div className="rounded-md border border-blue-200 bg-blue-50 p-2 text-sm text-blue-900 dark:border-blue-900/40 dark:bg-blue-950/40 dark:text-blue-100">
+          A draft invoice already exists. Any newly approved billable labour or petty-cash expenses selected below will be added to that draft without duplicating existing lines.
+        </div>
+      ) : null}
       <div className="grid gap-3 sm:grid-cols-2">
         <div>
           <label className="mb-1 block text-sm font-medium">Invoice Source</label>

@@ -1422,11 +1422,6 @@ public sealed class ServiceManagementService(
         var handover = await dbContext.ServiceHandovers.FirstOrDefaultAsync(x => x.Id == serviceHandoverId, cancellationToken)
             ?? throw new NotFoundException("Service handover not found.");
 
-        if (handover.SalesInvoiceId is { } existingInvoiceId)
-        {
-            return existingInvoiceId;
-        }
-
         if (handover.Status != ServiceHandoverStatus.Completed)
         {
             throw new DomainValidationException("Only completed service handovers can be converted to sales invoice.");
@@ -1472,9 +1467,26 @@ public sealed class ServiceManagementService(
         await EnsureItemExistsAsync(input.LabourItemId, "Labour item not found.", cancellationToken);
         await EnsureItemExistsAsync(input.ExpenseItemId, "Expense item not found.", cancellationToken);
 
-        var number = await documentNumberService.NextAsync(ReferenceTypes.SalesInvoice, "INV", cancellationToken);
-        var invoice = new SalesInvoice(number, job.CustomerId, clock.UtcNow, input.DueDate);
-        await dbContext.SalesInvoices.AddAsync(invoice, cancellationToken);
+        SalesInvoice invoice;
+        var isNewInvoice = handover.SalesInvoiceId is null;
+        if (handover.SalesInvoiceId is { } existingInvoiceId)
+        {
+            invoice = await dbContext.SalesInvoices
+                .Include(x => x.Lines)
+                .FirstOrDefaultAsync(x => x.Id == existingInvoiceId, cancellationToken)
+                ?? throw new NotFoundException("The service handover's sales invoice was not found.");
+            if (invoice.Status != SalesInvoiceStatus.Draft)
+            {
+                throw new DomainValidationException(
+                    "New billable job charges cannot be added because the linked sales invoice is no longer a draft.");
+            }
+        }
+        else
+        {
+            var number = await documentNumberService.NextAsync(ReferenceTypes.SalesInvoice, "INV", cancellationToken);
+            invoice = new SalesInvoice(number, job.CustomerId, clock.UtcNow, input.DueDate);
+            await dbContext.SalesInvoices.AddAsync(invoice, cancellationToken);
+        }
 
         foreach (var line in materialLines)
         {
@@ -1517,8 +1529,11 @@ public sealed class ServiceManagementService(
 
         invoice.SetHeaderDiscount(input.HeaderDiscountPercent, input.HeaderDiscountAmount);
 
-        handover.LinkSalesInvoice(invoice.Id, clock.UtcNow);
-        job.MarkInvoiced();
+        if (isNewInvoice)
+        {
+            handover.LinkSalesInvoice(invoice.Id, clock.UtcNow);
+            job.MarkInvoiced();
+        }
         await dbContext.SaveChangesAsync(cancellationToken);
         return invoice.Id;
     }

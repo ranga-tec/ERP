@@ -27,6 +27,7 @@ public static class ReferenceTypes
     public const string ServiceExpenseClaim = "SEC";
     public const string PettyCashFund = "PCF";
     public const string PettyCashIou = "IOU";
+    public const string PettyCashIouApprovalBatch = "PCAB";
     public const string PettyCashRequest = "PCR";
     public const string PettyCashReturn = "PCRTN";
     public const string PettyCashReallocation = "PCRAL";

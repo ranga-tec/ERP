@@ -35,6 +35,7 @@ export function PettyCashIouActions({
   isReviewer,
   isAssignedApprover,
   permissions,
+  approvalBatchId,
 }: {
   id: string;
   status: number;
@@ -54,6 +55,7 @@ export function PettyCashIouActions({
   isReviewer: boolean;
   isAssignedApprover: boolean;
   permissions: string[];
+  approvalBatchId?: string | null;
 }) {
   const router = useRouter();
   const permissionSet = new Set(permissions);
@@ -119,29 +121,29 @@ export function PettyCashIouActions({
           </AppFormModal>
         ) : null}
 
-        {status === 1 && canReview ? (
+        {status === 1 && canReview && !approvalBatchId ? (
           <Button type="button" disabled={busy !== null} onClick={() => setPending("assign")}>Send for Approval</Button>
         ) : null}
 
-        {status === 8 && isAssignedApprover ? (
+        {status === 8 && isAssignedApprover && !approvalBatchId ? (
           <Button type="button" disabled={busy !== null} onClick={() => void run("approve-assigned")}>
             {busy === "approve-assigned" ? "Approving..." : "Approve & Return"}
           </Button>
         ) : null}
 
-        {status === 9 && isReviewer && canReview ? (
+        {status === 9 && isReviewer && canReview && !approvalBatchId ? (
           <Button type="button" disabled={busy !== null} onClick={() => void run("submit-head-office")}>
             {busy === "submit-head-office" ? "Submitting..." : "Submit to Head Office"}
           </Button>
         ) : null}
 
-        {status === 10 && canApprove ? (
+        {status === 10 && canApprove && !approvalBatchId ? (
           <Button type="button" disabled={busy !== null} onClick={() => void run("approve")}>
             {busy === "approve" ? "Approving..." : "Head Office Approve"}
           </Button>
         ) : null}
 
-        {status === 10 && canReject ? (
+        {status === 10 && canReject && !approvalBatchId ? (
           <SecondaryButton type="button" disabled={busy !== null} onClick={() => setPending("reject")}>Reject</SecondaryButton>
         ) : null}
 
@@ -167,6 +169,10 @@ export function PettyCashIouActions({
           <span className="text-xs text-zinc-500">View only</span>
         ) : null}
       </div>
+
+      {approvalBatchId && status >= 8 && status <= 10 ? (
+        <div className="text-xs text-zinc-500">Approval is controlled by the batch cover sheet above.</div>
+      ) : null}
 
       {status === 8 && assignedApproverName ? <div className="text-xs text-zinc-500">Assigned to {assignedApproverName}</div> : null}
       {status === 9 && reviewerName ? <div className="text-xs text-zinc-500">Returned to {reviewerName}</div> : null}
@@ -214,7 +220,7 @@ export function PettyCashIouActions({
               <div>
                 <label className="mb-1 block text-sm font-medium">Petty cash fund</label>
                 <Select value={fundId} onChange={(event) => setFundId(event.target.value)} disabled={releasedAmount > 0} required>
-                  <option value="" disabled>Select the receiving petty cash fund...</option>
+                  <option value="" disabled>Select the petty cash fund...</option>
                   {funds.map((fund) => (
                     <option key={fund.id} value={fund.id}>{fund.code} - {fund.name}</option>
                   ))}
@@ -222,7 +228,7 @@ export function PettyCashIouActions({
                 <p className="mt-1 text-xs text-zinc-500">
                   {releasedAmount > 0
                     ? "Further instalments use the same fund as the first release."
-                    : "Head-office cash is credited to this fund before the advance is handed over. Existing category-funded requests are unchanged."}
+                    : "Use the fund selected on the approved batch. Its received balance is reduced when this cash is handed over."}
                 </p>
               </div>
 

@@ -91,6 +91,8 @@ public sealed class IssDbContext(
     public DbSet<PettyCashFund> PettyCashFunds => Set<PettyCashFund>();
     public DbSet<PettyCashTransaction> PettyCashTransactions => Set<PettyCashTransaction>();
     public DbSet<PettyCashIou> PettyCashIous => Set<PettyCashIou>();
+    public DbSet<PettyCashIouApprovalBatch> PettyCashIouApprovalBatches => Set<PettyCashIouApprovalBatch>();
+    public DbSet<PettyCashIouApprovalBatchLine> PettyCashIouApprovalBatchLines => Set<PettyCashIouApprovalBatchLine>();
     public DbSet<PettyCashRequest> PettyCashRequests => Set<PettyCashRequest>();
     public DbSet<PettyCashReturn> PettyCashReturns => Set<PettyCashReturn>();
     public DbSet<PettyCashReallocation> PettyCashReallocations => Set<PettyCashReallocation>();
@@ -1028,6 +1030,31 @@ public sealed class IssDbContext(
             entity.Property(x => x.SettlementReference).HasMaxLength(128);
             entity.HasOne<PettyCashFund>().WithMany().HasForeignKey(x => x.PettyCashFundId).OnDelete(DeleteBehavior.Restrict);
             entity.HasOne<ServiceJobDailySheet>().WithMany().HasForeignKey(x => x.ServiceJobDailySheetId).OnDelete(DeleteBehavior.SetNull);
+        });
+
+        builder.Entity<PettyCashIouApprovalBatch>(entity =>
+        {
+            entity.HasIndex(x => x.Number).IsUnique();
+            entity.HasIndex(x => x.PettyCashFundId);
+            entity.HasIndex(x => x.ReviewerUserId);
+            entity.HasIndex(x => x.AssignedApproverUserId);
+            entity.HasIndex(x => x.Status);
+            entity.Property(x => x.Number).HasMaxLength(32);
+            entity.Property(x => x.ReviewerName).HasMaxLength(256);
+            entity.Property(x => x.AssignedApproverName).HasMaxLength(256);
+            entity.Property(x => x.FundingReference).HasMaxLength(128);
+            entity.Property(x => x.RejectionReason).HasMaxLength(512);
+            entity.HasOne<PettyCashFund>().WithMany().HasForeignKey(x => x.PettyCashFundId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasMany(x => x.Lines).WithOne().HasForeignKey(x => x.PettyCashIouApprovalBatchId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        builder.Entity<PettyCashIouApprovalBatchLine>(entity =>
+        {
+            entity.HasIndex(x => new { x.PettyCashIouApprovalBatchId, x.PettyCashIouId }).IsUnique();
+            entity.HasIndex(x => x.PettyCashIouId).IsUnique();
+            entity.Property(x => x.RequestedAmount).HasPrecision(18, 4);
+            entity.Property(x => x.ApprovedAmount).HasPrecision(18, 4);
+            entity.HasOne<PettyCashIou>().WithMany().HasForeignKey(x => x.PettyCashIouId).OnDelete(DeleteBehavior.Restrict);
         });
 
         builder.Entity<CreditNote>(entity =>

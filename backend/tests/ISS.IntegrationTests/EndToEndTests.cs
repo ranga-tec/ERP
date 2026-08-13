@@ -493,6 +493,73 @@ public sealed class EndToEndTests(IssApiFixture fixture) : IClassFixture<IssApiF
     }
 
     [Fact]
+    public async Task Finance_PettyCashIou_Batch_Updates_Fund_And_Exposes_Billable_Expense()
+    {
+        var approverEmail = $"batch-approver-{Guid.NewGuid():N}@local.test";
+        const string approverPassword = "Passw0rd1!";
+        var assignedApprover = await Post<AdminUserApiDto>("/api/admin/users", new
+        {
+            companyId = (Guid?)null,
+            email = approverEmail,
+            password = approverPassword,
+            displayName = "Batch Approver",
+            roles = new[] { "Finance" },
+        });
+        var customer = await Post<CustomerDto>("/api/customers", new { code = Code("BCUS"), name = "Batch Customer", phone = (string?)null, email = (string?)null, address = (string?)null });
+        var equipment = await Post<ItemDto>("/api/items", new { sku = Code("BEQ"), name = "Batch Equipment", type = ItemType.Equipment, trackingType = TrackingType.Serial, unitOfMeasure = "UNIT", brandId = (Guid?)null, barcode = (string?)null, defaultUnitCost = 0m });
+        var unit = await Post<EquipmentUnitDto>("/api/service/equipment-units", new { itemId = equipment.Id, serialNumber = $"B-{Guid.NewGuid():N}"[..20], customerId = customer.Id, purchasedAt = (DateTimeOffset?)null, warrantyUntil = (DateTimeOffset?)null });
+        var job = await Post<ServiceJobDto>("/api/service/jobs", new { equipmentUnitId = unit.Id, customerId = customer.Id, problemDescription = "Batch petty cash billing" });
+        var fund = await Post<PettyCashFundApiDto>("/api/finance/petty-cash-funds", new { code = Code("BPC"), name = "Batch Fund", currencyCode = "LKR", custodianName = "Accountant", notes = (string?)null, openingBalance = (decimal?)null, openedAt = (DateTimeOffset?)null, openingReferenceNumber = (string?)null });
+
+        async Task<PettyCashIouApiDto> CreateSubmittedIou(decimal amount, string purpose)
+        {
+            var created = await Post<PettyCashIouApiDto>("/api/finance/petty-cash-ious", new { serviceJobId = job.Id, amount, purpose, expectedSettlementAt = (DateTimeOffset?)null, requestedByName = "Batch Requester", serviceJobDailySheetId = (Guid?)null });
+            await PostNoContent($"/api/finance/petty-cash-ious/{created.Id}/submit", new { });
+            return created;
+        }
+
+        var first = await CreateSubmittedIou(100m, "Travel to site");
+        var second = await CreateSubmittedIou(80m, "Job consumables");
+        var batch = await Post<PettyCashIouBatchApiDto>("/api/finance/petty-cash-iou-batches", new { pettyCashFundId = fund.Id, assignedApproverUserId = assignedApprover.Id, pettyCashIouIds = new[] { first.Id, second.Id } });
+        Assert.Equal(180m, batch.RequestedTotal);
+        Assert.Equal(2, batch.Lines.Count);
+
+        var loginResponse = await _client.PostAsJsonAsync("/api/auth/login", new { email = approverEmail, password = approverPassword });
+        loginResponse.EnsureSuccessStatusCode();
+        var approverToken = (await loginResponse.Content.ReadFromJsonAsync<AuthTokenApiDto>())!.Token;
+        try
+        {
+            _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", approverToken);
+            await PostNoContent($"/api/finance/petty-cash-iou-batches/{batch.Id}/approve-assigned", new
+            {
+                lines = batch.Lines.Select(line => new { lineId = line.Id, approvedAmount = line.PettyCashIouId == first.Id ? 90m : 80m }).ToList(),
+            });
+        }
+        finally
+        {
+            _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", fixture.AdminToken);
+        }
+
+        await PostNoContent($"/api/finance/petty-cash-iou-batches/{batch.Id}/submit-head-office", new { });
+        await PostNoContent($"/api/finance/petty-cash-iou-batches/{batch.Id}/approve", new { });
+        await PostNoContent($"/api/finance/petty-cash-iou-batches/{batch.Id}/receive-funding", new { fundingReference = "HO-REM-001" });
+        var funded = await Get<PettyCashFundApiDto>($"/api/finance/petty-cash-funds/{fund.Id}");
+        Assert.Equal(170m, funded.Balance);
+
+        await PostNoContent($"/api/finance/petty-cash-ious/{first.Id}/release", new { pettyCashFundId = fund.Id, amount = 90m, releaseReference = "REL-1", issueBillNumber = Code("SLIP"), issuedToUserId = assignedApprover.Id, pettyCashRequestLineId = (Guid?)null });
+        var afterRelease = await Get<PettyCashFundApiDto>($"/api/finance/petty-cash-funds/{fund.Id}");
+        Assert.Equal(80m, afterRelease.Balance);
+
+        await PostNoContent($"/api/finance/petty-cash-ious/{first.Id}/bills", new { description = "Billable site travel", amount = 70m, billableToCustomer = true, receiptReference = "RCP-1" });
+        await PostNoContent($"/api/finance/petty-cash-ious/{first.Id}/return-balance", new { amount = 20m, reference = "RETURN-1" });
+        await PostNoContent($"/api/finance/petty-cash-ious/{first.Id}/settle", new { settlementReference = "SET-1" });
+        var afterSettlement = await Get<PettyCashFundApiDto>($"/api/finance/petty-cash-funds/{fund.Id}");
+        Assert.Equal(100m, afterSettlement.Balance);
+        var costing = await Get<ServiceJobCostingDto>($"/api/service/jobs/{job.Id}/costing");
+        Assert.Contains(costing.ExpenseClaimLines, line => line.Description == "Billable site travel" && line.BillableToCustomer && line.LineTotal == 70m);
+    }
+
+    [Fact]
     public async Task Procurement_GRN_Post_Increases_Stock_And_Creates_AP()
     {
         var warehouse = await Post<WarehouseDto>("/api/warehouses", new { code = Code("WH"), name = "Main", address = "Nugegoda" });
@@ -3697,6 +3764,8 @@ public sealed class EndToEndTests(IssApiFixture fixture) : IClassFixture<IssApiF
     private sealed record PettyCashCategoryBalanceApiDto(Guid PettyCashRequestLineId, decimal FundedAmount, decimal LedgerBalance, decimal PendingReturnAmount, decimal PendingReallocationAmount, decimal AvailableBalance);
     private sealed record PettyCashReturnApiDto(Guid Id, string Number, PettyCashReturnStatus Status, decimal TotalAmount, string? ReceiptReference);
     private sealed record PettyCashIouApiDto(Guid Id, string Number, Guid? ServiceJobId, decimal Amount, string Purpose, DateTimeOffset? ExpectedSettlementAt, PettyCashIouStatus Status, Guid? ReviewerUserId = null, Guid? AssignedApproverUserId = null);
+    private sealed record PettyCashIouBatchLineApiDto(Guid Id, Guid PettyCashIouId, decimal RequestedAmount, decimal ApprovedAmount);
+    private sealed record PettyCashIouBatchApiDto(Guid Id, string Number, decimal RequestedTotal, decimal ApprovedTotal, IReadOnlyList<PettyCashIouBatchLineApiDto> Lines);
     private sealed record PettyCashStaffApiDto(Guid UserId, string Name, string? Email);
     private sealed record AdminUserApiDto(Guid Id);
     private sealed record AuthTokenApiDto(string Token);

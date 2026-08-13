@@ -79,6 +79,8 @@ public interface IIssDbContext
     DbSet<PettyCashFund> PettyCashFunds { get; }
     DbSet<PettyCashTransaction> PettyCashTransactions { get; }
     DbSet<PettyCashIou> PettyCashIous { get; }
+    DbSet<PettyCashIouApprovalBatch> PettyCashIouApprovalBatches { get; }
+    DbSet<PettyCashIouApprovalBatchLine> PettyCashIouApprovalBatchLines { get; }
     DbSet<PettyCashRequest> PettyCashRequests { get; }
     DbSet<PettyCashReturn> PettyCashReturns { get; }
     DbSet<PettyCashReallocation> PettyCashReallocations { get; }

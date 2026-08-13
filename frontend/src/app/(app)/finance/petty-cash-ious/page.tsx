@@ -5,6 +5,7 @@ import { TableSearchInput } from "@/components/TableSearchInput";
 import { Card, Table } from "@/components/ui";
 import { PettyCashIouActions } from "./PettyCashIouActions";
 import { PettyCashIouCreateForm } from "./PettyCashIouCreateForm";
+import { PettyCashIouBatchPanel, type PettyCashIouBatch } from "./PettyCashIouBatchPanel";
 
 type ServiceJobDto = { id: string; number: string; status: number };
 type FundDto = { id: string; code: string; name: string; isActive: boolean };
@@ -14,6 +15,7 @@ type PettyCashIouDto = {
   id: string;
   number: string;
   serviceJobId?: string | null;
+  serviceJobNumber?: string | null;
   requestedByName: string;
   issuedToName?: string | null;
   amount: number;
@@ -33,6 +35,7 @@ type PettyCashIouDto = {
   returnedAmount?: number | null;
   unaccountedAmount?: number | null;
   issueBillNumber?: string | null;
+  approvalBatchId?: string | null;
 };
 
 const statusLabel: Record<number, string> = {
@@ -50,10 +53,11 @@ const statusLabel: Record<number, string> = {
 };
 
 export default async function PettyCashIousPage() {
-  const [jobs, funds, ious, currentPermissions] = await Promise.all([
+  const [jobs, funds, ious, batches, currentPermissions] = await Promise.all([
     backendFetchJson<ServiceJobDto[]>("/service/jobs?take=500"),
     backendFetchJson<FundDto[]>("/finance/petty-cash-funds"),
     backendFetchJson<PettyCashIouDto[]>("/finance/petty-cash-ious?take=200"),
+    backendFetchJson<PettyCashIouBatch[]>("/finance/petty-cash-iou-batches?take=100"),
     backendFetchJson<CurrentPermissionsDto>("/me/permissions"),
   ]);
   const activeFunds = funds.filter((fund) => fund.isActive);
@@ -87,6 +91,24 @@ export default async function PettyCashIousPage() {
           ) : null}
         </div>
       </div>
+
+      <PettyCashIouBatchPanel
+        batches={batches}
+        ious={ious.map((iou) => ({
+          id: iou.id,
+          number: iou.number,
+          serviceJobId: iou.serviceJobId,
+          serviceJobNumber: iou.serviceJobNumber
+            ?? (iou.serviceJobId ? jobs.find((job) => job.id === iou.serviceJobId)?.number : null),
+          requestedByName: iou.requestedByName,
+          amount: iou.amount,
+          purpose: iou.purpose,
+          status: iou.status,
+        }))}
+        funds={activeFunds}
+        approvers={approvers}
+        permissions={currentPermissions.permissions}
+      />
 
       <Card>
         <div className="mb-3 text-sm font-semibold">IOUs</div>
@@ -188,6 +210,7 @@ export default async function PettyCashIousPage() {
                       isReviewer={iou.isReviewer}
                       isAssignedApprover={iou.isAssignedApprover}
                       permissions={currentPermissions.permissions}
+                      approvalBatchId={iou.approvalBatchId ?? null}
                     />
                   </td>
                 </tr>

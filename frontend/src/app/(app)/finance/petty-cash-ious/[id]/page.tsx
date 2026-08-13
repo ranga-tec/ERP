@@ -42,6 +42,7 @@ type PettyCashIouDto = {
   returnedAmount: number;
   outstandingAmount: number;
   isOpenForAccounting: boolean;
+  approvalBatchId?: string | null;
 };
 
 type BillDto = {
@@ -172,6 +173,7 @@ export default async function PettyCashIouDetailPage({ params }: { params: Promi
             isReviewer={iou.isReviewer}
             isAssignedApprover={iou.isAssignedApprover}
             permissions={currentPermissions.permissions}
+            approvalBatchId={iou.approvalBatchId ?? null}
           />
         </div>
       </div>

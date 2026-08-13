@@ -81,6 +81,13 @@ public sealed class TestDataCleanupController(IIssDbContext dbContext) : Control
             WHERE ("ReferenceType" = 'SEC' AND "ReferenceId" IN (SELECT "Id" FROM "ServiceExpenseClaims"))
                OR ("ReferenceType" = 'IOU' AND "ReferenceId" IN (SELECT "Id" FROM "PettyCashIous" WHERE "ServiceJobId" IN (SELECT "Id" FROM "ServiceJobs")));
             DELETE FROM "InventoryMovements" WHERE "ReferenceType" IN ('MR', 'SJMD');
+            DELETE FROM "PettyCashIouApprovalBatches"
+            WHERE "Id" IN (
+                SELECT line."PettyCashIouApprovalBatchId"
+                FROM "PettyCashIouApprovalBatchLines" AS line
+                JOIN "PettyCashIous" AS iou ON iou."Id" = line."PettyCashIouId"
+                WHERE iou."ServiceJobId" IN (SELECT "Id" FROM "ServiceJobs")
+            );
             DELETE FROM "PettyCashIous" WHERE "ServiceJobId" IN (SELECT "Id" FROM "ServiceJobs");
             TRUNCATE TABLE "MaterialRequisitions" CASCADE;
             TRUNCATE TABLE "QualityChecks" CASCADE;
@@ -131,14 +138,15 @@ public sealed class TestDataCleanupController(IIssDbContext dbContext) : Control
         await using var tx = await dbContext.DbContext.Database.BeginTransactionAsync(cancellationToken);
         await dbContext.DbContext.Database.ExecuteSqlRawAsync(
             """
-            DELETE FROM "DocumentComments" WHERE "ReferenceType" IN ('PCF', 'IOU', 'PCR', 'PCRTN', 'PCRAL');
-            DELETE FROM "DocumentAttachments" WHERE "ReferenceType" IN ('PCF', 'IOU', 'PCR', 'PCRTN', 'PCRAL');
-            DELETE FROM "NotificationOutboxItems" WHERE "ReferenceType" IN ('PCF', 'IOU', 'PCR', 'PCRTN', 'PCRAL');
+            DELETE FROM "DocumentComments" WHERE "ReferenceType" IN ('PCF', 'IOU', 'PCAB', 'PCR', 'PCRTN', 'PCRAL');
+            DELETE FROM "DocumentAttachments" WHERE "ReferenceType" IN ('PCF', 'IOU', 'PCAB', 'PCR', 'PCRTN', 'PCRAL');
+            DELETE FROM "NotificationOutboxItems" WHERE "ReferenceType" IN ('PCF', 'IOU', 'PCAB', 'PCR', 'PCRTN', 'PCRAL');
             -- Expense vouchers are service documents and are deliberately kept, so their references
             -- into petty cash are released rather than the vouchers deleted.
             UPDATE "ServiceExpenseClaims"
                SET "PettyCashIouId" = NULL, "PettyCashRequestLineId" = NULL, "SettlementPettyCashFundId" = NULL;
             DELETE FROM "PettyCashTransaction";
+            DELETE FROM "PettyCashIouApprovalBatches";
             DELETE FROM "PettyCashIous";
             DELETE FROM "PettyCashReallocations";
             DELETE FROM "PettyCashReturns";

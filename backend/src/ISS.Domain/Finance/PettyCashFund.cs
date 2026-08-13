@@ -650,6 +650,28 @@ public sealed class PettyCashIou : AuditableEntity
         ExpectedSettlementAt = expectedSettlementAt;
     }
 
+    public void SelectFundForApprovalBatch(Guid pettyCashFundId)
+    {
+        if (Status != PettyCashIouStatus.Submitted)
+        {
+            throw new DomainValidationException("Only a submitted IOU can be added to an approval batch.");
+        }
+
+        PettyCashFundId = pettyCashFundId == Guid.Empty
+            ? throw new DomainValidationException("Select a petty cash fund.")
+            : pettyCashFundId;
+    }
+
+    public void SetAssignedApprovedAmount(decimal amount)
+    {
+        if (Status != PettyCashIouStatus.AwaitingAssignedApproval)
+        {
+            throw new DomainValidationException("Only the assigned approver can change the amount at this stage.");
+        }
+
+        Amount = Guard.Positive(amount, nameof(amount));
+    }
+
     public void AssignForApproval(
         Guid reviewerUserId,
         string reviewerName,
@@ -768,9 +790,9 @@ public sealed class PettyCashIou : AuditableEntity
                 $"Release amount {validatedAmount:0.00} exceeds the {RemainingReleaseAmount:0.00} remaining on this IOU.");
         }
 
-        if (ReleasedAmount > 0m && PettyCashFundId != pettyCashFundId)
+        if (PettyCashFundId is not null && PettyCashFundId != pettyCashFundId)
         {
-            throw new DomainValidationException("Further releases for this IOU must use the same petty cash fund.");
+            throw new DomainValidationException("This IOU was approved against a different petty cash fund.");
         }
 
         PettyCashFundId = pettyCashFundId;

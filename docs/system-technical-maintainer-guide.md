@@ -19,7 +19,13 @@ Use this hub first, then jump into the specialized docs linked below.
 - Warehouse management now includes `WarehouseBin` master data for bin/rack/shelf locations. Existing stock without a bin is intentionally treated as `Unassigned` so older movements stay valid after migration.
 - Procurement GRNs now support PO-linked partial receipt planning, duplicate-item PO line handling, early serial/batch validation, and searchable `Receive From PO` / `Current Draft Lines` tables.
 - Service now supports `Service` and `Repair` job kinds, work-order labor entries/timesheets, estimate revisions, service-linked direct purchases, service expense claims, billable claim-to-estimate conversion, labor-to-invoice conversion, and per-job costing rollups.
-- Finance now includes petty cash funds with opening balance, top-up, adjustment, and service expense-claim settlement flows.
+- Finance includes petty-cash funds with opening balance/top-up/adjustment, multi-IOU approval batches,
+  explicit head-office funding receipt, signed-slip release, partial return/settlement, and linked
+  service-expense claims. `PettyCashIouApprovalBatch` is the approval cover sheet; `PettyCashIou`
+  remains the employee liability document; `PettyCashTransaction` remains the fund balance source.
+- Billable IOU expense lines are promoted to approved job cost at IOU settlement. A completed
+  handover may add later-approved, uninvoiced charges to its existing draft sales invoice; posted
+  invoices remain immutable and every source line is stamped to prevent duplicate billing.
 - The authenticated shell sidebar now defaults to expanded navigation and exposes menu search at the top of the expanded panel.
 - Multi-company foundation is implemented for login context and core C-COM master data: users have `CompanyId`, JWTs include `company_id`, and items/categories/suppliers are company-scoped. Full transaction-level company isolation is still future work.
 
@@ -119,4 +125,3 @@ Ops scripts:
 2. Read this hub doc for system scope and documentation map.
 3. Read the relevant detailed guide(s) for the area you will change.
 4. Implement one focused checkpoint with code + tests + docs updates together.
-

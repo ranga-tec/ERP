@@ -6,6 +6,40 @@ namespace ISS.UnitTests.Domain;
 public sealed class FinanceTests
 {
     [Fact]
+    public void PettyCashIouApprovalBatch_Approves_Editable_Breakdown_And_Receives_One_Funding()
+    {
+        var reviewerId = Guid.NewGuid();
+        var approverId = Guid.NewGuid();
+        var firstIouId = Guid.NewGuid();
+        var secondIouId = Guid.NewGuid();
+        var now = DateTimeOffset.UtcNow;
+        var batch = new PettyCashIouApprovalBatch(
+            "PCAB000001",
+            Guid.NewGuid(),
+            reviewerId,
+            "Accountant",
+            approverId,
+            "Approver",
+            now);
+        var first = batch.AddLine(firstIouId, 100m);
+        var second = batch.AddLine(secondIouId, 80m);
+
+        batch.ApproveAssigned(approverId, now, new Dictionary<Guid, decimal>
+        {
+            [first.Id] = 90m,
+            [second.Id] = 80m,
+        });
+        batch.SubmitToHeadOffice(reviewerId, now);
+        batch.ApproveHeadOffice(Guid.NewGuid(), now);
+        batch.ReceiveFunding(reviewerId, now, "HO-REM-001");
+
+        Assert.Equal(180m, batch.RequestedTotal);
+        Assert.Equal(170m, batch.ApprovedTotal);
+        Assert.Equal(PettyCashIouApprovalBatchStatus.FundingReceived, batch.Status);
+        Assert.Equal("HO-REM-001", batch.FundingReference);
+    }
+
+    [Fact]
     public void Ar_Ap_ApplyPayment_Requires_Positive()
     {
         var ar = new AccountsReceivableEntry(Guid.NewGuid(), "INV", Guid.NewGuid(), 100m, DateTimeOffset.UtcNow);
