@@ -209,18 +209,8 @@ public sealed class ServiceEstimateLine : Entity
         decimal unitPrice,
         decimal taxPercent)
     {
-        if (kind == ServiceEstimateLineKind.Part && itemId is null)
-        {
-            throw new DomainValidationException("Part estimate lines require an item.");
-        }
-
         ServiceEstimateId = serviceEstimateId;
-        Kind = kind;
-        ItemId = itemId;
-        Description = description;
-        Quantity = quantity;
-        UnitPrice = unitPrice;
-        TaxPercent = taxPercent;
+        Update(kind, itemId, description, quantity, unitPrice, taxPercent);
     }
 
     public Guid ServiceEstimateId { get; private set; }

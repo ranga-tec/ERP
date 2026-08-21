@@ -99,7 +99,10 @@ public sealed class PettyCashFund : AuditableEntity
         DateTimeOffset occurredAt,
         string? referenceNumber,
         string? notes)
-        => AddTransaction(
+    {
+        EnsureActive();
+
+        return AddTransaction(
             PettyCashTransactionType.TopUp,
             PettyCashTransactionDirection.In,
             amount,
@@ -108,6 +111,7 @@ public sealed class PettyCashFund : AuditableEntity
             referenceId: null,
             referenceNumber,
             notes);
+    }
 
     public PettyCashTransaction RecordExpenseSettlement(
         decimal amount,
@@ -816,8 +820,22 @@ public sealed class PettyCashIou : AuditableEntity
     public void AddReturn(decimal amount, DateTimeOffset returnedAt)
     {
         EnsureOpenForAccounting();
-        ReturnedAmount += Guard.Positive(amount, nameof(amount));
+        var validatedAmount = Guard.Positive(amount, nameof(amount));
+        if (validatedAmount > OutstandingAmount)
+        {
+            throw new DomainValidationException(
+                $"Returning {validatedAmount:0.00} is more than the {OutstandingAmount:0.00} still outstanding on this advance.");
+        }
+
+        ReturnedAmount += validatedAmount;
         LastReturnedAt = returnedAt;
+
+        // Returns are deliberately allowed until head office approves the settlement. Keep the
+        // stored spent amount in sync when cash arrives after the custodian first settled the IOU.
+        if (Status == PettyCashIouStatus.Settled)
+        {
+            SettledAmount = ReleasedAmount - ReturnedAmount;
+        }
     }
 
     /// <summary>

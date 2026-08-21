@@ -84,6 +84,45 @@ def main():
         print(f"  + {label:<34} created")
         return body if isinstance(body, dict) else find(api("GET", list_path)[1] or [], key, value)
 
+    def ensure_user(email, display_name, roles, technician_code=None):
+        users = api("GET", "/api/admin/users?take=500")[1] or []
+        user = find(users, "email", email)
+        if user:
+            print(f"  = User {email:<28} exists")
+            if sorted(user.get("roles") or []) != sorted(roles):
+                status, body = api("PUT", f"/api/admin/users/{user['id']}/roles", {"roles": roles})
+                if status != 200:
+                    print(f"  ! User roles {email:<22} FAILED {status}: {body}")
+        else:
+            admin = find(users, "email", args.email)
+            status, body = api("POST", "/api/admin/users", {
+                "companyId": admin.get("companyId") if admin else None,
+                "email": email,
+                "password": "Demo@1234",
+                "displayName": display_name,
+                "roles": roles,
+            })
+            if status != 200:
+                print(f"  ! User {email:<28} FAILED {status}: {body}")
+                return None
+            user = body
+            print(f"  + User {email:<28} created")
+
+        if technician_code and user:
+            status, body = api("PUT", f"/api/admin/users/{user['id']}/technician", {
+                "code": technician_code,
+                "defaultCostRate": 18,
+                "defaultBillingRate": 35,
+                "phone": None,
+                "notes": "Local service-module demo user",
+                "isActive": True,
+            })
+            if status == 200:
+                print(f"  = Technician profile {technician_code:<17} linked")
+            else:
+                print(f"  ! Technician profile {technician_code:<17} FAILED {status}: {body}")
+        return user
+
     print("== prerequisites ==")
     ensure("UoM PCS", "/api/uoms", "code", "PCS", "/api/uoms", {"code": "PCS", "name": "Pieces"})
     wh = ensure("Warehouse MAIN", "/api/warehouses", "code", "MAIN", "/api/warehouses",
@@ -125,6 +164,12 @@ def main():
         ensure(f"Technician {code}", "/api/service/technicians", "code", code, "/api/service/technicians",
                {"code": code, "name": name, "defaultCostRate": cost, "defaultBillingRate": bill,
                 "phone": None, "notes": None})
+
+    print("== users and linked technician profiles ==")
+    ensure_user("service.manager@local", "Local Service Manager", ["Service", "Reporting"])
+    ensure_user("technician.one@local", "Local Technician One", ["Service"], "TECH-U1")
+    ensure_user("technician.two@local", "Local Technician Two", ["Service"], "TECH-U2")
+    ensure_user("technician.three@local", "Local Technician Three", ["Service"], "TECH-U3")
 
     print("== equipment units (entitlement matrix) ==")
     units_spec = [

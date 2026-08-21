@@ -560,6 +560,175 @@ public sealed class EndToEndTests(IssApiFixture fixture) : IClassFixture<IssApiF
     }
 
     [Fact]
+    public async Task Finance_PettyCashIou_Bills_And_Returns_Cannot_Exceed_Released_Cash_In_Either_Order()
+    {
+        var fund = await Post<PettyCashFundApiDto>("/api/finance/petty-cash-funds", new
+        {
+            code = Code("PCINV"),
+            name = "IOU accounting invariant fund",
+            currencyCode = "LKR",
+            custodianName = "Accountant",
+            notes = (string?)null,
+            openingBalance = 300m,
+            openedAt = (DateTimeOffset?)null,
+            openingReferenceNumber = "OPEN-IOU-INVARIANT",
+        });
+        var holder = (await Get<List<PettyCashStaffApiDto>>("/api/finance/petty-cash-ious/staff")).First();
+
+        async Task<PettyCashIouApiDto> Issue(decimal amount, string purpose) =>
+            await Post<PettyCashIouApiDto>("/api/finance/petty-cash-ious/issue-directly", new
+            {
+                slipNumber = Code("SLIP"),
+                amount,
+                purpose,
+                pettyCashFundId = fund.Id,
+                issuedToUserId = holder.UserId,
+                issuedToName = holder.Name,
+                serviceJobId = (Guid?)null,
+                pettyCashRequestLineId = (Guid?)null,
+            });
+
+        var billedFirst = await Issue(100m, "Bills entered before returned cash");
+        await PostNoContent($"/api/finance/petty-cash-ious/{billedFirst.Id}/bills", new
+        {
+            description = "Documented purchase",
+            amount = 70m,
+            billableToCustomer = false,
+            receiptReference = "RCP-BILL-FIRST",
+        });
+        var excessiveReturn = await _client.PostAsJsonAsync(
+            $"/api/finance/petty-cash-ious/{billedFirst.Id}/return-balance",
+            new { amount = 30.01m, reference = "RETURN-TOO-MUCH" });
+        Assert.Equal(System.Net.HttpStatusCode.BadRequest, excessiveReturn.StatusCode);
+        Assert.Contains("Only 30.00 can be returned", await excessiveReturn.Content.ReadAsStringAsync());
+        await PostNoContent($"/api/finance/petty-cash-ious/{billedFirst.Id}/return-balance", new { amount = 30m, reference = "RETURN-VALID" });
+
+        var returnFirst = await Issue(100m, "Returned cash entered before bills");
+        await PostNoContent($"/api/finance/petty-cash-ious/{returnFirst.Id}/return-balance", new { amount = 40m, reference = "RETURN-FIRST" });
+        var excessiveBill = await _client.PostAsJsonAsync($"/api/finance/petty-cash-ious/{returnFirst.Id}/bills", new
+        {
+            description = "Bill above remaining cash",
+            amount = 60.01m,
+            billableToCustomer = false,
+            receiptReference = "RCP-TOO-MUCH",
+        });
+        Assert.Equal(System.Net.HttpStatusCode.BadRequest, excessiveBill.StatusCode);
+        await PostNoContent($"/api/finance/petty-cash-ious/{returnFirst.Id}/bills", new
+        {
+            description = "Bill matching remaining cash",
+            amount = 60m,
+            billableToCustomer = false,
+            receiptReference = "RCP-VALID",
+        });
+
+        var lateReturn = await Issue(100m, "Cash returned after initial settlement");
+        await PostNoContent($"/api/finance/petty-cash-ious/{lateReturn.Id}/bills", new
+        {
+            description = "Initial documented purchase",
+            amount = 20m,
+            billableToCustomer = false,
+            receiptReference = "RCP-LATE-RETURN",
+        });
+        await PostNoContent($"/api/finance/petty-cash-ious/{lateReturn.Id}/settle", new { settlementReference = "SET-BEFORE-RETURN" });
+        await PostNoContent($"/api/finance/petty-cash-ious/{lateReturn.Id}/return-balance", new { amount = 30m, reference = "RETURN-AFTER-SETTLE" });
+
+        var firstResult = await Get<PettyCashIouApiDto>($"/api/finance/petty-cash-ious/{billedFirst.Id}");
+        var secondResult = await Get<PettyCashIouApiDto>($"/api/finance/petty-cash-ious/{returnFirst.Id}");
+        var lateResult = await Get<PettyCashIouApiDto>($"/api/finance/petty-cash-ious/{lateReturn.Id}");
+        Assert.Equal(70m, firstResult.ClaimedAmount);
+        Assert.Equal(30m, firstResult.ReturnedAmount);
+        Assert.Equal(0m, firstResult.UnaccountedAmount);
+        Assert.Equal(60m, secondResult.ClaimedAmount);
+        Assert.Equal(40m, secondResult.ReturnedAmount);
+        Assert.Equal(0m, secondResult.UnaccountedAmount);
+        Assert.Equal(70m, lateResult.SettledAmount);
+        Assert.Equal(30m, lateResult.ReturnedAmount);
+        Assert.Equal(20m, lateResult.ClaimedAmount);
+        Assert.Equal(50m, lateResult.UnaccountedAmount);
+        Assert.Equal(100m, (await Get<PettyCashFundApiDto>($"/api/finance/petty-cash-funds/{fund.Id}")).Balance);
+
+        var simultaneous = await Issue(100m, "Bill and return submitted simultaneously");
+        var billTask = _client.PostAsJsonAsync($"/api/finance/petty-cash-ious/{simultaneous.Id}/bills", new
+        {
+            description = "Concurrent bill",
+            amount = 60m,
+            billableToCustomer = false,
+            receiptReference = "RCP-CONCURRENT",
+        });
+        var returnTask = _client.PostAsJsonAsync(
+            $"/api/finance/petty-cash-ious/{simultaneous.Id}/return-balance",
+            new { amount = 60m, reference = "RETURN-CONCURRENT" });
+        var simultaneousResponses = await Task.WhenAll(billTask, returnTask);
+
+        Assert.Single(simultaneousResponses, response => response.IsSuccessStatusCode);
+        Assert.Single(simultaneousResponses, response => response.StatusCode == System.Net.HttpStatusCode.BadRequest);
+        var simultaneousResult = await Get<PettyCashIouApiDto>($"/api/finance/petty-cash-ious/{simultaneous.Id}");
+        Assert.Equal(60m, simultaneousResult.ClaimedAmount + simultaneousResult.ReturnedAmount);
+        Assert.Equal(40m, simultaneousResult.UnaccountedAmount);
+    }
+
+    [Fact]
+    public async Task Finance_PettyCashFund_Rejects_Invalid_Opening_Inactive_TopUp_And_Currency_Relabel()
+    {
+        var negativeOpening = await _client.PostAsJsonAsync("/api/finance/petty-cash-funds", new
+        {
+            code = Code("PCNEG"),
+            name = "Negative opening must fail",
+            currencyCode = "LKR",
+            custodianName = (string?)null,
+            notes = (string?)null,
+            openingBalance = -0.01m,
+            openedAt = (DateTimeOffset?)null,
+            openingReferenceNumber = (string?)null,
+        });
+        Assert.Equal(System.Net.HttpStatusCode.BadRequest, negativeOpening.StatusCode);
+
+        var usedFund = await Post<PettyCashFundApiDto>("/api/finance/petty-cash-funds", new
+        {
+            code = Code("PCLOCK"),
+            name = "Currency lock fund",
+            currencyCode = "LKR",
+            custodianName = "Accountant",
+            notes = (string?)null,
+            openingBalance = 50m,
+            openedAt = (DateTimeOffset?)null,
+            openingReferenceNumber = "OPEN-CURRENCY-LOCK",
+        });
+        var currencyRelabel = await _client.PutAsJsonAsync($"/api/finance/petty-cash-funds/{usedFund.Id}", new
+        {
+            code = usedFund.Code,
+            name = usedFund.Name,
+            currencyCode = "USD",
+            custodianName = usedFund.CustodianName,
+            notes = usedFund.Notes,
+            isActive = true,
+        });
+        Assert.Equal(System.Net.HttpStatusCode.BadRequest, currencyRelabel.StatusCode);
+        var unchanged = await Get<PettyCashFundApiDto>($"/api/finance/petty-cash-funds/{usedFund.Id}");
+        Assert.Equal("LKR", unchanged.CurrencyCode);
+        Assert.Equal(50m, unchanged.Balance);
+
+        await PutNoContent($"/api/finance/petty-cash-funds/{usedFund.Id}", new
+        {
+            code = usedFund.Code,
+            name = usedFund.Name,
+            currencyCode = "LKR",
+            custodianName = usedFund.CustodianName,
+            notes = usedFund.Notes,
+            isActive = false,
+        });
+        var inactiveTopUp = await _client.PostAsJsonAsync($"/api/finance/petty-cash-funds/{usedFund.Id}/top-ups", new
+        {
+            amount = 10m,
+            occurredAt = (DateTimeOffset?)null,
+            referenceNumber = "TOP-INACTIVE",
+            notes = (string?)null,
+        });
+        Assert.Equal(System.Net.HttpStatusCode.BadRequest, inactiveTopUp.StatusCode);
+        Assert.Equal(50m, (await Get<PettyCashFundApiDto>($"/api/finance/petty-cash-funds/{usedFund.Id}")).Balance);
+    }
+
+    [Fact]
     public async Task Procurement_GRN_Post_Increases_Stock_And_Creates_AP()
     {
         var warehouse = await Post<WarehouseDto>("/api/warehouses", new { code = Code("WH"), name = "Main", address = "Nugegoda" });
@@ -2755,7 +2924,9 @@ public sealed class EndToEndTests(IssApiFixture fixture) : IClassFixture<IssApiF
             unitOfMeasure = "PCS",
             brandId = (Guid?)null,
             barcode = (string?)null,
-            defaultUnitCost = 25m
+            // Deliberately differs from the receipt/issue cost. Returned job cost must use the
+            // actual posted issue cost, not this master-data default.
+            defaultUnitCost = 12m
         });
         var outsidePart = await Post<ItemDto>("/api/items", new
         {
@@ -2829,6 +3000,29 @@ public sealed class EndToEndTests(IssApiFixture fixture) : IClassFixture<IssApiF
             serialNumbers = (string[]?)null
         });
         await PostNoContent($"/api/service/material-requisitions/{materialRequisition.Id}/post", new { });
+        var materialRequisitionDetail = await Get<MaterialRequisitionDetailDto>(
+            $"/api/service/material-requisitions/{materialRequisition.Id}");
+        var materialRequisitionLine = Assert.Single(materialRequisitionDetail.Lines);
+        var returnedMaterial = await Post<ServiceJobMaterialDispositionApiDto>(
+            $"/api/service/jobs/{job.Id}/material-dispositions",
+            new
+            {
+                materialRequisitionLineId = materialRequisitionLine.Id,
+                kind = ServiceJobMaterialDispositionKind.UnusedReturned,
+                quantity = 0.25m,
+                condition = "Unused",
+                reason = "Not required after inspection",
+                chargeTo = ServiceJobMaterialChargeTo.Company,
+                supplierReturnId = (Guid?)null,
+                responsiblePerson = (string?)null,
+                serials = Array.Empty<string>(),
+                serviceJobDailySheetId = (Guid?)null
+            });
+        Assert.Equal(25m, returnedMaterial.UnitCost);
+        Assert.Equal(6.25m, returnedMaterial.CostImpact);
+        await PostNoContent(
+            $"/api/service/jobs/{job.Id}/material-dispositions/{returnedMaterial.Id}/post",
+            new { });
 
         var directPurchase = await Post<DirectPurchaseApiDto>("/api/procurement/direct-purchases", new
         {
@@ -2872,10 +3066,13 @@ public sealed class EndToEndTests(IssApiFixture fixture) : IClassFixture<IssApiF
         var costing = await Get<ServiceJobCostingDto>($"/api/service/jobs/{job.Id}/costing");
         Assert.Equal(60m, costing.LatestApprovedEstimateTotal);
         Assert.Equal(25m, costing.MaterialConsumedCost);
+        Assert.Equal(6.25m, costing.MaterialReturnedCredit);
+        Assert.Equal(18.75m, costing.NetMaterialCost);
         Assert.Equal(14m, costing.DirectPurchaseCost);
         Assert.Equal(11m, costing.ApprovedExpenseClaimCost);
-        Assert.Equal(50m, costing.TotalActualCost);
-        Assert.Equal(10m, costing.QuotedGrossMargin);
+        Assert.Equal(43.75m, costing.TotalActualCost);
+        Assert.Equal(16.25m, costing.QuotedGrossMargin);
+        Assert.Equal(4.25m, await GetOnHandQuantityAsync(warehouse.Id, stockedPart.Id));
         Assert.Single(costing.MaterialLines);
         Assert.Single(costing.DirectPurchaseLines);
         Assert.Single(costing.ExpenseClaimLines);
@@ -2959,6 +3156,26 @@ public sealed class EndToEndTests(IssApiFixture fixture) : IClassFixture<IssApiF
         await PostNoContent($"/api/service/work-orders/{workOrder.Id}/time-entries/{timeEntry.Id}/submit", new { });
         await PostNoContent($"/api/service/work-orders/{workOrder.Id}/time-entries/{timeEntry.Id}/approve", new { });
 
+        var workOrderAfterSecondAdd = await Post<WorkOrderDto>($"/api/service/work-orders/{workOrder.Id}/time-entries", new
+        {
+            technicianUserId = (Guid?)null,
+            technicianName = "Tech Precision",
+            workDate = new DateTimeOffset(2026, 3, 30, 11, 0, 0, TimeSpan.Zero),
+            workDescription = "Precision pressure verification",
+            hoursWorked = 0.3333m,
+            costRate = 7.5m,
+            billableToCustomer = true,
+            billableHours = 0.3333m,
+            billingRate = 13.3333m,
+            taxPercent = 18m,
+            notes = "Different rate verifies exact rolled-up pricing"
+        });
+        var precisionEntry = Assert.Single(
+            workOrderAfterSecondAdd.TimeEntries,
+            entry => entry.WorkDescription == "Precision pressure verification");
+        await PostNoContent($"/api/service/work-orders/{workOrder.Id}/time-entries/{precisionEntry.Id}/submit", new { });
+        await PostNoContent($"/api/service/work-orders/{workOrder.Id}/time-entries/{precisionEntry.Id}/approve", new { });
+
         var userNotifications = await Get<List<UserNotificationDto>>("/api/notifications?take=200");
         Assert.Contains(userNotifications, notification =>
             notification.Title == "Time entry approved"
@@ -2966,11 +3183,13 @@ public sealed class EndToEndTests(IssApiFixture fixture) : IClassFixture<IssApiF
             && notification.ReferenceId == timeEntry.Id);
 
         var costingBeforeInvoice = await Get<ServiceJobCostingDto>($"/api/service/jobs/{job.Id}/costing");
-        Assert.Equal(21.70m, costingBeforeInvoice.ApprovedLaborCost);
-        Assert.Equal(37.76m, costingBeforeInvoice.BillableLaborRevenue);
-        Assert.Equal(37.76m, costingBeforeInvoice.UninvoicedBillableLaborRevenue);
-        Assert.Single(costingBeforeInvoice.LaborLines);
-        Assert.Equal(WorkOrderTimeEntryStatus.Approved, costingBeforeInvoice.LaborLines[0].Status);
+        var expectedLaborCost = timeEntry.LaborCost + precisionEntry.LaborCost;
+        var expectedBillableLabor = timeEntry.BillableTotal + precisionEntry.BillableTotal;
+        Assert.Equal(expectedLaborCost, costingBeforeInvoice.ApprovedLaborCost);
+        Assert.Equal(expectedBillableLabor, costingBeforeInvoice.BillableLaborRevenue);
+        Assert.Equal(expectedBillableLabor, costingBeforeInvoice.UninvoicedBillableLaborRevenue);
+        Assert.Equal(2, costingBeforeInvoice.LaborLines.Count);
+        Assert.All(costingBeforeInvoice.LaborLines, line => Assert.Equal(WorkOrderTimeEntryStatus.Approved, line.Status));
 
         var estimate = await Post<ServiceEstimateApiDto>("/api/service/estimates", new
         {
@@ -3000,6 +3219,30 @@ public sealed class EndToEndTests(IssApiFixture fixture) : IClassFixture<IssApiF
         });
         await PostNoContent($"/api/service/handovers/{handover.Id}/complete", new { });
 
+        var invalidQuantityResponse = await _client.PostAsJsonAsync($"/api/service/handovers/{handover.Id}/build-invoice", new
+        {
+            dueDate = (DateTimeOffset?)null,
+            headerDiscountPercent = 0m,
+            headerDiscountAmount = 0m,
+            materialLines = Array.Empty<object>(),
+            labourMode = ServiceManagementService.ServiceChargeBillingMode.Itemised,
+            labourItemId = laborItem.Id,
+            labourCharges = new[]
+            {
+                new { timeEntryId = timeEntry.Id, quantity = 1.50m, unitPrice = 25.60m, discountPercent = 0m, taxPercent = 18m }
+            },
+            additionalLabourLines = Array.Empty<object>(),
+            expenseMode = ServiceManagementService.ServiceChargeBillingMode.Skip,
+            expenseItemId = (Guid?)null,
+            expenseCharges = Array.Empty<object>(),
+            otherLines = Array.Empty<object>()
+        });
+        Assert.Equal(System.Net.HttpStatusCode.BadRequest, invalidQuantityResponse.StatusCode);
+        Assert.Contains(
+            "approved billable hours",
+            await invalidQuantityResponse.Content.ReadAsStringAsync(),
+            StringComparison.OrdinalIgnoreCase);
+
         var convert = await Post<ConvertToSalesInvoiceResponseDto>($"/api/service/handovers/{handover.Id}/build-invoice", new
         {
             dueDate = (DateTimeOffset?)null,
@@ -3015,6 +3258,14 @@ public sealed class EndToEndTests(IssApiFixture fixture) : IClassFixture<IssApiF
                     timeEntryId = timeEntry.Id,
                     quantity = 1.25m,
                     unitPrice = 25.60m,
+                    discountPercent = 0m,
+                    taxPercent = 18m
+                },
+                new
+                {
+                    timeEntryId = precisionEntry.Id,
+                    quantity = 0.3333m,
+                    unitPrice = 13.3333m,
                     discountPercent = 0m,
                     taxPercent = 18m
                 }
@@ -3049,7 +3300,7 @@ public sealed class EndToEndTests(IssApiFixture fixture) : IClassFixture<IssApiF
         });
 
         var invoice = await Get<InvoiceDetailDto>($"/api/sales/invoices/{convert.SalesInvoiceId}");
-        Assert.Equal(3, invoice.Lines.Count);
+        Assert.Equal(4, invoice.Lines.Count);
         Assert.Contains(invoice.Lines, line => line.ItemId == partItem.Id
                                                && line.Category == SalesInvoiceLineCategory.Other
                                                && line.LineTotal == 50m);
@@ -3063,25 +3314,36 @@ public sealed class EndToEndTests(IssApiFixture fixture) : IClassFixture<IssApiF
                                                && line.Quantity == 0.75m
                                                && line.UnitPrice == 40m
                                                && line.LineTotal == 30m);
-        Assert.Equal(117.76m, invoice.Total);
+        Assert.Contains(invoice.Lines, line => line.Category == SalesInvoiceLineCategory.Labour
+                                               && line.Quantity == 0.3333m
+                                               && line.UnitPrice == 13.3333m
+                                               && line.TaxPercent == 18m
+                                               && line.LineTotal == precisionEntry.BillableTotal);
+        Assert.Equal(80m + expectedBillableLabor, invoice.Total);
         var listedInvoice = Assert.Single(
             await Get<List<InvoiceSummaryDto>>("/api/sales/invoices?take=100"),
             candidate => candidate.Id == convert.SalesInvoiceId);
         Assert.Equal(invoice.Total, listedInvoice.Total);
 
         var workOrderAfterInvoice = await Get<WorkOrderDto>($"/api/service/work-orders/{workOrder.Id}");
-        Assert.Single(workOrderAfterInvoice.TimeEntries);
+        Assert.Equal(2, workOrderAfterInvoice.TimeEntries.Count);
         Assert.DoesNotContain(workOrderAfterInvoice.TimeEntries, entry => entry.WorkDescription == "Invoice-only call-out labour");
-        Assert.Equal(WorkOrderTimeEntryStatus.Invoiced, workOrderAfterInvoice.TimeEntries[0].Status);
-        Assert.Equal(convert.SalesInvoiceId, workOrderAfterInvoice.TimeEntries[0].SalesInvoiceId);
+        Assert.All(workOrderAfterInvoice.TimeEntries, entry =>
+        {
+            Assert.Equal(WorkOrderTimeEntryStatus.Invoiced, entry.Status);
+            Assert.Equal(convert.SalesInvoiceId, entry.SalesInvoiceId);
+        });
 
         var costingAfterInvoice = await Get<ServiceJobCostingDto>($"/api/service/jobs/{job.Id}/costing");
-        Assert.Equal(21.70m, costingAfterInvoice.ApprovedLaborCost);
-        Assert.Equal(37.76m, costingAfterInvoice.BillableLaborRevenue);
+        Assert.Equal(expectedLaborCost, costingAfterInvoice.ApprovedLaborCost);
+        Assert.Equal(expectedBillableLabor, costingAfterInvoice.BillableLaborRevenue);
         Assert.Equal(0m, costingAfterInvoice.UninvoicedBillableLaborRevenue);
-        Assert.Single(costingAfterInvoice.LaborLines);
-        Assert.Equal(WorkOrderTimeEntryStatus.Invoiced, costingAfterInvoice.LaborLines[0].Status);
-        Assert.Equal(convert.SalesInvoiceId, costingAfterInvoice.LaborLines[0].SalesInvoiceId);
+        Assert.Equal(2, costingAfterInvoice.LaborLines.Count);
+        Assert.All(costingAfterInvoice.LaborLines, line =>
+        {
+            Assert.Equal(WorkOrderTimeEntryStatus.Invoiced, line.Status);
+            Assert.Equal(convert.SalesInvoiceId, line.SalesInvoiceId);
+        });
     }
 
     [Fact]
@@ -3315,7 +3577,7 @@ public sealed class EndToEndTests(IssApiFixture fixture) : IClassFixture<IssApiF
 
         Assert.Equal(400, (int)resp.StatusCode);
         var body = await resp.Content.ReadAsStringAsync();
-        Assert.Contains("Labor item is required", body);
+        Assert.Contains("active Service item", body);
     }
 
     [Fact]
@@ -3763,7 +4025,22 @@ public sealed class EndToEndTests(IssApiFixture fixture) : IClassFixture<IssApiF
     private sealed record PettyCashReallocationApiDto(Guid Id, string Number, PettyCashReallocationStatus Status, decimal Amount, decimal SourceBalance, decimal DestinationBalance);
     private sealed record PettyCashCategoryBalanceApiDto(Guid PettyCashRequestLineId, decimal FundedAmount, decimal LedgerBalance, decimal PendingReturnAmount, decimal PendingReallocationAmount, decimal AvailableBalance);
     private sealed record PettyCashReturnApiDto(Guid Id, string Number, PettyCashReturnStatus Status, decimal TotalAmount, string? ReceiptReference);
-    private sealed record PettyCashIouApiDto(Guid Id, string Number, Guid? ServiceJobId, decimal Amount, string Purpose, DateTimeOffset? ExpectedSettlementAt, PettyCashIouStatus Status, Guid? ReviewerUserId = null, Guid? AssignedApproverUserId = null);
+    private sealed record PettyCashIouApiDto(
+        Guid Id,
+        string Number,
+        Guid? ServiceJobId,
+        decimal Amount,
+        string Purpose,
+        DateTimeOffset? ExpectedSettlementAt,
+        PettyCashIouStatus Status,
+        Guid? ReviewerUserId = null,
+        Guid? AssignedApproverUserId = null,
+        decimal ClaimedAmount = 0m,
+        decimal? UnaccountedAmount = null,
+        decimal ReturnedAmount = 0m,
+        decimal ReleasedAmount = 0m,
+        decimal OutstandingAmount = 0m,
+        decimal? SettledAmount = null);
     private sealed record PettyCashIouBatchLineApiDto(Guid Id, Guid PettyCashIouId, decimal RequestedAmount, decimal ApprovedAmount);
     private sealed record PettyCashIouBatchApiDto(Guid Id, string Number, decimal RequestedTotal, decimal ApprovedTotal, IReadOnlyList<PettyCashIouBatchLineApiDto> Lines);
     private sealed record PettyCashStaffApiDto(Guid UserId, string Name, string? Email);
@@ -3860,7 +4137,8 @@ public sealed class EndToEndTests(IssApiFixture fixture) : IClassFixture<IssApiF
     private sealed record ServiceJobCostingDirectPurchaseLineDto(DateTimeOffset PurchasedAt, Guid DirectPurchaseId, string DirectPurchaseNumber, Guid SupplierId, string SupplierCode, Guid ItemId, string ItemSku, string ItemName, decimal Quantity, decimal UnitPrice, decimal TaxPercent, decimal LineTotal);
     private sealed record ServiceJobCostingLaborLineDto(DateTimeOffset WorkDate, Guid WorkOrderId, Guid TimeEntryId, string TechnicianName, string WorkDescription, WorkOrderTimeEntryStatus Status, decimal HoursWorked, decimal CostRate, decimal LaborCost, bool BillableToCustomer, decimal BillableHours, decimal BillingRate, decimal TaxPercent, decimal BillableTotal, Guid? SalesInvoiceId, Guid? SalesInvoiceLineId);
     private sealed record ServiceJobCostingExpenseClaimLineDto(DateTimeOffset ExpenseDate, Guid ExpenseClaimId, string ExpenseClaimNumber, ServiceExpenseFundingSource FundingSource, ServiceExpenseClaimStatus Status, Guid? ItemId, string? ItemSku, string? ItemName, string Description, decimal Quantity, decimal UnitCost, bool BillableToCustomer, Guid? ConvertedToServiceEstimateId, Guid? ConvertedToServiceEstimateLineId, decimal LineTotal);
-    private sealed record ServiceJobCostingDto(Guid ServiceJobId, string JobNumber, decimal? LatestApprovedEstimateTotal, decimal? LatestDraftEstimateTotal, decimal DraftInvoiceTotal, decimal PostedInvoiceTotal, decimal MaterialConsumedCost, decimal DirectPurchaseCost, decimal ApprovedLaborCost, decimal PendingLaborCost, decimal ApprovedExpenseClaimCost, decimal PendingExpenseClaimCost, decimal BillableLaborRevenue, decimal UninvoicedBillableLaborRevenue, decimal BillableExpenseClaimCost, decimal UnconvertedBillableExpenseClaimCost, decimal TotalActualCost, decimal? QuotedGrossMargin, decimal PostedGrossMargin, IReadOnlyList<EstimateSnapshotDto> Estimates, IReadOnlyList<InvoiceSnapshotDto> Invoices, IReadOnlyList<ServiceJobCostingMaterialLineDto> MaterialLines, IReadOnlyList<ServiceJobCostingDirectPurchaseLineDto> DirectPurchaseLines, IReadOnlyList<ServiceJobCostingLaborLineDto> LaborLines, IReadOnlyList<ServiceJobCostingExpenseClaimLineDto> ExpenseClaimLines);
+    private sealed record ServiceJobCostingDto(Guid ServiceJobId, string JobNumber, decimal? LatestApprovedEstimateTotal, decimal? LatestDraftEstimateTotal, decimal DraftInvoiceTotal, decimal PostedInvoiceTotal, decimal MaterialConsumedCost, decimal MaterialReturnedCredit, decimal NetMaterialCost, decimal DirectPurchaseCost, decimal ApprovedLaborCost, decimal PendingLaborCost, decimal ApprovedExpenseClaimCost, decimal PendingExpenseClaimCost, decimal BillableLaborRevenue, decimal UninvoicedBillableLaborRevenue, decimal BillableExpenseClaimCost, decimal UnconvertedBillableExpenseClaimCost, decimal TotalActualCost, decimal? QuotedGrossMargin, decimal PostedGrossMargin, IReadOnlyList<EstimateSnapshotDto> Estimates, IReadOnlyList<InvoiceSnapshotDto> Invoices, IReadOnlyList<ServiceJobCostingMaterialLineDto> MaterialLines, IReadOnlyList<ServiceJobCostingDirectPurchaseLineDto> DirectPurchaseLines, IReadOnlyList<ServiceJobCostingLaborLineDto> LaborLines, IReadOnlyList<ServiceJobCostingExpenseClaimLineDto> ExpenseClaimLines);
+    private sealed record ServiceJobMaterialDispositionApiDto(Guid Id, decimal Quantity, decimal UnitCost, decimal CostImpact);
     private sealed record EstimateSnapshotDto(Guid Id, string Number, int RevisionNumber, ServiceEstimateStatus Status, DateTimeOffset IssuedAt, decimal Total);
     private sealed record InvoiceSnapshotDto(Guid Id, string Number, SalesInvoiceStatus Status, DateTimeOffset InvoiceDate, decimal Total);
     private sealed record AuditLogDto(Guid Id, DateTimeOffset OccurredAt, Guid? UserId, string TableName, int Action, string Key, string ChangesJson);

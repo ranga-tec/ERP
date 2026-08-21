@@ -185,6 +185,45 @@ public sealed class FinanceTests
     }
 
     [Fact]
+    public void PettyCashIou_Late_Return_Updates_Settled_Amount_And_Cannot_OverReturn()
+    {
+        var now = DateTimeOffset.UtcNow;
+        var iou = PettyCashIou.IssueDirectly(
+            "SLIP-300",
+            serviceJobId: null,
+            Guid.NewGuid(),
+            "Technician",
+            100m,
+            "Field supplies",
+            now,
+            Guid.NewGuid(),
+            pettyCashRequestLineId: null);
+
+        iou.AddReturn(20m, now.AddMinutes(1));
+        iou.Settle(now.AddMinutes(2), "SET-300");
+        iou.AddReturn(30m, now.AddMinutes(3));
+
+        Assert.Equal(50m, iou.ReturnedAmount);
+        Assert.Equal(50m, iou.OutstandingAmount);
+        Assert.Equal(50m, iou.SettledAmount);
+        Assert.Throws<DomainValidationException>(() => iou.AddReturn(50.01m, now.AddMinutes(4)));
+        Assert.Equal(50m, iou.ReturnedAmount);
+        Assert.Equal(50m, iou.SettledAmount);
+    }
+
+    [Fact]
+    public void PettyCashFund_Inactive_Fund_Rejects_TopUps()
+    {
+        var fund = new PettyCashFund("PC-OLD", "Closed float", "LKR", null, null);
+        fund.Update("PC-OLD", "Closed float", "LKR", null, null, isActive: false);
+
+        Assert.Throws<DomainValidationException>(() =>
+            fund.AddTopUp(100m, DateTimeOffset.UtcNow, "TOP-OLD", null));
+        Assert.Empty(fund.Transactions);
+        Assert.Equal(0m, fund.Balance);
+    }
+
+    [Fact]
     public void PettyCashReturn_Requires_Category_Lines_And_HeadOffice_Receipt_Evidence()
     {
         var now = DateTimeOffset.UtcNow;

@@ -6,6 +6,19 @@ namespace ISS.UnitTests.Domain;
 public sealed class SalesTests
 {
     [Fact]
+    public void SalesInvoice_Line_Discount_Cannot_Exceed_One_Hundred_Percent()
+    {
+        var invoice = new SalesInvoice("INV-DISC", Guid.NewGuid(), DateTimeOffset.UtcNow, null);
+
+        Assert.Throws<DomainValidationException>(() =>
+            invoice.AddLine(Guid.NewGuid(), 1m, 100m, 100.0001m, 0m));
+
+        var line = invoice.AddLine(Guid.NewGuid(), 1m, 100m, 10m, 0m);
+        Assert.Throws<DomainValidationException>(() =>
+            invoice.UpdateLine(line.Id, 1m, 100m, 100.0001m, 0m));
+    }
+
+    [Fact]
     public void Quote_Send_Requires_Lines()
     {
         var quote = new SalesQuote("SQ0001", Guid.NewGuid(), DateTimeOffset.UtcNow, validUntil: null);

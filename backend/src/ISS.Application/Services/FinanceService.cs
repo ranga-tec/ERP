@@ -29,14 +29,18 @@ public sealed class FinanceService(
         var fund = new PettyCashFund(code, name, currencyCode, custodianName, notes);
         await dbContext.PettyCashFunds.AddAsync(fund, cancellationToken);
 
-        if (openingBalance is > 0m)
+        if (openingBalance is { } requestedOpeningBalance)
         {
-            var openingTransaction = fund.AddOpeningBalance(
-                openingBalance.Value,
-                openedAt ?? clock.UtcNow,
-                openingReferenceNumber,
-                "Opening balance");
-            dbContext.DbContext.Add(openingTransaction);
+            Guard.NotNegative(requestedOpeningBalance, nameof(openingBalance));
+            if (requestedOpeningBalance > 0m)
+            {
+                var openingTransaction = fund.AddOpeningBalance(
+                    requestedOpeningBalance,
+                    openedAt ?? clock.UtcNow,
+                    openingReferenceNumber,
+                    "Opening balance");
+                dbContext.DbContext.Add(openingTransaction);
+            }
         }
 
         await dbContext.SaveChangesAsync(cancellationToken);
@@ -58,6 +62,15 @@ public sealed class FinanceService(
             ?? throw new NotFoundException("Petty cash fund not found.");
 
         await EnsureCurrencyIsActiveAsync(currencyCode, cancellationToken);
+        var normalizedCurrencyCode = currencyCode.Trim().ToUpperInvariant();
+        if (!string.Equals(fund.CurrencyCode, normalizedCurrencyCode, StringComparison.Ordinal)
+            && await dbContext.PettyCashTransactions.AsNoTracking()
+                .AnyAsync(x => x.PettyCashFundId == pettyCashFundId, cancellationToken))
+        {
+            throw new DomainValidationException(
+                "A petty cash fund's currency cannot be changed after its first transaction.");
+        }
+
         fund.Update(code, name, currencyCode, custodianName, notes, isActive);
         await dbContext.SaveChangesAsync(cancellationToken);
     }
@@ -1209,9 +1222,9 @@ public sealed class FinanceService(
         string? receiptReference,
         CancellationToken cancellationToken = default)
     {
-        var iou = await dbContext.PettyCashIous.AsNoTracking()
-            .FirstOrDefaultAsync(x => x.Id == iouId, cancellationToken)
-            ?? throw new NotFoundException("Petty cash IOU not found.");
+        await using var accountingTransaction = await dbContext.DbContext.Database
+            .BeginTransactionAsync(cancellationToken);
+        var iou = await LockPettyCashIouForAccountingAsync(iouId, cancellationToken);
 
         if (!iou.IsOpenForAccounting)
         {
@@ -1265,6 +1278,20 @@ public sealed class FinanceService(
         }
 
         await dbContext.SaveChangesAsync(cancellationToken);
+        await accountingTransaction.CommitAsync(cancellationToken);
+    }
+
+    private async Task<PettyCashIou> LockPettyCashIouForAccountingAsync(
+        Guid iouId,
+        CancellationToken cancellationToken)
+    {
+        // Bills and cash returns share one invariant: together they cannot exceed released cash.
+        // Serialize those two operations on this IOU so simultaneous requests cannot both validate
+        // against the same stale totals and leave a negative unaccounted amount.
+        return await dbContext.DbContext.Set<PettyCashIou>()
+                   .FromSqlInterpolated($"SELECT * FROM \"PettyCashIous\" WHERE \"Id\" = {iouId} FOR UPDATE")
+                   .FirstOrDefaultAsync(cancellationToken)
+               ?? throw new NotFoundException("Petty cash IOU not found.");
     }
 
     private async Task EnsureIouIsNotInApprovalBatchAsync(Guid iouId, CancellationToken cancellationToken)
@@ -1379,8 +1406,9 @@ public sealed class FinanceService(
         string? reference,
         CancellationToken cancellationToken = default)
     {
-        var iou = await dbContext.PettyCashIous.FirstOrDefaultAsync(x => x.Id == iouId, cancellationToken)
-                  ?? throw new NotFoundException("Petty cash IOU not found.");
+        await using var accountingTransaction = await dbContext.DbContext.Database
+            .BeginTransactionAsync(cancellationToken);
+        var iou = await LockPettyCashIouForAccountingAsync(iouId, cancellationToken);
 
         var pettyCashFundId = iou.PettyCashFundId
                               ?? throw new DomainValidationException("This advance was never released from a fund.");
@@ -1389,6 +1417,16 @@ public sealed class FinanceService(
         {
             throw new DomainValidationException(
                 $"Returning {amount} is more than the {iou.OutstandingAmount} still outstanding on this advance.");
+        }
+
+        var claimedAmount = await dbContext.ServiceExpenseClaims.AsNoTracking()
+            .Where(x => x.PettyCashIouId == iouId && x.Status != ServiceExpenseClaimStatus.Rejected)
+            .SumAsync(x => x.Lines.Sum(line => line.Quantity * line.UnitCost), cancellationToken);
+        var availableToReturn = Math.Max(0m, iou.OutstandingAmount - claimedAmount);
+        if (amount > availableToReturn)
+        {
+            throw new DomainValidationException(
+                $"Only {availableToReturn:0.00} can be returned because {claimedAmount:0.00} is already covered by bills on this advance.");
         }
 
         var fund = await dbContext.PettyCashFunds
@@ -1408,6 +1446,7 @@ public sealed class FinanceService(
         dbContext.DbContext.Add(transaction);
 
         await dbContext.SaveChangesAsync(cancellationToken);
+        await accountingTransaction.CommitAsync(cancellationToken);
     }
 
     /// <summary>

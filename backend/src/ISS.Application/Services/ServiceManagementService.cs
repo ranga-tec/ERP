@@ -1617,7 +1617,16 @@ public sealed class ServiceManagementService(
             return new Dictionary<Guid, WorkOrderTimeEntry>();
         }
 
-        var ids = charges.Select(x => x.TimeEntryId).Distinct().ToList();
+        var duplicate = charges
+            .GroupBy(x => x.TimeEntryId)
+            .FirstOrDefault(group => group.Count() > 1);
+        if (duplicate is not null)
+        {
+            throw new DomainValidationException("A labour entry can appear only once on an invoice.");
+        }
+
+        var chargesById = charges.ToDictionary(x => x.TimeEntryId);
+        var ids = chargesById.Keys.ToList();
         var entries = await dbContext.WorkOrderTimeEntries
             .Where(x => ids.Contains(x.Id))
             .ToListAsync(cancellationToken);
@@ -1646,6 +1655,12 @@ public sealed class ServiceManagementService(
             {
                 throw new DomainValidationException($"Labour entry '{entry.WorkDescription}' has already been invoiced.");
             }
+
+            if (chargesById[id].Quantity != entry.BillableHours)
+            {
+                throw new DomainValidationException(
+                    $"Labour quantity for '{entry.WorkDescription}' must equal its approved billable hours of {entry.BillableHours:0.####}.");
+            }
         }
 
         return entries.ToDictionary(x => x.Id);
@@ -1661,7 +1676,16 @@ public sealed class ServiceManagementService(
             return new Dictionary<Guid, ServiceExpenseClaimLine>();
         }
 
-        var ids = charges.Select(x => x.ExpenseClaimLineId).Distinct().ToList();
+        var duplicate = charges
+            .GroupBy(x => x.ExpenseClaimLineId)
+            .FirstOrDefault(group => group.Count() > 1);
+        if (duplicate is not null)
+        {
+            throw new DomainValidationException("An expense claim line can appear only once on an invoice.");
+        }
+
+        var chargesById = charges.ToDictionary(x => x.ExpenseClaimLineId);
+        var ids = chargesById.Keys.ToList();
         var claims = await dbContext.ServiceExpenseClaims
             .Include(x => x.Lines)
             .Where(x => x.Lines.Any(line => ids.Contains(line.Id)))
@@ -1692,6 +1716,12 @@ public sealed class ServiceManagementService(
             if (claimLine.SalesInvoiceLineId is not null)
             {
                 throw new DomainValidationException($"Expense '{claimLine.Description}' has already been invoiced.");
+            }
+
+            if (chargesById[id].Quantity != claimLine.Quantity)
+            {
+                throw new DomainValidationException(
+                    $"Expense quantity for '{claimLine.Description}' must equal its approved quantity of {claimLine.Quantity:0.####}.");
             }
 
             result[id] = claimLine;
@@ -1869,31 +1899,21 @@ public sealed class ServiceManagementService(
         IReadOnlyList<RollupCharge> Charges);
 
     /// <summary>
-    /// Collapses charges into as few invoice lines as can still be priced exactly. Charges are
-    /// grouped by tax rate, because one line carries one rate. Within a group, charges sharing a
-    /// price and discount keep their quantity - so labour still reads as hours - and a mixed group
-    /// falls back to a single unit priced at the group total, which is exact either way.
+    /// Collapses charges only when tax, price and discount are identical. Keeping different prices
+    /// on separate lines preserves the exact source quantity and avoids rounding a mixed total into
+    /// the invoice line's four-decimal unit-price column.
     /// </summary>
     private static IEnumerable<RollupGroup> GroupForRollup(IEnumerable<RollupCharge> charges)
     {
-        foreach (var group in charges.GroupBy(x => x.TaxPercent))
+        foreach (var group in charges.GroupBy(x => new { x.TaxPercent, x.UnitPrice, x.DiscountPercent }))
         {
             var rows = group.ToList();
-            var uniform = rows.All(x => x.UnitPrice == rows[0].UnitPrice && x.DiscountPercent == rows[0].DiscountPercent);
-
-            if (uniform)
-            {
-                yield return new RollupGroup(
-                    rows.Sum(x => x.Quantity),
-                    rows[0].UnitPrice,
-                    rows[0].DiscountPercent,
-                    group.Key,
-                    rows);
-                continue;
-            }
-
-            var total = rows.Sum(x => x.Quantity * x.UnitPrice * (1m - (x.DiscountPercent / 100m)));
-            yield return new RollupGroup(1m, decimal.Round(total, 4, MidpointRounding.AwayFromZero), 0m, group.Key, rows);
+            yield return new RollupGroup(
+                rows.Sum(x => x.Quantity),
+                group.Key.UnitPrice,
+                group.Key.DiscountPercent,
+                group.Key.TaxPercent,
+                rows);
         }
     }
 
@@ -2641,6 +2661,25 @@ public sealed class ServiceManagementService(
         var item = await dbContext.Items.AsNoTracking().FirstOrDefaultAsync(x => x.Id == line.ItemId, cancellationToken)
             ?? throw new DomainValidationException("Invalid item on material disposition.");
 
+        var issueRows = await dbContext.InventoryMovements.AsNoTracking()
+            .Where(x => x.ReferenceType == ReferenceTypes.MaterialRequisition
+                        && x.ReferenceId == mr.Id
+                        && x.ReferenceLineId == line.Id
+                        && x.Type == InventoryMovementType.Consumption)
+            .Select(x => new
+            {
+                Quantity = x.Quantity < 0m ? -x.Quantity : x.Quantity,
+                x.UnitCost
+            })
+            .ToListAsync(cancellationToken);
+        var issuedQuantity = issueRows.Sum(x => x.Quantity);
+        if (issuedQuantity <= 0m)
+        {
+            throw new DomainValidationException("The material requisition line has no posted inventory issue cost.");
+        }
+
+        var issuedUnitCost = issueRows.Sum(x => x.Quantity * x.UnitCost) / issuedQuantity;
+
         var alreadyDisposed = await dbContext.ServiceJobMaterialDispositions.AsNoTracking()
             .Where(x => x.MaterialRequisitionLineId == materialRequisitionLineId)
             .Where(x => !x.IsVoided)
@@ -2667,7 +2706,7 @@ public sealed class ServiceManagementService(
             mr.WarehouseId,
             kind,
             quantity,
-            item.DefaultUnitCost,
+            issuedUnitCost,
             line.BatchNumber,
             condition ?? kind.ToString(),
             reason,

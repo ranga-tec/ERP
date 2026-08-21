@@ -6,6 +6,17 @@ namespace ISS.UnitTests.Domain;
 public sealed class ServiceTests
 {
     [Fact]
+    public void ServiceEstimateLine_Public_Constructor_Enforces_Pricing_Invariants()
+    {
+        Assert.Throws<DomainValidationException>(() => new ServiceEstimateLine(
+            Guid.NewGuid(), ServiceEstimateLineKind.Labor, null, "Invalid", 0m, 1m, 0m));
+        Assert.Throws<DomainValidationException>(() => new ServiceEstimateLine(
+            Guid.NewGuid(), ServiceEstimateLineKind.Expense, null, "Invalid", 1m, -0.01m, 0m));
+        Assert.Throws<DomainValidationException>(() => new ServiceEstimateLine(
+            Guid.NewGuid(), ServiceEstimateLineKind.Part, null, "Invalid", 1m, 1m, 0m));
+    }
+
+    [Fact]
     public void ServiceJob_Transitions_Are_Validated()
     {
         var job = new ServiceJob("SJ0001", Guid.NewGuid(), Guid.NewGuid(), DateTimeOffset.UtcNow, "Won't start");

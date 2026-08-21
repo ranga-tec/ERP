@@ -257,11 +257,7 @@ public sealed class SalesInvoiceLine : Entity
     {
         SalesInvoiceId = salesInvoiceId;
         ItemId = itemId;
-        Quantity = quantity;
-        UnitPrice = unitPrice;
-        DiscountPercent = discountPercent;
-        TaxPercent = taxPercent;
-        RevenueAccountId = revenueAccountId;
+        Update(quantity, unitPrice, discountPercent, taxPercent, revenueAccountId);
         MaterialRequisitionLineId = materialRequisitionLineId;
         Category = category;
         Description = string.IsNullOrWhiteSpace(description)
@@ -303,6 +299,10 @@ public sealed class SalesInvoiceLine : Entity
         Quantity = Guard.Positive(quantity, nameof(quantity));
         UnitPrice = Guard.NotNegative(unitPrice, nameof(unitPrice));
         DiscountPercent = Guard.NotNegative(discountPercent, nameof(discountPercent));
+        if (DiscountPercent > 100m)
+        {
+            throw new DomainValidationException("Invoice line discount percentage cannot exceed 100.");
+        }
         TaxPercent = Guard.NotNegative(taxPercent, nameof(taxPercent));
         RevenueAccountId = revenueAccountId;
     }

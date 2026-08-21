@@ -4,6 +4,12 @@ param(
 
 $ErrorActionPreference = "Stop"
 
+$parsedBaseUrl = [Uri]$BaseUrl
+$localHosts = @("localhost", "127.0.0.1", "::1")
+if ($parsedBaseUrl.Host -notin $localHosts) {
+    throw "Refusing to seed a non-local host: $BaseUrl"
+}
+
 function Invoke-Api {
     param(
         [ValidateSet("GET", "POST", "PUT", "DELETE")]
@@ -136,7 +142,7 @@ $skuCore = @(Get-OrCreate "/api/items" { $_.sku -eq "SKU-CORE" } "/api/items" @{
 $skuBatch = @(Get-OrCreate "/api/items" { $_.sku -eq "SKU-BATCH" } "/api/items" @{ companyId = $null; sku = "SKU-BATCH"; name = "Engine Oil Lot Item"; type = 2; trackingType = 2; unitOfMeasure = "PCS"; brandId = $null; categoryId = $null; subcategoryId = $null; barcode = $null; defaultUnitCost = 8; revenueAccountId = $null; expenseAccountId = $null })[0]
 $skuSerial = @(Get-OrCreate "/api/items" { $_.sku -eq "SKU-SERIAL" } "/api/items" @{ companyId = $null; sku = "SKU-SERIAL"; name = "Control Board Serialized"; type = 2; trackingType = 1; unitOfMeasure = "PCS"; brandId = $null; categoryId = $null; subcategoryId = $null; barcode = $null; defaultUnitCost = 25; revenueAccountId = $null; expenseAccountId = $null })[0]
 $eqpGen = @(Get-OrCreate "/api/items" { $_.sku -eq "EQP-GEN" } "/api/items" @{ companyId = $null; sku = "EQP-GEN"; name = "Generator Model A"; type = 1; trackingType = 1; unitOfMeasure = "PCS"; brandId = $null; categoryId = $null; subcategoryId = $null; barcode = $null; defaultUnitCost = 100; revenueAccountId = $null; expenseAccountId = $null })[0]
-$laborItem = @(Get-OrCreate "/api/items" { $_.sku -eq "LAB-SVC" } "/api/items" @{ companyId = $null; sku = "LAB-SVC"; name = "Service Labor"; type = 3; trackingType = 0; unitOfMeasure = "HOUR"; brandId = $null; categoryId = $null; subcategoryId = $null; barcode = $null; defaultUnitCost = 0; revenueAccountId = $null; expenseAccountId = $null })[0]
+$laborItem = @(Get-OrCreate "/api/items" { $_.sku -eq "LAB-SVC" } "/api/items" @{ companyId = $null; sku = "LAB-SVC"; name = "Service Labor"; type = 3; trackingType = 0; unitOfMeasure = "HRS"; brandId = $null; categoryId = $null; subcategoryId = $null; barcode = $null; defaultUnitCost = 0; revenueAccountId = $null; expenseAccountId = $null })[0]
 
 Write-Host "Creating PO and two partial GRNs..."
 $po = Invoke-Api POST "/api/procurement/purchase-orders" @{ supplierId = $supplier.id }

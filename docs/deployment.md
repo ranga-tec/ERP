@@ -1,5 +1,7 @@
 # Deployment / Installation
 
+For the current Azure Free F1 + PostgreSQL deployment, use [Azure App Service deployment runbook](azure-app-service-deployment.md). It contains the verified `c-com-erp` monorepo packaging, configuration, health checks, quota recovery, and local sample-data workflow.
+
 This repo contains a complete neuedge system:
 
 - Backend: ASP.NET Core (.NET 8) + PostgreSQL
@@ -19,7 +21,7 @@ From the repo root:
 docker compose up -d
 ```
 
-- PostgreSQL: `localhost:5432` (db `iss`, user `pgadmin`, password `vesper`)
+- PostgreSQL: `localhost:5433` (db `neuedge`, user `pgadmin`, password `vesper`)
 - Note: the repo-root `docker-compose.yml` starts PostgreSQL only
 
 ## Backend (API)
@@ -27,7 +29,7 @@ docker compose up -d
 The API requires a connection string. Example (PowerShell):
 
 ```powershell
-$env:ConnectionStrings__Default="Host=localhost;Port=5432;Database=iss;Username=pgadmin;Password=vesper"
+$env:ConnectionStrings__Default="Host=localhost;Port=5433;Database=neuedge;Username=pgadmin;Password=vesper"
 dotnet run --project backend/src/ISS.Api/ISS.Api.csproj
 ```
 
