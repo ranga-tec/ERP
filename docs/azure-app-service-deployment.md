@@ -77,6 +77,7 @@ az webapp config appsettings set -g $rg -n $apiApp --settings `
 Publish only the Linux x64 runtime assets. A generic publish can include every SkiaSharp native runtime and produce a package hundreds of megabytes larger.
 
 ```powershell
+$repoRoot = (Get-Location).Path
 $deployRoot = Join-Path $env:TEMP ("iss-azure-" + [guid]::NewGuid())
 $apiPublish = Join-Path $deployRoot "api"
 $apiZip = Join-Path $deployRoot "api.zip"
@@ -107,24 +108,37 @@ Expected: HTTP `200` and body `Healthy`. Do not seed production with either scri
 The Next.js server proxies browser API requests to the separate API App Service.
 
 ```powershell
-az webapp config set -g $rg -n $webApp --linux-fx-version "NODE|24-lts" --startup-file "npm start"
+az webapp config set -g $rg -n $webApp --linux-fx-version "NODE|24-lts" --startup-file "node server.js"
 
 az webapp config appsettings set -g $rg -n $webApp --settings `
   "NODE_ENV=production" `
   "NEUEDGE_API_BASE_URL=https://issms-api-ccom.azurewebsites.net" `
   "NEUEDGE_SECURE_COOKIES=true" `
   "NEXT_PUBLIC_NEUEDGE_ALLOW_SELF_REGISTRATION=false" `
-  "SCM_DO_BUILD_DURING_DEPLOYMENT=true" `
-  "ENABLE_ORYX_BUILD=true" `
-  "NPM_CONFIG_PRODUCTION=false" `
+  "SCM_DO_BUILD_DURING_DEPLOYMENT=false" `
+  "ENABLE_ORYX_BUILD=false" `
   "NEXT_TELEMETRY_DISABLED=1"
 
-$webZip = Join-Path $deployRoot "web-source.zip"
-git archive --format=zip --output=$webZip HEAD:frontend
+$env:NEUEDGE_API_BASE_URL = "https://issms-api-ccom.azurewebsites.net"
+$env:NEUEDGE_SECURE_COOKIES = "true"
+$env:NEXT_PUBLIC_NEUEDGE_ALLOW_SELF_REGISTRATION = "false"
+
+Push-Location .\frontend
+npm ci
+npm run build
+Pop-Location
+
+$standalone = Join-Path $repoRoot "frontend\.next\standalone"
+Copy-Item .\frontend\public (Join-Path $standalone "public") -Recurse -Force
+New-Item -ItemType Directory -Path (Join-Path $standalone ".next") -Force | Out-Null
+Copy-Item .\frontend\.next\static (Join-Path $standalone ".next\static") -Recurse -Force
+
+$webZip = Join-Path $deployRoot "web-standalone.zip"
+Compress-Archive -Path "$standalone\*" -DestinationPath $webZip -CompressionLevel Optimal
 az webapp deploy -g $rg -n $webApp --src-path $webZip --type zip --timeout 1800000
 ```
 
-`NPM_CONFIG_PRODUCTION=false` is required during the Oryx build because Tailwind, PostCSS, and TypeScript are development dependencies even though the resulting server runs with `NODE_ENV=production`.
+The prebuilt standalone package avoids an `npm install` and full Next.js compilation on the memory-constrained F1 instance. Build-time public settings must be present before `npm run build`; server-only `NEUEDGE_API_BASE_URL` remains configured in App Service as well.
 
 Verify the public flow:
 
