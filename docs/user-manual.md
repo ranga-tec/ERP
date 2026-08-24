@@ -829,8 +829,9 @@ What to check:
 
 - IOU requester and finance approvers receive notifications.
 - Approved IOU can be released.
-- Settled IOU clears the advance.
-- Petty cash and reimbursement claims follow finance approval/settlement.
+- Every petty-cash expense line has its own receipt reference and attached receipt file, or a separately approved missing-receipt reason.
+- An unexplained settlement shortage creates a linked voucher against the fund's configured shortage expense account and cost centre.
+- Scheduled cash counts reconcile physical cash, open advances, and supported vouchers to the authorized float; the counter cannot approve their own count.
 - Pending finance documents block closeout where required.
 
 ### 7.15 Estimates / Quotations
@@ -1063,8 +1064,9 @@ IOU flow:
 2. Approver reviews.
 3. Finance approves or rejects.
 4. Cash is released.
-5. Employee submits receipts/settlement.
-6. Finance settles or clears.
+5. Employee submits each bill with its line receipt reference and attachment, or requests a missing-receipt exception.
+6. Finance records returned cash and settles only when the advance reconciles.
+7. A separately authorized shortage exception posts the exact difference to the fund's configured expense account.
 
 What to check:
 
@@ -1072,6 +1074,7 @@ What to check:
 - Requester can track status.
 - Settlement updates balances.
 - Open IOUs appear as blockers where relevant.
+- Fund custodians record scheduled cash counts; another authorized user approves or rejects each variance.
 
 ## 9. Admin, Access, And Notifications
 

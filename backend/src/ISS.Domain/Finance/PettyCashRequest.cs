@@ -37,6 +37,40 @@ public sealed class PettyCashRequest : AuditableEntity
 {
     private PettyCashRequest() { }
 
+    /// <summary>
+    /// Creates a V2 fund-level replenishment request. The reconciliation snapshot explains why the
+    /// requested amount is needed without turning jobs or expense categories into cash sub-accounts.
+    /// </summary>
+    public PettyCashRequest(
+        string number,
+        Guid pettyCashFundId,
+        Guid requestedByUserId,
+        string requestedByName,
+        DateTimeOffset requestedAt,
+        DateTimeOffset? neededByAt,
+        decimal requestedAmount,
+        decimal cashOnHand,
+        decimal outstandingAdvances,
+        decimal reconciledExpenses,
+        string? notes)
+    {
+        Number = Guard.NotNullOrWhiteSpace(number, nameof(number), maxLength: 32);
+        PettyCashFundId = pettyCashFundId == Guid.Empty
+            ? throw new DomainValidationException("A petty cash fund is required.")
+            : pettyCashFundId;
+        RequestedByUserId = requestedByUserId;
+        RequestedByName = Guard.NotNullOrWhiteSpace(requestedByName, nameof(requestedByName), maxLength: 256);
+        RequestedAt = requestedAt;
+        NeededByAt = neededByAt;
+        RequestedAmount = Guard.Positive(requestedAmount, nameof(requestedAmount));
+        CashOnHandAtRequest = Guard.NotNegative(cashOnHand, nameof(cashOnHand));
+        OutstandingAdvancesAtRequest = Guard.NotNegative(outstandingAdvances, nameof(outstandingAdvances));
+        ReconciledExpensesAtRequest = Guard.NotNegative(reconciledExpenses, nameof(reconciledExpenses));
+        Notes = NormalizeOptional(notes, nameof(notes), 1000);
+        IsLegacyCategoryRequest = false;
+        Status = PettyCashRequestStatus.Draft;
+    }
+
     public PettyCashRequest(
         string number,
         Guid pettyCashFundId,
@@ -53,6 +87,7 @@ public sealed class PettyCashRequest : AuditableEntity
         RequestedAt = requestedAt;
         NeededByAt = neededByAt;
         Notes = NormalizeOptional(notes, nameof(notes), 1000);
+        IsLegacyCategoryRequest = true;
         Status = PettyCashRequestStatus.Draft;
     }
 
@@ -72,13 +107,22 @@ public sealed class PettyCashRequest : AuditableEntity
     public Guid? ApprovedByUserId { get; private set; }
     public DateTimeOffset? RejectedAt { get; private set; }
     public string? RejectionReason { get; private set; }
+    public bool IsLegacyCategoryRequest { get; private set; }
+    public decimal RequestedAmount { get; private set; }
+    public decimal? ApprovedAmount { get; private set; }
+    public decimal FundedAmount { get; private set; }
+    public decimal CashOnHandAtRequest { get; private set; }
+    public decimal OutstandingAdvancesAtRequest { get; private set; }
+    public decimal ReconciledExpensesAtRequest { get; private set; }
 
     public List<PettyCashRequestLine> Lines { get; private set; } = new();
 
-    public decimal RequestedTotal => Lines.Sum(x => x.RequestedAmount);
-    public decimal ApprovedTotal => Lines.Sum(x => x.ApprovedAmount ?? 0m);
-    public decimal FundedTotal => Lines.Sum(x => x.FundedAmount);
-    public decimal OutstandingTotal => Lines.Sum(x => x.OutstandingAmount);
+    public decimal RequestedTotal => IsLegacyCategoryRequest ? Lines.Sum(x => x.RequestedAmount) : RequestedAmount;
+    public decimal ApprovedTotal => IsLegacyCategoryRequest ? Lines.Sum(x => x.ApprovedAmount ?? 0m) : ApprovedAmount ?? 0m;
+    public decimal FundedTotal => IsLegacyCategoryRequest ? Lines.Sum(x => x.FundedAmount) : FundedAmount;
+    public decimal OutstandingTotal => IsLegacyCategoryRequest
+        ? Lines.Sum(x => x.OutstandingAmount)
+        : Math.Max(0m, (ApprovedAmount ?? 0m) - FundedAmount);
 
     public PettyCashRequestLine AddLine(
         PettyCashRequestCategory category,
@@ -126,6 +170,24 @@ public sealed class PettyCashRequest : AuditableEntity
         Notes = NormalizeOptional(notes, nameof(notes), 1000);
     }
 
+    public void UpdateReplenishment(
+        decimal requestedAmount,
+        decimal cashOnHand,
+        decimal outstandingAdvances,
+        decimal reconciledExpenses,
+        DateTimeOffset? neededByAt,
+        string? notes)
+    {
+        EnsureDraftEditable();
+        EnsureV2Request();
+        RequestedAmount = Guard.Positive(requestedAmount, nameof(requestedAmount));
+        CashOnHandAtRequest = Guard.NotNegative(cashOnHand, nameof(cashOnHand));
+        OutstandingAdvancesAtRequest = Guard.NotNegative(outstandingAdvances, nameof(outstandingAdvances));
+        ReconciledExpensesAtRequest = Guard.NotNegative(reconciledExpenses, nameof(reconciledExpenses));
+        NeededByAt = neededByAt;
+        Notes = NormalizeOptional(notes, nameof(notes), 1000);
+    }
+
     public void Submit(DateTimeOffset submittedAt)
     {
         if (Status != PettyCashRequestStatus.Draft)
@@ -133,7 +195,7 @@ public sealed class PettyCashRequest : AuditableEntity
             throw new DomainValidationException("Only draft petty cash requests can be submitted.");
         }
 
-        if (Lines.Count == 0)
+        if (IsLegacyCategoryRequest && Lines.Count == 0)
         {
             throw new DomainValidationException("A petty cash request must have at least one category line.");
         }
@@ -177,6 +239,29 @@ public sealed class PettyCashRequest : AuditableEntity
         ApprovedByUserId = approvedByUserId;
         RejectedAt = null;
         RejectionReason = null;
+    }
+
+    public void ApproveReplenishment(Guid approvedByUserId, DateTimeOffset approvedAt, decimal approvedAmount)
+    {
+        EnsureV2Request();
+        if (Status != PettyCashRequestStatus.Submitted)
+        {
+            throw new DomainValidationException("Only submitted petty cash replenishments can be approved.");
+        }
+
+        Guard.Positive(approvedAmount, nameof(approvedAmount));
+        if (approvedAmount > RequestedAmount)
+        {
+            throw new DomainValidationException(
+                $"Approved amount cannot exceed the requested amount of {RequestedAmount:0.00}.");
+        }
+
+        ApprovedAmount = approvedAmount;
+        ApprovedByUserId = approvedByUserId;
+        ApprovedAt = approvedAt;
+        RejectedAt = null;
+        RejectionReason = null;
+        Status = PettyCashRequestStatus.Approved;
     }
 
     public void Reject(DateTimeOffset rejectedAt, string? rejectionReason)
@@ -228,6 +313,25 @@ public sealed class PettyCashRequest : AuditableEntity
         return funding;
     }
 
+    public void RecordReplenishment(decimal amount)
+    {
+        EnsureV2Request();
+        if (Status is not (PettyCashRequestStatus.Approved or PettyCashRequestStatus.PartiallyFunded))
+        {
+            throw new DomainValidationException("Only an approved petty cash replenishment can be funded.");
+        }
+
+        var validatedAmount = Guard.Positive(amount, nameof(amount));
+        if (validatedAmount > OutstandingTotal)
+        {
+            throw new DomainValidationException(
+                $"Funding {validatedAmount:0.00} exceeds the {OutstandingTotal:0.00} still outstanding.");
+        }
+
+        FundedAmount += validatedAmount;
+        Status = OutstandingTotal <= 0m ? PettyCashRequestStatus.Funded : PettyCashRequestStatus.PartiallyFunded;
+    }
+
     private PettyCashRequestLine FindLine(Guid lineId)
         => Lines.FirstOrDefault(x => x.Id == lineId)
            ?? throw new DomainValidationException("Petty cash request line not found.");
@@ -237,6 +341,14 @@ public sealed class PettyCashRequest : AuditableEntity
         if (Status != PettyCashRequestStatus.Draft)
         {
             throw new DomainValidationException("Only draft petty cash requests can be edited.");
+        }
+    }
+
+    private void EnsureV2Request()
+    {
+        if (IsLegacyCategoryRequest)
+        {
+            throw new DomainValidationException("Historical category requests are read-only in the V2 petty cash workflow.");
         }
     }
 

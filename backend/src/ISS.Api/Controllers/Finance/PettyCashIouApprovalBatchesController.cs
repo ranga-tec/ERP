@@ -173,29 +173,19 @@ public sealed class PettyCashIouApprovalBatchesController(
         await NotifyReviewerAsync(
             id,
             "Petty cash batch approved by head office",
-            "Record the remittance reference when the approved money is received into the selected fund.",
+            "The approved IOUs can be released from the selected fund when sufficient cash is available. Fund replenishment is handled separately.",
             cancellationToken);
         return NoContent();
     }
 
     [HttpPost("{id:guid}/receive-funding")]
-    public async Task<ActionResult> ReceiveFunding(
+    public ActionResult ReceiveFunding(
         Guid id,
-        ReceiveFundingRequest request,
-        CancellationToken cancellationToken)
+        ReceiveFundingRequest request)
     {
-        if (!await HasPermissionAsync(AppPermissions.PettyCashIouRelease, cancellationToken)) return Forbid();
-        await financeService.ReceivePettyCashIouBatchFundingAsync(
-            id,
-            currentUser.UserId ?? Guid.Empty,
-            request.FundingReference,
-            cancellationToken);
-        await NotifyBatchRequestersAsync(
-            id,
-            "Petty cash funding received",
-            "The approved advance funding is now in the selected petty cash fund and can be released against signed IOU slips.",
-            cancellationToken);
-        return NoContent();
+        return StatusCode(
+            StatusCodes.Status410Gone,
+            "IOU-batch funding was retired in petty cash V2. Replenish the fund through a PCR and release approved IOUs from the available fund balance.");
     }
 
     [HttpPost("{id:guid}/reject")]

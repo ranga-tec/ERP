@@ -4,23 +4,30 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { apiPostNoContent } from "@/lib/api-client";
 import { ItemLookupField } from "@/components/ItemLookupField";
-import { Button, DecimalInput, Input } from "@/components/ui";
+import { Button, DecimalInput, Input, Select } from "@/components/ui";
 
 type ItemRef = { id: string; sku: string; name: string; unitOfMeasure: string };
+type ExpenseAccountRef = { id: string; code: string; name: string };
 
 export function ServiceExpenseClaimLineAddForm({
   claimId,
   items,
+  expenseAccounts,
 }: {
   claimId: string;
   items: ItemRef[];
+  expenseAccounts: ExpenseAccountRef[];
 }) {
   const router = useRouter();
   const [itemId, setItemId] = useState("");
+  const [expenseAccountId, setExpenseAccountId] = useState("");
   const [description, setDescription] = useState("");
   const [quantity, setQuantity] = useState("1");
   const [unitCost, setUnitCost] = useState("");
   const [billableToCustomer, setBillableToCustomer] = useState(true);
+  const [receiptReference, setReceiptReference] = useState("");
+  const [missingReceipt, setMissingReceipt] = useState(false);
+  const [missingReceiptReason, setMissingReceiptReason] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -41,17 +48,25 @@ export function ServiceExpenseClaimLineAddForm({
 
       await apiPostNoContent(`service/expense-claims/${claimId}/lines`, {
         itemId: itemId || null,
+        expenseAccountId,
         description: description.trim(),
         quantity: parsedQuantity,
         unitCost: parsedUnitCost,
         billableToCustomer,
+        receiptReference: missingReceipt ? null : receiptReference.trim(),
+        missingReceipt,
+        missingReceiptReason: missingReceipt ? missingReceiptReason.trim() : null,
       });
 
       setItemId("");
+      setExpenseAccountId("");
       setDescription("");
       setQuantity("1");
       setUnitCost("");
       setBillableToCustomer(true);
+      setReceiptReference("");
+      setMissingReceipt(false);
+      setMissingReceiptReason("");
       router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
@@ -84,6 +99,14 @@ export function ServiceExpenseClaimLineAddForm({
         </div>
       </div>
 
+      <div>
+        <label className="mb-1 block text-sm font-medium">Expense category/account *</label>
+        <Select value={expenseAccountId} onChange={(event) => setExpenseAccountId(event.target.value)} required>
+          <option value="">Select expense account...</option>
+          {expenseAccounts.map((account) => <option key={account.id} value={account.id}>{account.code} - {account.name}</option>)}
+        </Select>
+      </div>
+
       <div className="grid gap-3 sm:grid-cols-3">
         <div>
           <label className="mb-1 block text-sm font-medium">
@@ -105,6 +128,19 @@ export function ServiceExpenseClaimLineAddForm({
           Billable to customer
         </label>
       </div>
+
+      <div className="grid gap-3 sm:grid-cols-2">
+        <div>
+          <label className="mb-1 block text-sm font-medium">Receipt / bill number {missingReceipt ? "(exception requested)" : "*"}</label>
+          <Input value={receiptReference} onChange={(event) => setReceiptReference(event.target.value)} required={!missingReceipt} disabled={missingReceipt} />
+        </div>
+        <label className="flex items-center gap-2 rounded-xl border border-[var(--input-border)] px-3 py-2 text-sm">
+          <input type="checkbox" checked={missingReceipt} onChange={(event) => setMissingReceipt(event.target.checked)} />
+          Missing receipt — request special approval
+        </label>
+      </div>
+      {missingReceipt ? <div><label className="mb-1 block text-sm font-medium">Missing receipt reason *</label><Input value={missingReceiptReason} onChange={(event) => setMissingReceiptReason(event.target.value)} required /></div> : null}
+      <p className="text-xs text-zinc-500">After adding the line, upload its receipt file from the line-evidence panel before submission.</p>
 
       {error ? (
         <div className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-900 dark:border-red-900/40 dark:bg-red-950/40 dark:text-red-100">

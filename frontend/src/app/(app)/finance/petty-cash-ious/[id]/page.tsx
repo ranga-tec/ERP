@@ -4,6 +4,7 @@ import { DocumentCollaborationPanel } from "@/components/DocumentCollaborationPa
 import { TransactionLink } from "@/components/TransactionLink";
 import { Card, Table } from "@/components/ui";
 import { PettyCashIouActions } from "../PettyCashIouActions";
+import { MissingReceiptApprovalButton } from "@/app/(app)/service/expense-claims/MissingReceiptApprovalButton";
 import {
   PettyCashIouBillAddForm,
   PettyCashIouReturnForm,
@@ -36,6 +37,10 @@ type PettyCashIouDto = {
   settledAt?: string | null;
   settledAmount?: number | null;
   settlementApprovedAt?: string | null;
+  settlementExceptionAmount: number;
+  settlementExceptionReason?: string | null;
+  settlementExceptionApprovedAt?: string | null;
+  settlementExceptionExpenseClaimId?: string | null;
   issueBillNumber?: string | null;
   claimedAmount: number;
   claimCount: number;
@@ -47,9 +52,15 @@ type PettyCashIouDto = {
 
 type BillDto = {
   id: string;
+  serviceExpenseClaimId: string;
   description: string;
   amount: number;
   billableToCustomer: boolean;
+  receiptReference?: string | null;
+  missingReceipt: boolean;
+  missingReceiptReason?: string | null;
+  missingReceiptApprovedAt?: string | null;
+  missingReceiptApprovedByUserId?: string | null;
   voucherNumber: string;
   voucherStatus: number;
 };
@@ -58,6 +69,7 @@ type CurrentPermissionsDto = { permissions: string[] };
 type ServiceJobDto = { id: string; number: string; status: number };
 type FundDto = { id: string; code: string; name: string; isActive: boolean };
 type StaffDto = { userId: string; name: string; email?: string | null };
+type ExpenseAccountDto = { id: string; code: string; name: string };
 
 const statusLabel: Record<number, string> = {
   0: "Draft",
@@ -103,18 +115,20 @@ function Figure({ label, value, tone }: { label: string; value: string; tone?: "
 export default async function PettyCashIouDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
 
-  const [iou, bills, currentPermissions, jobs, funds] = await Promise.all([
+  const [iou, bills, currentPermissions, jobs, funds, expenseAccounts] = await Promise.all([
     backendFetchJson<PettyCashIouDto>(`/finance/petty-cash-ious/${id}`),
     backendFetchJson<BillDto[]>(`/finance/petty-cash-ious/${id}/bills`),
     backendFetchJson<CurrentPermissionsDto>("/me/permissions"),
     backendFetchJson<ServiceJobDto[]>("/service/jobs?take=500"),
     backendFetchJson<FundDto[]>("/finance/petty-cash-funds"),
+    backendFetchJson<ExpenseAccountDto[]>("/service/expense-claims/expense-accounts"),
   ]);
 
   const permissions = new Set(currentPermissions.permissions);
   const canAccount = iou.isOpenForAccounting && permissions.has("Finance.PettyCashIou.Settle");
   const canRelease = permissions.has("Finance.PettyCashIou.Release");
   const canReview = permissions.has("Finance.PettyCashIou.Review");
+  const canApproveMissingReceipt = permissions.has("Finance.PettyCash.ReceiptExceptionApprove");
   const [staff, approvers] = await Promise.all([
     canRelease || canReview ? backendFetchJson<StaffDto[]>("/finance/petty-cash-ious/staff") : Promise.resolve([]),
     canReview ? backendFetchJson<StaffDto[]>("/finance/petty-cash-ious/approvers") : Promise.resolve([]),
@@ -211,7 +225,7 @@ export default async function PettyCashIouDetailPage({ params }: { params: Promi
 
         {canAccount ? (
           <div className="mb-4 rounded-md border border-[var(--card-border)] bg-[var(--surface-soft)] p-3">
-            <PettyCashIouBillAddForm iouId={iou.id} disabled={!canAccount} />
+            <PettyCashIouBillAddForm iouId={iou.id} disabled={!canAccount} expenseAccounts={expenseAccounts} />
           </div>
         ) : null}
 
@@ -222,6 +236,7 @@ export default async function PettyCashIouDetailPage({ params }: { params: Promi
                 <th className="py-2 pr-3">Description</th>
                 <th className="py-2 pr-3 text-right">Amount</th>
                 <th className="py-2 pr-3">Billable</th>
+                <th className="py-2 pr-3">Evidence</th>
                 <th className="py-2 pr-3">Voucher</th>
               </tr>
             </thead>
@@ -231,6 +246,7 @@ export default async function PettyCashIouDetailPage({ params }: { params: Promi
                   <td className="py-2 pr-3">{bill.description}</td>
                   <td className="py-2 pr-3 text-right font-mono tabular-nums">{money(bill.amount)}</td>
                   <td className="py-2 pr-3 text-zinc-500">{bill.billableToCustomer ? "Yes" : "-"}</td>
+                  <td className="py-2 pr-3 text-zinc-500">{bill.missingReceipt ? (bill.missingReceiptApprovedAt ? "Missing receipt approved" : "Missing receipt waiting") : bill.receiptReference ?? "Receipt required"}</td>
                   <td className="py-2 pr-3 font-mono text-xs text-zinc-500">
                     {bill.voucherNumber} · {voucherStatusLabel[bill.voucherStatus] ?? bill.voucherStatus}
                   </td>
@@ -238,13 +254,23 @@ export default async function PettyCashIouDetailPage({ params }: { params: Promi
               ))}
               {bills.length === 0 ? (
                 <tr>
-                  <td className="py-6 text-sm text-zinc-500" colSpan={4}>
+                  <td className="py-6 text-sm text-zinc-500" colSpan={5}>
                     No bills entered against this advance yet.
                   </td>
                 </tr>
               ) : null}
             </tbody>
           </Table>
+        </div>
+        <div className="mt-4 space-y-4">
+          {bills.map((bill) => (
+            <div key={`evidence:${bill.id}`} className="space-y-2 rounded-lg border border-[var(--card-border)] p-3">
+              <div className="text-sm font-medium">Evidence — {bill.description}</div>
+              {bill.missingReceipt ? <div className="text-xs text-zinc-500">Reason: {bill.missingReceiptReason ?? "Not recorded"}</div> : null}
+              {bill.missingReceipt && !bill.missingReceiptApprovedAt && canApproveMissingReceipt ? <MissingReceiptApprovalButton claimId={bill.serviceExpenseClaimId} lineId={bill.id} /> : null}
+              <DocumentCollaborationPanel referenceType="SEC-LINE" referenceId={bill.id} title="Receipt File & Line Evidence" />
+            </div>
+          ))}
         </div>
       </Card>
 
@@ -270,6 +296,14 @@ export default async function PettyCashIouDetailPage({ params }: { params: Promi
 
       <Card>
         <div className="mb-3 text-sm font-semibold">Settlement</div>
+        {iou.settlementExceptionExpenseClaimId ? (
+          <div className="mb-3 text-sm text-zinc-600 dark:text-zinc-400">
+            Approved shortage voucher:{" "}
+            <TransactionLink referenceType="SEC" referenceId={iou.settlementExceptionExpenseClaimId} monospace>
+              Open expense voucher
+            </TransactionLink>
+          </div>
+        ) : null}
         <PettyCashIouSettleActions
           iouId={iou.id}
           status={iou.status}
@@ -277,6 +311,8 @@ export default async function PettyCashIouDetailPage({ params }: { params: Promi
           returnedAmount={iou.returnedAmount}
           claimedAmount={iou.claimedAmount}
           remainingReleaseAmount={iou.remainingReleaseAmount}
+          settlementExceptionAmount={iou.settlementExceptionAmount}
+          settlementExceptionReason={iou.settlementExceptionReason}
           permissions={currentPermissions.permissions}
         />
       </Card>

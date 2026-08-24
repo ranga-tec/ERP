@@ -19,6 +19,7 @@ import { ServiceJobMaterialDispositionActions } from "../ServiceJobMaterialDispo
 import { ServiceJobOperationActions } from "../ServiceJobOperationActions";
 import { ServiceJobOperationAddForm } from "../ServiceJobOperationAddForm";
 import { ServiceJobProgressUpdateAddForm } from "../ServiceJobProgressUpdateAddForm";
+import { ServiceJobPettyCashLimitForm } from "../ServiceJobPettyCashLimitForm";
 import { DocumentCollaborationPanel } from "@/components/DocumentCollaborationPanel";
 import { TransactionLink } from "@/components/TransactionLink";
 
@@ -40,6 +41,7 @@ type ServiceJobDto = {
   customerComplaint?: string | null;
   internalRemarks?: string | null;
   responsibleOfficerName?: string | null;
+  pettyCashSpendingLimit: number;
   finalInvoiceNotRequired: boolean;
   finalInvoiceNotRequiredReason?: string | null;
   serviceContractId?: string | null;
@@ -1172,6 +1174,10 @@ export default async function ServiceJobDetailPage({
 
       {activeTab === "overview" ? (
         <>
+      <Card className="p-3">
+        <div className="mb-2 text-sm font-semibold">Job Petty-Cash Control</div>
+        <ServiceJobPettyCashLimitForm jobId={job.id} currentLimit={job.pettyCashSpendingLimit} />
+      </Card>
       <Card className="p-2">
         <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
           <div>

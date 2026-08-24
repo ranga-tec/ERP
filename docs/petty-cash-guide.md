@@ -1,423 +1,296 @@
-# Petty cash — the whole process
+# Petty cash V2 — current implementation
 
-Every way money enters, moves through and leaves the petty cash float, and what each document
-means. Written against the code, not against intent; file references are given so a claim here can
-be checked.
+**Status:** implemented in the current `c-com-erp` branch as of 2026-08-24.
+**Purpose:** this is the single authoritative description of the petty-cash process. Historical handover notes, category-funding guidance, and incomplete test-status notes are not operating instructions.
 
----
+## 1. The rule that explains the design
 
-## Part 0 — The six documents, and why there are six
+Petty cash uses three separate records:
 
-| Document | Prefix | What it is | Creates |
-| --- | --- | --- | --- |
-| Petty Cash Fund | `PCF` | The cash box itself, and its ledger | the float |
-| Petty Cash Request | `PCR` | Asking head office for money, by category | money **into** the float |
-| Petty Cash Advance (IOU) | `IOU` or the slip no. | Cash handed to a **person**, who must account for it | a **receivable** from that person |
-| Expense Voucher | `SEC` | Money spent, evidenced by a bill | an **expense** |
-| Petty Cash Return | `PCRTN` | Reconciled unused float handed back to head office, by original funding category | money **out of** the float, with no expense |
-| Category Reallocation | `PCRAL` | Head-office-approved transfer of authorization between two funded categories in one float | equal category transfer-out and transfer-in entries; no physical cash movement |
+| Record | What it answers | What it does not do |
+|---|---|---|
+| Petty-cash fund (`PCF`) | Where is the physical cash, and who controls it? | It does not earmark cash by job or expense category. |
+| Employee IOU (`IOU`) | Who received an advance, for how much, and how was it accounted for? | Releasing an advance does not recognize an expense. |
+| Expense voucher (`SEC`) | Why was money spent, where should it post, and is it billable? | It does not create a separate cash sub-ledger. |
 
-The distinction that matters, and the one people get wrong: **an advance is not an expense.**
-Handing someone 1000 does not cost the company 1000; it moves 1000 from the box into that person's
-pocket, and they owe it. It becomes cost only when a voucher documents what was bought. This is why
-job costing reads vouchers and never reads advances.
+Jobs are controlled through a job-level petty-cash authorization. Actual costs are classified on expense-voucher lines. New replenishments, returns, IOUs, and vouchers do not use category balances.
 
-The float itself is an **imprest** balance: `PettyCashFund.Balance` is simply the sum of its ledger
-(`PettyCashFund.cs`), so every movement below is one row in `PettyCashTransaction` and nothing keeps
-a second running total that could drift.
+## 2. Current documents and records
 
-### Transaction types on the fund ledger
+| Code | Name | Current purpose |
+|---|---|---|
+| `PCF` | Petty-cash fund | Physical float, controls, ledger, and cash counts. |
+| `PCR` | Replenishment request | Requests one fund-level amount using a reconciliation snapshot. |
+| `PCAB` | IOU approval batch | Groups submitted IOUs for assigned and head-office approval. It does not fund category balances. |
+| `IOU` | Employee advance | Approval, release, bills, returned cash, and final settlement. |
+| `SEC` | Expense voucher | Expense account, job/cost centre, receipt evidence, and billable classification. |
+| `PCRTN` | Fund return | Physical cash returned from a fund to head office. |
+| `PCCC` | Cash count | Physical cash and accountability reconciliation with independent review. |
 
-| Type | Direction | Written by |
-| --- | --- | --- |
-| `OpeningBalance` | In | fund created with an opening balance |
-| `TopUp` | In | `POST /finance/petty-cash-funds/{id}/top-ups` |
-| `RequestFunding` | In | head office funding a request line |
-| `IouRelease` | Out | cash handed to a person |
-| `IouSettlement` | In | unspent cash returned |
-| `ExpenseSettlement` | Out | a voucher paid from the box |
-| `Adjustment` | In or Out | `POST /finance/petty-cash-funds/{id}/adjustments` |
-| `HeadOfficeReturn` | Out | head office confirms physical receipt of a submitted `PCRTN` |
-| `CategoryTransferOut` | Out | head office approves a `PCRAL`; reduces the source category |
-| `CategoryTransferIn` | In | the same approval increases the destination category by the same amount |
+## 3. Configure a fund
 
-Outward movements and adjustments check the balance first (`EnsureSufficientBalance`); the box cannot
-go negative. An inactive fund refuses every movement **except** opening balance and top-up, which do
-not call `EnsureActive` — so a deactivated fund can still be topped up.
+Go to **Finance → Petty Cash Funds**. A fund records:
 
----
+- code, name, currency, location, custodian, notes, and active status;
+- authorized float: the management-approved accountability ceiling;
+- transaction limit: the maximum value of one direct petty-cash expense;
+- advance limit: the maximum value of one employee IOU;
+- receipt requirement and whether overdue advances block another release;
+- settlement-shortage expense account and cost centre;
+- cash-count frequency (`None`, `Daily`, `Weekly`, or `Shift close`) and next due date.
 
-## Part 1 — Getting money into the float
+`0` means a monetary ceiling is not configured; it does not create a zero-value fund.
 
-### 1a. Directly
+### Posting expense account
 
-Opening balance at creation, or a top-up afterwards. Neither is tied to a request, so neither
-carries a category. Use this for the initial float and for straight replenishment.
+The posting account selected on a voucher line, including the configured shortage account, must be an active posting **Expense** account. It is not Accounts Receivable, Accounts Payable, Asset, Liability, or Equity. The fund is the cash-custody record; the expense account classifies what the business consumed.
 
-### 1b. By request — the normal route
+For a non-job overhead expense, enter a cost centre. For a job expense, select the service job. The voucher line can also state whether the cost is billable to the customer.
 
-`Finance → Petty Cash Requests → + New Request`
+## 4. Replenish a fund (`PCR`)
 
-The site accountant raises one request covering several needs at once. Each need is a **line** with
-its own category:
+### Custodian or site accountant
 
-| Category | Names a job? | Notes |
-| --- | --- | --- |
-| Job Wise | **yes, required** | this is what later lets the spend reach that job's cost |
-| Emergency Operation | no | |
-| Transportation | no | |
-| Custom | no | carries its own name, e.g. "Site refreshments" |
+1. Count the fund's physical cash.
+2. Total open employee advances.
+3. Total reconciled expenses awaiting replenishment.
+4. Create **Finance → Petty Cash Replenishment → New Replenishment** and enter those figures plus one requested amount.
+5. Attach the cash count and voucher summary, then submit the request to head office.
 
-**Status flow** (`PettyCashRequest.cs`):
+“Requested replenishment” is the amount of cash head office is being asked to send back into the fund. It is not the authorized float and it is not an expense-category allocation.
 
-```
-Draft ──submit──► Submitted ──approve──► Approved ──fund──► PartiallyFunded ──fund──► Funded
-  │                   │
-  └──cancel──►        └──reject──► Rejected
-   Cancelled
+The request is rejected when:
+
+```text
+cash on hand + outstanding advances + requested replenishment
+    > authorized float
 ```
 
-- Only a **Draft** can be edited. Once submitted, lines are frozen.
-- Submitting notifies everyone holding `PettyCashRequest.Approve` or `.Fund` — resolved by
-  permission, not by role. The submitter is not notified of their own request.
-- **Approval is per line.** Head office may approve less than was asked, or zero for a line. It may
-  not approve more than was requested. Approving *every* line at zero is refused — that is a
-  rejection, and should carry a reason.
-- Approval moves no money.
+when the authorized float is configured.
 
-**Funding is per line, and this is the part people ask about.** Head office releases each category
-separately. When one bank transfer covers several categories, you fund each line in turn and give
-them **the same payment reference** — that is how "funds received separately for each, even in a
-single transfer" is represented. The detail page offers the first reference already entered as the
-default for the rest.
+### Head office
 
-Each funding posts a `RequestFunding` row **In** on the fund, tagged with the request line.
+1. Review the reconciliation snapshot and attachments.
+2. Approve one amount no greater than the request, or reject it with a reason.
+3. After money is actually transferred, record the received amount, date, payment reference, and notes.
 
-### Sub-accounts
+Approval authorizes the transfer. Recording receipt is the event that adds a `FundReplenishment` inflow to the fund ledger. Partial receipts produce `PartiallyFunded`; the request becomes `Funded` after the approved amount has been received.
 
-The custodian keeps categories inside one float. A category's balance is the fund ledger filtered to
-that request line — funded in, spent out:
+At receipt time the system also prevents:
 
-```
-PettyCashFund.BalanceForRequestLine(lineId)
-  = Σ signed amounts of transactions carrying that line
+```text
+current fund balance + open employee advances + receipt
+    > authorized float
 ```
 
-There is no separate sub-ledger to reconcile against the main one. The request detail page shows
-`In sub-account` per line.
+## 5. Request, approve, and release an employee advance (`IOU`)
 
-### Moving an unused balance between categories
+### Request and approval
 
-Physical cash in the box does not by itself authorize spending from any category. If category A has
-20 left and category B has 200 left, a 220 expense that belongs to A must not be posted to B or make
-A negative. Use `Finance → Reallocate Category Balance` to request 200 from B to A.
+1. The requester creates an IOU with the employee, purpose, amount, expected settlement date, and job when applicable.
+2. The requester submits it.
+3. A reviewer creates or updates a `PCAB`, selects one fund and assigned approver, and adds eligible submitted IOUs.
+4. The assigned approver reviews the batch and may reduce approved amounts; an approved amount cannot exceed the requested amount.
+5. The reviewer forwards the returned batch to head office for final approval.
 
-The `PCRAL` starts as Draft, is submitted to head office, and reserves the source balance while it is
-pending. Approval posts `CategoryTransferOut` on B and `CategoryTransferIn` on A with the same
-document reference. The fund balance is unchanged; A becomes 220 and B becomes 0. Pending returns
-and pending reallocations are deducted from availability, so the same balance cannot be promised
-twice. Rejected and cancelled reallocations post nothing.
+An IOU cannot belong to two active batches. Batch approval does not add cash to a category and does not need a category-funded balance.
 
-If one bill genuinely contains costs belonging to two categories, allocate its lines by their real
-business purpose. Do not split a single-purpose expense merely to bypass the category control.
+### Release
 
----
+After head-office approval, the custodian releases each IOU from the selected fund. The custodian records the employee who physically collected the cash, the signed issue-slip number, and the release reference.
 
-## Part 2 — Getting money out of the float
+Release is blocked when applicable if:
 
-There are **two** ways, and choosing the right one is the whole of the discipline.
+- the fund does not have enough cash;
+- the amount exceeds the fund's advance limit;
+- the employee has an overdue unsettled advance and the fund blocks overdue advances;
+- the job's actual petty-cash expenses plus open advance commitments would exceed its authorization.
 
-### 2a. Advance against a written request — `Finance → Petty Cash Advances (IOU) → + New IOU`
+Cash release creates an `IouRelease` outflow and an employee accountability. It does not create a job expense. The former “issue directly” route is retired and returns HTTP `410 Gone`.
 
-The classic flow. Someone asks, the accountant groups received requests into one approval batch,
-cash is received into the chosen fund and released, and each holder settles their own IOU later.
+## 6. Record bills, receipt evidence, and returned cash
 
-#### Accountant approval batch (`PCAB`)
+Open the released IOU and account for it using bills and cash returns.
 
-The accountant opens **Petty Cash Advances (IOU)**, selects one active fund, an assigned approver,
-and one or more IOUs in `Submitted` status. The batch shows one total and a line-by-line breakdown of
-job number, system IOU number, requester, description, requested amount and approved amount.
+### Bill requirements
 
-The assigned approver may reduce each line (including zero for one line) and approves the whole
-batch once. The accountant is notified, submits the same batch to head office, and head office
-approves or rejects it as one document. Approval alone does not change the fund balance.
+Each bill becomes an expense-voucher line and records:
 
-When the approved remittance physically arrives, the accountant records its bank/remittance
-reference on the batch. This posts `HeadOfficeIouFunding` **In** for every approved line and raises
-the selected fund by the approved batch total. Only then can a batched IOU be released. Release
-records the collecting employee, the IOU's job number, and the signed slip number from the IOU book;
-it posts `IouRelease` **Out**.
+- description and amount;
+- an active posting Expense account;
+- job and/or cost centre as applicable;
+- billable-to-customer flag;
+- receipt reference;
+- a receipt file attached to that exact line.
 
-```
-funding received from head office (+ approved batch total)
-  → signed IOU cash release (- released amount)
-  → unused cash returned at settlement (+ returned amount)
-```
+Line evidence is stored against the voucher line (`SEC-LINE`), not only as a general IOU attachment.
 
-Receiving and releasing are separate real-world events and are never netted in one action. Older
-unbatched approved IOUs remain releasable for continuity; new multi-request work should use a batch.
+### Missing receipt
 
-```
-Draft ─submit─► Submitted ─approve─► Approved ─release─► Released
-                    │                                        │
-                    └─reject─► Rejected                    settle
-                                                             ▼
-                                                          Settled ─approve settlement─► SettlementApproved
-```
+If a receipt is genuinely unavailable:
 
-There is no second “Record IOU Slip” creation route. Job staff raise the request because they know
-the expected job expense. After approval, the assistant accountant clicks **Release Cash** on that
-same IOU and must record:
+1. Mark that specific line as missing receipt.
+2. Enter the reason.
+3. Obtain approval from a user with `Finance.PettyCash.ReceiptExceptionApprove` while the voucher is still Draft.
 
-- the funded **Job Wise** category for the same job;
-- the company staff member physically collecting the cash; and
-- the number on the signed physical IOU slip.
+The claimant cannot approve their own missing-receipt exception. A normal line without its receipt reference and line attachment cannot pass submission.
 
-The selected category determines the fund. Release is refused when the category belongs to another
-job or fund, is not Job Wise, is inactive, or has less available than the advance. Release posts
-`IouRelease` **Out**. The generated `IOU…` number remains the system request number and the signed
-slip number is stored alongside it as the physical handover evidence.
+### Returned cash
 
-### 2b. Direct payment — expense voucher
+Record every cash-return instalment against the IOU. Each return adds an `IouSettlement` inflow to the same fund and reduces the employee's outstanding amount.
 
-Money paid for something already bought — a taxi, a courier. Nobody is left accountable, so this is
-not an advance at all. Record it as an **expense voucher**, because there is no employee-held
-balance to return later.
+## 7. Settle and approve an IOU
 
-- The **bill / receipt number is mandatory**. It is the entire support for the payment.
-- The job order is **optional**. Transportation and emergency spend belong to no job; that is
-  overhead and it never enters job costing.
-- After saving you land on the voucher, which is where the bill image itself is attached.
+Normal settlement uses this equality:
 
-Use **Not job related (overhead)** for taxis, workshop supplies, emergency operation and similar
-general costs. Do not create permanent fake workshop jobs: overhead vouchers are intentionally
-excluded from job profitability.
-
----
-
-## Part 3 — Vouchers (`SEC`)
-
-An expense voucher records money spent. It is the **only** document that reaches job cost.
-
-**Funding source** answers *who gets repaid and from where* — not whether cash was advanced:
-
-| Funding source | Meaning |
-| --- | --- |
-| Out of Pocket | the claimant used their own money; repaid by payment type |
-| Petty Cash Fund | repaid out of the cash box; a fund is mandatory at settlement |
-
-**Status flow** (`ServiceExpenseClaim.cs`):
-
-```
-Draft ─submit─► Submitted ─approve─► Approved ─settle─► Settled
-                    │
-                    └─reject─► Rejected
+```text
+released cash = accepted expense bills + returned cash
 ```
 
-Only a Draft can be edited. Settling a petty-cash voucher posts `ExpenseSettlement` **Out**, tagged
-with the funded category if one was chosen.
+The custodian can settle only when the amount is fully explained, unless a separately authorized shortage exception has been approved. Head office then reviews the expense classifications, evidence, cash returns, and job/cost impact before approving the settlement. `Settlement Approved` is the final closed state.
 
-**Optional links, and what each buys you:**
+### Exact shortage exception
 
-- **Job order** — omit for overhead. Present means the spend reaches that job's cost.
-- **IOU advance** — says this voucher documents money from that advance. Only petty-cash vouchers
-  may link, and only to an advance on the same job that has actually been released.
-- **Funded category** — charges the spend to that sub-account. Only petty-cash vouchers may link,
-  only to a category that has money released, and a Job Wise category only accepts vouchers on its
-  own job.
+If money or support remains unexplained:
 
-**Attachments:** vouchers support them (`referenceType="SEC"`). Attach the bill on the voucher's
-detail page.
+1. Attach the explanation/evidence to the IOU.
+2. Enter the exception reason.
+3. A different higher-level user with the receipt-exception permission approves the exact unaccounted amount.
 
----
+The system requires the fund's shortage Expense account and cost centre. It creates a linked, approved, non-billable `SEC` voucher for exactly the shortage and links it back to the IOU. The exception cannot be posted twice.
 
-## Part 4 — Settlement
+This is an exception path, not a way to round or force settlements to zero.
 
-### Settling an advance
+## 8. Record a petty-cash expense voucher (`SEC`)
 
-The holder returns unspent cash and produces bills. Search the IOU list by the physical IOU number,
-open that advance, and do everything from its detail page:
+Use **Service → Expense Vouchers** when a purchase has already happened. Use an IOU when cash is needed before the purchase.
 
-1. Add each bill amount. The system creates and maintains the hidden draft expense voucher linked to
-   the IOU, so the custodian does not raise a second voucher separately.
-2. Record returned cash whenever it comes back. Partial returns and bills accumulate against the same
-   IOU number.
-3. Click **Settle / Account** once the holder has finished. The system calculates spent as
-   `advance − total returned`; there is no amount-spent field to enter.
-4. Clicking **Settle / Account** submits and approves the hidden voucher immediately, so its
-   job-linked lines enter actual job cost and become available as billable charges. Head-office
-   **Approve Settlement** confirms and closes the IOU; it does not post a second expense or payment.
+1. Create the voucher and select `Petty Cash Fund` or `Out of Pocket` as its funding source.
+2. Select the job when the expense belongs to a job; otherwise provide the relevant cost centre for petty-cash overhead.
+3. Add every line with its Expense account, receipt reference, line receipt attachment, and billable flag.
+4. Resolve and independently approve any missing-receipt lines before submission.
+5. Submit, approve, and settle the voucher through its controlled workflow.
 
-Each return posts `IouSettlement` **In** and credits the category from which that advance was released.
-The IOU remains open for adding bills and returns until head office approves the settlement.
+The previous immediate “pay and post” endpoint is retired and returns HTTP `410 Gone`. A petty-cash category/request line supplied by an old client is rejected for new vouchers.
 
-### Overspend
+## 9. Job-level spending control
 
-If someone spends more than they were advanced, that excess is **their own money** — it is an
-**out-of-pocket voucher**, not part of the advance. An out-of-pocket voucher deliberately cannot be
-linked to a funded category, because counting it there would make an overspent advance look
-reconciled. The system also refuses a settled amount greater than the advance.
+On the service-job Overview tab, management can set **Petty-cash authorization**. At head-office IOU approval, the system compares:
 
-### The reconciliation figures
-
-Shown per advance on the IOU list:
-
-| Column | Meaning |
-| --- | --- |
-| Advanced | what was handed over |
-| Settled | what the holder spent: advance − returned |
-| Returned | total cash returned in one or more instalments |
-| Claimed | total of vouchers linked to this advance (rejected ones excluded) |
-| **Unaccounted** | settled − claimed |
-
-**Unaccounted is the number that matters.** It is cash declared as spent with no bill behind it. It
-has left the company and it will never reach job cost. It shows in amber when non-zero. Settlement
-warns but does not block — the decision stays with finance.
-
----
-
-## Part 5 — What reaches job cost
-
-```
-TotalActualCost = netMaterialCost + directPurchaseCost + approvedLaborCost + approvedExpenseClaimCost
+```text
+approved petty-cash expense already charged to the job
++ open/released advance commitments for the job
++ proposed approval
 ```
 
-- **Advances never appear.** There is no IOU term. An advance is a cash position, not a cost.
-- **Vouchers appear** when `Approved` or `Settled`, regardless of funding source — the job consumed
-  the goods either way. Rejected and Draft vouchers do not.
-- **Overhead never appears.** A voucher with no job cannot match any job's costing query.
-- **Linking a voucher to an advance does not double count.** Costing reads vouchers only; the link
-  is for reconciliation.
+against that job authorization. This limit controls spending directly; it does not reserve or move physical fund cash.
 
-Settled vouchers stay in cost. Settlement is a cash event, not a cost reversal — otherwise a job's
-cost would fall as you reimburse people.
+## 10. Cash counts and reminders (`PCCC`)
 
-Billable voucher lines appear in the service handover's **Bill what the job actually used** builder.
-If a handover already created a draft sales invoice before a late IOU was settled, the builder stays
-available and adds only newly selected, not-yet-invoiced charges to that draft. Posted invoices stay
-immutable.
+The fund page calculates open advances and supported vouchers. The counter enters physical cash and records a cash count containing snapshots of:
 
----
+```text
+accountability = physical cash + outstanding advances + supported vouchers
+variance       = accountability - authorized float
+```
 
-## Part 6 — Permissions
+The count starts as `Submitted`. A different user with cash-count approval permission must approve or reject it; the person who counted cannot approve their own count. An approval updates the last-count time and calculates the next due time from the fund frequency.
 
-| Key | Grants |
-| --- | --- |
-| `Finance.PettyCashFund.*` | View / Create / Edit / TopUp / Adjust the box |
-| `Finance.PettyCashRequest.View/Create/Edit/Submit` | the site accountant's side |
-| `Finance.PettyCashRequest.Approve/Reject/Fund` | head office's side |
-| `Finance.PettyCashIou.Create/Submit` | asking for an advance |
-| `Finance.PettyCashIou.Review` | accountant batch preparation and head-office submission |
-| `Finance.PettyCashIou.AssignedApprove` | broad assigned-approval grant; named batch assignment is also checked per record |
-| `Finance.PettyCashIou.Approve/Reject/Release/Settle` | head-office decision, funding receipt/cash handover, accounting |
-| `Finance.PettyCashReturn.View/Create/Submit/Cancel` | prepare and submit reconciled unused float |
-| `Finance.PettyCashReturn.Receive/Reject` | head office's cash-count and receipt decision |
-| `Service.ExpenseClaim.*` | vouchers, including `Settle` which is what direct payment is gated on |
+The hosted reminder service checks active funds for due or overdue counts and sends notifications to users who can record or approve counts. A restart does not remove the stored due date.
 
-The Finance role gets the whole petty cash set by default, both sides of the request. Narrowing a
-specific user to only raise requests, or only approve them, is done with **per-user permission
-overrides** rather than by inventing a role.
+## 11. Return cash to head office (`PCRTN`)
 
-Two deliberate choices worth knowing:
+1. Reconcile the fund and confirm the cash is physically available.
+2. Create one fund-level return with the amount, preparer, notes, and evidence.
+3. Submit it.
+4. Head office counts the cash and records the receipt/deposit reference, or rejects it with a reason.
 
-- **Issuing cash is gated on `Release`, not `Create`** — issuing is releasing, whatever route it
-  took.
-- **Direct payment is gated on `ExpenseClaim.Settle`, not `Create`** — it is paying money out, not
-  filing a claim.
+Receipt creates one `FundReturn` outflow from the fund ledger. It does not reverse a job cost or expense category. New returns do not contain category lines.
 
----
+## 12. Permissions and segregation
 
-## Part 7 — Worked example
+Petty cash uses separate permissions for viewing, creating, editing, submitting, reviewing, assigned approval, head-office approval, rejection, release, settlement, receipt exceptions, fund maintenance, replenishment, return, and cash-count review.
 
-Site accountant needs money for a week.
+The built-in Finance role is not automatically granted the entire petty-cash permission set. Assign only the permissions required for the person's duty. The important enforced separations are:
 
-1. **Request** `PCR000001` against fund `001`, four lines: Job Wise on `SJ000014` 5000, Emergency
-   3000, Transportation 2000, Custom "Site refreshments" 1000. Total 11000. Submit → head office is
-   notified.
-2. **Approve**: 4000 / 3000 / 2000 / **0**. The refreshments line is declined. Approved total 9000.
-3. **Fund**: one transfer `TRF-9981` covers job and emergency, funded as two separate releases of
-   4000 and 3000; transport is funded 1000 now and 1000 later on `TRF-9982`. Request reaches
-   `Funded`. The float rises by 9000; sub-accounts hold 4000 / 3000 / 2000 / 0.
-4. **Issue** 1500 to a technician on the spot against signed slip `BILL-4471`, charged to the Job
-   Wise category. Their IOU is `Released`; the job sub-account falls to 2500.
-5. **Pay** a 650 taxi fare with nobody named, receipt `RCP-2291`, charged to Transportation, no job.
-   A settled overhead voucher; transport sub-account falls to 1350. The bill is attached to it.
-6. **Settle** the technician's advance: they spent 1200 and return 300. The box rises 300. They
-   produce a voucher for 1200 linked to the advance, so Claimed 1200 against Settled 1200 and
-   Unaccounted is 0.
-7. **Head office approves** the settlement. The advance closes at `SettlementApproved`.
-8. **Job cost** for `SJ000014` picks up the 1200 voucher. It does not pick up the 1500 advance — that
-   was never a cost — and it does not pick up the 650 taxi, which is overhead.
+- assigned approver versus reviewer/head-office workflow;
+- claimant versus missing-receipt approver;
+- cash counter versus cash-count approver;
+- custodian cash release versus later head-office settlement approval.
 
----
+All documents use the shared audit, attachment, notification, and reference-number infrastructure. Submitted or approved records are state-controlled rather than silently rewritten.
 
-## Part 8 — Returning unused money to head office
+## 13. Legacy records
 
-Use **Finance → Return Money to Head Office**. This is not an IOU return: an IOU return moves cash
-from an employee back into the site float; a `PCRTN` moves reconciled cash from the site float back
-to head office.
+Historical category-based PCR lines, PCRTN lines, PCRAL reallocations, category-linked ledger movements, and old directly issued IOUs remain readable for audit and data integrity.
 
-1. Select the petty cash fund. The page lists each original funded request category with its ledger
-   balance, any amount already reserved on another submitted return, and its open-IOU count.
-2. Select one or more category lines and enter the amount being returned from each. The suggested
-   amount is the full balance, but a partial return is allowed.
-3. Add the cash-count/reconciliation notes and prepare the return. Comments and deposit slips, cash
-   count sheets, or other evidence can be attached to the `PCRTN` detail page.
-4. Submit. Submission is refused if a selected category still has a released IOU or an IOU whose
-   settlement is waiting for head-office approval. Submitted amounts are reserved, so the system
-   will not issue or settle another payment from that reserved category balance.
-5. Head office physically counts the cash. It either rejects the document with a reason, or enters
-   the mandatory receipt/deposit reference and confirms receipt.
-6. Only receipt confirmation posts `HeadOfficeReturn` outflow rows. Each row carries the original
-   `PettyCashRequestLineId`, so both the fund balance and every selected category balance fall by
-   the same amount. A rejection or draft cancellation never changes the ledger.
+They are not the current process:
 
-The accounting identity is therefore: **funded into category − advances/vouchers + employee cash
-returns − confirmed head-office returns = current category balance**. A head-office return is an
-asset/custody transfer, not an expense, and never enters job cost.
+- new PCRs are fund-level;
+- new PCRTNs are fund-level;
+- category reallocations are disabled;
+- category-linked voucher creation is rejected;
+- direct IOU issue is disabled;
+- immediate pay-and-post is disabled.
 
-### Control rationale and external references
+Do not use historical screens or data shapes as guidance for a new transaction.
 
-This workflow is an internal-control design, not a claim about a particular country's tax law. It
-uses the recurring controls in established guidance:
+## 14. Worked examples
 
-- the US IRS accountable-plan guidance requires expenses to be substantiated and excess advances
-  to be returned within a reasonable period: <https://www.irs.gov/publications/p463>;
-- Cornell requires receipts/detailed records, periodic reconciliation, and supervisor review:
-  <https://finance.cornell.edu/accounting/topics/pettycash>;
-- Stanford calls for reconciliation before decreasing a fund, reviewer verification, signatures,
-  and retained evidence: <https://fingate.stanford.edu/business-travel-expenses/how-to/reconcile-petty-cash-fund>;
-- the University of Colorado's fund-closure procedure counts the fund, resolves variances, deposits
-  the cash, and uses a validated cash receipt before releasing the custodian's responsibility:
-  <https://www.colorado.edu/controller/policies/cash-control/petty-cash-fund>.
+### Example A — requested replenishment
 
-Those controls are represented here by the IOU gate, category-level reconciliation, separate
-submit/receive permissions, mandatory receipt reference, attachments/comments, immutable received
-document, and a ledger posting only after physical receipt.
+An authorized float is LKR 100,000. Physical cash is LKR 25,000 and open advances are LKR 15,000. Supported expenses are LKR 60,000.
 
----
+The custodian requests LKR 60,000. The request-time ceiling check is:
 
-## Not built, and deliberately so
+```text
+25,000 cash + 15,000 advances + 60,000 request = 100,000
+```
 
-**A department / cost-centre dimension.** SAP would put ongoing overhead on a permanent cost centre
-and take the month from the posting date. C-Com instead creates a job order named "Workshop
-Expenses" each month, which forces the period into the object's identity: master data grows twelve
-rows a year, year-on-year comparison means summing twelve objects, and the job register fills with
-things that are not jobs — including in job-costing reports.
+The request is within the float. The LKR 60,000 supported-expense figure explains the need; it is not added to the ceiling formula because those vouchers represent cash already spent.
 
-Making a voucher's job optional removes the *need* for those fake jobs. A standing Department list
-would be the rest of the fix and is a small table plus one dropdown, but it was left out because the
-IOU slip already records Location/Dept on paper.
+### Example B — normal IOU settlement
 
-**A chart of accounts.** `LedgerAccounts` exists in the schema but is empty and unused — head office
-keeps the real accounts in QuickBooks. Expense categories here are reference labels that map to
-those accounts, not a posting chart.
+An employee receives LKR 20,000. Accepted bills total LKR 16,500 and the employee returns LKR 3,500.
 
-## Known gaps
+```text
+20,000 released = 16,500 expenses + 3,500 returned cash
+```
 
-- **Advances cannot carry attachments.** `IOU` is not an attachable document type and has no detail
-  page, so the signed slip is recorded by number but cannot be attached as an image. Vouchers can.
-- **Nothing forces a settlement to be documented.** Unaccounted is surfaced, not enforced. This was
-  a deliberate choice — the alternative blocks settlement until vouchers exist.
-- **Sub-account balances can go negative** if spending is charged to a category beyond what was
-  funded. The fund's own balance is protected; the category's is not.
+The IOU can be settled. LKR 16,500 reaches expense/job cost; the LKR 20,000 release itself is not an expense.
+
+### Example C — documented shortage
+
+An employee receives LKR 20,000, supplies valid bills for LKR 18,000, and returns LKR 1,500. The unaccounted amount is LKR 500.
+
+After evidence and independent approval, the system creates one linked LKR 500 shortage voucher using the configured shortage Expense account and cost centre. It does not post an arbitrary amount.
+
+### Example D — cash-count variance
+
+The authorized float is LKR 100,000. The count records LKR 30,000 cash, LKR 20,000 open advances, and LKR 49,000 supported vouchers.
+
+```text
+accountability = 30,000 + 20,000 + 49,000 = 99,000
+variance       = 99,000 - 100,000 = -1,000
+```
+
+The count stays Submitted until an independent reviewer approves or rejects the LKR 1,000 shortage.
+
+## 15. Implementation map for maintainers
+
+Backend workflow entry points:
+
+- `PettyCashFundsController` — fund controls, ledger, and cash counts;
+- `PettyCashRequestsController` — fund replenishment;
+- `PettyCashIouApprovalBatchesController` and `PettyCashIousController` — advance approval, release, and settlement;
+- `PettyCashReturnsController` — fund returns;
+- `ServiceExpenseClaimsController` — expense vouchers, line evidence, and missing-receipt approval.
+
+Core rules are in `FinanceService`, `ServiceManagementService`, and the finance/service domain entities. The two migrations completing this version are:
+
+```text
+20260823075344_PettyCashV2FundReplenishment
+20260823114447_CompletePettyCashPrdSuggestions
+```
+
+User-facing guidance is also available at `/help/petty-cash`. If code behavior and this document diverge, treat that as a defect and update both in the same change.

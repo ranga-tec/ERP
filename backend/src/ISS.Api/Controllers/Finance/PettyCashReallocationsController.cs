@@ -20,6 +20,8 @@ public sealed class PettyCashReallocationsController(
     AccessControlService accessControl,
     NotificationService notificationService) : ControllerBase
 {
+    private static bool CategoryReallocationsEnabled => false;
+
     public sealed record CreateReallocationRequest(
         Guid PettyCashFundId,
         Guid SourcePettyCashRequestLineId,
@@ -290,6 +292,12 @@ public sealed class PettyCashReallocationsController(
         CancellationToken cancellationToken)
     {
         if (!await HasPermissionAsync(AppPermissions.PettyCashReallocationCreate, cancellationToken)) return Forbid();
+        if (!CategoryReallocationsEnabled)
+        {
+            return StatusCode(
+                StatusCodes.Status410Gone,
+                new { message = "Category reallocations are retired in petty-cash V2. Historical reallocations remain available read-only." });
+        }
 
         var requestedByName = string.IsNullOrWhiteSpace(request.RequestedByName)
             ? User.Identity?.Name ?? "Unknown user"
@@ -310,6 +318,7 @@ public sealed class PettyCashReallocationsController(
     public async Task<ActionResult> Submit(Guid id, CancellationToken cancellationToken)
     {
         if (!await HasPermissionAsync(AppPermissions.PettyCashReallocationSubmit, cancellationToken)) return Forbid();
+        if (!CategoryReallocationsEnabled) return StatusCode(StatusCodes.Status410Gone, new { message = "Category reallocations are retired in petty-cash V2." });
         await financeService.SubmitPettyCashReallocationAsync(id, cancellationToken);
         await NotifyHeadOfficeAsync(id, cancellationToken);
         return NoContent();
@@ -319,6 +328,7 @@ public sealed class PettyCashReallocationsController(
     public async Task<ActionResult> Approve(Guid id, CancellationToken cancellationToken)
     {
         if (!await HasPermissionAsync(AppPermissions.PettyCashReallocationApprove, cancellationToken)) return Forbid();
+        if (!CategoryReallocationsEnabled) return StatusCode(StatusCodes.Status410Gone, new { message = "Category reallocations are retired in petty-cash V2." });
         await financeService.ApprovePettyCashReallocationAsync(id, currentUser.UserId ?? Guid.Empty, cancellationToken);
         await NotifyRequesterAsync(
             id,
@@ -335,6 +345,7 @@ public sealed class PettyCashReallocationsController(
         CancellationToken cancellationToken)
     {
         if (!await HasPermissionAsync(AppPermissions.PettyCashReallocationReject, cancellationToken)) return Forbid();
+        if (!CategoryReallocationsEnabled) return StatusCode(StatusCodes.Status410Gone, new { message = "Category reallocations are retired in petty-cash V2." });
         await financeService.RejectPettyCashReallocationAsync(
             id,
             currentUser.UserId ?? Guid.Empty,
@@ -352,6 +363,7 @@ public sealed class PettyCashReallocationsController(
     public async Task<ActionResult> Cancel(Guid id, CancellationToken cancellationToken)
     {
         if (!await HasPermissionAsync(AppPermissions.PettyCashReallocationCancel, cancellationToken)) return Forbid();
+        if (!CategoryReallocationsEnabled) return StatusCode(StatusCodes.Status410Gone, new { message = "Category reallocations are retired in petty-cash V2." });
         await financeService.CancelPettyCashReallocationAsync(id, cancellationToken);
         return NoContent();
     }

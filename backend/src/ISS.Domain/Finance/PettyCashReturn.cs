@@ -20,6 +20,21 @@ public sealed class PettyCashReturn : AuditableEntity
 {
     private PettyCashReturn() { }
 
+    /// <summary>Creates a V2 fund-level return. No expense category is altered by this custody transfer.</summary>
+    public PettyCashReturn(
+        string number,
+        Guid pettyCashFundId,
+        Guid preparedByUserId,
+        string preparedByName,
+        DateTimeOffset preparedAt,
+        decimal amount,
+        string? notes)
+        : this(number, pettyCashFundId, preparedByUserId, preparedByName, preparedAt, notes)
+    {
+        FundLevelAmount = Guard.Positive(amount, nameof(amount));
+        IsLegacyCategoryReturn = false;
+    }
+
     public PettyCashReturn(
         string number,
         Guid pettyCashFundId,
@@ -38,6 +53,7 @@ public sealed class PettyCashReturn : AuditableEntity
         PreparedByName = Guard.NotNullOrWhiteSpace(preparedByName, nameof(preparedByName), maxLength: 256);
         PreparedAt = preparedAt;
         Notes = NormalizeOptional(notes, nameof(notes), 1000);
+        IsLegacyCategoryReturn = true;
         Status = PettyCashReturnStatus.Draft;
     }
 
@@ -56,9 +72,11 @@ public sealed class PettyCashReturn : AuditableEntity
     public Guid? RejectedByUserId { get; private set; }
     public string? RejectionReason { get; private set; }
     public DateTimeOffset? CancelledAt { get; private set; }
+    public bool IsLegacyCategoryReturn { get; private set; }
+    public decimal FundLevelAmount { get; private set; }
 
     public List<PettyCashReturnLine> Lines { get; private set; } = new();
-    public decimal TotalAmount => Lines.Sum(x => x.Amount);
+    public decimal TotalAmount => IsLegacyCategoryReturn ? Lines.Sum(x => x.Amount) : FundLevelAmount;
 
     public PettyCashReturnLine AddLine(Guid pettyCashRequestLineId, decimal amount)
     {
@@ -76,7 +94,7 @@ public sealed class PettyCashReturn : AuditableEntity
     public void Submit(DateTimeOffset submittedAt)
     {
         EnsureDraft();
-        if (Lines.Count == 0)
+        if (IsLegacyCategoryReturn && Lines.Count == 0)
         {
             throw new DomainValidationException("Select at least one funded category to return.");
         }

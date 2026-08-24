@@ -22,11 +22,37 @@ public sealed class FinanceService(
         decimal? openingBalance,
         DateTimeOffset? openedAt,
         string? openingReferenceNumber,
+        string? location,
+        decimal authorizedFloat,
+        decimal transactionLimit,
+        decimal advanceLimit,
+        bool requireReceipt,
+        bool blockOverdueAdvances,
+        Guid? settlementShortageExpenseAccountId,
+        string? settlementShortageCostCenterCode,
+        PettyCashCashCountFrequency cashCountFrequency,
+        DateTimeOffset? nextCashCountDueAt,
         CancellationToken cancellationToken = default)
     {
         await EnsureCurrencyIsActiveAsync(currencyCode, cancellationToken);
+        await EnsurePostingExpenseAccountAsync(settlementShortageExpenseAccountId, cancellationToken);
 
-        var fund = new PettyCashFund(code, name, currencyCode, custodianName, notes);
+        var fund = new PettyCashFund(
+            code,
+            name,
+            currencyCode,
+            custodianName,
+            notes,
+            location,
+            authorizedFloat,
+            transactionLimit,
+            advanceLimit,
+            requireReceipt,
+            blockOverdueAdvances,
+            settlementShortageExpenseAccountId,
+            settlementShortageCostCenterCode,
+            cashCountFrequency,
+            nextCashCountDueAt);
         await dbContext.PettyCashFunds.AddAsync(fund, cancellationToken);
 
         if (openingBalance is { } requestedOpeningBalance)
@@ -34,6 +60,11 @@ public sealed class FinanceService(
             Guard.NotNegative(requestedOpeningBalance, nameof(openingBalance));
             if (requestedOpeningBalance > 0m)
             {
+                if (authorizedFloat > 0m && requestedOpeningBalance > authorizedFloat)
+                {
+                    throw new DomainValidationException("Opening balance cannot exceed the authorized float.");
+                }
+
                 var openingTransaction = fund.AddOpeningBalance(
                     requestedOpeningBalance,
                     openedAt ?? clock.UtcNow,
@@ -55,6 +86,16 @@ public sealed class FinanceService(
         string? custodianName,
         string? notes,
         bool isActive,
+        string? location,
+        decimal authorizedFloat,
+        decimal transactionLimit,
+        decimal advanceLimit,
+        bool requireReceipt,
+        bool blockOverdueAdvances,
+        Guid? settlementShortageExpenseAccountId,
+        string? settlementShortageCostCenterCode,
+        PettyCashCashCountFrequency cashCountFrequency,
+        DateTimeOffset? nextCashCountDueAt,
         CancellationToken cancellationToken = default)
     {
         var fund = await dbContext.PettyCashFunds
@@ -62,6 +103,7 @@ public sealed class FinanceService(
             ?? throw new NotFoundException("Petty cash fund not found.");
 
         await EnsureCurrencyIsActiveAsync(currencyCode, cancellationToken);
+        await EnsurePostingExpenseAccountAsync(settlementShortageExpenseAccountId, cancellationToken);
         var normalizedCurrencyCode = currencyCode.Trim().ToUpperInvariant();
         if (!string.Equals(fund.CurrencyCode, normalizedCurrencyCode, StringComparison.Ordinal)
             && await dbContext.PettyCashTransactions.AsNoTracking()
@@ -71,7 +113,93 @@ public sealed class FinanceService(
                 "A petty cash fund's currency cannot be changed after its first transaction.");
         }
 
-        fund.Update(code, name, currencyCode, custodianName, notes, isActive);
+        fund.Update(
+            code,
+            name,
+            currencyCode,
+            custodianName,
+            notes,
+            isActive,
+            location,
+            authorizedFloat,
+            transactionLimit,
+            advanceLimit,
+            requireReceipt,
+            blockOverdueAdvances,
+            settlementShortageExpenseAccountId,
+            settlementShortageCostCenterCode,
+            cashCountFrequency,
+            nextCashCountDueAt);
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task<Guid> CreatePettyCashCashCountAsync(
+        Guid pettyCashFundId,
+        DateTimeOffset? countedAt,
+        Guid countedByUserId,
+        string countedByName,
+        decimal physicalCash,
+        decimal supportedExpenseVouchers,
+        string? notes,
+        CancellationToken cancellationToken = default)
+    {
+        var fund = await dbContext.PettyCashFunds.AsNoTracking()
+            .FirstOrDefaultAsync(x => x.Id == pettyCashFundId, cancellationToken)
+            ?? throw new NotFoundException("Petty cash fund not found.");
+
+        var outstandingAdvances = await dbContext.PettyCashIous.AsNoTracking()
+            .Where(x => x.PettyCashFundId == pettyCashFundId
+                        && x.Status != PettyCashIouStatus.Cancelled
+                        && x.Status != PettyCashIouStatus.Rejected)
+            .SumAsync(x => x.ReleasedAmount - x.ReturnedAmount, cancellationToken);
+        var number = await documentNumberService.NextAsync(
+            ReferenceTypes.PettyCashCashCount,
+            "PCCC",
+            cancellationToken);
+        var cashCount = new PettyCashCashCount(
+            number,
+            pettyCashFundId,
+            countedAt ?? clock.UtcNow,
+            countedByUserId,
+            countedByName,
+            physicalCash,
+            outstandingAdvances,
+            supportedExpenseVouchers,
+            fund.AuthorizedFloat,
+            notes);
+
+        await dbContext.PettyCashCashCounts.AddAsync(cashCount, cancellationToken);
+        await dbContext.SaveChangesAsync(cancellationToken);
+        return cashCount.Id;
+    }
+
+    public async Task ApprovePettyCashCashCountAsync(
+        Guid cashCountId,
+        Guid approvedByUserId,
+        CancellationToken cancellationToken = default)
+    {
+        var cashCount = await dbContext.PettyCashCashCounts
+            .FirstOrDefaultAsync(x => x.Id == cashCountId, cancellationToken)
+            ?? throw new NotFoundException("Petty cash cash count not found.");
+        var fund = await dbContext.PettyCashFunds
+            .FirstOrDefaultAsync(x => x.Id == cashCount.PettyCashFundId, cancellationToken)
+            ?? throw new NotFoundException("Petty cash fund not found.");
+
+        cashCount.Approve(approvedByUserId, clock.UtcNow);
+        fund.MarkCashCountApproved(cashCount.CountedAt);
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task RejectPettyCashCashCountAsync(
+        Guid cashCountId,
+        Guid rejectedByUserId,
+        string reason,
+        CancellationToken cancellationToken = default)
+    {
+        var cashCount = await dbContext.PettyCashCashCounts
+            .FirstOrDefaultAsync(x => x.Id == cashCountId, cancellationToken)
+            ?? throw new NotFoundException("Petty cash cash count not found.");
+        cashCount.Reject(rejectedByUserId, clock.UtcNow, reason);
         await dbContext.SaveChangesAsync(cancellationToken);
     }
 
@@ -225,19 +353,34 @@ public sealed class FinanceService(
         Guid pettyCashFundId,
         Guid requestedByUserId,
         string requestedByName,
+        decimal requestedAmount,
+        decimal cashOnHand,
+        decimal outstandingAdvances,
+        decimal reconciledExpenses,
         DateTimeOffset? neededByAt,
         string? notes,
         CancellationToken cancellationToken = default)
     {
         var fund = await dbContext.PettyCashFunds.AsNoTracking()
             .Where(x => x.Id == pettyCashFundId)
-            .Select(x => new { x.Id, x.IsActive })
+            .Select(x => new { x.Id, x.IsActive, x.AuthorizedFloat })
             .FirstOrDefaultAsync(cancellationToken)
             ?? throw new NotFoundException("Petty cash fund not found.");
 
         if (!fund.IsActive)
         {
             throw new DomainValidationException("Inactive petty cash funds cannot receive new requests.");
+        }
+
+        Guard.Positive(requestedAmount, nameof(requestedAmount));
+        Guard.NotNegative(cashOnHand, nameof(cashOnHand));
+        Guard.NotNegative(outstandingAdvances, nameof(outstandingAdvances));
+        Guard.NotNegative(reconciledExpenses, nameof(reconciledExpenses));
+        if (fund.AuthorizedFloat > 0m
+            && cashOnHand + outstandingAdvances + requestedAmount > fund.AuthorizedFloat)
+        {
+            throw new DomainValidationException(
+                $"The requested replenishment would exceed the authorized float of {fund.AuthorizedFloat:0.00}.");
         }
 
         var number = await documentNumberService.NextAsync(ReferenceTypes.PettyCashRequest, "PCR", cancellationToken);
@@ -248,6 +391,10 @@ public sealed class FinanceService(
             requestedByName,
             clock.UtcNow,
             neededByAt,
+            requestedAmount,
+            cashOnHand,
+            outstandingAdvances,
+            reconciledExpenses,
             notes);
 
         await dbContext.PettyCashRequests.AddAsync(request, cancellationToken);
@@ -257,12 +404,22 @@ public sealed class FinanceService(
 
     public async Task UpdatePettyCashRequestHeaderAsync(
         Guid requestId,
+        decimal requestedAmount,
+        decimal cashOnHand,
+        decimal outstandingAdvances,
+        decimal reconciledExpenses,
         DateTimeOffset? neededByAt,
         string? notes,
         CancellationToken cancellationToken = default)
     {
         var request = await LoadPettyCashRequestAsync(requestId, cancellationToken);
-        request.UpdateHeader(neededByAt, notes);
+        request.UpdateReplenishment(
+            requestedAmount,
+            cashOnHand,
+            outstandingAdvances,
+            reconciledExpenses,
+            neededByAt,
+            notes);
         await dbContext.SaveChangesAsync(cancellationToken);
     }
 
@@ -318,11 +475,11 @@ public sealed class FinanceService(
     public async Task ApprovePettyCashRequestAsync(
         Guid requestId,
         Guid approvedByUserId,
-        IReadOnlyDictionary<Guid, decimal> approvedAmountsByLineId,
+        decimal approvedAmount,
         CancellationToken cancellationToken = default)
     {
         var request = await LoadPettyCashRequestAsync(requestId, cancellationToken);
-        request.Approve(approvedByUserId, clock.UtcNow, approvedAmountsByLineId);
+        request.ApproveReplenishment(approvedByUserId, clock.UtcNow, approvedAmount);
         await dbContext.SaveChangesAsync(cancellationToken);
     }
 
@@ -379,22 +536,60 @@ public sealed class FinanceService(
         await dbContext.SaveChangesAsync(cancellationToken);
     }
 
+    /// <summary>Records one receipt against a V2 fund-level replenishment request.</summary>
+    public async Task FundPettyCashReplenishmentAsync(
+        Guid requestId,
+        decimal amount,
+        DateTimeOffset? fundedAt,
+        string paymentReference,
+        string? notes,
+        CancellationToken cancellationToken = default)
+    {
+        var request = await LoadPettyCashRequestAsync(requestId, cancellationToken);
+        if (request.IsLegacyCategoryRequest)
+        {
+            throw new DomainValidationException("Historical category requests cannot receive V2 replenishment entries.");
+        }
+
+        var fund = await dbContext.PettyCashFunds
+            .Include(x => x.Transactions)
+            .FirstOrDefaultAsync(x => x.Id == request.PettyCashFundId, cancellationToken)
+            ?? throw new NotFoundException("Petty cash fund not found.");
+
+        var outstandingEmployeeAdvances = await dbContext.PettyCashIous.AsNoTracking()
+            .Where(x => x.PettyCashFundId == fund.Id && x.Status == PettyCashIouStatus.Released)
+            .SumAsync(x => x.ReleasedAmount - x.ReturnedAmount, cancellationToken);
+        if (fund.AuthorizedFloat > 0m
+            && fund.Balance + outstandingEmployeeAdvances + amount > fund.AuthorizedFloat)
+        {
+            throw new DomainValidationException(
+                $"This receipt would make fund accountability exceed the authorized float of {fund.AuthorizedFloat:0.00}.");
+        }
+
+        request.RecordReplenishment(amount);
+        var transaction = fund.RecordFundReplenishment(
+            amount,
+            fundedAt ?? clock.UtcNow,
+            request.Id,
+            paymentReference,
+            notes);
+        dbContext.DbContext.Add(transaction);
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
     public async Task<Guid> CreatePettyCashReturnAsync(
         Guid pettyCashFundId,
         Guid preparedByUserId,
         string preparedByName,
+        decimal amount,
         string? notes,
-        IReadOnlyDictionary<Guid, decimal> amountsByRequestLineId,
         CancellationToken cancellationToken = default)
     {
-        if (amountsByRequestLineId.Count == 0)
-        {
-            throw new DomainValidationException("Select at least one funded category to return.");
-        }
+        Guard.Positive(amount, nameof(amount));
 
         var fund = await dbContext.PettyCashFunds.AsNoTracking()
             .Where(x => x.Id == pettyCashFundId)
-            .Select(x => new { x.Id, x.IsActive })
+            .Select(x => new { x.Id, x.IsActive, x.AuthorizedFloat })
             .FirstOrDefaultAsync(cancellationToken)
             ?? throw new NotFoundException("Petty cash fund not found.");
 
@@ -410,12 +605,8 @@ public sealed class FinanceService(
             preparedByUserId,
             preparedByName,
             clock.UtcNow,
+            amount,
             notes);
-
-        foreach (var (lineId, amount) in amountsByRequestLineId)
-        {
-            pettyCashReturn.AddLine(lineId, amount);
-        }
 
         await dbContext.PettyCashReturns.AddAsync(pettyCashReturn, cancellationToken);
         await ValidatePettyCashReturnAsync(pettyCashReturn, requireReconciledIous: false, cancellationToken);
@@ -449,16 +640,29 @@ public sealed class FinanceService(
         var occurredAt = receivedAt ?? clock.UtcNow;
         pettyCashReturn.ConfirmReceived(receivedByUserId, occurredAt, receiptReference);
 
-        foreach (var line in pettyCashReturn.Lines)
+        if (!pettyCashReturn.IsLegacyCategoryReturn)
         {
-            var transaction = fund.RecordHeadOfficeReturn(
-                line.Amount,
+            var transaction = fund.RecordFundReturn(
+                pettyCashReturn.TotalAmount,
                 occurredAt,
                 pettyCashReturn.Id,
-                line.PettyCashRequestLineId,
                 pettyCashReturn.ReceiptReference!,
-                $"Unused petty cash returned to head office on {pettyCashReturn.Number}.");
+                $"Reconciled petty cash returned to head office on {pettyCashReturn.Number}.");
             dbContext.DbContext.Add(transaction);
+        }
+        else
+        {
+            foreach (var line in pettyCashReturn.Lines)
+            {
+                var transaction = fund.RecordHeadOfficeReturn(
+                    line.Amount,
+                    occurredAt,
+                    pettyCashReturn.Id,
+                    line.PettyCashRequestLineId,
+                    pettyCashReturn.ReceiptReference!,
+                    $"Unused petty cash returned to head office on {pettyCashReturn.Number}.");
+                dbContext.DbContext.Add(transaction);
+            }
         }
 
         await dbContext.SaveChangesAsync(cancellationToken);
@@ -494,7 +698,7 @@ public sealed class FinanceService(
     {
         var fund = await dbContext.PettyCashFunds.AsNoTracking()
             .Where(x => x.Id == pettyCashFundId)
-            .Select(x => new { x.Id, x.IsActive })
+            .Select(x => new { x.Id, x.IsActive, x.AuthorizedFloat })
             .FirstOrDefaultAsync(cancellationToken)
             ?? throw new NotFoundException("Petty cash fund not found.");
 
@@ -664,6 +868,26 @@ public sealed class FinanceService(
         bool requireReconciledIous,
         CancellationToken cancellationToken)
     {
+        if (!pettyCashReturn.IsLegacyCategoryReturn)
+        {
+            var fundBalance = await dbContext.PettyCashTransactions.AsNoTracking()
+                .Where(x => x.PettyCashFundId == pettyCashReturn.PettyCashFundId)
+                .SumAsync(x => x.Direction == PettyCashTransactionDirection.In ? x.Amount : -x.Amount, cancellationToken);
+            var reservedReturns = await dbContext.PettyCashReturns.AsNoTracking()
+                .Where(x => x.Id != pettyCashReturn.Id
+                            && !x.IsLegacyCategoryReturn
+                            && x.Status == PettyCashReturnStatus.Submitted)
+                .SumAsync(x => x.FundLevelAmount, cancellationToken);
+            var available = fundBalance - reservedReturns;
+            if (pettyCashReturn.TotalAmount > available)
+            {
+                throw new DomainValidationException(
+                    $"The fund has only {available:0.00} available after pending returns; {pettyCashReturn.TotalAmount:0.00} cannot be returned.");
+            }
+
+            return;
+        }
+
         var lineIds = pettyCashReturn.Lines.Select(x => x.PettyCashRequestLineId).Distinct().ToList();
         if (lineIds.Count != pettyCashReturn.Lines.Count)
         {
@@ -825,9 +1049,9 @@ public sealed class FinanceService(
             throw new DomainValidationException("Select at least one received petty cash advance request.");
         }
 
-        var fundExists = await dbContext.PettyCashFunds.AsNoTracking()
-            .AnyAsync(x => x.Id == pettyCashFundId && x.IsActive, cancellationToken);
-        if (!fundExists)
+        var fund = await dbContext.PettyCashFunds.AsNoTracking()
+            .FirstOrDefaultAsync(x => x.Id == pettyCashFundId && x.IsActive, cancellationToken);
+        if (fund is null)
         {
             throw new DomainValidationException("Select an active petty cash fund.");
         }
@@ -855,6 +1079,28 @@ public sealed class FinanceService(
         if (ious.Any(x => x.RequestedByUserId == assignedApproverUserId))
         {
             throw new DomainValidationException("The assigned approver cannot approve their own IOU.");
+        }
+
+        if (fund.AdvanceLimit > 0m && ious.Any(x => x.Amount > fund.AdvanceLimit))
+        {
+            throw new DomainValidationException(
+                $"One or more IOUs exceed the fund's configured advance limit of {fund.AdvanceLimit:0.00}.");
+        }
+
+        if (fund.BlockOverdueAdvances)
+        {
+            var requesterIds = ious.Select(x => x.RequestedByUserId).Distinct().ToList();
+            var hasOverdueAdvance = await dbContext.PettyCashIous.AsNoTracking()
+                .AnyAsync(x => requesterIds.Contains(x.RequestedByUserId)
+                               && x.Status == PettyCashIouStatus.Released
+                               && x.ExpectedSettlementAt != null
+                               && x.ExpectedSettlementAt < clock.UtcNow,
+                    cancellationToken);
+            if (hasOverdueAdvance)
+            {
+                throw new DomainValidationException(
+                    "One or more requesters have an overdue unsettled petty cash advance. Settle it before approving another advance.");
+            }
         }
 
         var number = await documentNumberService.NextAsync("PCAB", "PCAB", cancellationToken);
@@ -947,6 +1193,9 @@ public sealed class FinanceService(
         var iouIds = batch.Lines.Select(x => x.PettyCashIouId).ToList();
         var ious = await dbContext.PettyCashIous.Where(x => iouIds.Contains(x.Id)).ToListAsync(cancellationToken);
 
+        await EnsureJobPettyCashSpendingLimitsAsync(
+            ious.Where(x => x.Status == PettyCashIouStatus.AwaitingHeadOfficeApproval).ToList(),
+            cancellationToken);
         batch.ApproveHeadOffice(approvedByUserId, clock.UtcNow);
         foreach (var iou in ious.Where(x => x.Status == PettyCashIouStatus.AwaitingHeadOfficeApproval))
         {
@@ -954,6 +1203,64 @@ public sealed class FinanceService(
         }
 
         await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    private async Task EnsureJobPettyCashSpendingLimitsAsync(
+        IReadOnlyCollection<PettyCashIou> selectedIous,
+        CancellationToken cancellationToken)
+    {
+        var selectedWithJobs = selectedIous.Where(iou => iou.ServiceJobId is not null).ToList();
+        var jobIds = selectedWithJobs.Select(iou => iou.ServiceJobId!.Value).Distinct().ToList();
+        if (jobIds.Count == 0) return;
+
+        var limits = await dbContext.ServiceJobs.AsNoTracking()
+            .Where(job => jobIds.Contains(job.Id) && job.PettyCashSpendingLimit > 0m)
+            .Select(job => new { job.Id, job.Number, job.PettyCashSpendingLimit })
+            .ToListAsync(cancellationToken);
+        if (limits.Count == 0) return;
+
+        var limitedJobIds = limits.Select(limit => limit.Id).ToList();
+        var actuals = await dbContext.ServiceExpenseClaims.AsNoTracking()
+            .Where(claim => claim.ServiceJobId != null
+                            && limitedJobIds.Contains(claim.ServiceJobId.Value)
+                            && claim.FundingSource == ServiceExpenseFundingSource.PettyCash
+                            && claim.Status != ServiceExpenseClaimStatus.Rejected)
+            .GroupBy(claim => claim.ServiceJobId!.Value)
+            .Select(group => new { JobId = group.Key, Amount = group.Sum(claim => claim.Lines.Sum(line => line.Quantity * line.UnitCost)) })
+            .ToDictionaryAsync(row => row.JobId, row => row.Amount, cancellationToken);
+
+        var selectedIds = selectedIous.Select(iou => iou.Id).ToList();
+        var otherOpenIous = await dbContext.PettyCashIous.AsNoTracking()
+            .Where(iou => iou.ServiceJobId != null
+                          && limitedJobIds.Contains(iou.ServiceJobId.Value)
+                          && !selectedIds.Contains(iou.Id)
+                          && (iou.Status == PettyCashIouStatus.Approved
+                              || iou.Status == PettyCashIouStatus.Released
+                              || iou.Status == PettyCashIouStatus.Settled))
+            .ToListAsync(cancellationToken);
+        var otherIds = otherOpenIous.Select(iou => iou.Id).ToList();
+        var claimedByIou = await dbContext.ServiceExpenseClaims.AsNoTracking()
+            .Where(claim => claim.PettyCashIouId != null
+                            && otherIds.Contains(claim.PettyCashIouId.Value)
+                            && claim.Status != ServiceExpenseClaimStatus.Rejected)
+            .GroupBy(claim => claim.PettyCashIouId!.Value)
+            .Select(group => new { IouId = group.Key, Amount = group.Sum(claim => claim.Lines.Sum(line => line.Quantity * line.UnitCost)) })
+            .ToDictionaryAsync(row => row.IouId, row => row.Amount, cancellationToken);
+
+        foreach (var limit in limits)
+        {
+            var actual = actuals.GetValueOrDefault(limit.Id);
+            var existingCommitment = otherOpenIous
+                .Where(iou => iou.ServiceJobId == limit.Id)
+                .Sum(iou => Math.Max(0m, iou.Amount - iou.ReturnedAmount - claimedByIou.GetValueOrDefault(iou.Id)));
+            var newCommitment = selectedWithJobs.Where(iou => iou.ServiceJobId == limit.Id).Sum(iou => iou.Amount);
+            var projected = actual + existingCommitment + newCommitment;
+            if (projected > limit.PettyCashSpendingLimit)
+            {
+                throw new DomainValidationException(
+                    $"Job {limit.Number} petty-cash authorization is {limit.PettyCashSpendingLimit:0.00}; actual plus committed spending would be {projected:0.00}.");
+            }
+        }
     }
 
     public async Task ReceivePettyCashIouBatchFundingAsync(
@@ -1038,6 +1345,7 @@ public sealed class FinanceService(
         await EnsureIouIsNotInApprovalBatchAsync(iouId, cancellationToken);
         var iou = await dbContext.PettyCashIous.FirstOrDefaultAsync(x => x.Id == iouId, cancellationToken)
                   ?? throw new NotFoundException("Petty cash IOU not found.");
+        await EnsureJobPettyCashSpendingLimitsAsync([iou], cancellationToken);
         iou.Approve(approvedByUserId, clock.UtcNow);
         await dbContext.SaveChangesAsync(cancellationToken);
     }
@@ -1091,6 +1399,24 @@ public sealed class FinanceService(
             .Include(x => x.Transactions)
             .FirstOrDefaultAsync(x => x.Id == pettyCashFundId, cancellationToken)
             ?? throw new NotFoundException("Petty cash fund not found.");
+        if (fund.AdvanceLimit > 0m && iou.Amount > fund.AdvanceLimit)
+        {
+            throw new DomainValidationException(
+                $"This advance is {iou.Amount:0.00}, above the fund advance limit of {fund.AdvanceLimit:0.00}.");
+        }
+        if (fund.BlockOverdueAdvances && await dbContext.PettyCashIous.AsNoTracking().AnyAsync(
+                other => other.Id != iouId
+                         && (other.IssuedToUserId == issuedToUserId
+                             || (other.IssuedToUserId == null && other.RequestedByUserId == issuedToUserId))
+                         && other.ExpectedSettlementAt != null
+                         && other.ExpectedSettlementAt < clock.UtcNow
+                         && (other.Status == PettyCashIouStatus.Released || other.Status == PettyCashIouStatus.Settled)
+                         && other.ReleasedAmount - other.ReturnedAmount > 0m,
+                cancellationToken))
+        {
+            throw new DomainValidationException(
+                $"{issuedToName} has an overdue unsettled advance, so this fund cannot release another one.");
+        }
 
         var approvalBatch = await (
                 from line in dbContext.PettyCashIouApprovalBatchLines.AsNoTracking()
@@ -1100,11 +1426,12 @@ public sealed class FinanceService(
                 select new { batch.PettyCashFundId, batch.Status })
             .FirstOrDefaultAsync(cancellationToken);
         if (approvalBatch is not null
-            && (approvalBatch.Status != PettyCashIouApprovalBatchStatus.FundingReceived
+            && (approvalBatch.Status is not (PettyCashIouApprovalBatchStatus.Approved
+                    or PettyCashIouApprovalBatchStatus.FundingReceived)
                 || approvalBatch.PettyCashFundId != pettyCashFundId))
         {
             throw new DomainValidationException(
-                "Head-office funding for this IOU batch must be received into its selected fund before cash is released.");
+                "This IOU batch must be approved for the selected fund before cash is released.");
         }
 
         iou.Release(
@@ -1220,8 +1547,28 @@ public sealed class FinanceService(
         decimal amount,
         bool billableToCustomer,
         string? receiptReference,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        Guid? expenseAccountId = null,
+        bool missingReceipt = false,
+        string? missingReceiptReason = null)
     {
+        if (!missingReceipt)
+        {
+            Guard.NotNullOrWhiteSpace(receiptReference, nameof(receiptReference), maxLength: 128);
+        }
+        else
+        {
+            Guard.NotNullOrWhiteSpace(missingReceiptReason, nameof(missingReceiptReason), maxLength: 1000);
+        }
+        if (expenseAccountId is null || !await dbContext.LedgerAccounts.AsNoTracking().AnyAsync(
+                account => account.Id == expenseAccountId.Value
+                           && account.AccountType == LedgerAccountType.Expense
+                           && account.IsActive
+                           && account.AllowsPosting,
+                cancellationToken))
+        {
+            throw new DomainValidationException("Select an active posting expense account for this bill.");
+        }
         await using var accountingTransaction = await dbContext.DbContext.Database
             .BeginTransactionAsync(cancellationToken);
         var iou = await LockPettyCashIouForAccountingAsync(iouId, cancellationToken);
@@ -1265,17 +1612,17 @@ public sealed class FinanceService(
             await dbContext.ServiceExpenseClaims.AddAsync(claim, cancellationToken);
         }
 
-        var line = claim.AddLine(null, description, 1m, amount, billableToCustomer);
+        var line = claim.AddLine(
+            null,
+            description,
+            1m,
+            amount,
+            billableToCustomer,
+            expenseAccountId,
+            receiptReference,
+            missingReceipt,
+            missingReceiptReason);
         dbContext.DbContext.Add(line);
-
-        // Settlement is the point at which the custodian confirms the spend against the job.
-        // Bills added during the short period before head-office sign-off must therefore enter
-        // job costing immediately as well, instead of remaining hidden in a draft voucher.
-        if (iou.Status == PettyCashIouStatus.Settled)
-        {
-            claim.Submit(clock.UtcNow);
-            claim.Approve(clock.UtcNow);
-        }
 
         await dbContext.SaveChangesAsync(cancellationToken);
         await accountingTransaction.CommitAsync(cancellationToken);
@@ -1453,6 +1800,94 @@ public sealed class FinanceService(
     /// Closes the accounting on an advance. No amount is passed: what was spent is the advance less
     /// what came back, and the bills behind it are the vouchers already linked to this record.
     /// </summary>
+    public async Task ApprovePettyCashIouSettlementExceptionAsync(
+        Guid iouId,
+        Guid approvedByUserId,
+        string reason,
+        CancellationToken cancellationToken = default)
+    {
+        var iou = await dbContext.PettyCashIous.FirstOrDefaultAsync(x => x.Id == iouId, cancellationToken)
+                  ?? throw new NotFoundException("Petty cash IOU not found.");
+        var claimedAmount = await GetPettyCashIouClaimedAmountAsync(iouId, cancellationToken);
+        var unaccountedAmount = iou.OutstandingAmount - claimedAmount;
+        if (unaccountedAmount <= 0m)
+        {
+            throw new DomainValidationException("This IOU has no unexplained balance requiring an exception.");
+        }
+
+        if (iou.SettlementExceptionExpenseClaimId is not null)
+        {
+            throw new DomainValidationException("This IOU already has a posted settlement-shortage exception.");
+        }
+
+        var pettyCashFundId = iou.PettyCashFundId
+                              ?? throw new DomainValidationException("This advance was never released from a petty cash fund.");
+        var fund = await dbContext.PettyCashFunds.AsNoTracking()
+            .FirstOrDefaultAsync(x => x.Id == pettyCashFundId, cancellationToken)
+            ?? throw new NotFoundException("Petty cash fund not found.");
+        var shortageExpenseAccountId = fund.SettlementShortageExpenseAccountId
+                                       ?? throw new DomainValidationException(
+                                           "Configure a settlement-shortage expense account on this petty cash fund before approving an exception.");
+        if (string.IsNullOrWhiteSpace(fund.SettlementShortageCostCenterCode))
+        {
+            throw new DomainValidationException(
+                "Configure a settlement-shortage cost centre on this petty cash fund before approving an exception.");
+        }
+        await EnsurePostingExpenseAccountAsync(shortageExpenseAccountId, cancellationToken);
+
+        var hasExplanationAttachment = await dbContext.DocumentAttachments.AsNoTracking()
+            .AnyAsync(
+                attachment => attachment.ReferenceType == ReferenceTypes.PettyCashIou
+                              && attachment.ReferenceId == iouId,
+                cancellationToken);
+        if (!hasExplanationAttachment)
+        {
+            throw new DomainValidationException(
+                "Attach the shortage or missing-receipt explanation to the IOU before approving the exception.");
+        }
+
+        var voucherNumber = await documentNumberService.NextAsync(
+            ReferenceTypes.ServiceExpenseClaim,
+            "SEC",
+            cancellationToken);
+        var shortageVoucher = new ServiceExpenseClaim(
+            voucherNumber,
+            serviceJobId: null,
+            iou.IssuedToUserId ?? iou.RequestedByUserId,
+            iou.IssuedToName ?? iou.RequestedByName,
+            ServiceExpenseFundingSource.PettyCash,
+            clock.UtcNow,
+            merchantName: null,
+            receiptReference: null,
+            notes: $"Approved settlement shortage for {iou.Number}: {reason.Trim()}",
+            serviceJobDailySheetId: null,
+            pettyCashIouId: iou.Id,
+            pettyCashRequestLineId: null,
+            costCenterCode: fund.SettlementShortageCostCenterCode);
+        var shortageLine = shortageVoucher.AddLine(
+            itemId: null,
+            description: $"Settlement shortage / missing support - {iou.Number}",
+            quantity: 1m,
+            unitCost: unaccountedAmount,
+            billableToCustomer: false,
+            expenseAccountId: shortageExpenseAccountId,
+            receiptReference: null,
+            missingReceipt: true,
+            missingReceiptReason: reason);
+        shortageLine.ApproveMissingReceipt(approvedByUserId, clock.UtcNow);
+        shortageVoucher.Submit(clock.UtcNow);
+        shortageVoucher.Approve(clock.UtcNow);
+        await dbContext.ServiceExpenseClaims.AddAsync(shortageVoucher, cancellationToken);
+
+        iou.ApproveSettlementException(
+            unaccountedAmount,
+            reason,
+            approvedByUserId,
+            clock.UtcNow,
+            shortageVoucher.Id);
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
     public async Task SettlePettyCashIouAsync(
         Guid iouId,
         string? settlementReference,
@@ -1461,10 +1896,23 @@ public sealed class FinanceService(
         var iou = await dbContext.PettyCashIous.FirstOrDefaultAsync(x => x.Id == iouId, cancellationToken)
                   ?? throw new NotFoundException("Petty cash IOU not found.");
 
+        var claimedAmount = await GetPettyCashIouClaimedAmountAsync(iouId, cancellationToken);
+        var unaccountedAmount = iou.OutstandingAmount - claimedAmount;
+        if (unaccountedAmount > 0m && iou.SettlementExceptionAmount != unaccountedAmount)
+        {
+            throw new DomainValidationException(
+                $"Settlement is blocked: {unaccountedAmount:0.00} is not covered by accepted bills or returned cash. Record the missing support, return the cash, or obtain a settlement exception approval.");
+        }
+
         iou.Settle(clock.UtcNow, settlementReference);
         await ApproveDraftPettyCashIouClaimsAsync(iouId, cancellationToken);
         await dbContext.SaveChangesAsync(cancellationToken);
     }
+
+    private async Task<decimal> GetPettyCashIouClaimedAmountAsync(Guid iouId, CancellationToken cancellationToken)
+        => await dbContext.ServiceExpenseClaims.AsNoTracking()
+            .Where(x => x.PettyCashIouId == iouId && x.Status != ServiceExpenseClaimStatus.Rejected)
+            .SumAsync(x => x.Lines.Sum(line => line.Quantity * line.UnitCost), cancellationToken);
 
     private async Task ApproveDraftPettyCashIouClaimsAsync(Guid iouId, CancellationToken cancellationToken)
     {
@@ -1475,6 +1923,23 @@ public sealed class FinanceService(
 
         foreach (var claim in claims.Where(x => x.Lines.Count > 0))
         {
+            var receiptLineIds = claim.Lines
+                .Where(line => !line.MissingReceipt)
+                .Select(line => line.Id)
+                .ToArray();
+            var attachedLineIds = await dbContext.DocumentAttachments.AsNoTracking()
+                .Where(attachment => attachment.ReferenceType == ReferenceTypes.ServiceExpenseClaimLine
+                                     && receiptLineIds.Contains(attachment.ReferenceId))
+                .Select(attachment => attachment.ReferenceId)
+                .Distinct()
+                .ToListAsync(cancellationToken);
+            var missingAttachmentCount = receiptLineIds.Except(attachedLineIds).Count();
+            if (missingAttachmentCount > 0)
+            {
+                throw new DomainValidationException(
+                    $"{missingAttachmentCount} IOU expense line(s) still require a receipt attachment.");
+            }
+
             claim.Submit(clock.UtcNow);
             claim.Approve(clock.UtcNow);
         }
@@ -1782,6 +2247,25 @@ public sealed class FinanceService(
 
         var invoice = await dbContext.SalesInvoices.FirstOrDefaultAsync(x => x.Id == ar.ReferenceId, cancellationToken);
         invoice?.MarkPaid();
+    }
+
+    private async Task EnsurePostingExpenseAccountAsync(Guid? expenseAccountId, CancellationToken cancellationToken)
+    {
+        if (expenseAccountId is null)
+        {
+            return;
+        }
+
+        var valid = await dbContext.LedgerAccounts.AsNoTracking().AnyAsync(
+            account => account.Id == expenseAccountId.Value
+                       && account.AccountType == LedgerAccountType.Expense
+                       && account.IsActive
+                       && account.AllowsPosting,
+            cancellationToken);
+        if (!valid)
+        {
+            throw new DomainValidationException("Select an active posting expense account for settlement shortages.");
+        }
     }
 
     private async Task EnsureCurrencyIsActiveAsync(string currencyCode, CancellationToken cancellationToken)

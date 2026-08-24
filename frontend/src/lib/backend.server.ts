@@ -1,6 +1,17 @@
 import { cookies } from "next/headers";
 import { NEUEDGE_TOKEN_COOKIE, neuedgeApiBaseUrl } from "@/lib/env";
 
+export class BackendHttpError extends Error {
+  constructor(
+    public readonly status: number,
+    public readonly responseBody: string,
+    public readonly path: string,
+  ) {
+    super(`Backend ${status}: ${responseBody}`);
+    this.name = "BackendHttpError";
+  }
+}
+
 export async function backendFetchJson<T>(
   path: string,
   init?: RequestInit,
@@ -23,7 +34,7 @@ export async function backendFetchJson<T>(
 
   if (!resp.ok) {
     const text = await resp.text();
-    throw new Error(`Backend ${resp.status}: ${text}`);
+    throw new BackendHttpError(resp.status, text, path);
   }
 
   return (await resp.json()) as T;

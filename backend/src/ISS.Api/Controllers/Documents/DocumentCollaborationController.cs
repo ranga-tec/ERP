@@ -1,7 +1,9 @@
 using ISS.Api.Security;
 using ISS.Api.Files;
+using ISS.Application.Common;
 using ISS.Application.Persistence;
 using ISS.Domain.Documents;
+using ISS.Domain.Service;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -139,6 +141,12 @@ public sealed class DocumentCollaborationController(
     {
         var normalizedType = NormalizeReferenceType(referenceType);
 
+        var mutationError = await ValidateAttachmentMutationAsync(normalizedType, referenceId, cancellationToken);
+        if (mutationError is not null)
+        {
+            return mutationError;
+        }
+
         if (!AttachmentUploadPolicy.TryValidate(file, notes, out var validated, out var validationError))
         {
             return BadRequest(validationError);
@@ -249,6 +257,13 @@ public sealed class DocumentCollaborationController(
         CancellationToken cancellationToken)
     {
         var normalizedType = NormalizeReferenceType(referenceType);
+
+        var mutationError = await ValidateAttachmentMutationAsync(normalizedType, referenceId, cancellationToken);
+        if (mutationError is not null)
+        {
+            return mutationError;
+        }
+
         var attachment = await dbContext.DocumentAttachments
             .FirstOrDefaultAsync(x => x.Id == attachmentId && x.ReferenceType == normalizedType && x.ReferenceId == referenceId, cancellationToken);
 
@@ -282,6 +297,31 @@ public sealed class DocumentCollaborationController(
     }
 
     private static string NormalizeReferenceType(string referenceType) => DocumentComment.NormalizeReferenceType(referenceType);
+
+    private async Task<ActionResult?> ValidateAttachmentMutationAsync(
+        string referenceType,
+        Guid referenceId,
+        CancellationToken cancellationToken)
+    {
+        if (referenceType != ReferenceTypes.ServiceExpenseClaimLine)
+        {
+            return null;
+        }
+
+        var claimStatus = await dbContext.ServiceExpenseClaims.AsNoTracking()
+            .Where(claim => claim.Lines.Any(line => line.Id == referenceId))
+            .Select(claim => (ServiceExpenseClaimStatus?)claim.Status)
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (claimStatus is null)
+        {
+            return NotFound("Expense claim line was not found.");
+        }
+
+        return claimStatus == ServiceExpenseClaimStatus.Draft
+            ? null
+            : BadRequest("Receipt evidence cannot be changed after the expense claim is submitted.");
+    }
 
     private static DocumentCommentDto ToCommentDto(DocumentComment comment) =>
         new(

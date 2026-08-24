@@ -3,6 +3,7 @@ using System;
 using ISS.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace ISS.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(IssDbContext))]
-    partial class IssDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260823075344_PettyCashV2FundReplenishment")]
+    partial class PettyCashV2FundReplenishment
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -654,94 +657,6 @@ namespace ISS.Infrastructure.Persistence.Migrations
                     b.ToTable("PaymentAllocation");
                 });
 
-            modelBuilder.Entity("ISS.Domain.Finance.PettyCashCashCount", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTimeOffset?>("ApprovedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<Guid?>("ApprovedByUserId")
-                        .HasColumnType("uuid");
-
-                    b.Property<decimal>("AuthorizedFloatSnapshot")
-                        .HasPrecision(18, 4)
-                        .HasColumnType("numeric(18,4)");
-
-                    b.Property<DateTimeOffset>("CountedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("CountedByName")
-                        .IsRequired()
-                        .HasMaxLength(256)
-                        .HasColumnType("character varying(256)");
-
-                    b.Property<Guid>("CountedByUserId")
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTimeOffset>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<Guid?>("CreatedBy")
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTimeOffset?>("LastModifiedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<Guid?>("LastModifiedBy")
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("Notes")
-                        .HasMaxLength(1000)
-                        .HasColumnType("character varying(1000)");
-
-                    b.Property<string>("Number")
-                        .IsRequired()
-                        .HasMaxLength(32)
-                        .HasColumnType("character varying(32)");
-
-                    b.Property<decimal>("OutstandingAdvances")
-                        .HasPrecision(18, 4)
-                        .HasColumnType("numeric(18,4)");
-
-                    b.Property<Guid>("PettyCashFundId")
-                        .HasColumnType("uuid");
-
-                    b.Property<decimal>("PhysicalCash")
-                        .HasPrecision(18, 4)
-                        .HasColumnType("numeric(18,4)");
-
-                    b.Property<DateTimeOffset?>("RejectedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<Guid?>("RejectedByUserId")
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("RejectionReason")
-                        .HasMaxLength(1000)
-                        .HasColumnType("character varying(1000)");
-
-                    b.Property<int>("Status")
-                        .HasColumnType("integer");
-
-                    b.Property<decimal>("SupportedExpenseVouchers")
-                        .HasPrecision(18, 4)
-                        .HasColumnType("numeric(18,4)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("Number")
-                        .IsUnique();
-
-                    b.HasIndex("Status");
-
-                    b.HasIndex("PettyCashFundId", "CountedAt");
-
-                    b.ToTable("PettyCashCashCounts");
-                });
-
             modelBuilder.Entity("ISS.Domain.Finance.PettyCashFund", b =>
                 {
                     b.Property<Guid>("Id")
@@ -760,9 +675,6 @@ namespace ISS.Infrastructure.Persistence.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("boolean")
                         .HasDefaultValue(true);
-
-                    b.Property<int>("CashCountFrequency")
-                        .HasColumnType("integer");
 
                     b.Property<string>("Code")
                         .IsRequired()
@@ -787,9 +699,6 @@ namespace ISS.Infrastructure.Persistence.Migrations
                     b.Property<bool>("IsActive")
                         .HasColumnType("boolean");
 
-                    b.Property<DateTimeOffset?>("LastCashCountAt")
-                        .HasColumnType("timestamp with time zone");
-
                     b.Property<DateTimeOffset?>("LastModifiedAt")
                         .HasColumnType("timestamp with time zone");
 
@@ -805,9 +714,6 @@ namespace ISS.Infrastructure.Persistence.Migrations
                         .HasMaxLength(128)
                         .HasColumnType("character varying(128)");
 
-                    b.Property<DateTimeOffset?>("NextCashCountDueAt")
-                        .HasColumnType("timestamp with time zone");
-
                     b.Property<string>("Notes")
                         .HasMaxLength(512)
                         .HasColumnType("character varying(512)");
@@ -817,13 +723,6 @@ namespace ISS.Infrastructure.Persistence.Migrations
                         .HasColumnType("boolean")
                         .HasDefaultValue(true);
 
-                    b.Property<string>("SettlementShortageCostCenterCode")
-                        .HasMaxLength(64)
-                        .HasColumnType("character varying(64)");
-
-                    b.Property<Guid?>("SettlementShortageExpenseAccountId")
-                        .HasColumnType("uuid");
-
                     b.Property<decimal>("TransactionLimit")
                         .HasPrecision(18, 4)
                         .HasColumnType("numeric(18,4)");
@@ -832,8 +731,6 @@ namespace ISS.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("Code")
                         .IsUnique();
-
-                    b.HasIndex("SettlementShortageExpenseAccountId");
 
                     b.ToTable("PettyCashFunds");
                 });
@@ -984,9 +881,6 @@ namespace ISS.Infrastructure.Persistence.Migrations
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<Guid?>("SettlementExceptionApprovedByUserId")
-                        .HasColumnType("uuid");
-
-                    b.Property<Guid?>("SettlementExceptionExpenseClaimId")
                         .HasColumnType("uuid");
 
                     b.Property<string>("SettlementExceptionReason")
@@ -4730,26 +4624,9 @@ namespace ISS.Infrastructure.Persistence.Migrations
                     b.Property<Guid?>("ItemId")
                         .HasColumnType("uuid");
 
-                    b.Property<bool>("MissingReceipt")
-                        .HasColumnType("boolean");
-
-                    b.Property<DateTimeOffset?>("MissingReceiptApprovedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<Guid?>("MissingReceiptApprovedByUserId")
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("MissingReceiptReason")
-                        .HasMaxLength(1000)
-                        .HasColumnType("character varying(1000)");
-
                     b.Property<decimal>("Quantity")
                         .HasPrecision(18, 4)
                         .HasColumnType("numeric(18,4)");
-
-                    b.Property<string>("ReceiptReference")
-                        .HasMaxLength(128)
-                        .HasColumnType("character varying(128)");
 
                     b.Property<Guid?>("SalesInvoiceId")
                         .HasColumnType("uuid");
@@ -4924,10 +4801,6 @@ namespace ISS.Infrastructure.Persistence.Migrations
 
                     b.Property<DateTimeOffset>("OpenedAt")
                         .HasColumnType("timestamp with time zone");
-
-                    b.Property<decimal>("PettyCashSpendingLimit")
-                        .HasPrecision(18, 4)
-                        .HasColumnType("numeric(18,4)");
 
                     b.Property<string>("ProblemDescription")
                         .IsRequired()
@@ -5853,25 +5726,6 @@ namespace ISS.Infrastructure.Persistence.Migrations
                         .IsRequired();
                 });
 
-            modelBuilder.Entity("ISS.Domain.Finance.PettyCashCashCount", b =>
-                {
-                    b.HasOne("ISS.Domain.Finance.PettyCashFund", null)
-                        .WithMany("CashCounts")
-                        .HasForeignKey("PettyCashFundId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-                });
-
-            modelBuilder.Entity("ISS.Domain.Finance.PettyCashFund", b =>
-                {
-                    b.HasOne("ISS.Domain.Finance.LedgerAccount", "SettlementShortageExpenseAccount")
-                        .WithMany()
-                        .HasForeignKey("SettlementShortageExpenseAccountId")
-                        .OnDelete(DeleteBehavior.Restrict);
-
-                    b.Navigation("SettlementShortageExpenseAccount");
-                });
-
             modelBuilder.Entity("ISS.Domain.Finance.PettyCashIou", b =>
                 {
                     b.HasOne("ISS.Domain.Finance.PettyCashFund", null)
@@ -6710,8 +6564,6 @@ namespace ISS.Infrastructure.Persistence.Migrations
 
             modelBuilder.Entity("ISS.Domain.Finance.PettyCashFund", b =>
                 {
-                    b.Navigation("CashCounts");
-
                     b.Navigation("Transactions");
                 });
 

@@ -94,6 +94,8 @@ public sealed class ServiceJob : AuditableEntity
     public string? CustomerComplaint { get; private set; }
     public string? InternalRemarks { get; private set; }
     public string? ResponsibleOfficerName { get; private set; }
+    /// <summary>Optional job-level ceiling for petty-cash actuals plus open advance commitments. Zero means unset.</summary>
+    public decimal PettyCashSpendingLimit { get; private set; }
     public bool FinalInvoiceNotRequired { get; private set; }
     public string? FinalInvoiceNotRequiredReason { get; private set; }
     public Guid? ServiceContractId { get; private set; }
@@ -284,6 +286,11 @@ public sealed class ServiceJob : AuditableEntity
         CustomerComplaint = NormalizeOptional(customerComplaint, nameof(customerComplaint), 2000);
         InternalRemarks = NormalizeOptional(internalRemarks, nameof(internalRemarks), 2000);
         ResponsibleOfficerName = NormalizeOptional(responsibleOfficerName, nameof(responsibleOfficerName), 256);
+    }
+
+    public void SetPettyCashSpendingLimit(decimal amount)
+    {
+        PettyCashSpendingLimit = Guard.NotNegative(amount, nameof(amount));
     }
 
     private static string? NormalizeOptional(string? value, string paramName, int maxLength)

@@ -49,8 +49,8 @@ const statusLabel: Record<number, string> = {
   1: "With assigned approver",
   2: "Returned to accountant",
   3: "Awaiting head office",
-  4: "Approved - funding pending",
-  5: "Funding received",
+  4: "Approved - ready for release",
+  5: "Approved (legacy funding recorded)",
   6: "Rejected",
 };
 
@@ -76,7 +76,6 @@ export function PettyCashIouBatchPanel({
   const [fundId, setFundId] = useState("");
   const [approverId, setApproverId] = useState("");
   const [approvedAmounts, setApprovedAmounts] = useState<Record<string, string>>({});
-  const [fundingReferences, setFundingReferences] = useState<Record<string, string>>({});
   const [rejectReasons, setRejectReasons] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -182,7 +181,7 @@ export function PettyCashIouBatchPanel({
             {batch.status === 2 && batch.isReviewer ? <Button disabled={busy !== null} onClick={() => void run(`${batch.id}-head-office`, () => apiPostNoContent(`finance/petty-cash-iou-batches/${batch.id}/submit-head-office`, {}))}>Submit Batch to Head Office</Button> : null}
             {batch.status === 3 && permissionSet.has("Finance.PettyCashIou.Approve") ? <Button disabled={busy !== null} onClick={() => void run(`${batch.id}-approve`, () => apiPostNoContent(`finance/petty-cash-iou-batches/${batch.id}/approve`, {}))}>Head Office Approve Batch</Button> : null}
             {batch.status === 3 && permissionSet.has("Finance.PettyCashIou.Reject") ? <><Textarea className="min-h-9 w-64" placeholder="Rejection reason" value={rejectReasons[batch.id] ?? ""} onChange={(event) => setRejectReasons((current) => ({ ...current, [batch.id]: event.target.value }))} /><SecondaryButton disabled={busy !== null || !(rejectReasons[batch.id] ?? "").trim()} onClick={() => void run(`${batch.id}-reject`, () => apiPostNoContent(`finance/petty-cash-iou-batches/${batch.id}/reject`, { reason: rejectReasons[batch.id] }))}>Reject Batch</SecondaryButton></> : null}
-            {batch.status === 4 && batch.isReviewer && permissionSet.has("Finance.PettyCashIou.Release") ? <><Input className="w-64" placeholder="Head-office remittance / receipt reference" value={fundingReferences[batch.id] ?? ""} onChange={(event) => setFundingReferences((current) => ({ ...current, [batch.id]: event.target.value }))} /><Button disabled={busy !== null || !(fundingReferences[batch.id] ?? "").trim()} onClick={() => void run(`${batch.id}-receive`, () => apiPostNoContent(`finance/petty-cash-iou-batches/${batch.id}/receive-funding`, { fundingReference: (fundingReferences[batch.id] ?? "").trim() }))}>Record Funding Received</Button></> : null}
+            {batch.status === 4 ? <div className="text-sm text-emerald-700 dark:text-emerald-400">Approved IOUs may be released from the fund's available cash. Replenishment is managed separately.</div> : null}
           </div>
           {batch.fundingReference ? <div className="mt-2 text-xs text-zinc-500">Funding reference: {batch.fundingReference}</div> : null}
           {batch.rejectionReason ? <div className="mt-2 text-xs text-red-600">Rejected: {batch.rejectionReason}</div> : null}

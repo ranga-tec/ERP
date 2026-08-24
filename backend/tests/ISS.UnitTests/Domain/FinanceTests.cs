@@ -351,4 +351,112 @@ public sealed class FinanceTests
             "PCRAL0002",
             "No balance remains"));
     }
+
+    [Fact]
+    public void PettyCashV2_Replenishment_Is_Fund_Level_And_Supports_Partial_Funding()
+    {
+        var now = DateTimeOffset.UtcNow;
+        var request = new PettyCashRequest(
+            "PCR-V2-001",
+            Guid.NewGuid(),
+            Guid.NewGuid(),
+            "Workshop custodian",
+            now,
+            now.AddDays(1),
+            requestedAmount: 85000m,
+            cashOnHand: 46500m,
+            outstandingAdvances: 18500m,
+            reconciledExpenses: 85000m,
+            notes: "Weekly imprest reconciliation");
+
+        request.Submit(now);
+        request.ApproveReplenishment(Guid.NewGuid(), now, 80000m);
+        request.RecordReplenishment(30000m);
+
+        Assert.False(request.IsLegacyCategoryRequest);
+        Assert.Empty(request.Lines);
+        Assert.Equal(85000m, request.RequestedTotal);
+        Assert.Equal(80000m, request.ApprovedTotal);
+        Assert.Equal(30000m, request.FundedTotal);
+        Assert.Equal(50000m, request.OutstandingTotal);
+        Assert.Equal(PettyCashRequestStatus.PartiallyFunded, request.Status);
+
+        request.RecordReplenishment(50000m);
+        Assert.Equal(PettyCashRequestStatus.Funded, request.Status);
+    }
+
+    [Fact]
+    public void PettyCashV2_FundReturn_Does_Not_Require_Category_Lines()
+    {
+        var now = DateTimeOffset.UtcNow;
+        var fund = new PettyCashFund("SITE-V2", "Workshop float", "LKR", "Custodian", null);
+        fund.AddOpeningBalance(1000m, now, "OPEN-1", null);
+        var pettyCashReturn = new PettyCashReturn(
+            "PCRTN-V2-001",
+            fund.Id,
+            Guid.NewGuid(),
+            "Workshop custodian",
+            now,
+            amount: 250m,
+            notes: "Return excess cash");
+
+        pettyCashReturn.Submit(now);
+        var movement = fund.RecordFundReturn(250m, now, pettyCashReturn.Id, "DEP-200", null);
+        pettyCashReturn.ConfirmReceived(Guid.NewGuid(), now, "DEP-200");
+
+        Assert.False(pettyCashReturn.IsLegacyCategoryReturn);
+        Assert.Empty(pettyCashReturn.Lines);
+        Assert.Equal(PettyCashTransactionType.FundReturn, movement.Type);
+        Assert.Equal(750m, fund.Balance);
+    }
+
+    [Fact]
+    public void PettyCashV2_FundControls_Enforce_Direct_Transaction_Limit()
+    {
+        var now = DateTimeOffset.UtcNow;
+        var fund = new PettyCashFund(
+            "SITE-CONTROL",
+            "Controlled workshop float",
+            "LKR",
+            "Custodian",
+            null,
+            location: "Remote workshop",
+            authorizedFloat: 150000m,
+            transactionLimit: 5000m,
+            advanceLimit: 20000m,
+            requireReceipt: true,
+            blockOverdueAdvances: true);
+        fund.AddOpeningBalance(10000m, now, "OPEN-2", null);
+
+        Assert.Throws<DomainValidationException>(() =>
+            fund.RecordExpenseSettlement(5000.01m, now, Guid.NewGuid(), "R-1", null));
+        fund.RecordExpenseSettlement(5000m, now, Guid.NewGuid(), "R-2", null);
+
+        Assert.Equal("Remote workshop", fund.Location);
+        Assert.Equal(150000m, fund.AuthorizedFloat);
+        Assert.Equal(5000m, fund.Balance);
+    }
+
+    [Fact]
+    public void PettyCashIou_SettlementException_Stores_HigherLevel_Approval_Audit()
+    {
+        var now = DateTimeOffset.UtcNow;
+        var approverId = Guid.NewGuid();
+        var iou = PettyCashIou.IssueDirectly(
+            "IOU-EX-001",
+            null,
+            Guid.NewGuid(),
+            "Technician",
+            100m,
+            "Emergency supplies",
+            now,
+            Guid.NewGuid(),
+            null);
+
+        iou.ApproveSettlementException(25m, "Receipt destroyed; manager evidence attached.", approverId, now);
+
+        Assert.Equal(25m, iou.SettlementExceptionAmount);
+        Assert.Equal(approverId, iou.SettlementExceptionApprovedByUserId);
+        Assert.Equal(now, iou.SettlementExceptionApprovedAt);
+    }
 }

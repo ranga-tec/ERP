@@ -34,13 +34,17 @@ public sealed class ServiceExpenseClaim : AuditableEntity
         string? notes,
         Guid? serviceJobDailySheetId = null,
         Guid? pettyCashIouId = null,
-        Guid? pettyCashRequestLineId = null)
+        Guid? pettyCashRequestLineId = null,
+        string? costCenterCode = null)
     {
         Number = Guard.NotNullOrWhiteSpace(number, nameof(number), maxLength: 32);
         ServiceJobId = serviceJobId;
         ServiceJobDailySheetId = serviceJobDailySheetId;
         PettyCashIouId = pettyCashIouId;
         PettyCashRequestLineId = pettyCashRequestLineId;
+        CostCenterCode = string.IsNullOrWhiteSpace(costCenterCode)
+            ? null
+            : Guard.NotNullOrWhiteSpace(costCenterCode, nameof(costCenterCode), maxLength: 64).ToUpperInvariant();
         ClaimedByUserId = claimedByUserId;
         ClaimedByName = Guard.NotNullOrWhiteSpace(claimedByName, nameof(claimedByName), maxLength: 256);
         FundingSource = fundingSource;
@@ -75,7 +79,9 @@ public sealed class ServiceExpenseClaim : AuditableEntity
         string receiptReference,
         string? notes,
         Guid pettyCashFundId,
-        Guid? pettyCashRequestLineId)
+        Guid? pettyCashRequestLineId,
+        string? costCenterCode = null,
+        Guid? expenseAccountId = null)
     {
         var claim = new ServiceExpenseClaim(
             number,
@@ -89,10 +95,18 @@ public sealed class ServiceExpenseClaim : AuditableEntity
             notes,
             serviceJobDailySheetId: null,
             pettyCashIouId: null,
-            pettyCashRequestLineId);
+            pettyCashRequestLineId,
+            costCenterCode);
 
         // Added while still Draft, since AddLine refuses anything else.
-        claim.AddLine(null, description, 1m, Guard.Positive(amount, nameof(amount)), billableToCustomer);
+        claim.AddLine(
+            null,
+            description,
+            1m,
+            Guard.Positive(amount, nameof(amount)),
+            billableToCustomer,
+            expenseAccountId,
+            receiptReference);
 
         claim.Status = ServiceExpenseClaimStatus.Settled;
         claim.SubmittedAt = paidAt;
@@ -128,6 +142,7 @@ public sealed class ServiceExpenseClaim : AuditableEntity
     /// sub-account rather than the float as an undifferentiated whole.
     /// </summary>
     public Guid? PettyCashRequestLineId { get; private set; }
+    public string? CostCenterCode { get; private set; }
     public Guid? ClaimedByUserId { get; private set; }
     public string ClaimedByName { get; private set; } = null!;
     public ServiceExpenseFundingSource FundingSource { get; private set; }
@@ -153,7 +168,10 @@ public sealed class ServiceExpenseClaim : AuditableEntity
         decimal quantity,
         decimal unitCost,
         bool billableToCustomer,
-        Guid? expenseAccountId = null)
+        Guid? expenseAccountId = null,
+        string? receiptReference = null,
+        bool missingReceipt = false,
+        string? missingReceiptReason = null)
     {
         EnsureDraftEditable();
 
@@ -164,7 +182,10 @@ public sealed class ServiceExpenseClaim : AuditableEntity
             Guard.Positive(quantity, nameof(quantity)),
             Guard.NotNegative(unitCost, nameof(unitCost)),
             billableToCustomer,
-            expenseAccountId);
+            expenseAccountId,
+            receiptReference,
+            missingReceipt,
+            missingReceiptReason);
 
         Lines.Add(line);
         return line;
@@ -177,14 +198,26 @@ public sealed class ServiceExpenseClaim : AuditableEntity
         decimal quantity,
         decimal unitCost,
         bool billableToCustomer,
-        Guid? expenseAccountId = null)
+        Guid? expenseAccountId = null,
+        string? receiptReference = null,
+        bool missingReceipt = false,
+        string? missingReceiptReason = null)
     {
         EnsureDraftEditable();
 
         var line = Lines.FirstOrDefault(x => x.Id == lineId)
             ?? throw new DomainValidationException("Service expense claim line not found.");
 
-        line.Update(itemId, description, quantity, unitCost, billableToCustomer, expenseAccountId);
+        line.Update(
+            itemId,
+            description,
+            quantity,
+            unitCost,
+            billableToCustomer,
+            expenseAccountId,
+            receiptReference,
+            missingReceipt,
+            missingReceiptReason);
     }
 
     public void RemoveLine(Guid lineId)
@@ -226,6 +259,32 @@ public sealed class ServiceExpenseClaim : AuditableEntity
         if (Lines.Count == 0)
         {
             throw new DomainValidationException("Expense claim must have at least one line.");
+        }
+
+        if (Lines.Any(line => line.ExpenseAccountId is null))
+        {
+            throw new DomainValidationException("Every expense line requires an expense category/account before submission.");
+        }
+
+        if (FundingSource == ServiceExpenseFundingSource.PettyCash
+            && Lines.Any(line => !line.MissingReceipt && string.IsNullOrWhiteSpace(line.ReceiptReference)))
+        {
+            throw new DomainValidationException(
+                "Every petty-cash expense line requires its own receipt reference.");
+        }
+
+        if (FundingSource == ServiceExpenseFundingSource.PettyCash
+            && Lines.Any(line => line.MissingReceipt && line.MissingReceiptApprovedAt is null))
+        {
+            throw new DomainValidationException(
+                "Every missing-receipt expense line requires higher-level approval before submission.");
+        }
+
+        if (FundingSource == ServiceExpenseFundingSource.PettyCash
+            && ServiceJobId is null
+            && string.IsNullOrWhiteSpace(CostCenterCode))
+        {
+            throw new DomainValidationException("A cost centre is required for non-job petty cash expenditure.");
         }
 
         Status = ServiceExpenseClaimStatus.Submitted;
@@ -300,7 +359,10 @@ public sealed class ServiceExpenseClaimLine : Entity
         decimal quantity,
         decimal unitCost,
         bool billableToCustomer,
-        Guid? expenseAccountId = null)
+        Guid? expenseAccountId = null,
+        string? receiptReference = null,
+        bool missingReceipt = false,
+        string? missingReceiptReason = null)
     {
         ServiceExpenseClaimId = serviceExpenseClaimId;
         ItemId = itemId;
@@ -309,6 +371,7 @@ public sealed class ServiceExpenseClaimLine : Entity
         UnitCost = unitCost;
         BillableToCustomer = billableToCustomer;
         ExpenseAccountId = expenseAccountId;
+        SetReceiptEvidence(receiptReference, missingReceipt, missingReceiptReason);
     }
 
     public Guid ServiceExpenseClaimId { get; private set; }
@@ -319,6 +382,11 @@ public sealed class ServiceExpenseClaimLine : Entity
     public bool BillableToCustomer { get; private set; }
     public Guid? ExpenseAccountId { get; private set; }
     public LedgerAccount? ExpenseAccount { get; private set; }
+    public string? ReceiptReference { get; private set; }
+    public bool MissingReceipt { get; private set; }
+    public string? MissingReceiptReason { get; private set; }
+    public DateTimeOffset? MissingReceiptApprovedAt { get; private set; }
+    public Guid? MissingReceiptApprovedByUserId { get; private set; }
     public Guid? ConvertedToServiceEstimateId { get; private set; }
     public Guid? ConvertedToServiceEstimateLineId { get; private set; }
     public DateTimeOffset? ConvertedToEstimateAt { get; private set; }
@@ -351,7 +419,10 @@ public sealed class ServiceExpenseClaimLine : Entity
         decimal quantity,
         decimal unitCost,
         bool billableToCustomer,
-        Guid? expenseAccountId = null)
+        Guid? expenseAccountId = null,
+        string? receiptReference = null,
+        bool missingReceipt = false,
+        string? missingReceiptReason = null)
     {
         ItemId = itemId;
         Description = Guard.NotNullOrWhiteSpace(description, nameof(description), maxLength: 512);
@@ -359,6 +430,39 @@ public sealed class ServiceExpenseClaimLine : Entity
         UnitCost = Guard.NotNegative(unitCost, nameof(unitCost));
         BillableToCustomer = billableToCustomer;
         ExpenseAccountId = expenseAccountId;
+        SetReceiptEvidence(receiptReference, missingReceipt, missingReceiptReason);
+    }
+
+    public void ApproveMissingReceipt(Guid approvedByUserId, DateTimeOffset approvedAt)
+    {
+        if (!MissingReceipt)
+        {
+            throw new DomainValidationException("This expense line is not requesting a missing-receipt exception.");
+        }
+
+        MissingReceiptApprovedByUserId = approvedByUserId == Guid.Empty
+            ? throw new DomainValidationException("The missing-receipt approver is required.")
+            : approvedByUserId;
+        MissingReceiptApprovedAt = approvedAt;
+    }
+
+    private void SetReceiptEvidence(string? receiptReference, bool missingReceipt, string? missingReceiptReason)
+    {
+        ReceiptReference = string.IsNullOrWhiteSpace(receiptReference)
+            ? null
+            : Guard.NotNullOrWhiteSpace(receiptReference, nameof(receiptReference), maxLength: 128);
+        MissingReceipt = missingReceipt;
+        MissingReceiptReason = missingReceipt
+            ? Guard.NotNullOrWhiteSpace(missingReceiptReason, nameof(missingReceiptReason), maxLength: 1000)
+            : null;
+        // Editing evidence invalidates any previous exception approval.
+        MissingReceiptApprovedAt = null;
+        MissingReceiptApprovedByUserId = null;
+
+        if (missingReceipt)
+        {
+            ReceiptReference = null;
+        }
     }
 
     public void AssignExpenseAccount(Guid? expenseAccountId) => ExpenseAccountId = expenseAccountId;

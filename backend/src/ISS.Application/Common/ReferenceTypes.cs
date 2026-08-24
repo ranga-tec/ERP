@@ -31,6 +31,8 @@ public static class ReferenceTypes
     public const string PettyCashRequest = "PCR";
     public const string PettyCashReturn = "PCRTN";
     public const string PettyCashReallocation = "PCRAL";
+    public const string PettyCashCashCount = "PCCC";
+    public const string ServiceExpenseClaimLine = "SEC-LINE";
     public const string StockAdjustment = "ADJ";
     public const string StockTransfer = "TRF";
     public const string Payment = "PAY";

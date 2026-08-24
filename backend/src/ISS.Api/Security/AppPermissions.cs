@@ -14,6 +14,7 @@ public static class AppPermissions
     public const string PettyCashIouReject = "Finance.PettyCashIou.Reject";
     public const string PettyCashIouRelease = "Finance.PettyCashIou.Release";
     public const string PettyCashIouSettle = "Finance.PettyCashIou.Settle";
+    public const string PettyCashReceiptExceptionApprove = "Finance.PettyCash.ReceiptExceptionApprove";
 
     public const string PettyCashRequestView = "Finance.PettyCashRequest.View";
     public const string PettyCashRequestCreate = "Finance.PettyCashRequest.Create";
@@ -22,6 +23,7 @@ public static class AppPermissions
     public const string PettyCashRequestApprove = "Finance.PettyCashRequest.Approve";
     public const string PettyCashRequestReject = "Finance.PettyCashRequest.Reject";
     public const string PettyCashRequestFund = "Finance.PettyCashRequest.Fund";
+    public const string PettyCashRequestCancel = "Finance.PettyCashRequest.Cancel";
     public const string PettyCashReturnView = "Finance.PettyCashReturn.View";
     public const string PettyCashReturnCreate = "Finance.PettyCashReturn.Create";
     public const string PettyCashReturnSubmit = "Finance.PettyCashReturn.Submit";
@@ -47,6 +49,9 @@ public static class AppPermissions
     public const string FinancePettyCashFundEdit = "Finance.PettyCashFund.Edit";
     public const string FinancePettyCashFundTopUp = "Finance.PettyCashFund.TopUp";
     public const string FinancePettyCashFundAdjust = "Finance.PettyCashFund.Adjust";
+    public const string FinancePettyCashCashCountView = "Finance.PettyCashCashCount.View";
+    public const string FinancePettyCashCashCountCreate = "Finance.PettyCashCashCount.Create";
+    public const string FinancePettyCashCashCountApprove = "Finance.PettyCashCashCount.Approve";
     public const string ServiceExpenseClaimView = "Service.ExpenseClaim.View";
     public const string ServiceExpenseClaimCreate = "Service.ExpenseClaim.Create";
     public const string ServiceExpenseClaimEdit = "Service.ExpenseClaim.Edit";
@@ -155,16 +160,18 @@ public static class AppPermissions
         new(PettyCashIouReject, "Finance / Petty Cash IOU", "Reject", "Reject IOUs", "Reject submitted IOU requests."),
         new(PettyCashIouRelease, "Finance / Petty Cash IOU", "Release", "Release cash", "Release approved petty cash to the requester."),
         new(PettyCashIouSettle, "Finance / Petty Cash IOU", "Settle", "Settle IOUs", "Record IOU settlement/accounting."),
+        new(PettyCashReceiptExceptionApprove, "Finance / Petty Cash Evidence", "Approve exception", "Approve missing receipts", "Higher-level approval for missing-receipt expense lines and settlement shortages."),
 
         new(PettyCashRequestView, "Finance / Petty Cash Requests", "View", "View requests", "Open and review petty cash requests to head office."),
-        new(PettyCashRequestCreate, "Finance / Petty Cash Requests", "Create", "Create requests", "Raise a categorised petty cash request."),
-        new(PettyCashRequestEdit, "Finance / Petty Cash Requests", "Edit", "Edit requests", "Change draft petty cash requests and their category lines."),
+        new(PettyCashRequestCreate, "Finance / Petty Cash Replenishment", "Create", "Create requests", "Raise a reconciled fund replenishment request."),
+        new(PettyCashRequestEdit, "Finance / Petty Cash Replenishment", "Edit", "Edit requests", "Change a draft fund replenishment request."),
         new(PettyCashRequestSubmit, "Finance / Petty Cash Requests", "Submit", "Submit requests", "Send a petty cash request to head office."),
-        new(PettyCashRequestApprove, "Finance / Petty Cash Requests", "Approve", "Approve requests", "Approve a petty cash request line by line."),
+        new(PettyCashRequestApprove, "Finance / Petty Cash Replenishment", "Approve", "Approve replenishment", "Approve a reconciled fund-level replenishment amount."),
         new(PettyCashRequestReject, "Finance / Petty Cash Requests", "Reject", "Reject requests", "Reject a submitted petty cash request."),
-        new(PettyCashRequestFund, "Finance / Petty Cash Requests", "Fund", "Release funds", "Record money paid against approved request lines."),
+        new(PettyCashRequestFund, "Finance / Petty Cash Replenishment", "Fund", "Record receipt", "Record money received against an approved fund replenishment."),
+        new(PettyCashRequestCancel, "Finance / Petty Cash Replenishment", "Cancel", "Cancel requests", "Cancel an unfunded replenishment request."),
         new(PettyCashReturnView, "Finance / Petty Cash Returns", "View", "View returns", "Open and review petty cash returned to head office."),
-        new(PettyCashReturnCreate, "Finance / Petty Cash Returns", "Create", "Prepare returns", "Prepare a category-by-category return of unused petty cash."),
+        new(PettyCashReturnCreate, "Finance / Petty Cash Returns", "Create", "Prepare returns", "Prepare a fund-level return of unused petty cash."),
         new(PettyCashReturnSubmit, "Finance / Petty Cash Returns", "Submit", "Submit returns", "Submit reconciled petty cash for head-office receipt."),
         new(PettyCashReturnReceive, "Finance / Petty Cash Returns", "Receive", "Confirm receipt", "Confirm that head office physically received a petty cash return."),
         new(PettyCashReturnReject, "Finance / Petty Cash Returns", "Reject", "Reject returns", "Reject a submitted petty cash return with a reason."),
@@ -188,6 +195,9 @@ public static class AppPermissions
         new(FinancePettyCashFundEdit, "Finance / Petty Cash Funds", "Edit", "Edit funds", "Update petty cash fund settings."),
         new(FinancePettyCashFundTopUp, "Finance / Petty Cash Funds", "Top Up", "Top up funds", "Add top-up transactions to petty cash funds."),
         new(FinancePettyCashFundAdjust, "Finance / Petty Cash Funds", "Adjust", "Adjust funds", "Add adjustment transactions to petty cash funds."),
+        new(FinancePettyCashCashCountView, "Finance / Petty Cash Cash Counts", "View", "View cash counts", "Review physical cash counts and reconciliation variances."),
+        new(FinancePettyCashCashCountCreate, "Finance / Petty Cash Cash Counts", "Create", "Record cash counts", "Record physical cash, advances, and supported vouchers."),
+        new(FinancePettyCashCashCountApprove, "Finance / Petty Cash Cash Counts", "Approve", "Approve cash counts", "Independently approve or reject submitted cash counts."),
         new(ServiceExpenseClaimView, "Service / Expense Claims", "View", "View claims", "Open and review service expense claims."),
         new(ServiceExpenseClaimCreate, "Service / Expense Claims", "Create", "Create claims", "Create service expense claims against job orders."),
         new(ServiceExpenseClaimEdit, "Service / Expense Claims", "Edit", "Edit claims", "Add, update, or remove draft service expense claim lines."),

@@ -162,37 +162,26 @@ public sealed class AccessControlService(
 
         if (roleSet.Contains(Roles.Finance))
         {
+            // The Finance role deliberately receives preparation/review access only. High-risk
+            // custody and approval actions are granted to named users through permission
+            // overrides, so one broad role cannot request, approve, release and settle the same
+            // petty-cash transaction.
             yield return AppPermissions.PettyCashIouView;
             yield return AppPermissions.PettyCashIouCreate;
             yield return AppPermissions.PettyCashIouEdit;
             yield return AppPermissions.PettyCashIouSubmit;
             yield return AppPermissions.PettyCashIouReview;
             yield return AppPermissions.PettyCashIouAssignedApprove;
-            yield return AppPermissions.PettyCashIouApprove;
-            yield return AppPermissions.PettyCashIouReject;
-            yield return AppPermissions.PettyCashIouRelease;
-            yield return AppPermissions.PettyCashIouSettle;
-            // Both sides of the request live in Finance. Which user may approve or fund, as opposed
-            // to only raising requests, is narrowed per user through permission overrides.
             yield return AppPermissions.PettyCashRequestView;
             yield return AppPermissions.PettyCashRequestCreate;
             yield return AppPermissions.PettyCashRequestEdit;
             yield return AppPermissions.PettyCashRequestSubmit;
-            yield return AppPermissions.PettyCashRequestApprove;
-            yield return AppPermissions.PettyCashRequestReject;
-            yield return AppPermissions.PettyCashRequestFund;
+            yield return AppPermissions.PettyCashRequestCancel;
             yield return AppPermissions.PettyCashReturnView;
             yield return AppPermissions.PettyCashReturnCreate;
             yield return AppPermissions.PettyCashReturnSubmit;
-            yield return AppPermissions.PettyCashReturnReceive;
-            yield return AppPermissions.PettyCashReturnReject;
             yield return AppPermissions.PettyCashReturnCancel;
             yield return AppPermissions.PettyCashReallocationView;
-            yield return AppPermissions.PettyCashReallocationCreate;
-            yield return AppPermissions.PettyCashReallocationSubmit;
-            yield return AppPermissions.PettyCashReallocationApprove;
-            yield return AppPermissions.PettyCashReallocationReject;
-            yield return AppPermissions.PettyCashReallocationCancel;
             yield return AppPermissions.FinancePaymentView;
             yield return AppPermissions.FinancePaymentCreate;
             yield return AppPermissions.FinancePaymentAllocate;
@@ -202,17 +191,12 @@ public sealed class AccessControlService(
             yield return AppPermissions.FinanceDebitNoteView;
             yield return AppPermissions.FinanceDebitNoteCreate;
             yield return AppPermissions.FinancePettyCashFundView;
-            yield return AppPermissions.FinancePettyCashFundCreate;
-            yield return AppPermissions.FinancePettyCashFundEdit;
-            yield return AppPermissions.FinancePettyCashFundTopUp;
-            yield return AppPermissions.FinancePettyCashFundAdjust;
+            yield return AppPermissions.FinancePettyCashCashCountView;
+            yield return AppPermissions.FinancePettyCashCashCountCreate;
             yield return AppPermissions.ServiceExpenseClaimView;
             yield return AppPermissions.ServiceExpenseClaimCreate;
             yield return AppPermissions.ServiceExpenseClaimEdit;
             yield return AppPermissions.ServiceExpenseClaimSubmit;
-            yield return AppPermissions.ServiceExpenseClaimApprove;
-            yield return AppPermissions.ServiceExpenseClaimReject;
-            yield return AppPermissions.ServiceExpenseClaimSettle;
             yield return AppPermissions.ServiceExpenseClaimConvert;
             yield return AppPermissions.ServiceMaterialRequisitionView;
         }

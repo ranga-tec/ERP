@@ -11,6 +11,7 @@ import { ServiceExpenseClaimActions } from "../ServiceExpenseClaimActions";
 import { ServiceExpenseClaimConvertEstimateForm } from "../ServiceExpenseClaimConvertEstimateForm";
 import { ServiceExpenseClaimLineAddForm } from "../ServiceExpenseClaimLineAddForm";
 import { ServiceExpenseClaimLineRow } from "../ServiceExpenseClaimLineRow";
+import { MissingReceiptApprovalButton } from "../MissingReceiptApprovalButton";
 
 type ServiceExpenseClaimDto = {
   id: string;
@@ -22,6 +23,7 @@ type ServiceExpenseClaimDto = {
   expenseDate: string;
   merchantName?: string | null;
   receiptReference?: string | null;
+  costCenterCode?: string | null;
   notes?: string | null;
   status: number;
   submittedAt?: string | null;
@@ -46,6 +48,11 @@ type ServiceExpenseClaimDto = {
     quantity: number;
     unitCost: number;
     billableToCustomer: boolean;
+    receiptReference?: string | null;
+    missingReceipt: boolean;
+    missingReceiptReason?: string | null;
+    missingReceiptApprovedAt?: string | null;
+    missingReceiptApprovedByUserId?: string | null;
     convertedToServiceEstimateId?: string | null;
     convertedToServiceEstimateLineId?: string | null;
     convertedToEstimateAt?: string | null;
@@ -59,6 +66,7 @@ type PaymentTypeDto = { id: string; code: string; name: string; isActive: boolea
 type PettyCashFundDto = { id: string; code: string; name: string; balance: number; isActive: boolean };
 type ServiceEstimateSummaryDto = { id: string; number: string; revisionNumber: number; status: number; total: number; serviceJobId: string };
 type CurrentUserPermissionsDto = { userId: string; permissions: string[] };
+type ExpenseAccountDto = { id: string; code: string; name: string };
 
 const statusLabel: Record<number, string> = {
   0: "Draft",
@@ -81,10 +89,11 @@ export default async function ServiceExpenseClaimDetailPage({ params }: { params
   const roles = new Set(session?.roles ?? []);
   const isFinanceOrAdmin = roles.has("Admin") || roles.has("Finance");
 
-  const [claim, jobs, items, paymentTypes, pettyCashFunds, estimates, currentUserPermissions] = await Promise.all([
+  const [claim, jobs, items, expenseAccounts, paymentTypes, pettyCashFunds, estimates, currentUserPermissions] = await Promise.all([
     backendFetchJson<ServiceExpenseClaimDto>(`/service/expense-claims/${id}`),
     backendFetchJson<ServiceJobDto[]>("/service/jobs?take=500"),
     backendFetchJson<ItemDto[]>("/items/options"),
+    backendFetchJson<ExpenseAccountDto[]>("/service/expense-claims/expense-accounts"),
     isFinanceOrAdmin ? backendFetchJson<PaymentTypeDto[]>("/payment-types") : Promise.resolve([]),
     isFinanceOrAdmin ? backendFetchJson<PettyCashFundDto[]>("/finance/petty-cash-funds") : Promise.resolve([]),
     backendFetchJson<ServiceEstimateSummaryDto[]>("/service/estimates?take=500"),
@@ -107,6 +116,7 @@ export default async function ServiceExpenseClaimDetailPage({ params }: { params
     && permissions.has("Service.ExpenseClaim.Convert");
   const jobEstimates = estimates.filter((estimate) => estimate.serviceJobId === claim.serviceJobId);
   const unresolvedExpenseLineCount = claim.lines.filter((line) => !line.expenseAccountId).length;
+  const canApproveMissingReceipt = permissions.has("Finance.PettyCash.ReceiptExceptionApprove");
 
   return (
     <div className="space-y-6">
@@ -138,6 +148,7 @@ export default async function ServiceExpenseClaimDetailPage({ params }: { params
         <div className="mt-2 flex flex-wrap gap-3 text-sm text-zinc-500">
           {claim.merchantName ? <div>Merchant: {claim.merchantName}</div> : null}
           {claim.receiptReference ? <div>Receipt ref: {claim.receiptReference}</div> : null}
+          {claim.costCenterCode ? <div>Cost centre: {claim.costCenterCode}</div> : null}
           {claim.pettyCashIouNumber ? (
             <div>Funded by advance: <span className="font-mono text-xs">{claim.pettyCashIouNumber}</span></div>
           ) : claim.pettyCashIouId ? (
@@ -215,7 +226,7 @@ export default async function ServiceExpenseClaimDetailPage({ params }: { params
               <div className="mt-1 text-xs text-zinc-500">Add expense, item, and billable details before submitting this voucher.</div>
             </div>
             <AppFormModal title="Add Voucher Line" description="Add an expense line, with its bill, to this draft voucher." buttonLabel="+ Add Line" variant="secondary">
-              <ServiceExpenseClaimLineAddForm claimId={claim.id} items={items} />
+              <ServiceExpenseClaimLineAddForm claimId={claim.id} items={items} expenseAccounts={expenseAccounts} />
             </AppFormModal>
           </div>
         </Card>
@@ -233,6 +244,7 @@ export default async function ServiceExpenseClaimDetailPage({ params }: { params
                 <th className="py-2 pr-3">Qty</th>
                 <th className="py-2 pr-3">Unit Cost</th>
                 <th className="py-2 pr-3">Billable</th>
+                <th className="py-2 pr-3">Evidence</th>
                 <th className="py-2 pr-3">Estimate</th>
                 <th className="py-2 pr-3">Line Total</th>
                 {isDraft && canEdit ? <th className="py-2 pr-3">Actions</th> : null}
@@ -246,6 +258,7 @@ export default async function ServiceExpenseClaimDetailPage({ params }: { params
                     claimId={claim.id}
                     line={line}
                     items={items}
+                    expenseAccounts={expenseAccounts}
                     canEdit={isDraft && canEdit}
                   />
                 ) : (
@@ -263,6 +276,11 @@ export default async function ServiceExpenseClaimDetailPage({ params }: { params
                     <td className="py-2 pr-3">{line.unitCost.toFixed(2)}</td>
                     <td className="py-2 pr-3">{line.billableToCustomer ? "Yes" : "No"}</td>
                     <td className="py-2 pr-3 text-zinc-500">
+                      {line.missingReceipt ? (
+                        <span className={line.missingReceiptApprovedAt ? "text-emerald-700 dark:text-emerald-300" : "text-amber-700 dark:text-amber-300"}>{line.missingReceiptApprovedAt ? "Missing receipt approved" : "Missing receipt waiting"}</span>
+                      ) : line.receiptReference ?? "Receipt required"}
+                    </td>
+                    <td className="py-2 pr-3 text-zinc-500">
                       {line.convertedToServiceEstimateId ? (
                         <TransactionLink referenceType="SE" referenceId={line.convertedToServiceEstimateId}>
                           {jobEstimates.find((estimate) => estimate.id === line.convertedToServiceEstimateId)?.number ?? "Open estimate"}
@@ -277,7 +295,7 @@ export default async function ServiceExpenseClaimDetailPage({ params }: { params
               )}
               {claim.lines.length === 0 ? (
                 <tr>
-                  <td className="py-6 text-sm text-zinc-500" colSpan={isDraft && canEdit ? 9 : 8}>
+                  <td className="py-6 text-sm text-zinc-500" colSpan={isDraft && canEdit ? 10 : 9}>
                     No lines yet.
                   </td>
                 </tr>
@@ -302,6 +320,21 @@ export default async function ServiceExpenseClaimDetailPage({ params }: { params
           </div>
         </Card>
       ) : null}
+
+      {claim.fundingSource === 2 ? claim.lines.map((line) => (
+        <div key={`evidence:${line.id}`} className="space-y-3">
+          <Card>
+            <div className="text-sm font-semibold">Evidence — {line.description}</div>
+            <div className="mt-1 text-xs text-zinc-500">
+              {line.missingReceipt
+                ? `Missing receipt: ${line.missingReceiptReason ?? "Reason not recorded"}`
+                : `Receipt reference: ${line.receiptReference ?? "Not recorded"}. Upload the receipt file below.`}
+            </div>
+            {isDraft && line.missingReceipt && !line.missingReceiptApprovedAt && canApproveMissingReceipt ? <div className="mt-3"><MissingReceiptApprovalButton claimId={claim.id} lineId={line.id} /></div> : null}
+          </Card>
+          <DocumentCollaborationPanel referenceType="SEC-LINE" referenceId={line.id} title="Line Receipt & Supporting Evidence" />
+        </div>
+      )) : null}
 
       <DocumentCollaborationPanel referenceType="SEC" referenceId={id} title="Voucher Comments & Attachments" />
     </div>

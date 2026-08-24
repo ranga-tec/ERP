@@ -277,6 +277,32 @@ public sealed class ServiceTests
     }
 
     [Fact]
+    public void PettyCashExpense_Requires_Receipt_CostCentre_And_ExpenseAccount()
+    {
+        var now = DateTimeOffset.UtcNow;
+        var withoutReceipt = new ServiceExpenseClaim(
+            "SEC-PC-001", null, null, "Custodian", ServiceExpenseFundingSource.PettyCash,
+            now, null, null, null, costCenterCode: "WORKSHOP");
+        withoutReceipt.AddLine(null, "Taxi", 1m, 1500m, false, Guid.NewGuid());
+        Assert.Throws<DomainValidationException>(() => withoutReceipt.Submit(now));
+
+        var withoutCostCentre = new ServiceExpenseClaim(
+            "SEC-PC-002", null, null, "Custodian", ServiceExpenseFundingSource.PettyCash,
+            now, null, "RCPT-2", null);
+        withoutCostCentre.AddLine(null, "Taxi", 1m, 1500m, false, Guid.NewGuid(), receiptReference: "RCPT-2");
+        Assert.Throws<DomainValidationException>(() => withoutCostCentre.Submit(now));
+
+        var valid = new ServiceExpenseClaim(
+            "SEC-PC-003", null, null, "Custodian", ServiceExpenseFundingSource.PettyCash,
+            now, null, "RCPT-3", null, costCenterCode: "WORKSHOP");
+        valid.AddLine(null, "Taxi", 1m, 1500m, false, Guid.NewGuid(), receiptReference: "RCPT-3");
+        valid.Submit(now);
+
+        Assert.Equal(ServiceExpenseClaimStatus.Submitted, valid.Status);
+        Assert.Equal("WORKSHOP", valid.CostCenterCode);
+    }
+
+    [Fact]
     public void WorkOrder_TimeEntry_Approval_And_Invoicing_Follow_State_Rules()
     {
         var workOrder = new WorkOrder(Guid.NewGuid(), "Inspect compressor", assignedToUserId: null);

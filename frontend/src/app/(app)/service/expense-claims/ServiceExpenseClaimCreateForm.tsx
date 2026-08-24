@@ -15,36 +15,9 @@ type PettyCashIouRef = {
   amount: number;
 };
 
-type FundedCategoryRef = {
-  id: string;
-  requestNumber: string;
-  category: number;
-  serviceJobId?: string | null;
-  serviceJobNumber?: string | null;
-  customCategoryName?: string | null;
-  purpose: string;
-  fundedAmount: number;
-};
-
 // Released and Settled are the only states where cash has actually left the fund, so they are the
 // only advances an expense can have been paid from. The API enforces the same rule.
 const fundedIouStatuses = new Set([3, 4, 7]);
-
-const CATEGORY_JOB_WISE = 1;
-
-const categoryLabel: Record<number, string> = {
-  1: "Job Wise",
-  2: "Emergency Operation",
-  3: "Transportation",
-  4: "Custom",
-};
-
-function describeFundedCategory(line: FundedCategoryRef): string {
-  const name = line.category === 4 && line.customCategoryName
-    ? line.customCategoryName
-    : categoryLabel[line.category] ?? String(line.category);
-  return `${line.requestNumber} - ${name} - ${line.purpose}`;
-}
 
 const kindLabel: Record<number, string> = {
   0: "Service",
@@ -57,18 +30,16 @@ const kindLabel: Record<number, string> = {
 export function ServiceExpenseClaimCreateForm({
   serviceJobs,
   pettyCashIous = [],
-  fundedCategories = [],
 }: {
   serviceJobs: ServiceJobRef[];
   pettyCashIous?: PettyCashIouRef[];
-  fundedCategories?: FundedCategoryRef[];
 }) {
   const router = useRouter();
   const [serviceJobId, setServiceJobId] = useState("");
   const [claimedByName, setClaimedByName] = useState("");
   const [fundingSource, setFundingSource] = useState("1");
   const [pettyCashIouId, setPettyCashIouId] = useState("");
-  const [pettyCashRequestLineId, setPettyCashRequestLineId] = useState("");
+  const [costCenterCode, setCostCenterCode] = useState("");
   const [expenseDate, setExpenseDate] = useState("");
   const [merchantName, setMerchantName] = useState("");
   const [receiptReference, setReceiptReference] = useState("");
@@ -90,7 +61,8 @@ export function ServiceExpenseClaimCreateForm({
         receiptReference: receiptReference.trim() || null,
         notes: notes.trim() || null,
         pettyCashIouId: pettyCashIouId || null,
-        pettyCashRequestLineId: pettyCashRequestLineId || null,
+        pettyCashRequestLineId: null,
+        costCenterCode: costCenterCode.trim() || null,
       });
 
       router.push(`/service/expense-claims/${claim.id}`);
@@ -108,23 +80,14 @@ export function ServiceExpenseClaimCreateForm({
     .filter((iou) => iou.serviceJobId === serviceJobId && fundedIouStatuses.has(iou.status))
     .sort((a, b) => b.number.localeCompare(a.number));
 
-  // A job-wise category may only be charged for its own job; the others take any voucher.
-  const availableCategories = fundedCategories.filter(
-    (line) => line.category !== CATEGORY_JOB_WISE || line.serviceJobId === serviceJobId,
-  );
-
-  // An advance and a category both belong to one job and one funding source. Changing either would
-  // leave a link the API rejects, so drop them rather than let the user discover it on submit.
   function selectJob(nextJobId: string) {
     setServiceJobId(nextJobId);
     setPettyCashIouId("");
-    setPettyCashRequestLineId("");
   }
 
   function selectFundingSource(nextFundingSource: string) {
     setFundingSource(nextFundingSource);
     setPettyCashIouId("");
-    setPettyCashRequestLineId("");
   }
 
   return (
@@ -173,31 +136,17 @@ export function ServiceExpenseClaimCreateForm({
           <Input value={merchantName} onChange={(event) => setMerchantName(event.target.value)} />
         </div>
         <div>
-          <label className="mb-1 block text-sm font-medium">Receipt ref (optional)</label>
+          <label className="mb-1 block text-sm font-medium">Voucher receipt ref (legacy/optional)</label>
           <Input value={receiptReference} onChange={(event) => setReceiptReference(event.target.value)} />
+          <p className="mt-1 text-xs text-zinc-500">Each expense line records and attaches its own receipt.</p>
         </div>
       </div>
 
-      {isPettyCash ? (
+      {isPettyCash && !serviceJobId ? (
         <div>
-          <label className="mb-1 block text-sm font-medium">Charge to funded category (optional)</label>
-          <Select
-            value={pettyCashRequestLineId}
-            onChange={(event) => setPettyCashRequestLineId(event.target.value)}
-            disabled={availableCategories.length === 0}
-          >
-            <option value="">Not from a funded category</option>
-            {availableCategories.map((line) => (
-              <option key={line.id} value={line.id}>
-                {describeFundedCategory(line)}
-              </option>
-            ))}
-          </Select>
-          <p className="mt-1 text-xs text-zinc-500">
-            {availableCategories.length === 0
-              ? "No category has money released against it yet."
-              : "Draws this spend down against that category's sub-account."}
-          </p>
+          <label className="mb-1 block text-sm font-medium">Cost centre code *</label>
+          <Input value={costCenterCode} onChange={(event) => setCostCenterCode(event.target.value)} required placeholder="Required for non-job petty-cash spending" />
+          <p className="mt-1 text-xs text-zinc-500">This classifies overhead without creating a cash sub-ledger.</p>
         </div>
       ) : null}
 

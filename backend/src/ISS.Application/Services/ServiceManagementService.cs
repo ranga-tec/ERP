@@ -345,6 +345,17 @@ public sealed class ServiceManagementService(
         await dbContext.SaveChangesAsync(cancellationToken);
     }
 
+    public async Task UpdateServiceJobPettyCashSpendingLimitAsync(
+        Guid serviceJobId,
+        decimal amount,
+        CancellationToken cancellationToken = default)
+    {
+        var job = await dbContext.ServiceJobs.FirstOrDefaultAsync(x => x.Id == serviceJobId, cancellationToken)
+                  ?? throw new NotFoundException("Service job not found.");
+        job.SetPettyCashSpendingLimit(amount);
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
     public async Task<Guid> AddServiceJobOperationAsync(
         Guid serviceJobId,
         int sequence,
@@ -576,9 +587,13 @@ public sealed class ServiceManagementService(
         string? notes,
         Guid pettyCashFundId,
         Guid? pettyCashRequestLineId,
-        CancellationToken cancellationToken = default)
+        string? costCenterCode,
+        CancellationToken cancellationToken = default,
+        Guid? expenseAccountId = null)
     {
         await EnsureServiceJobAcceptsNewCostsAsync(serviceJobId, cancellationToken);
+        await EnsureJobPettyCashSpendingLimitAsync(serviceJobId, amount, excludeClaimId: null, cancellationToken);
+        await EnsurePostingExpenseAccountAsync(expenseAccountId, cancellationToken);
         await EnsureRequestLineCanFundClaimAsync(
             serviceJobId,
             ServiceExpenseFundingSource.PettyCash,
@@ -604,7 +619,9 @@ public sealed class ServiceManagementService(
             receiptReference,
             notes,
             pettyCashFundId,
-            pettyCashRequestLineId);
+            pettyCashRequestLineId,
+            costCenterCode,
+            expenseAccountId);
 
         await dbContext.ServiceExpenseClaims.AddAsync(claim, cancellationToken);
 
@@ -633,6 +650,7 @@ public sealed class ServiceManagementService(
         Guid? serviceJobDailySheetId = null,
         Guid? pettyCashIouId = null,
         Guid? pettyCashRequestLineId = null,
+        string? costCenterCode = null,
         CancellationToken cancellationToken = default)
     {
         await EnsureServiceJobAcceptsNewCostsAsync(serviceJobId, cancellationToken);
@@ -653,7 +671,8 @@ public sealed class ServiceManagementService(
             notes,
             serviceJobDailySheetId,
             pettyCashIouId,
-            pettyCashRequestLineId);
+            pettyCashRequestLineId,
+            costCenterCode);
 
         await dbContext.ServiceExpenseClaims.AddAsync(claim, cancellationToken);
         await dbContext.SaveChangesAsync(cancellationToken);
@@ -845,7 +864,11 @@ public sealed class ServiceManagementService(
         decimal quantity,
         decimal unitCost,
         bool billableToCustomer,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        Guid? selectedExpenseAccountId = null,
+        string? receiptReference = null,
+        bool missingReceipt = false,
+        string? missingReceiptReason = null)
     {
         var claim = await dbContext.ServiceExpenseClaims.Include(x => x.Lines)
             .FirstOrDefaultAsync(x => x.Id == serviceExpenseClaimId, cancellationToken)
@@ -862,8 +885,19 @@ public sealed class ServiceManagementService(
             }
         }
 
-        var expenseAccountId = await documentAccountMappingService.ResolveExpenseAccountIdAsync(itemId, cancellationToken);
-        var line = claim.AddLine(itemId, description, quantity, unitCost, billableToCustomer, expenseAccountId);
+        var expenseAccountId = selectedExpenseAccountId
+            ?? await documentAccountMappingService.ResolveExpenseAccountIdAsync(itemId, cancellationToken);
+        await EnsurePostingExpenseAccountAsync(expenseAccountId, cancellationToken);
+        var line = claim.AddLine(
+            itemId,
+            description,
+            quantity,
+            unitCost,
+            billableToCustomer,
+            expenseAccountId,
+            receiptReference,
+            missingReceipt,
+            missingReceiptReason);
         dbContext.DbContext.Add(line);
         await dbContext.SaveChangesAsync(cancellationToken);
     }
@@ -876,7 +910,11 @@ public sealed class ServiceManagementService(
         decimal quantity,
         decimal unitCost,
         bool billableToCustomer,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        Guid? selectedExpenseAccountId = null,
+        string? receiptReference = null,
+        bool missingReceipt = false,
+        string? missingReceiptReason = null)
     {
         var claim = await dbContext.ServiceExpenseClaims.Include(x => x.Lines)
             .FirstOrDefaultAsync(x => x.Id == serviceExpenseClaimId, cancellationToken)
@@ -898,9 +936,109 @@ public sealed class ServiceManagementService(
             throw new NotFoundException("Service expense claim line not found.");
         }
 
-        var expenseAccountId = await documentAccountMappingService.ResolveExpenseAccountIdAsync(itemId, cancellationToken);
-        claim.UpdateLine(lineId, itemId, description, quantity, unitCost, billableToCustomer, expenseAccountId);
+        var expenseAccountId = selectedExpenseAccountId
+            ?? await documentAccountMappingService.ResolveExpenseAccountIdAsync(itemId, cancellationToken);
+        await EnsurePostingExpenseAccountAsync(expenseAccountId, cancellationToken);
+        claim.UpdateLine(
+            lineId,
+            itemId,
+            description,
+            quantity,
+            unitCost,
+            billableToCustomer,
+            expenseAccountId,
+            receiptReference,
+            missingReceipt,
+            missingReceiptReason);
         await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task ApproveMissingReceiptExceptionAsync(
+        Guid serviceExpenseClaimId,
+        Guid lineId,
+        Guid approvedByUserId,
+        CancellationToken cancellationToken = default)
+    {
+        var claim = await dbContext.ServiceExpenseClaims.Include(x => x.Lines)
+            .FirstOrDefaultAsync(x => x.Id == serviceExpenseClaimId, cancellationToken)
+            ?? throw new NotFoundException("Service expense claim not found.");
+        if (claim.Status != ServiceExpenseClaimStatus.Draft)
+        {
+            throw new DomainValidationException("Missing-receipt exceptions must be approved before the voucher is submitted.");
+        }
+
+        var line = claim.Lines.FirstOrDefault(x => x.Id == lineId)
+            ?? throw new NotFoundException("Service expense claim line not found.");
+        if (claim.ClaimedByUserId == approvedByUserId)
+        {
+            throw new DomainValidationException("The claimant cannot approve their own missing-receipt exception.");
+        }
+
+        line.ApproveMissingReceipt(approvedByUserId, clock.UtcNow);
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    private async Task EnsurePostingExpenseAccountAsync(Guid? expenseAccountId, CancellationToken cancellationToken)
+    {
+        if (expenseAccountId is null)
+        {
+            throw new DomainValidationException("Select an expense category/account for this expense line.");
+        }
+
+        var isValid = await dbContext.LedgerAccounts.AsNoTracking().AnyAsync(
+            account => account.Id == expenseAccountId.Value
+                       && account.AccountType == LedgerAccountType.Expense
+                       && account.IsActive
+                       && account.AllowsPosting,
+            cancellationToken);
+        if (!isValid)
+        {
+            throw new DomainValidationException("The selected expense account must be an active posting expense account.");
+        }
+    }
+
+    private async Task EnsureJobPettyCashSpendingLimitAsync(
+        Guid? serviceJobId,
+        decimal newAmount,
+        Guid? excludeClaimId,
+        CancellationToken cancellationToken)
+    {
+        if (serviceJobId is null) return;
+
+        var job = await dbContext.ServiceJobs.AsNoTracking()
+            .Where(candidate => candidate.Id == serviceJobId.Value)
+            .Select(candidate => new { candidate.Number, candidate.PettyCashSpendingLimit })
+            .FirstOrDefaultAsync(cancellationToken)
+            ?? throw new NotFoundException("Service job not found.");
+        if (job.PettyCashSpendingLimit <= 0m) return;
+
+        var actual = await dbContext.ServiceExpenseClaims.AsNoTracking()
+            .Where(claim => claim.ServiceJobId == serviceJobId
+                            && claim.Id != excludeClaimId
+                            && claim.FundingSource == ServiceExpenseFundingSource.PettyCash
+                            && claim.Status != ServiceExpenseClaimStatus.Rejected)
+            .SumAsync(claim => claim.Lines.Sum(line => line.Quantity * line.UnitCost), cancellationToken);
+        var openIous = await dbContext.PettyCashIous.AsNoTracking()
+            .Where(iou => iou.ServiceJobId == serviceJobId
+                          && (iou.Status == PettyCashIouStatus.Approved
+                              || iou.Status == PettyCashIouStatus.Released
+                              || iou.Status == PettyCashIouStatus.Settled))
+            .ToListAsync(cancellationToken);
+        var openIouIds = openIous.Select(iou => iou.Id).ToList();
+        var claimedByIou = await dbContext.ServiceExpenseClaims.AsNoTracking()
+            .Where(claim => claim.PettyCashIouId != null
+                            && openIouIds.Contains(claim.PettyCashIouId.Value)
+                            && claim.Status != ServiceExpenseClaimStatus.Rejected)
+            .GroupBy(claim => claim.PettyCashIouId!.Value)
+            .Select(group => new { IouId = group.Key, Amount = group.Sum(claim => claim.Lines.Sum(line => line.Quantity * line.UnitCost)) })
+            .ToDictionaryAsync(row => row.IouId, row => row.Amount, cancellationToken);
+        var commitment = openIous.Sum(iou => Math.Max(0m, iou.Amount - iou.ReturnedAmount - claimedByIou.GetValueOrDefault(iou.Id)));
+        var projected = actual + commitment + newAmount;
+        if (projected > job.PettyCashSpendingLimit)
+        {
+            throw new DomainValidationException(
+                $"Job {job.Number} petty-cash authorization is {job.PettyCashSpendingLimit:0.00}; actual plus committed spending would be {projected:0.00}.");
+        }
     }
 
     public async Task RemoveServiceExpenseClaimLineAsync(Guid serviceExpenseClaimId, Guid lineId, CancellationToken cancellationToken = default)
@@ -926,8 +1064,45 @@ public sealed class ServiceManagementService(
             ?? throw new NotFoundException("Service expense claim not found.");
 
         await RefreshServiceExpenseClaimAccountsAsync(claim, cancellationToken);
+        if (claim.FundingSource == ServiceExpenseFundingSource.PettyCash && claim.PettyCashIouId is null)
+        {
+            await EnsureJobPettyCashSpendingLimitAsync(claim.ServiceJobId, claim.Total, claim.Id, cancellationToken);
+        }
+        await EnsurePettyCashExpenseEvidenceAsync(claim, cancellationToken);
         claim.Submit(clock.UtcNow);
         await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    private async Task EnsurePettyCashExpenseEvidenceAsync(
+        ServiceExpenseClaim claim,
+        CancellationToken cancellationToken)
+    {
+        if (claim.FundingSource != ServiceExpenseFundingSource.PettyCash)
+        {
+            return;
+        }
+
+        var receiptLineIds = claim.Lines
+            .Where(line => !line.MissingReceipt)
+            .Select(line => line.Id)
+            .ToArray();
+        if (receiptLineIds.Length == 0)
+        {
+            return;
+        }
+
+        var attachedLineIds = await dbContext.DocumentAttachments.AsNoTracking()
+            .Where(attachment => attachment.ReferenceType == ReferenceTypes.ServiceExpenseClaimLine
+                                 && receiptLineIds.Contains(attachment.ReferenceId))
+            .Select(attachment => attachment.ReferenceId)
+            .Distinct()
+            .ToListAsync(cancellationToken);
+        var missingAttachmentCount = receiptLineIds.Except(attachedLineIds).Count();
+        if (missingAttachmentCount > 0)
+        {
+            throw new DomainValidationException(
+                $"{missingAttachmentCount} petty-cash expense line(s) still require a receipt attachment.");
+        }
     }
 
     public async Task ApproveServiceExpenseClaimAsync(Guid serviceExpenseClaimId, CancellationToken cancellationToken = default)

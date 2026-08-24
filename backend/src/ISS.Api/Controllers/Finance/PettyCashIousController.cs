@@ -24,6 +24,8 @@ public sealed class PettyCashIousController(
     NotificationService notificationService,
     UserManager<ApplicationUser> userManager) : ControllerBase
 {
+    private static bool DirectIouIssueEnabled => false;
+
     public sealed record PettyCashStaffDto(Guid UserId, string Name, string? Email);
 
     /// <summary>
@@ -111,6 +113,10 @@ public sealed class PettyCashIousController(
         decimal ClaimedAmount,
         int ClaimCount,
         decimal? UnaccountedAmount,
+        decimal SettlementExceptionAmount,
+        string? SettlementExceptionReason,
+        DateTimeOffset? SettlementExceptionApprovedAt,
+        Guid? SettlementExceptionExpenseClaimId,
         string? IssueBillNumber,
         Guid? PettyCashRequestLineId,
         DateTimeOffset? SettlementApprovedAt,
@@ -147,19 +153,29 @@ public sealed class PettyCashIousController(
         Guid? PettyCashRequestLineId);
 
     public sealed record SettlePettyCashIouRequest(string? SettlementReference);
+    public sealed record ApproveSettlementExceptionRequest(string Reason);
     public sealed record ReturnPettyCashIouBalanceRequest(decimal Amount, string? Reference);
 
     public sealed record AddPettyCashIouBillRequest(
         string Description,
         decimal Amount,
         bool BillableToCustomer,
-        string? ReceiptReference);
+        string? ReceiptReference,
+        Guid ExpenseAccountId,
+        bool MissingReceipt,
+        string? MissingReceiptReason);
 
     public sealed record PettyCashIouBillDto(
         Guid Id,
+        Guid ServiceExpenseClaimId,
         string Description,
         decimal Amount,
         bool BillableToCustomer,
+        string? ReceiptReference,
+        bool MissingReceipt,
+        string? MissingReceiptReason,
+        DateTimeOffset? MissingReceiptApprovedAt,
+        Guid? MissingReceiptApprovedByUserId,
         string VoucherNumber,
         ServiceExpenseClaimStatus VoucherStatus);
 
@@ -443,6 +459,12 @@ public sealed class PettyCashIousController(
         {
             return Forbid();
         }
+        if (!DirectIouIssueEnabled)
+        {
+            return StatusCode(
+                StatusCodes.Status410Gone,
+                new { message = "Direct IOU issue is retired. Submit and approve the IOU, then release it from the available fund balance." });
+        }
 
         // The advance belongs to whoever took the cash. Falling back to the current user only
         // covers the custodian drawing it for themselves.
@@ -491,6 +513,30 @@ public sealed class PettyCashIousController(
         return NoContent();
     }
 
+    [HttpPost("{id:guid}/approve-settlement-exception")]
+    public async Task<ActionResult> ApproveSettlementException(
+        Guid id,
+        ApproveSettlementExceptionRequest request,
+        CancellationToken cancellationToken)
+    {
+        if (!await HasPermissionAsync(AppPermissions.PettyCashReceiptExceptionApprove, cancellationToken))
+        {
+            return Forbid();
+        }
+
+        await financeService.ApprovePettyCashIouSettlementExceptionAsync(
+            id,
+            currentUser.UserId ?? Guid.Empty,
+            request.Reason,
+            cancellationToken);
+        await NotifyRequesterAsync(
+            id,
+            "IOU settlement exception approved",
+            "Head office approved the documented shortage/missing-receipt exception.",
+            cancellationToken);
+        return NoContent();
+    }
+
     /// <summary>The bills gathered against this advance, whichever voucher they ended up on.</summary>
     [HttpGet("{id:guid}/bills")]
     public async Task<ActionResult<IReadOnlyList<PettyCashIouBillDto>>> Bills(Guid id, CancellationToken cancellationToken)
@@ -504,9 +550,15 @@ public sealed class PettyCashIousController(
             .Where(claim => claim.PettyCashIouId == id && claim.Status != ServiceExpenseClaimStatus.Rejected)
             .SelectMany(claim => claim.Lines.Select(line => new PettyCashIouBillDto(
                 line.Id,
+                claim.Id,
                 line.Description,
                 line.Quantity * line.UnitCost,
                 line.BillableToCustomer,
+                line.ReceiptReference,
+                line.MissingReceipt,
+                line.MissingReceiptReason,
+                line.MissingReceiptApprovedAt,
+                line.MissingReceiptApprovedByUserId,
                 claim.Number,
                 claim.Status)))
             .ToListAsync(cancellationToken);
@@ -528,7 +580,10 @@ public sealed class PettyCashIousController(
             request.Amount,
             request.BillableToCustomer,
             request.ReceiptReference,
-            cancellationToken);
+            cancellationToken,
+            request.ExpenseAccountId,
+            request.MissingReceipt,
+            request.MissingReceiptReason);
 
         return NoContent();
     }
@@ -814,9 +869,13 @@ public sealed class PettyCashIousController(
             totals.ClaimCount,
             // What is still outstanding after cash came back, less what the bills document. This is
             // live from the moment cash is released, not only once someone settles.
-            iou.ReleasedAt is null
-                ? null
-                : iou.OutstandingAmount - totals.ClaimedAmount,
+             iou.ReleasedAt is null
+                 ? null
+                 : iou.OutstandingAmount - totals.ClaimedAmount,
+            iou.SettlementExceptionAmount,
+            iou.SettlementExceptionReason,
+            iou.SettlementExceptionApprovedAt,
+            iou.SettlementExceptionExpenseClaimId,
             iou.IssueBillNumber,
             iou.PettyCashRequestLineId,
             iou.SettlementApprovedAt,

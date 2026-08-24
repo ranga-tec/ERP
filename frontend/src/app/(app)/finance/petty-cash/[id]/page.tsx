@@ -1,19 +1,35 @@
 import Link from "next/link";
-import { backendFetchJson } from "@/lib/backend.server";
+import { notFound } from "next/navigation";
+import { BackendHttpError, backendFetchJson } from "@/lib/backend.server";
 import { Card, Table } from "@/components/ui";
 import { TransactionLink } from "@/components/TransactionLink";
 import { PettyCashFundEditForm } from "../PettyCashFundEditForm";
 import { PettyCashFundTransactionForms } from "../PettyCashFundTransactionForms";
+import { PettyCashCashCountPanel } from "../PettyCashCashCountPanel";
 
 type CurrencyDto = { code: string; name: string; isBase: boolean; isActive: boolean };
 type CurrentPermissionsDto = { permissions: string[] };
+type LedgerAccountDto = { id: string; code: string; name: string; accountType: number; allowsPosting: boolean; isActive: boolean };
 type PettyCashFundDto = {
   id: string;
   code: string;
   name: string;
   currencyCode: string;
   custodianName?: string | null;
+  location?: string | null;
   notes?: string | null;
+  authorizedFloat: number;
+  transactionLimit: number;
+  advanceLimit: number;
+  requireReceipt: boolean;
+  blockOverdueAdvances: boolean;
+  settlementShortageExpenseAccountId?: string | null;
+  settlementShortageExpenseAccountCode?: string | null;
+  settlementShortageExpenseAccountName?: string | null;
+  settlementShortageCostCenterCode?: string | null;
+  cashCountFrequency: number;
+  lastCashCountAt?: string | null;
+  nextCashCountDueAt?: string | null;
   isActive: boolean;
   balance: number;
   transactions: {
@@ -28,6 +44,22 @@ type PettyCashFundDto = {
     referenceNumber?: string | null;
     notes?: string | null;
     pettyCashRequestLineId?: string | null;
+  }[];
+  cashCounts: {
+    id: string;
+    number: string;
+    countedAt: string;
+    countedByUserId: string;
+    countedByName: string;
+    physicalCash: number;
+    outstandingAdvances: number;
+    supportedExpenseVouchers: number;
+    authorizedFloatSnapshot: number;
+    accountability: number;
+    variance: number;
+    notes?: string | null;
+    status: number;
+    rejectionReason?: string | null;
   }[];
 };
 
@@ -45,6 +77,8 @@ const transactionTypeLabel: Record<number, string> = {
   9: "Category Transfer Out",
   10: "Category Transfer In",
   11: "Head Office IOU Funding",
+  12: "Fund Replenishment",
+  13: "Fund Return",
 };
 
 const directionLabel: Record<number, string> = {
@@ -55,23 +89,34 @@ const directionLabel: Record<number, string> = {
 export default async function PettyCashFundDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
 
-  const [fund, currencies, currentPermissions] = await Promise.all([
-    backendFetchJson<PettyCashFundDto>(`/finance/petty-cash-funds/${id}`),
+  const fundPromise = backendFetchJson<PettyCashFundDto>(`/finance/petty-cash-funds/${id}`).catch((error: unknown) => {
+    if (error instanceof BackendHttpError && error.status === 404) {
+      notFound();
+    }
+
+    throw error;
+  });
+
+  const [fund, currencies, currentPermissions, ledgerAccounts] = await Promise.all([
+    fundPromise,
     backendFetchJson<CurrencyDto[]>("/currencies"),
     backendFetchJson<CurrentPermissionsDto>("/me/permissions"),
+    backendFetchJson<LedgerAccountDto[]>("/finance/accounts"),
   ]);
 
   const permissions = new Set(currentPermissions.permissions);
   const canEdit = permissions.has("Finance.PettyCashFund.Edit");
   const canTopUp = permissions.has("Finance.PettyCashFund.TopUp");
   const canAdjust = permissions.has("Finance.PettyCashFund.Adjust");
+  const canCreateCashCount = permissions.has("Finance.PettyCashCashCount.Create");
+  const canApproveCashCount = permissions.has("Finance.PettyCashCashCount.Approve");
 
   const sumOf = (predicate: (type: number, direction: number) => boolean) =>
     fund.transactions
       .filter((transaction) => predicate(transaction.type, transaction.direction))
       .reduce((sum, transaction) => sum + transaction.amount, 0);
 
-  const classifiedTypes = [1, 2, 3, 4, 5, 6, 7, 11];
+  const classifiedTypes = [1, 2, 3, 4, 5, 6, 7, 8, 11, 12, 13];
 
   const movementRows = [
     {
@@ -81,8 +126,13 @@ export default async function PettyCashFundDetailPage({ params }: { params: Prom
     },
     {
       label: "Received from head office",
-      in: sumOf((type) => type === 7 || type === 11),
+      in: sumOf((type) => type === 7 || type === 11 || type === 12),
       out: 0,
+    },
+    {
+      label: "Returned to head office",
+      in: 0,
+      out: sumOf((type) => type === 8 || type === 13),
     },
     {
       label: "IOU cash released",
@@ -128,9 +178,24 @@ export default async function PettyCashFundDetailPage({ params }: { params: Prom
           <div>Currency: {fund.currencyCode}</div>
           <div>Balance: {fund.balance.toFixed(2)}</div>
           <div>Custodian: {fund.custodianName ?? "-"}</div>
+          <div>Location: {fund.location ?? "-"}</div>
           <div>Status: {fund.isActive ? "Active" : "Inactive"}</div>
         </div>
       </div>
+
+      <Card>
+        <div className="mb-3 text-sm font-semibold">Fund Controls</div>
+        <div className="grid gap-3 text-sm sm:grid-cols-3">
+          <div><span className="text-zinc-500">Authorized float:</span> {fund.authorizedFloat > 0 ? fund.authorizedFloat.toFixed(2) : "No cap"}</div>
+          <div><span className="text-zinc-500">Direct transaction limit:</span> {fund.transactionLimit > 0 ? fund.transactionLimit.toFixed(2) : "No cap"}</div>
+          <div><span className="text-zinc-500">Advance limit:</span> {fund.advanceLimit > 0 ? fund.advanceLimit.toFixed(2) : "No cap"}</div>
+          <div><span className="text-zinc-500">Receipt policy:</span> {fund.requireReceipt ? "Required" : "Optional"}</div>
+          <div><span className="text-zinc-500">Overdue advance rule:</span> {fund.blockOverdueAdvances ? "Block new advances" : "Warn only"}</div>
+          <div><span className="text-zinc-500">Shortage account:</span> {fund.settlementShortageExpenseAccountCode ? `${fund.settlementShortageExpenseAccountCode} - ${fund.settlementShortageExpenseAccountName ?? ""}` : "Not configured"}</div>
+          <div><span className="text-zinc-500">Shortage cost centre:</span> {fund.settlementShortageCostCenterCode ?? "Not configured"}</div>
+          <div><span className="text-zinc-500">Next cash count:</span> {fund.nextCashCountDueAt ? new Date(fund.nextCashCountDueAt).toLocaleString() : "Not scheduled"}</div>
+        </div>
+      </Card>
 
       <div className="grid gap-4 sm:grid-cols-3">
         <Card>
@@ -153,7 +218,7 @@ export default async function PettyCashFundDetailPage({ params }: { params: Prom
       {canEdit ? (
         <Card>
           <div className="mb-3 text-sm font-semibold">Fund Details</div>
-          <PettyCashFundEditForm fund={fund} currencies={currencies} />
+          <PettyCashFundEditForm fund={fund} currencies={currencies} expenseAccounts={ledgerAccounts} />
         </Card>
       ) : null}
 
@@ -163,6 +228,8 @@ export default async function PettyCashFundDetailPage({ params }: { params: Prom
           <PettyCashFundTransactionForms fundId={fund.id} canTopUp={canTopUp} canAdjust={canAdjust} />
         </Card>
       ) : null}
+
+      <PettyCashCashCountPanel fundId={fund.id} counts={fund.cashCounts} canCreate={canCreateCashCount} canApprove={canApproveCashCount} />
 
       <Card>
         <div className="mb-3 text-sm font-semibold">Cash Movement Breakdown</div>

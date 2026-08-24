@@ -8,12 +8,15 @@ import { PettyCashFundCreateForm } from "./PettyCashFundCreateForm";
 
 type CurrencyDto = { code: string; name: string; isBase: boolean; isActive: boolean };
 type CurrentPermissionsDto = { permissions: string[] };
+type LedgerAccountDto = { id: string; code: string; name: string; accountType: number; allowsPosting: boolean; isActive: boolean };
 type PettyCashFundSummaryDto = {
   id: string;
   code: string;
   name: string;
   currencyCode: string;
   custodianName?: string | null;
+  location?: string | null;
+  authorizedFloat: number;
   isActive: boolean;
   balance: number;
   transactionCount: number;
@@ -21,10 +24,11 @@ type PettyCashFundSummaryDto = {
 };
 
 export default async function PettyCashFundsPage() {
-  const [currencies, funds, currentPermissions] = await Promise.all([
+  const [currencies, funds, currentPermissions, ledgerAccounts] = await Promise.all([
     backendFetchJson<CurrencyDto[]>("/currencies"),
     backendFetchJson<PettyCashFundSummaryDto[]>("/finance/petty-cash-funds"),
     backendFetchJson<CurrentPermissionsDto>("/me/permissions"),
+    backendFetchJson<LedgerAccountDto[]>("/finance/accounts"),
   ]);
 
   const permissions = new Set(currentPermissions.permissions);
@@ -42,7 +46,7 @@ export default async function PettyCashFundsPage() {
         </div>
         {canCreate ? (
           <AppFormModal title="Create Petty Cash Fund" description="Create a controlled petty cash float." buttonLabel="+ New Fund">
-            <PettyCashFundCreateForm currencies={currencies} />
+            <PettyCashFundCreateForm currencies={currencies} expenseAccounts={ledgerAccounts} />
           </AppFormModal>
         ) : null}
       </div>
@@ -72,7 +76,7 @@ export default async function PettyCashFundsPage() {
           {funds.map((fund) => (
             <SearchableRow
               key={fund.id}
-              searchText={`${fund.code} ${fund.name} ${fund.currencyCode} ${fund.custodianName ?? ""} ${fund.balance} ${fund.isActive ? "Active" : "Inactive"}`}
+              searchText={`${fund.code} ${fund.name} ${fund.currencyCode} ${fund.custodianName ?? ""} ${fund.location ?? ""} ${fund.balance} ${fund.isActive ? "Active" : "Inactive"}`}
             >
                 <tr key={fund.id} className="border-b border-zinc-100 dark:border-zinc-900">
                   <td className="py-2 pr-3 font-mono text-xs">

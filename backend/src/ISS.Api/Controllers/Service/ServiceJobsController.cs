@@ -46,6 +46,7 @@ public sealed class ServiceJobsController(
         string? CustomerComplaint,
         string? InternalRemarks,
         string? ResponsibleOfficerName,
+        decimal PettyCashSpendingLimit,
         bool FinalInvoiceNotRequired,
         string? FinalInvoiceNotRequiredReason,
         Guid? ServiceContractId,
@@ -80,6 +81,7 @@ public sealed class ServiceJobsController(
         string? InternalRemarks,
         string? ResponsibleOfficerName);
     public sealed record ReopenServiceJobRequest(string? Reason);
+    public sealed record UpdatePettyCashSpendingLimitRequest(decimal Amount);
     public sealed record MarkFinalInvoiceNotRequiredRequest(string Reason);
     public sealed record ServiceJobOperationDto(
         Guid Id,
@@ -422,6 +424,7 @@ public sealed class ServiceJobsController(
                 x.CustomerComplaint,
                 x.InternalRemarks,
                 x.ResponsibleOfficerName,
+                x.PettyCashSpendingLimit,
                 x.FinalInvoiceNotRequired,
                 x.FinalInvoiceNotRequiredReason,
                 x.ServiceContractId,
@@ -797,6 +800,7 @@ public sealed class ServiceJobsController(
                 x.CustomerComplaint,
                 x.InternalRemarks,
                 x.ResponsibleOfficerName,
+                x.PettyCashSpendingLimit,
                 x.FinalInvoiceNotRequired,
                 x.FinalInvoiceNotRequiredReason,
                 x.ServiceContractId,
@@ -812,6 +816,17 @@ public sealed class ServiceJobsController(
             .FirstOrDefaultAsync(cancellationToken);
 
         return job is null ? NotFound() : Ok(job);
+    }
+
+    [HttpPut("{id:guid}/petty-cash-spending-limit")]
+    [Authorize(Roles = $"{Roles.Admin},{Roles.Finance},{Roles.Service}")]
+    public async Task<ActionResult> UpdatePettyCashSpendingLimit(
+        Guid id,
+        UpdatePettyCashSpendingLimitRequest request,
+        CancellationToken cancellationToken)
+    {
+        await serviceManagementService.UpdateServiceJobPettyCashSpendingLimitAsync(id, request.Amount, cancellationToken);
+        return NoContent();
     }
 
     [HttpGet("{id:guid}/costing")]

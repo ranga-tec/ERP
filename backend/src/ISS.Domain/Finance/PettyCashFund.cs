@@ -14,13 +14,23 @@ public enum PettyCashTransactionType
     HeadOfficeReturn = 8,
     CategoryTransferOut = 9,
     CategoryTransferIn = 10,
-    HeadOfficeIouFunding = 11
+    HeadOfficeIouFunding = 11,
+    FundReplenishment = 12,
+    FundReturn = 13
 }
 
 public enum PettyCashTransactionDirection
 {
     In = 1,
     Out = 2
+}
+
+public enum PettyCashCashCountFrequency
+{
+    None = 0,
+    Daily = 1,
+    Weekly = 2,
+    ShiftClose = 3
 }
 
 public sealed class PettyCashFund : AuditableEntity
@@ -32,13 +42,34 @@ public sealed class PettyCashFund : AuditableEntity
         string name,
         string currencyCode,
         string? custodianName,
-        string? notes)
+        string? notes,
+        string? location = null,
+        decimal authorizedFloat = 0m,
+        decimal transactionLimit = 0m,
+        decimal advanceLimit = 0m,
+        bool requireReceipt = true,
+        bool blockOverdueAdvances = true,
+        Guid? settlementShortageExpenseAccountId = null,
+        string? settlementShortageCostCenterCode = null,
+        PettyCashCashCountFrequency cashCountFrequency = PettyCashCashCountFrequency.Weekly,
+        DateTimeOffset? nextCashCountDueAt = null)
     {
         Code = Guard.NotNullOrWhiteSpace(code, nameof(code), maxLength: 32);
         Name = Guard.NotNullOrWhiteSpace(name, nameof(name), maxLength: 128);
         CurrencyCode = Guard.NotNullOrWhiteSpace(currencyCode, nameof(currencyCode), maxLength: 3).ToUpperInvariant();
         CustodianName = NormalizeOptional(custodianName, nameof(custodianName), 128);
         Notes = NormalizeOptional(notes, nameof(notes), 512);
+        ApplyControls(
+            location,
+            authorizedFloat,
+            transactionLimit,
+            advanceLimit,
+            requireReceipt,
+            blockOverdueAdvances,
+            settlementShortageExpenseAccountId,
+            settlementShortageCostCenterCode,
+            cashCountFrequency,
+            nextCashCountDueAt);
         IsActive = true;
     }
 
@@ -46,10 +77,26 @@ public sealed class PettyCashFund : AuditableEntity
     public string Name { get; private set; } = null!;
     public string CurrencyCode { get; private set; } = "USD";
     public string? CustodianName { get; private set; }
+    public string? Location { get; private set; }
     public string? Notes { get; private set; }
+    /// <summary>The management-approved accountability ceiling for this site float. Zero means unset.</summary>
+    public decimal AuthorizedFloat { get; private set; }
+    /// <summary>Maximum value of one direct petty-cash expense. Zero means no configured limit.</summary>
+    public decimal TransactionLimit { get; private set; }
+    /// <summary>Maximum value of one employee advance. Zero means no configured limit.</summary>
+    public decimal AdvanceLimit { get; private set; }
+    public bool RequireReceipt { get; private set; }
+    public bool BlockOverdueAdvances { get; private set; }
+    public Guid? SettlementShortageExpenseAccountId { get; private set; }
+    public LedgerAccount? SettlementShortageExpenseAccount { get; private set; }
+    public string? SettlementShortageCostCenterCode { get; private set; }
+    public PettyCashCashCountFrequency CashCountFrequency { get; private set; }
+    public DateTimeOffset? LastCashCountAt { get; private set; }
+    public DateTimeOffset? NextCashCountDueAt { get; private set; }
     public bool IsActive { get; private set; }
 
     public List<PettyCashTransaction> Transactions { get; private set; } = new();
+    public List<PettyCashCashCount> CashCounts { get; private set; } = new();
 
     public decimal Balance => Transactions.Sum(x => x.SignedAmount);
 
@@ -69,14 +116,47 @@ public sealed class PettyCashFund : AuditableEntity
         string currencyCode,
         string? custodianName,
         string? notes,
-        bool isActive)
+        bool isActive,
+        string? location = null,
+        decimal authorizedFloat = 0m,
+        decimal transactionLimit = 0m,
+        decimal advanceLimit = 0m,
+        bool requireReceipt = true,
+        bool blockOverdueAdvances = true,
+        Guid? settlementShortageExpenseAccountId = null,
+        string? settlementShortageCostCenterCode = null,
+        PettyCashCashCountFrequency cashCountFrequency = PettyCashCashCountFrequency.Weekly,
+        DateTimeOffset? nextCashCountDueAt = null)
     {
         Code = Guard.NotNullOrWhiteSpace(code, nameof(code), maxLength: 32);
         Name = Guard.NotNullOrWhiteSpace(name, nameof(name), maxLength: 128);
         CurrencyCode = Guard.NotNullOrWhiteSpace(currencyCode, nameof(currencyCode), maxLength: 3).ToUpperInvariant();
         CustodianName = NormalizeOptional(custodianName, nameof(custodianName), 128);
         Notes = NormalizeOptional(notes, nameof(notes), 512);
+        ApplyControls(
+            location,
+            authorizedFloat,
+            transactionLimit,
+            advanceLimit,
+            requireReceipt,
+            blockOverdueAdvances,
+            settlementShortageExpenseAccountId,
+            settlementShortageCostCenterCode,
+            cashCountFrequency,
+            nextCashCountDueAt);
         IsActive = isActive;
+    }
+
+    public void MarkCashCountApproved(DateTimeOffset countedAt)
+    {
+        LastCashCountAt = countedAt;
+        NextCashCountDueAt = CashCountFrequency switch
+        {
+            PettyCashCashCountFrequency.Daily => countedAt.AddDays(1),
+            PettyCashCashCountFrequency.Weekly => countedAt.AddDays(7),
+            PettyCashCashCountFrequency.ShiftClose => countedAt.AddHours(8),
+            _ => null,
+        };
     }
 
     public PettyCashTransaction AddOpeningBalance(
@@ -122,6 +202,7 @@ public sealed class PettyCashFund : AuditableEntity
         Guid? pettyCashRequestLineId = null)
     {
         EnsureActive();
+        EnsureWithinTransactionLimit(amount);
         EnsureSufficientBalance(amount);
 
         return AddTransaction(
@@ -134,6 +215,30 @@ public sealed class PettyCashFund : AuditableEntity
             referenceNumber,
             notes,
             pettyCashRequestLineId);
+    }
+
+    /// <summary>
+    /// Replenishes the physical float independently from expense or IOU approval. New V2 requests
+    /// use this fund-level transaction; category-linked request funding remains only for history.
+    /// </summary>
+    public PettyCashTransaction RecordFundReplenishment(
+        decimal amount,
+        DateTimeOffset occurredAt,
+        Guid replenishmentRequestId,
+        string referenceNumber,
+        string? notes)
+    {
+        EnsureActive();
+
+        return AddTransaction(
+            PettyCashTransactionType.FundReplenishment,
+            PettyCashTransactionDirection.In,
+            amount,
+            occurredAt,
+            referenceType: "PCR",
+            referenceId: replenishmentRequestId,
+            referenceNumber: Guard.NotNullOrWhiteSpace(referenceNumber, nameof(referenceNumber), maxLength: 128),
+            notes);
     }
 
     /// <summary>
@@ -207,6 +312,28 @@ public sealed class PettyCashFund : AuditableEntity
             referenceNumber,
             notes,
             pettyCashRequestLineId);
+    }
+
+    /// <summary>Returns reconciled physical cash to head office without a category sub-ledger.</summary>
+    public PettyCashTransaction RecordFundReturn(
+        decimal amount,
+        DateTimeOffset occurredAt,
+        Guid pettyCashReturnId,
+        string receiptReference,
+        string? notes)
+    {
+        EnsureActive();
+        EnsureSufficientBalance(amount);
+
+        return AddTransaction(
+            PettyCashTransactionType.FundReturn,
+            PettyCashTransactionDirection.Out,
+            amount,
+            occurredAt,
+            referenceType: "PCRTN",
+            referenceId: pettyCashReturnId,
+            referenceNumber: Guard.NotNullOrWhiteSpace(receiptReference, nameof(receiptReference), maxLength: 128),
+            notes);
     }
 
     public PettyCashTransaction RecordHeadOfficeIouFunding(
@@ -368,6 +495,44 @@ public sealed class PettyCashFund : AuditableEntity
         return transaction;
     }
 
+    private void ApplyControls(
+        string? location,
+        decimal authorizedFloat,
+        decimal transactionLimit,
+        decimal advanceLimit,
+        bool requireReceipt,
+        bool blockOverdueAdvances,
+        Guid? settlementShortageExpenseAccountId,
+        string? settlementShortageCostCenterCode,
+        PettyCashCashCountFrequency cashCountFrequency,
+        DateTimeOffset? nextCashCountDueAt)
+    {
+        Location = NormalizeOptional(location, nameof(location), 128);
+        AuthorizedFloat = Guard.NotNegative(authorizedFloat, nameof(authorizedFloat));
+        TransactionLimit = Guard.NotNegative(transactionLimit, nameof(transactionLimit));
+        AdvanceLimit = Guard.NotNegative(advanceLimit, nameof(advanceLimit));
+        RequireReceipt = requireReceipt;
+        BlockOverdueAdvances = blockOverdueAdvances;
+        SettlementShortageExpenseAccountId = settlementShortageExpenseAccountId;
+        SettlementShortageCostCenterCode = NormalizeOptional(
+            settlementShortageCostCenterCode,
+            nameof(settlementShortageCostCenterCode),
+            64)?.ToUpperInvariant();
+        CashCountFrequency = cashCountFrequency;
+        NextCashCountDueAt = cashCountFrequency == PettyCashCashCountFrequency.None
+            ? null
+            : nextCashCountDueAt ?? NextCashCountDueAt;
+    }
+
+    private void EnsureWithinTransactionLimit(decimal amount)
+    {
+        if (TransactionLimit > 0m && amount > TransactionLimit)
+        {
+            throw new DomainValidationException(
+                $"This petty cash transaction exceeds the configured limit of {TransactionLimit:0.00}. Use procurement or obtain a revised limit.");
+        }
+    }
+
     private void EnsureActive()
     {
         if (!IsActive)
@@ -392,6 +557,100 @@ public sealed class PettyCashFund : AuditableEntity
         }
 
         return Guard.NotNullOrWhiteSpace(value, paramName, maxLength: maxLength);
+    }
+}
+
+public enum PettyCashCashCountStatus
+{
+    Submitted = 1,
+    Approved = 2,
+    Rejected = 3
+}
+
+public sealed class PettyCashCashCount : AuditableEntity
+{
+    private PettyCashCashCount() { }
+
+    public PettyCashCashCount(
+        string number,
+        Guid pettyCashFundId,
+        DateTimeOffset countedAt,
+        Guid countedByUserId,
+        string countedByName,
+        decimal physicalCash,
+        decimal outstandingAdvances,
+        decimal supportedExpenseVouchers,
+        decimal authorizedFloatSnapshot,
+        string? notes)
+    {
+        Number = Guard.NotNullOrWhiteSpace(number, nameof(number), maxLength: 32);
+        PettyCashFundId = pettyCashFundId == Guid.Empty
+            ? throw new DomainValidationException("Petty cash fund is required.")
+            : pettyCashFundId;
+        CountedAt = countedAt;
+        CountedByUserId = countedByUserId == Guid.Empty
+            ? throw new DomainValidationException("The cash counter is required.")
+            : countedByUserId;
+        CountedByName = Guard.NotNullOrWhiteSpace(countedByName, nameof(countedByName), maxLength: 256);
+        PhysicalCash = Guard.NotNegative(physicalCash, nameof(physicalCash));
+        OutstandingAdvances = Guard.NotNegative(outstandingAdvances, nameof(outstandingAdvances));
+        SupportedExpenseVouchers = Guard.NotNegative(supportedExpenseVouchers, nameof(supportedExpenseVouchers));
+        AuthorizedFloatSnapshot = Guard.NotNegative(authorizedFloatSnapshot, nameof(authorizedFloatSnapshot));
+        Notes = string.IsNullOrWhiteSpace(notes) ? null : Guard.NotNullOrWhiteSpace(notes, nameof(notes), maxLength: 1000);
+        Status = PettyCashCashCountStatus.Submitted;
+    }
+
+    public string Number { get; private set; } = null!;
+    public Guid PettyCashFundId { get; private set; }
+    public DateTimeOffset CountedAt { get; private set; }
+    public Guid CountedByUserId { get; private set; }
+    public string CountedByName { get; private set; } = null!;
+    public decimal PhysicalCash { get; private set; }
+    public decimal OutstandingAdvances { get; private set; }
+    public decimal SupportedExpenseVouchers { get; private set; }
+    public decimal AuthorizedFloatSnapshot { get; private set; }
+    public string? Notes { get; private set; }
+    public PettyCashCashCountStatus Status { get; private set; }
+    public DateTimeOffset? ApprovedAt { get; private set; }
+    public Guid? ApprovedByUserId { get; private set; }
+    public DateTimeOffset? RejectedAt { get; private set; }
+    public Guid? RejectedByUserId { get; private set; }
+    public string? RejectionReason { get; private set; }
+    public decimal Accountability => PhysicalCash + OutstandingAdvances + SupportedExpenseVouchers;
+    public decimal Variance => Accountability - AuthorizedFloatSnapshot;
+
+    public void Approve(Guid approvedByUserId, DateTimeOffset approvedAt)
+    {
+        if (Status != PettyCashCashCountStatus.Submitted)
+        {
+            throw new DomainValidationException("Only a submitted cash count can be approved.");
+        }
+
+        if (approvedByUserId == CountedByUserId)
+        {
+            throw new DomainValidationException("The cash counter cannot approve their own count.");
+        }
+
+        ApprovedByUserId = approvedByUserId == Guid.Empty
+            ? throw new DomainValidationException("The cash-count approver is required.")
+            : approvedByUserId;
+        ApprovedAt = approvedAt;
+        Status = PettyCashCashCountStatus.Approved;
+    }
+
+    public void Reject(Guid rejectedByUserId, DateTimeOffset rejectedAt, string reason)
+    {
+        if (Status != PettyCashCashCountStatus.Submitted)
+        {
+            throw new DomainValidationException("Only a submitted cash count can be rejected.");
+        }
+
+        RejectedByUserId = rejectedByUserId == Guid.Empty
+            ? throw new DomainValidationException("The cash-count reviewer is required.")
+            : rejectedByUserId;
+        RejectedAt = rejectedAt;
+        RejectionReason = Guard.NotNullOrWhiteSpace(reason, nameof(reason), maxLength: 1000);
+        Status = PettyCashCashCountStatus.Rejected;
     }
 }
 
@@ -560,6 +819,11 @@ public sealed class PettyCashIou : AuditableEntity
 
     public DateTimeOffset? SettlementApprovedAt { get; private set; }
     public Guid? SettlementApprovedByUserId { get; private set; }
+    public decimal SettlementExceptionAmount { get; private set; }
+    public string? SettlementExceptionReason { get; private set; }
+    public DateTimeOffset? SettlementExceptionApprovedAt { get; private set; }
+    public Guid? SettlementExceptionApprovedByUserId { get; private set; }
+    public Guid? SettlementExceptionExpenseClaimId { get; private set; }
 
     /// <summary>
     /// The advance, less what has come back. What is left has to be covered by bills; anything not
@@ -856,6 +1120,28 @@ public sealed class PettyCashIou : AuditableEntity
         SettledAt = settledAt;
         SettlementReference = string.IsNullOrWhiteSpace(settlementReference) ? null : Guard.NotNullOrWhiteSpace(settlementReference, nameof(settlementReference), maxLength: 128);
         Status = PettyCashIouStatus.Settled;
+    }
+
+    /// <summary>
+    /// Authorizes a documented shortage or missing-receipt amount. The application service derives
+    /// the amount from released cash, returns, and accepted bills; users cannot type an arbitrary
+    /// write-off. Supporting evidence remains attached to the IOU collaboration record.
+    /// </summary>
+    public void ApproveSettlementException(
+        decimal amount,
+        string reason,
+        Guid approvedByUserId,
+        DateTimeOffset approvedAt,
+        Guid? settlementExceptionExpenseClaimId = null)
+    {
+        EnsureOpenForAccounting();
+        SettlementExceptionAmount = Guard.Positive(amount, nameof(amount));
+        SettlementExceptionReason = Guard.NotNullOrWhiteSpace(reason, nameof(reason), maxLength: 1000);
+        SettlementExceptionApprovedByUserId = approvedByUserId == Guid.Empty
+            ? throw new DomainValidationException("The exception approver is required.")
+            : approvedByUserId;
+        SettlementExceptionApprovedAt = approvedAt;
+        SettlementExceptionExpenseClaimId = settlementExceptionExpenseClaimId;
     }
 
     private void EnsureOpenForAccounting()

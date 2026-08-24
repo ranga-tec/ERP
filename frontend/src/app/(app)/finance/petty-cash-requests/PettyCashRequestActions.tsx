@@ -3,202 +3,25 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { apiPostNoContent } from "@/lib/api-client";
-import { ConfirmActionDialog } from "@/components/ConfirmActionDialog";
-import { Button, Input, SecondaryButton, Textarea } from "@/components/ui";
-import { STATUS_APPROVED, STATUS_DRAFT, STATUS_PARTIALLY_FUNDED, STATUS_SUBMITTED, money } from "./categories";
+import { Button, DecimalInput, SecondaryButton, Textarea } from "@/components/ui";
+import { STATUS_DRAFT, STATUS_SUBMITTED } from "./categories";
 
-type LineRef = {
-  id: string;
-  purpose: string;
-  requestedAmount: number;
-  approvedAmount?: number | null;
-};
-
-type Pending = "submit" | "approve" | "reject" | null;
-
-export function PettyCashRequestActions({
-  requestId,
-  status,
-  lines,
-  permissions,
-}: {
-  requestId: string;
-  status: number;
-  lines: LineRef[];
-  permissions: string[];
-}) {
+export function PettyCashRequestActions({ requestId, status, requestedAmount, permissions, legacy }: { requestId: string; status: number; requestedAmount: number; permissions: string[]; legacy: boolean }) {
   const router = useRouter();
-  const permissionSet = new Set(permissions);
-  const canSubmit = status === STATUS_DRAFT && permissionSet.has("Finance.PettyCashRequest.Submit");
-  const canApprove = status === STATUS_SUBMITTED && permissionSet.has("Finance.PettyCashRequest.Approve");
-  const canReject = status === STATUS_SUBMITTED && permissionSet.has("Finance.PettyCashRequest.Reject");
-
-  // Head office decides each line separately, so the approval form starts at the requested amount
-  // and is edited down where they are giving less.
-  const [approvedAmounts, setApprovedAmounts] = useState<Record<string, string>>(() =>
-    Object.fromEntries(lines.map((line) => [line.id, String(line.approvedAmount ?? line.requestedAmount)])),
-  );
-  const [rejectReason, setRejectReason] = useState("");
-  const [pending, setPending] = useState<Pending>(null);
-  const [busy, setBusy] = useState<string | null>(null);
+  const access = new Set(permissions);
+  const [approvedAmount, setApprovedAmount] = useState(String(requestedAmount));
+  const [reason, setReason] = useState("");
+  const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  async function run(action: string, body: object = {}) {
-    setError(null);
-    setBusy(action);
-    try {
-      await apiPostNoContent(`finance/petty-cash-requests/${requestId}/${action}`, body);
-      setPending(null);
-      router.refresh();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
-    } finally {
-      setBusy(null);
-    }
-  }
-
-  const approvedTotal = lines.reduce((sum, line) => {
-    const value = Number(approvedAmounts[line.id]);
-    return sum + (Number.isFinite(value) ? value : 0);
-  }, 0);
-  const requestedTotal = lines.reduce((sum, line) => sum + line.requestedAmount, 0);
-  const anyOverRequested = lines.some((line) => Number(approvedAmounts[line.id]) > line.requestedAmount);
-
-  return (
-    <div className="space-y-3">
-      <div className="flex flex-wrap items-center gap-2">
-        {canSubmit ? (
-          <Button type="button" disabled={busy !== null || lines.length === 0} onClick={() => setPending("submit")}>
-            Submit to Head Office
-          </Button>
-        ) : null}
-        {canApprove ? (
-          <Button type="button" disabled={busy !== null} onClick={() => setPending("approve")}>
-            Approve
-          </Button>
-        ) : null}
-        {canReject ? (
-          <SecondaryButton type="button" disabled={busy !== null} onClick={() => setPending("reject")}>
-            Reject
-          </SecondaryButton>
-        ) : null}
-        {status === STATUS_DRAFT && lines.length === 0 ? (
-          <span className="text-xs text-zinc-500">Add at least one category line before submitting.</span>
-        ) : null}
-        {(status === STATUS_APPROVED || status === STATUS_PARTIALLY_FUNDED) ? (
-          <span className="text-xs text-zinc-500">
-            Approved. Release money per line from the table below.
-          </span>
-        ) : null}
-      </div>
-
-      {canApprove ? (
-        <div className="rounded-md border border-[var(--card-border)] p-3">
-          <div className="text-sm font-semibold">Approved amount per line</div>
-          <div className="mt-1 text-xs text-zinc-500">
-            Approve each category on its own. Enter 0 to approve nothing for a line.
-          </div>
-          <div className="mt-3 space-y-2">
-            {lines.map((line) => (
-              <div key={line.id} className="flex flex-wrap items-center gap-3">
-                <div className="min-w-0 flex-1 text-sm">
-                  <div className="truncate">{line.purpose}</div>
-                  <div className="text-xs text-zinc-500">requested {money(line.requestedAmount)}</div>
-                </div>
-                <Input
-                  className="w-32"
-                  inputMode="decimal"
-                  value={approvedAmounts[line.id] ?? ""}
-                  onChange={(e) =>
-                    setApprovedAmounts((prev) => ({ ...prev, [line.id]: e.target.value }))
-                  }
-                />
-              </div>
-            ))}
-          </div>
-          <div className="mt-3 text-sm">
-            Approving <span className="font-semibold">{money(approvedTotal)}</span> of {money(requestedTotal)} requested
-          </div>
-          {anyOverRequested ? (
-            <div className="mt-1 text-xs text-red-700 dark:text-red-300">
-              A line cannot be approved for more than was requested.
-            </div>
-          ) : null}
-        </div>
-      ) : null}
-
-      {error ? <div className="text-xs text-red-700 dark:text-red-300">{error}</div> : null}
-
-      <ConfirmActionDialog
-        open={pending === "submit"}
-        title="Submit petty cash request"
-        confirmWord="SUBMIT"
-        confirmLabel="Submit"
-        busy={busy === "submit"}
-        onCancel={() => setPending(null)}
-        onConfirm={() => run("submit")}
-        description={
-          <>
-            This sends {money(requestedTotal)} across {lines.length} categor{lines.length === 1 ? "y" : "ies"} to head
-            office. The request can no longer be edited once submitted.
-          </>
-        }
-      />
-
-      <ConfirmActionDialog
-        open={pending === "approve"}
-        title="Approve petty cash request"
-        confirmWord="APPROVE"
-        confirmLabel="Approve"
-        busy={busy === "approve"}
-        onCancel={() => setPending(null)}
-        onConfirm={() =>
-          run("approve", {
-            lines: lines.map((line) => ({
-              lineId: line.id,
-              approvedAmount: Number(approvedAmounts[line.id]) || 0,
-            })),
-          })
-        }
-        description={
-          <>
-            Approves <span className="font-semibold">{money(approvedTotal)}</span> of the {money(requestedTotal)}{" "}
-            requested. Approval does not move any money - each line is funded separately afterwards.
-          </>
-        }
-      />
-
-      {pending === "reject" ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 p-4">
-          <div role="dialog" aria-modal="true" className="w-full max-w-md rounded-lg border border-[var(--card-border)] bg-[var(--card-bg)] p-4 shadow-xl">
-            <div className="text-base font-semibold">Reject petty cash request</div>
-            <div className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">
-              Give the requester a reason. This is recorded against the request.
-            </div>
-            <label className="mt-4 block text-sm font-medium">Reason</label>
-            <Textarea
-              className="mt-1"
-              value={rejectReason}
-              onChange={(e) => setRejectReason(e.target.value)}
-              placeholder="Why is this being rejected?"
-              autoFocus
-              disabled={busy === "reject"}
-            />
-            <div className="mt-4 flex flex-wrap justify-end gap-2">
-              <SecondaryButton type="button" disabled={busy === "reject"} onClick={() => setPending(null)}>
-                Cancel
-              </SecondaryButton>
-              <Button
-                type="button"
-                disabled={busy === "reject" || rejectReason.trim().length === 0}
-                onClick={() => run("reject", { reason: rejectReason.trim() })}
-              >
-                {busy === "reject" ? "Rejecting..." : "Reject"}
-              </Button>
-            </div>
-          </div>
-        </div>
-      ) : null}
+  async function run(path: string, body: object = {}) { setBusy(true); setError(null); try { await apiPostNoContent(`finance/petty-cash-requests/${requestId}/${path}`, body); router.refresh(); } catch (err) { setError(err instanceof Error ? err.message : String(err)); } finally { setBusy(false); } }
+  if (legacy) return <div className="text-sm text-amber-700">Historical category request: retained read-only for audit.</div>;
+  return <div className="space-y-3">
+    <div className="flex flex-wrap items-end gap-2">
+      {status === STATUS_DRAFT && access.has("Finance.PettyCashRequest.Submit") ? <Button disabled={busy} onClick={() => void run("submit")}>Submit to Head Office</Button> : null}
+      {status === STATUS_DRAFT && access.has("Finance.PettyCashRequest.Cancel") ? <SecondaryButton disabled={busy} onClick={() => void run("cancel")}>Cancel</SecondaryButton> : null}
+      {status === STATUS_SUBMITTED && access.has("Finance.PettyCashRequest.Approve") ? <><div><label className="mb-1 block text-xs font-medium">Approved amount</label><DecimalInput className="w-40" value={approvedAmount} onChange={(event) => setApprovedAmount(event.target.value)} /></div><Button disabled={busy} onClick={() => void run("approve", { approvedAmount: Number(approvedAmount) })}>Approve</Button></> : null}
+      {status === STATUS_SUBMITTED && access.has("Finance.PettyCashRequest.Reject") ? <><Textarea className="min-h-9 w-64" value={reason} onChange={(event) => setReason(event.target.value)} placeholder="Rejection reason" /><SecondaryButton disabled={busy || !reason.trim()} onClick={() => void run("reject", { reason })}>Reject</SecondaryButton></> : null}
     </div>
-  );
+    {error ? <div className="text-sm text-red-700">{error}</div> : null}
+  </div>;
 }

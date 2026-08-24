@@ -8,252 +8,175 @@ type Scenario = {
   number: string;
   title: string;
   who: string;
-  lede?: string;
+  lede: string;
   steps: ReactNode[];
   stop: ReactNode;
   warn?: ReactNode;
 };
 
-type Refusal = { message: string; meaning: string; fix: string };
-
 const quickLinks = [
-  { href: "#getting-money-in", label: "Getting money in" },
-  { href: "#handing-cash-out", label: "Handing cash out" },
-  { href: "#bills-and-settlement", label: "Bills and settlement" },
-  { href: "#other-payments", label: "Other payments" },
-  { href: "#category-reallocation", label: "Move category balance" },
-  { href: "#return-to-head-office", label: "Return to head office" },
-  { href: "#refusals", label: "If it is refused" },
+  { href: "#replenishment", label: "Replenish fund" },
+  { href: "#advances", label: "Issue advances" },
+  { href: "#settlement", label: "Settle advances" },
+  { href: "#expenses", label: "Record expenses" },
+  { href: "#return", label: "Return cash" },
+  { href: "#refusals", label: "Fix refusals" },
 ];
 
-/** A screen path in the sidebar, e.g. Finance > Petty Cash Requests. */
 function Nav({ children }: { children: ReactNode }) {
-  return (
-    <span className="whitespace-nowrap rounded bg-[var(--surface-soft)] px-1.5 py-0.5 font-mono text-[12px] text-[var(--foreground)]">
-      {children}
-    </span>
-  );
+  return <span className="whitespace-nowrap rounded bg-[var(--surface-soft)] px-1.5 py-0.5 font-mono text-[12px]">{children}</span>;
 }
 
-/** A button exactly as it is labelled on screen. */
 function Btn({ children }: { children: ReactNode }) {
-  return (
-    <span className="whitespace-nowrap rounded border border-[var(--input-border)] bg-[var(--surface)] px-1.5 py-0.5 text-[13px] font-semibold text-[var(--foreground)]">
-      {children}
-    </span>
-  );
+  return <span className="whitespace-nowrap rounded border border-[var(--input-border)] bg-[var(--surface)] px-1.5 py-0.5 text-[13px] font-semibold">{children}</span>;
 }
 
-/** A field label on a form. */
 function Field({ children }: { children: ReactNode }) {
   return <span className="font-mono text-[12px] text-[var(--muted-foreground)]">{children}</span>;
 }
 
-/** The word a confirmation box makes you type before it will let the action run. */
 function Typed({ children }: { children: ReactNode }) {
-  return (
-    <span className="whitespace-nowrap rounded bg-amber-100 px-1.5 py-0.5 font-mono text-[12px] font-semibold tracking-wide text-amber-900 dark:bg-amber-950/50 dark:text-amber-300">
-      {children}
-    </span>
-  );
+  return <span className="rounded bg-amber-100 px-1.5 py-0.5 font-mono text-[12px] font-semibold text-amber-900 dark:bg-amber-950/50 dark:text-amber-300">{children}</span>;
 }
 
 const scenarios: Scenario[] = [
   {
-    id: "getting-money-in",
+    id: "replenishment",
     number: "1",
-    title: "You need money from head office for the week",
-    who: "Assistant accountant",
-    lede: "One request covering several categories. Do not raise a separate request per category.",
+    title: "Request a fund replenishment",
+    who: "Workshop custodian",
+    lede: "Replenishment restores the physical float. It does not create job or expense-category cash balances.",
     steps: [
-      <>Go to <Nav>Finance › Petty Cash Requests</Nav> and click <Btn>+ New Request</Btn>.</>,
-      <>Pick the fund the money should land in, set <Field>Needed by</Field> if it matters, then click <Btn>Create Request</Btn>. You land on the request page.</>,
-      <>Click <Btn>+ Add Line</Btn> once per category: <Field>Job Wise</Field> (then pick the job order), <Field>Emergency Operation</Field>, <Field>Transportation</Field>, or <Field>Custom</Field> (then name it). Each line needs a reason and an amount.</>,
-      <>Check the totals, click <Btn>Submit to Head Office</Btn>, and type <Typed>SUBMIT</Typed> to confirm.</>,
+      <>Reconcile the site: count <Field>Cash on hand</Field>, total <Field>Outstanding advances</Field>, and total accepted <Field>Reconciled expenses</Field>.</>,
+      <>Go to <Nav>Finance › Petty Cash Replenishment</Nav> and click <Btn>+ New Replenishment</Btn>.</>,
+      <>Select the fund, enter the three reconciliation figures and the <Field>Requested amount</Field>, then save.</>,
+      <>Attach the cash count and voucher summary, click <Btn>Submit to Head Office</Btn>, and type <Typed>SUBMIT</Typed>.</>,
     ],
-    stop: <>Status reads <strong>Submitted</strong> and head office has been notified. The lines can no longer be edited. Wait for their approval notification.</>,
+    stop: <>Status is <strong>Submitted</strong>. The request is locked and head office has the reconciliation snapshot.</>,
   },
   {
-    id: "approve-request",
+    id: "approve-replenishment",
     number: "2",
-    title: "A request is waiting for you to approve",
+    title: "Approve and transfer replenishment money",
     who: "Head office",
-    lede: "You decide each category separately, and you may give less than was asked for.",
+    lede: "Approval authorizes the transfer; recording the receipt is the separate event that raises the fund balance.",
     steps: [
-      <>Open the notification, or go to <Nav>Finance › Petty Cash Requests</Nav> and click the request number.</>,
-      <>Click <Btn>Approve</Btn>. A panel lists every line with the requested amount already filled in.</>,
-      <>Edit any line down. Enter <strong>0</strong> to give nothing for that category. You cannot enter more than was requested.</>,
-      <>Check the &ldquo;Approving X of Y requested&rdquo; total, then confirm by typing <Typed>APPROVE</Typed>.</>,
+      <>Open the submitted replenishment and compare its accountability with the fund&apos;s <Field>Authorized float</Field>.</>,
+      <>Enter one approved amount, not separate amounts by job or category, then click <Btn>Approve</Btn>.</>,
+      <>After the bank/cash transfer occurs, enter its reference and amount under <Field>Record Fund Receipt</Field>.</>,
     ],
-    stop: <>Status reads <strong>Approved</strong>. <strong>No money has moved yet</strong> — approving and paying are two separate acts. Continue to scenario 3 to release it.</>,
+    stop: <>Status is <strong>Funded</strong>, or <strong>Partially Funded</strong> if another receipt is due. The ledger contains one fund-level replenishment movement per receipt.</>,
   },
   {
-    id: "release-funds",
+    id: "advances",
     number: "3",
-    title: "Paying an approved request — one transfer, several categories",
-    who: "Head office",
-    lede: "Release each line on its own, even when the bank transfer was a single payment.",
+    title: "Approve and release employee advances",
+    who: "Requester, reviewer, approver, head office, custodian",
+    lede: "IOU approval and fund replenishment are independent. An approved batch can be released whenever the selected fund has enough cash.",
     steps: [
-      <>On the request page, find the <Field>Category lines</Field> table. Each line has a <Btn>Release</Btn> button in the last column.</>,
-      <>Click <Btn>Release</Btn> on the first line. The amount defaults to what is still outstanding; reduce it if you are paying in parts.</>,
-      <>Put the bank transfer reference in <Field>Transfer / slip ref</Field>, then click <Btn>Confirm</Btn>.</>,
-      <>Repeat for each remaining line, <strong>using the same transfer reference</strong> — it is filled in for you. That is how one payment covering four categories is recorded as four separate receipts.</>,
+      <><em>Requester:</em> create an IOU with the employee, job when applicable, purpose, amount, and expected settlement date.</>,
+      <><em>Reviewer:</em> group submitted IOUs into a PCAB batch, select the fund and assigned approver, then send it for approval.</>,
+      <><em>Assigned approver:</em> reduce any amount if necessary. Head office then approves the batch.</>,
+      <><em>Custodian:</em> open each approved IOU, confirm the collector and signed slip number, then click <Btn>Release Cash</Btn>.</>,
     ],
-    stop: <>Status reads <strong>Funded</strong> once every line is fully paid, or <strong>Partially Funded</strong> if some is still to come. The float has gone up and each category shows a balance in the <Field>In sub-account</Field> column.</>,
+    stop: <>Status is <strong>Cash Released</strong>. The employee owes the company until bills and returned cash fully account for the release.</>,
+    warn: <>Release is blocked when the fund lacks cash, the amount exceeds its advance limit, the job authorization would be exceeded, or the collector has an overdue advance.</>,
   },
   {
-    id: "written-iou",
+    id: "settlement",
     number: "4",
-    title: "Request and release a job advance",
-    who: "Technician, accountant, assigned approver, then head office",
-    lede: "The job team requests money; the accountant can send several received IOUs as one approval batch before cash is received and handed over.",
+    title: "Account for bills and returned change",
+    who: "Custodian, then higher-level approver",
+    lede: "Normal settlement requires released cash to equal accepted expenses plus returned cash.",
     steps: [
-      <><em>Technician:</em> <Nav>Finance › Petty Cash Advances (IOU)</Nav> → <Btn>+ New IOU</Btn>. Pick the job number, amount and purpose. It submits itself for approval.</>,
-      <><em>Accountant:</em> in <Field>Prepare approval batch</Field>, choose the fund and approver, tick one or more submitted IOUs, check the combined total, then click <Btn>Send Batch for Approval</Btn>.</>,
-      <><em>Assigned approver:</em> review the IOU/job/description breakdown, reduce any line if needed, then click <Btn>Approve Amounts &amp; Return</Btn>.</>,
-      <><em>Accountant:</em> click <Btn>Submit Batch to Head Office</Btn>. Head office checks and approves the whole batch once.</>,
-      <><em>Accountant:</em> when the remittance arrives, enter its reference and click <Btn>Record Funding Received</Btn>. The selected fund now rises by the approved total.</>,
-      <>When the employee collects cash, Finance opens that IOU and clicks <Btn>Release Cash</Btn>.</>,
-      <>Confirm the selected fund and select the employee under <Field>Collected by</Field>.</>,
-      <>Write and sign the paper IOU slip, enter its number in <Field>IOU slip number</Field>, then click <Btn>Release Cash</Btn>.</>,
+      <>Open the IOU and add every bill with its receipt number, amount, posting expense account, and billable flag.</>,
+      <>Attach each bill image under that bill&apos;s <Field>Receipt File &amp; Line Evidence</Field>, then record each cash-return instalment.</>,
+      <>Confirm <Field>Unaccounted</Field> is zero, then click <Btn>Settle / Account</Btn> and type <Typed>SETTLE</Typed>.</>,
+      <><em>Head office:</em> review the expense accounts, job/cost impact, receipts, and returns, then click <Btn>Approve Settlement</Btn>.</>,
     ],
-    stop: <>Status reads <strong>Cash Released</strong>. The system keeps the request number (<strong>IOU000012</strong>) and stores the physical slip number and collector alongside it. The fund falls by the released amount; cash returned later raises it again.</>,
+    stop: <>Status is <strong>Settlement Approved</strong>. Bills create the expense/job cost; the advance itself never does.</>,
+    warn: <>If money remains unexplained, settlement is blocked. A higher-level approver may authorize the exact shortage after IOU evidence is attached; the system creates a linked voucher against the fund&apos;s configured shortage G/L account and cost centre.</>,
   },
   {
-    id: "bills-and-settlement",
+    id: "expenses",
     number: "5",
-    title: "Someone comes back with bills and change",
-    who: "Assistant accountant, then head office",
-    lede: "Search the physical IOU number and complete the bills, returns, and settlement in one place.",
+    title: "Record something already bought",
+    who: "Employee or custodian, then finance",
+    lede: "Use an expense voucher when spending already happened. Use an IOU only when cash is needed before the purchase.",
     steps: [
-      <>Go to <Nav>Finance › Petty Cash Advances (IOU)</Nav> and find the advance.</>,
-      <>Search by the physical <Field>IOU number</Field>, such as <strong>4001</strong>, and open that row.</>,
-      <>On the detail page, add every bill amount and attach its image in <Field>Bill Copies, Comments &amp; Attachments</Field>. The system maintains the expense voucher behind the IOU.</>,
-      <>Record each returned-cash instalment in <Field>Cash returned</Field>. Keep using this same IOU page until everything is back.</>,
-      <>Click <Btn>Settle / Account</Btn> and confirm with <Typed>SETTLE</Typed>. The system calculates the spent amount from the advance less cash returned.</>,
-      <>The linked voucher is approved at settlement, so job cost and billable charges update immediately. <em>Head office:</em> checks the figures and clicks <Btn>Approve Settlement</Btn> to close the advance.</>,
+      <>Go to <Nav>Service › Expense Vouchers</Nav> and create a voucher.</>,
+      <>Choose <Field>Petty Cash Fund</Field> or <Field>Out of Pocket</Field>, then select the job when the cost belongs to one.</>,
+      <>For non-job petty-cash overhead, enter a <Field>Cost centre code</Field>.</>,
+      <>Add every line with a posting <Field>Expense category/account</Field>, receipt reference, and line receipt file. If the receipt is missing, enter the reason and obtain separate approval before submission.</>,
     ],
-    stop: <>Status reads <strong>Settlement Approved</strong> and the advance is closed for good. The hidden voucher is approved and the <Field>Unaccounted</Field> figure should read <strong>reconciled</strong>.</>,
-    warn: <><strong>If Unaccounted shows an amber figure</strong>, that is cash declared as spent with no bill behind it. It has left the company and will never reach any job&apos;s cost. The system allows it deliberately — but it should be a decision, not an accident.</>,
+    stop: <>The settled voucher records the actual expense, job/project, cost centre, expense account, and billable status without changing any cash category sub-ledger.</>,
   },
   {
-    id: "other-payments",
+    id: "controls",
     number: "6",
-    title: "You pay a taxi or a courier straight from the box",
-    who: "Assistant accountant",
-    lede: "Nobody owes anything here, so this is not an advance. The bill is the whole record.",
+    title: "Configure the controls",
+    who: "Finance or service management",
+    lede: "Limits control spending directly; they do not earmark physical cash into categories.",
     steps: [
-      <><Nav>Service › Expense Vouchers</Nav> → <Btn>+ New Voucher</Btn>.</>,
-      <>Leave <Field>Job Order</Field> on <Field>Not job related (overhead)</Field> unless it genuinely belongs to one job.</>,
-      <>Set <Field>Funding source</Field> to <Field>Petty Cash Fund</Field>. Put the receipt number in <Field>Receipt ref</Field> and the vendor in <Field>Merchant</Field>. Leave <Field>Funded by IOU advance</Field> empty.</>,
-      <>Create it, add the line, attach the bill.</>,
-      <><Btn>Submit Claim</Btn> → <Btn>Approve</Btn> → <Btn>Repay from Fund</Btn>, choosing the fund.</>,
+      <>Open <Nav>Finance › Petty Cash Funds</Nav> and set location, authorized float, direct transaction limit, advance limit, receipt policy, and overdue-advance rule.</>,
+      <>Open a service job&apos;s Overview tab and set its <Field>Petty-cash authorization</Field> when management wants a job-specific ceiling.</>,
+      <>On the fund, configure the settlement-shortage expense account, cost centre, cash-count frequency, and next count due date.</>,
+      <>Record physical cash and supported vouchers on the fund page; a different authorized user approves or rejects the calculated variance.</>,
+      <>Use 0 only when a particular ceiling is intentionally not configured.</>,
     ],
-    stop: <>Status <strong>Settled</strong>. The cash has come out of the box against a bill, and because there is no job it stays out of job costing — correct for overhead.</>,
+    stop: <>Head-office IOU approval now checks the job&apos;s actual petty-cash expense plus open advance commitments against that authorization.</>,
   },
   {
-    id: "out-of-pocket",
+    id: "return",
     number: "7",
-    title: "Someone spent their own money and wants it back",
-    who: "Anyone, then finance",
+    title: "Return reconciled cash to head office",
+    who: "Workshop custodian, then head office",
+    lede: "PCRTN is now a physical fund return. It does not reverse job costs or expense categories.",
     steps: [
-      <><Nav>Service › Expense Vouchers</Nav> → <Btn>+ New Voucher</Btn>.</>,
-      <>Set <Field>Funding source</Field> to <Field>Out of Pocket</Field>. Pick the job if there is one.</>,
-      <>Add the lines, attach the bills, click <Btn>Submit Claim</Btn>.</>,
-      <>Finance: <Btn>Approve</Btn>, then <Btn>Repay Claimant</Btn> and choose how they were paid.</>,
+      <>Complete the cash count and make sure the amount is physically available in the fund.</>,
+      <>Go to <Nav>Finance › Return Money to Head Office</Nav>, prepare one return with the fund and amount, and attach evidence.</>,
+      <>Submit it. Head office enters the receipt/deposit reference after counting the cash.</>,
     ],
-    stop: <>Status <strong>Settled</strong>. An out-of-pocket voucher <em>cannot</em> be charged to a funded category — that is how overspend beyond an advance is recorded, and counting it against the category would make an overspent advance look reconciled.</>,
+    stop: <>Status is <strong>Received</strong> and one fund-level return reduces the petty-cash ledger.</>,
   },
   {
-    id: "top-up",
+    id: "history",
     number: "8",
-    title: "Topping the box up, outside any request",
-    who: "Finance",
+    title: "Read pre-V2 category records",
+    who: "Finance and auditors",
+    lede: "Historical PCR lines, PCRTN lines, PCRAL reallocations, and category-linked ledger entries are retained for audit.",
     steps: [
-      <>Go to <Nav>Finance › Petty Cash Funds</Nav> and open the fund.</>,
-      <>Use the top-up action for a straight replenishment, or the adjustment action to correct a counting error.</>,
+      <>Open an older request or return marked <Field>Legacy category record</Field> to view its original lines and totals.</>,
+      <>Use the ledger and audit trail to follow its historical category movements.</>,
     ],
-    stop: <>The balance updates immediately. Money added this way carries <strong>no category</strong>, so it belongs to no sub-account — use a request when the money is for specific categories.</>,
-  },
-  {
-    id: "category-reallocation",
-    number: "9",
-    title: "The box has enough cash, but the correct category does not",
-    who: "Assistant accountant, then head office",
-    lede: "Do not borrow silently from another category. Request a documented reallocation before spending.",
-    steps: [
-      <>Go to <Nav>Finance › Reallocate Category Balance</Nav> and click <Btn>+ New Reallocation</Btn>.</>,
-      <>Choose the fund, the category with spare balance, and the category that needs it. Enter the amount and explain the business reason.</>,
-      <>Open the draft, attach any supporting evidence, then click <Btn>Submit to Head Office</Btn> and type <Typed>SUBMIT</Typed>.</>,
-      <><em>Head office:</em> check the purpose and any Job Wise impact, then click <Btn>Approve and Post</Btn> and type <Typed>APPROVE</Typed>, or reject it with a reason.</>,
-      <>After approval, release the IOU or settle the voucher against the destination category.</>,
-    ],
-    stop: <>The source has a transfer-out and the destination has an equal transfer-in. The fund total and physical cash do not change.</>,
-    warn: <><strong>Example:</strong> A has 20 and B has 200. Move 200 from B to A; after approval A has 220 and B has 0. Only then spend 220 from A.</>,
-  },
-  {
-    id: "return-to-head-office",
-    number: "10",
-    title: "Returning unused petty cash to head office",
-    who: "Assistant accountant, then head office",
-    lede: "Return the reconciled float by its original funding categories. This is separate from cash returned by an employee against an IOU.",
-    steps: [
-      <>Finish the bills, returned change, settlement, and head-office settlement approval for every IOU in the categories you want to close.</>,
-      <>Go to <Nav>Finance › Return Money to Head Office</Nav> and click <Btn>+ Prepare Return</Btn>.</>,
-      <>Pick the fund. Select each category being returned and enter the amount; the full available balance is filled when you select it. Add the cash-count or period notes.</>,
-      <>Open the prepared return, attach the reconciliation/cash-count evidence, then click <Btn>Submit to Head Office</Btn> and type <Typed>SUBMIT</Typed>.</>,
-      <><em>Head office:</em> count the cash against every category line. Enter the mandatory <Field>Receipt / deposit reference</Field> and click <Btn>Confirm Cash Received</Btn>, or reject it with the discrepancy reason.</>,
-    ],
-    stop: <>Status reads <strong>Received</strong>. Only now does the cash leave the site fund ledger, and every category falls by exactly the amount shown on its return line.</>,
-    warn: <><strong>A category with an open IOU cannot be submitted.</strong> Settle that IOU and obtain head-office approval first, so bills and change are fully accounted before unused float is returned.</>,
+    stop: <>Legacy data stays readable. New category funding, category returns, category reallocations, and direct IOU issue are disabled.</>,
   },
 ];
 
-const refusals: Refusal[] = [
-  { message: "IOU slip 4001 has already been entered", meaning: "That slip number is already in the system.", fix: "Find it in the list. Do not renumber the paper." },
-  { message: "Only draft petty cash requests can be edited", meaning: "It has already been submitted.", fix: "Ask head office to reject it back, or raise another request." },
-  { message: "Approved amount cannot exceed the … requested", meaning: "You typed more than was asked for.", fix: "Reduce it, or have them request the higher figure." },
-  { message: "Funding … exceeds the … still outstanding", meaning: "That line is already fully or partly paid.", fix: "Check the Funded column and release only the remainder." },
-  { message: "No money has been released for '…' yet", meaning: "You are charging to a category head office has not funded.", fix: "Release the money first, or pick another category." },
-  { message: "'…' was funded for a different job order", meaning: "A Job Wise category only accepts that job's spend.", fix: "Pick the category funded for this job." },
-  { message: "Only petty cash vouchers can be charged to a funded category", meaning: "The voucher is Out of Pocket.", fix: "Leave the category empty — this is overspend, and that is correct." },
-  { message: "Petty cash fund does not have enough balance", meaning: "The box is short.", fix: "Top it up, or get a request funded first." },
-  { message: "has only … available after pending returns and reallocations", meaning: "The category, rather than the physical box, lacks uncommitted authorization.", fix: "Reduce the amount, wait for the pending item, or submit a category reallocation for head-office approval." },
-  { message: "Settle and obtain head-office approval for the selected categories' open IOUs", meaning: "At least one selected category still has cash or bills being accounted through an IOU.", fix: "Complete that IOU's bills, cash return, settlement, and head-office approval, then submit the return again." },
+const refusals = [
+  { message: "Settlement is blocked", meaning: "Released cash is not fully covered by accepted bills or returns.", fix: "Add support, return cash, or obtain a documented higher-level exception." },
+  { message: "above the fund advance limit", meaning: "The approved IOU is larger than this fund permits.", fix: "Reduce it or change the fund control through authorized management." },
+  { message: "overdue unsettled advance", meaning: "The collector already has past-due cash outstanding.", fix: "Settle the old advance before releasing another." },
+  { message: "petty-cash authorization is", meaning: "Job actual plus committed petty cash would exceed its limit.", fix: "Reduce/reject the spend or authorize a justified higher job limit." },
+  { message: "accountability exceed the authorized float", meaning: "The replenishment would put cash plus employee advances above the approved imprest.", fix: "Correct the reconciliation or reduce the receipt." },
+  { message: "Select an expense category/account", meaning: "The expense has no posting classification.", fix: "Choose an active posting expense account on every line." },
+  { message: "cost centre is required", meaning: "Non-job petty-cash overhead has no cost owner.", fix: "Enter the workshop/department cost centre." },
+  { message: "Category reallocations are retired", meaning: "PCRAL is not part of V2 petty cash.", fix: "Control the job through its spending authorization and classify the actual expense." },
 ];
 
 function ScenarioCard({ scenario }: { scenario: Scenario }) {
   return (
     <section id={scenario.id} className="scroll-mt-20">
       <Card className="space-y-3 p-4">
-        <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-          <span className="font-mono text-[12px] font-semibold text-[var(--link)]">{scenario.number}</span>
-          <h2 className="text-lg font-semibold tracking-tight text-[var(--foreground)]">{scenario.title}</h2>
-          <span className="ml-auto font-mono text-[11px] uppercase tracking-wide text-[var(--muted-foreground)]">
-            {scenario.who}
-          </span>
+        <div className="flex flex-wrap items-baseline gap-3">
+          <span className="font-mono text-xs font-semibold text-[var(--link)]">{scenario.number}</span>
+          <h2 className="text-lg font-semibold">{scenario.title}</h2>
+          <span className="ml-auto font-mono text-[11px] uppercase text-[var(--muted-foreground)]">{scenario.who}</span>
         </div>
-
-        {scenario.lede ? (
-          <p className="text-[14px] leading-6 text-[var(--muted-foreground)]">{scenario.lede}</p>
-        ) : null}
-
-        <ol className="list-decimal space-y-2 pl-5 text-[14px] leading-6 text-[var(--foreground)]/90">
-          {scenario.steps.map((step, index) => (
-            <li key={index}>{step}</li>
-          ))}
-        </ol>
-
-        <div className="rounded-md border border-[var(--card-border)] border-l-[3px] border-l-[var(--link)] bg-[var(--surface-soft)] px-3 py-2 text-[14px] leading-6">
-          <span className="mr-2 font-mono text-[11px] uppercase tracking-wide text-[var(--link)]">Stop</span>
-          {scenario.stop}
-        </div>
-
-        {scenario.warn ? (
-          <div className="rounded-md border border-red-200 border-l-[3px] border-l-red-500 bg-red-50 px-3 py-2 text-[14px] leading-6 text-red-900 dark:border-red-900/40 dark:bg-red-950/40 dark:text-red-100">
-            {scenario.warn}
-          </div>
-        ) : null}
+        <p className="text-sm leading-6 text-[var(--muted-foreground)]">{scenario.lede}</p>
+        <ol className="list-decimal space-y-2 pl-5 text-sm leading-6">{scenario.steps.map((step, index) => <li key={index}>{step}</li>)}</ol>
+        <div className="rounded-md border border-l-[3px] border-[var(--card-border)] border-l-[var(--link)] bg-[var(--surface-soft)] px-3 py-2 text-sm leading-6"><strong className="mr-2 text-xs uppercase text-[var(--link)]">Stop</strong>{scenario.stop}</div>
+        {scenario.warn ? <div className="rounded-md border border-l-[3px] border-amber-200 border-l-amber-500 bg-amber-50 px-3 py-2 text-sm leading-6 text-amber-900 dark:border-amber-900/40 dark:bg-amber-950/40 dark:text-amber-100">{scenario.warn}</div> : null}
       </Card>
     </section>
   );
@@ -262,90 +185,17 @@ function ScenarioCard({ scenario }: { scenario: Scenario }) {
 export default function PettyCashHelpPage() {
   return (
     <div className="space-y-4">
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight text-[var(--foreground)]">
-            {company.shortName} Petty Cash Help
-          </h1>
-          <p className="text-sm text-[var(--muted-foreground)]">
-            Every situation you will actually meet, with the screen, the button, and the point at which you stop.
-          </p>
-        </div>
-        <Link
-          href="/help"
-          className="rounded-full border border-[var(--card-border)] bg-[var(--surface-soft)] px-3 py-1 text-[12px] font-semibold text-[var(--link)]"
-        >
-          ← Full system help
-        </Link>
+      <div className="flex flex-wrap items-end justify-between gap-2">
+        <div><h1 className="text-2xl font-semibold">{company.shortName} Petty Cash V2 Help</h1><p className="text-sm text-[var(--muted-foreground)]">Fund custody, employee advances, and actual expense classification are separate controls.</p></div>
+        <Link href="/help" className="rounded-full border border-[var(--card-border)] px-3 py-1 text-xs font-semibold text-[var(--link)]">← Full system help</Link>
       </div>
-
       <Card className="space-y-3 p-4">
-        <div>
-          <h2 className="text-lg font-semibold tracking-tight text-[var(--foreground)]">Start with this rule</h2>
-          <p className="mt-1 text-[14px] leading-6 text-[var(--foreground)]/90">
-            An advance is not an expense. Handing someone 1,000 does not cost the company 1,000 — it moves 1,000 from
-            the box into their pocket, and they owe it until a bill says what it bought. That is why job costing reads
-            vouchers and never reads advances.
-          </p>
-          <p className="mt-2 text-[14px] leading-6 text-[var(--foreground)]/90">
-            Where a confirmation box appears you must type the word it shows before the button turns on. That is
-            deliberate: it means cash is about to move.
-          </p>
-        </div>
-        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-6">
-          {quickLinks.map((link) => (
-            <a
-              key={link.href}
-              href={link.href}
-              className="rounded-md border border-[var(--input-border)] bg-[var(--surface)] px-3 py-2 text-[13px] font-semibold text-[var(--link)] shadow-[var(--shadow-control)] transition-colors hover:bg-[var(--surface-soft)]"
-            >
-              {link.label}
-            </a>
-          ))}
-        </div>
+        <h2 className="text-lg font-semibold">Start with this rule</h2>
+        <p className="text-sm leading-6">The petty-cash fund says <strong>where cash is</strong>. The IOU says <strong>who owes it</strong>. The expense voucher says <strong>why it was spent</strong> and carries the job, cost centre, expense account, and billable flag.</p>
+        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-6">{quickLinks.map((link) => <a key={link.href} href={link.href} className="rounded-md border border-[var(--input-border)] px-3 py-2 text-sm font-semibold text-[var(--link)]">{link.label}</a>)}</div>
       </Card>
-
-      {scenarios.map((scenario) => (
-        <ScenarioCard key={scenario.id} scenario={scenario} />
-      ))}
-
-      <section id="refusals" className="scroll-mt-20">
-        <Card className="space-y-4 p-4">
-          <h2 className="text-lg font-semibold tracking-tight text-[var(--foreground)]">If something is refused, this is why</h2>
-          <div className="overflow-x-auto rounded-lg border border-[var(--card-border)]">
-            <Table>
-              <thead>
-                <tr>
-                  <th className="w-72 border-b border-[var(--card-border)] bg-[var(--surface-soft)] px-3 py-2 text-left text-[12px] font-semibold uppercase text-[var(--muted-foreground)]">Message</th>
-                  <th className="border-b border-[var(--card-border)] bg-[var(--surface-soft)] px-3 py-2 text-left text-[12px] font-semibold uppercase text-[var(--muted-foreground)]">What it means</th>
-                  <th className="border-b border-[var(--card-border)] bg-[var(--surface-soft)] px-3 py-2 text-left text-[12px] font-semibold uppercase text-[var(--muted-foreground)]">What to do</th>
-                </tr>
-              </thead>
-              <tbody>
-                {refusals.map((row) => (
-                  <tr key={row.message}>
-                    <td className="border-b border-[var(--card-border)] px-3 py-2 align-top font-mono text-[12px]">{row.message}</td>
-                    <td className="border-b border-[var(--card-border)] px-3 py-2 align-top">{row.meaning}</td>
-                    <td className="border-b border-[var(--card-border)] px-3 py-2 align-top">{row.fix}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </Table>
-          </div>
-        </Card>
-      </section>
-
-      <Card className="space-y-2 p-4 text-[14px] leading-6 text-[var(--foreground)]/90">
-        <h2 className="text-lg font-semibold tracking-tight text-[var(--foreground)]">Two things not to do</h2>
-        <p>
-          Do not click <Btn>Repay from Fund</Btn> on a voucher whose cash you already handed over as an advance — the
-          money would leave the box twice.
-        </p>
-        <p>
-          Do not create a job order called &ldquo;Workshop Expenses&rdquo; for overhead any more. Leave the job blank
-          instead; a voucher with no job is overhead and correctly stays out of job costing.
-        </p>
-      </Card>
+      {scenarios.map((scenario) => <ScenarioCard key={scenario.id} scenario={scenario} />)}
+      <section id="refusals" className="scroll-mt-20"><Card className="space-y-3 p-4"><h2 className="text-lg font-semibold">If an action is refused</h2><div className="overflow-x-auto"><Table><thead><tr><th className="px-3 py-2 text-left">Message</th><th className="px-3 py-2 text-left">Meaning</th><th className="px-3 py-2 text-left">Action</th></tr></thead><tbody>{refusals.map((row) => <tr key={row.message}><td className="border-t px-3 py-2 font-mono text-xs">{row.message}</td><td className="border-t px-3 py-2">{row.meaning}</td><td className="border-t px-3 py-2">{row.fix}</td></tr>)}</tbody></Table></div></Card></section>
     </div>
   );
 }

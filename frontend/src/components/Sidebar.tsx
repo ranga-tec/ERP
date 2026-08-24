@@ -102,7 +102,6 @@ const sections: NavSection[] = [
       { href: "/finance/petty-cash-requests", label: "Petty Cash Requests" },
       { href: "/finance/petty-cash-ious", label: "Petty Cash Advances (IOU)" },
       { href: "/finance/petty-cash-returns", label: "Return Money to Head Office" },
-      { href: "/finance/petty-cash-reallocations", label: "Reallocate Category Balance" },
       { href: "/finance/ar-credit-notes", label: "A/R Credit Notes" },
       { href: "/finance/ap-credit-notes", label: "A/P Credit Notes" },
       { href: "/finance/debit-notes", label: "Debit Notes" },

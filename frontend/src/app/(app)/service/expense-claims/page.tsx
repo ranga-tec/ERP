@@ -26,16 +26,6 @@ type ServiceExpenseClaimSummaryDto = {
 
 type ServiceJobDto = { id: string; number: string; kind: number };
 type PettyCashIouDto = { id: string; number: string; serviceJobId: string; status: number; amount: number };
-type FundedCategoryDto = {
-  id: string;
-  requestNumber: string;
-  category: number;
-  serviceJobId?: string | null;
-  serviceJobNumber?: string | null;
-  customCategoryName?: string | null;
-  purpose: string;
-  fundedAmount: number;
-};
 type CurrentUserPermissionsDto = { userId: string; permissions: string[] };
 
 const statusLabel: Record<number, string> = {
@@ -52,11 +42,10 @@ const fundingSourceLabel: Record<number, string> = {
 };
 
 export default async function ServiceExpenseClaimsPage() {
-  const [claims, jobs, pettyCashIous, fundedCategories, currentUserPermissions] = await Promise.all([
+  const [claims, jobs, pettyCashIous, currentUserPermissions] = await Promise.all([
     backendFetchJson<ServiceExpenseClaimSummaryDto[]>("/service/expense-claims?take=100"),
     backendFetchJson<ServiceJobDto[]>("/service/jobs?take=500"),
     backendFetchJson<PettyCashIouDto[]>("/finance/petty-cash-ious?take=500"),
-    backendFetchJson<FundedCategoryDto[]>("/finance/petty-cash-requests/funded-lines"),
     backendFetchJson<CurrentUserPermissionsDto>("/me/permissions"),
   ]);
 
@@ -78,7 +67,6 @@ export default async function ServiceExpenseClaimsPage() {
             <ServiceExpenseClaimCreateForm
               serviceJobs={jobs}
               pettyCashIous={pettyCashIous}
-              fundedCategories={fundedCategories}
             />
           </AppFormModal>
         ) : null}

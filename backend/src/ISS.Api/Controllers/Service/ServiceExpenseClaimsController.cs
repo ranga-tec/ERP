@@ -49,6 +49,11 @@ public sealed class ServiceExpenseClaimsController(
         decimal Quantity,
         decimal UnitCost,
         bool BillableToCustomer,
+        string? ReceiptReference,
+        bool MissingReceipt,
+        string? MissingReceiptReason,
+        DateTimeOffset? MissingReceiptApprovedAt,
+        Guid? MissingReceiptApprovedByUserId,
         Guid? ConvertedToServiceEstimateId,
         Guid? ConvertedToServiceEstimateLineId,
         DateTimeOffset? ConvertedToEstimateAt,
@@ -66,6 +71,7 @@ public sealed class ServiceExpenseClaimsController(
         string? MerchantName,
         string? ReceiptReference,
         string? Notes,
+        string? CostCenterCode,
         ServiceExpenseClaimStatus Status,
         DateTimeOffset? SubmittedAt,
         DateTimeOffset? ApprovedAt,
@@ -92,21 +98,30 @@ public sealed class ServiceExpenseClaimsController(
         string? Notes,
         Guid? ServiceJobDailySheetId,
         Guid? PettyCashIouId,
-        Guid? PettyCashRequestLineId);
+        Guid? PettyCashRequestLineId,
+        string? CostCenterCode);
 
     public sealed record AddServiceExpenseClaimLineRequest(
         Guid? ItemId,
+        Guid? ExpenseAccountId,
         string Description,
         decimal Quantity,
         decimal UnitCost,
-        bool BillableToCustomer);
+        bool BillableToCustomer,
+        string? ReceiptReference,
+        bool MissingReceipt,
+        string? MissingReceiptReason);
 
     public sealed record UpdateServiceExpenseClaimLineRequest(
         Guid? ItemId,
+        Guid? ExpenseAccountId,
         string Description,
         decimal Quantity,
         decimal UnitCost,
-        bool BillableToCustomer);
+        bool BillableToCustomer,
+        string? ReceiptReference,
+        bool MissingReceipt,
+        string? MissingReceiptReason);
 
     /// <summary>Cash paid straight from the float, with the bill as its only support.</summary>
     public sealed record PayPettyCashDirectlyRequest(
@@ -119,7 +134,11 @@ public sealed class ServiceExpenseClaimsController(
         string? Notes,
         Guid PettyCashFundId,
         Guid? PettyCashRequestLineId,
-        string? PaidByName);
+        string? PaidByName,
+        string? CostCenterCode,
+        Guid? ExpenseAccountId);
+
+    public sealed record ExpenseAccountOptionDto(Guid Id, string Code, string Name);
 
     public sealed record RejectServiceExpenseClaimRequest(string? RejectionReason);
     public sealed record SettleServiceExpenseClaimRequest(Guid? SettlementPaymentTypeId, Guid? SettlementPettyCashFundId, string? SettlementReference);
@@ -179,12 +198,31 @@ public sealed class ServiceExpenseClaimsController(
         return Ok(rows);
     }
 
+    [HttpGet("expense-accounts")]
+    public async Task<ActionResult<IReadOnlyList<ExpenseAccountOptionDto>>> ExpenseAccounts(CancellationToken cancellationToken)
+    {
+        if (!await HasPermissionAsync(AppPermissions.ServiceExpenseClaimView, cancellationToken)) return Forbid();
+
+        return Ok(await dbContext.LedgerAccounts.AsNoTracking()
+            .Where(account => account.AccountType == ISS.Domain.Finance.LedgerAccountType.Expense
+                              && account.IsActive
+                              && account.AllowsPosting)
+            .OrderBy(account => account.Code)
+            .Select(account => new ExpenseAccountOptionDto(account.Id, account.Code, account.Name))
+            .ToListAsync(cancellationToken));
+    }
+
     [HttpPost]
     public async Task<ActionResult<ServiceExpenseClaimDto>> Create(CreateServiceExpenseClaimRequest request, CancellationToken cancellationToken)
     {
         if (!await HasPermissionAsync(AppPermissions.ServiceExpenseClaimCreate, cancellationToken))
         {
             return Forbid();
+        }
+
+        if (request.PettyCashRequestLineId is not null)
+        {
+            return BadRequest("Petty cash category balances were retired in V2. Classify the expense with its expense account, job, and cost centre.");
         }
 
         var userIdValue = User.FindFirstValue(ClaimTypes.NameIdentifier);
@@ -204,42 +242,20 @@ public sealed class ServiceExpenseClaimsController(
             request.ServiceJobDailySheetId,
             request.PettyCashIouId,
             request.PettyCashRequestLineId,
+            request.CostCenterCode,
             cancellationToken);
 
         return await Get(id, cancellationToken);
     }
 
     [HttpPost("pay-directly")]
-    public async Task<ActionResult<ServiceExpenseClaimDto>> PayDirectly(
+    public ActionResult<ServiceExpenseClaimDto> PayDirectly(
         PayPettyCashDirectlyRequest request,
         CancellationToken cancellationToken)
     {
-        // Paying cash out is a settlement, not a claim, so it is gated on Settle rather than Create.
-        if (!await HasPermissionAsync(AppPermissions.ServiceExpenseClaimSettle, cancellationToken))
-        {
-            return Forbid();
-        }
-
-        var userIdValue = User.FindFirstValue(ClaimTypes.NameIdentifier);
-        var paidByUserId = Guid.TryParse(userIdValue, out var parsedUserId) ? parsedUserId : (Guid?)null;
-        var fallbackName = User.Identity?.Name ?? User.FindFirstValue(ClaimTypes.Email) ?? "Unknown";
-        var paidByName = string.IsNullOrWhiteSpace(request.PaidByName) ? fallbackName : request.PaidByName.Trim();
-
-        var id = await serviceManagementService.PayPettyCashDirectlyAsync(
-            request.ServiceJobId,
-            paidByUserId,
-            paidByName,
-            request.Description,
-            request.Amount,
-            request.BillableToCustomer,
-            request.MerchantName,
-            request.ReceiptReference,
-            request.Notes,
-            request.PettyCashFundId,
-            request.PettyCashRequestLineId,
-            cancellationToken);
-
-        return await Get(id, cancellationToken);
+        return StatusCode(
+            StatusCodes.Status410Gone,
+            "Immediate pay-and-post was retired. Create a voucher, attach receipt evidence per line, submit, approve, and then settle it against the fund.");
     }
 
     [HttpGet("{id:guid}")]
@@ -281,6 +297,7 @@ public sealed class ServiceExpenseClaimsController(
             claim.MerchantName,
             claim.ReceiptReference,
             claim.Notes,
+            claim.CostCenterCode,
             claim.Status,
             claim.SubmittedAt,
             claim.ApprovedAt,
@@ -304,6 +321,11 @@ public sealed class ServiceExpenseClaimsController(
                 line.Quantity,
                 line.UnitCost,
                 line.BillableToCustomer,
+                line.ReceiptReference,
+                line.MissingReceipt,
+                line.MissingReceiptReason,
+                line.MissingReceiptApprovedAt,
+                line.MissingReceiptApprovedByUserId,
                 line.ConvertedToServiceEstimateId,
                 line.ConvertedToServiceEstimateLineId,
                 line.ConvertedToEstimateAt,
@@ -337,7 +359,11 @@ public sealed class ServiceExpenseClaimsController(
             request.Quantity,
             request.UnitCost,
             request.BillableToCustomer,
-            cancellationToken);
+            cancellationToken,
+            request.ExpenseAccountId,
+            request.ReceiptReference,
+            request.MissingReceipt,
+            request.MissingReceiptReason);
         return NoContent();
     }
 
@@ -357,6 +383,35 @@ public sealed class ServiceExpenseClaimsController(
             request.Quantity,
             request.UnitCost,
             request.BillableToCustomer,
+            cancellationToken,
+            request.ExpenseAccountId,
+            request.ReceiptReference,
+            request.MissingReceipt,
+            request.MissingReceiptReason);
+        return NoContent();
+    }
+
+    [HttpPost("{id:guid}/lines/{lineId:guid}/approve-missing-receipt")]
+    public async Task<ActionResult> ApproveMissingReceipt(
+        Guid id,
+        Guid lineId,
+        CancellationToken cancellationToken)
+    {
+        if (!await HasPermissionAsync(AppPermissions.PettyCashReceiptExceptionApprove, cancellationToken))
+        {
+            return Forbid();
+        }
+
+        var userIdValue = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (!Guid.TryParse(userIdValue, out var approvedByUserId))
+        {
+            return Unauthorized();
+        }
+
+        await serviceManagementService.ApproveMissingReceiptExceptionAsync(
+            id,
+            lineId,
+            approvedByUserId,
             cancellationToken);
         return NoContent();
     }
